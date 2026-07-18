@@ -44,6 +44,11 @@ model User {
 
   refreshTokens        RefreshToken[]
   accessibilityProfile AccessibilityProfile?
+  seekerProfile        SeekerProfile?
+  experiences          Experience[]
+  educations           Education[]
+  skills               Skill[]
+  resumes              Resume[]
 
   @@map("users")
 }
@@ -88,8 +93,7 @@ model AccessibilityProfile {
 
 /// Append-only (SDD §6.3): SENGAJA tanpa relasi FK ke users — jejak audit
 /// harus tahan penghapusan akun (actorId menunjuk id historis). Enforcement
-/// no-UPDATE/DELETE via grant DB role aplikasi = PR-097. BRIN created_at via
-/// raw SQL.
+/// no-UPDATE/DELETE via grant DB role aplikasi = PR-097.
 model AuditLog {
   id        String   @id @db.Uuid
   /// NULL = aksi sistem (job, migrasi); selain itu id user historis.
@@ -100,5 +104,119 @@ model AuditLog {
   meta      Json     @default("{}")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  // Dideklarasikan di schema (bukan raw SQL) sejak PR-010: Prisma 5 mendukung
+  // BRIN — kalau hanya raw SQL, setiap migrasi berikutnya menganggapnya drift
+  // dan men-generate DROP INDEX. `map` menjaga nama index migrasi 01.
+  @@index([createdAt], map: "audit_logs_created_at_brin", type: Brin)
   @@map("audit_logs")
+}
+
+// ===== Migrasi 02 (PR-010): domain seeker (SDD §6.2, PRD §10) =====
+
+/// Kontrol disclosure data disabilitas per lamaran (default profil).
+enum DisclosureDefault {
+  never
+  ask_each_time
+  always
+}
+
+enum ResumeCreatedVia {
+  ai_chat
+  manual
+}
+
+/// Profil pencari kerja. Kolom sensitif (disability_types,
+/// accommodation_needs) = bytea CIPHERTEXT AES-256-GCM `iv‖tag‖data` dengan
+/// prefix versi kunci (SDD §6.2/§6.5; util enkripsi = PR-013). Konsekuensi
+/// sadar: TIDAK bisa di-query SQL — dekripsi hanya di service layer;
+/// matching membaca kebutuhan akomodasi di memori pada kandidat top-N.
+model SeekerProfile {
+  userId       String  @id @map("user_id") @db.Uuid
+  headline     String?
+  summary      String?
+  city         String?
+  province     String?
+  openToRemote Boolean @default(false) @map("open_to_remote")
+
+  /// CIPHERTEXT (bytea) — data pribadi spesifik UU PDP. JANGAN log/serialisasi.
+  disabilityTypes    Bytes? @map("disability_types")
+  /// CIPHERTEXT (bytea) — sda.
+  accommodationNeeds Bytes? @map("accommodation_needs")
+
+  disclosureDefault DisclosureDefault @default(ask_each_time) @map("disclosure_default")
+  /// Bukti consent EKSPLISIT terpisah untuk data sensitif (UU PDP 27/2022).
+  consentSensitiveAt DateTime? @map("consent_sensitive_at") @db.Timestamptz(6)
+
+  /// pgvector — akses HANYA via repo matching dengan $queryRaw ber-parameter
+  /// (Prisma tidak mendukung tipe vector; indeks HNSW dibuat raw SQL di
+  /// file migrasi). Jangan select kolom ini lewat Prisma Client biasa.
+  profileEmbedding Unsupported("vector(768)")? @map("profile_embedding")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seeker_profiles")
+}
+
+model Experience {
+  id          String    @id @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  title       String
+  company     String?
+  /// Tanggal tanpa jam/zona — riwayat kerja tidak butuh presisi waktu.
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("experiences")
+}
+
+model Education {
+  id          String  @id @db.Uuid
+  userId      String  @map("user_id") @db.Uuid
+  institution String
+  degree      String?
+  field       String?
+  year        Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("educations")
+}
+
+model Skill {
+  id     String  @id @db.Uuid
+  userId String  @map("user_id") @db.Uuid
+  name   String
+  /// Leveling belum diputuskan produk — teks bebas dulu; persempit nanti
+  /// via expand→contract (prisma/README.md).
+  level  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("skills")
+}
+
+/// CV terstruktur (content jsonb); render PDF async oleh worker (Fase PDF).
+model Resume {
+  id         String           @id @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  title      String
+  content    Json             @default("{}")
+  pdfUrl     String?          @map("pdf_url")
+  createdVia ResumeCreatedVia @default(manual) @map("created_via")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("resumes")
 }
