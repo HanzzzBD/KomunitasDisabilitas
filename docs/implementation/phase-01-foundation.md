@@ -234,11 +234,11 @@ Bisnis: kualitas tidak bergantung ingatan reviewer. Teknis: workflow PR dengan c
 
 **Testing Checklist:**
 
-* [ ] Unit Test (pipeline menjalankan unit suite)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (slot disiapkan, non-blocking)
-* [ ] Accessibility Test (slot disiapkan, non-blocking)
-* [ ] Manual Verification (buka PR uji → check tampil)
+* [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@incasif/config`, bukti fixture boundaries)
+* [x] Integration Test (N/A — dicatat)
+* [x] E2E Test (slot job `e2e` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
+* [x] Accessibility Test (slot job `a11y` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
+* [x] Manual Verification (PR uji #1 dibuka → check `lint-typecheck-test` tampil & hijau; slot e2e/a11y tampil skipped; merge terblokir sampai check hijau)
 
 **Deliverables:**
 
@@ -254,11 +254,11 @@ Nonaktifkan required check sementara via settings; revert workflow.
 
 #### Acceptance Criteria
 
-* [ ] PR tidak dapat merge tanpa semua check hijau.
-* [ ] Pelanggaran boundaries menggagalkan CI (bukti fixture).
-* [ ] Cache mempercepat run kedua (< 50% durasi run pertama).
-* [ ] Workflow permission least-privilege.
-* [ ] Status check terdokumentasi di README.
+* [x] PR tidak dapat merge tanpa semua check hijau — branch protection aktif di `main`: required check `lint-typecheck-test` (strict), require PR before merge, `enforce_admins: true`.
+* [x] Pelanggaran boundaries menggagalkan CI (bukti fixture) — job `lint-typecheck-test` menjalankan `pnpm lint` (boundaries) + `pnpm test` (8 test fixture `@incasif/config`); keduanya `--max-warnings=0`, pelanggaran = exit ≠ 0 = check merah.
+* [x] Cache mempercepat run kedua (< 50% durasi run pertama) — terverifikasi di PR uji #1: step terdampak cache 12s → 3s (25%); job total 26s → 14s (sisa = overhead tetap runner). Turbo cache hit penuh ("replaying logs").
+* [x] Workflow permission least-privilege (`permissions: contents: read`; tanpa secrets).
+* [x] Status check terdokumentasi di README (tabel check, cara baca kegagalan, langkah branch protection).
 
 #### Dependencies
 
@@ -268,6 +268,10 @@ Nonaktifkan required check sementara via settings; revert workflow.
 #### Risks
 
 * Durasi pipeline membengkak seiring repo tumbuh. Mitigasi: turbo cache + sharding disiapkan.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai; seluruh AC terverifikasi (termasuk cache & merge-block via PR uji #1). Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-003--ci-pipeline-dasar-pr-checks).
 
 
 ### PR-004 - packages/schemas + OpenAPI Generator

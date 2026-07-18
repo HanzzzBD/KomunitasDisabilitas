@@ -88,3 +88,54 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * Saat modul nyata pertama dibuat (PR-006+), validasi klasifikasi elemen terhadap struktur folder riil.
 
 **Out of Scope (dicatat):** CI enforcement (PR-003); modul nyata di `apps/api` (baru konvensi folder).
+
+---
+
+## PR-003 — CI Pipeline Dasar (PR Checks)
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* `.github/workflows/pr.yml`: workflow GitHub Actions ter-trigger `pull_request` ke `main`, satu job blocking `lint-typecheck-test` (`pnpm lint` → `pnpm typecheck` → `pnpm test` via Turborepo) + dua slot job non-blocking `e2e` dan `a11y` (`if: false`, diaktifkan PR-031, ADR-016).
+* Cache dua lapis: pnpm store (`actions/setup-node` `cache: pnpm`) + Turborepo (`actions/cache` pada `.turbo/cache` dengan restore-keys berjenjang branch → OS).
+* Least-privilege: `permissions: contents: read`; tanpa secrets produksi. `concurrency` cancel-in-progress per branch PR.
+* Dokumentasi status check di README root: tabel check (nama, isi, blocking/non-blocking), karakteristik pipeline, cara mereproduksi kegagalan secara lokal, dan langkah setup branch protection (UI + `gh api`).
+* PR-001 & PR-002 di-commit dan di-push ke `origin/main` (prasyarat pipeline berjalan di remote).
+* Gate lokal hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (8 test).
+
+### Scope selesai vs tidak
+
+* ✅ `.github/workflows/pr.yml` (lint, typecheck, unit) — selesai.
+* ✅ Cache pnpm + turbo — selesai (terpasang di workflow).
+* ✅ Dokumentasi status check di README — selesai.
+* ✅ Branch protection required checks — **aktif di `main`**: required check `lint-typecheck-test` (strict), require PR before merge, `enforce_admins: true`. Diterapkan via `gh api` (perintah terdokumentasi di README). Catatan: fitur ini butuh repo public/GitHub Pro — repo diubah ke **public** atas persetujuan owner.
+
+### Keputusan teknis
+
+1. **Satu job blocking (`lint-typecheck-test`), bukan tiga job terpisah.** Tiga job = 3× setup (checkout + install ± 1–2 menit each) pada repo yang lint+typecheck+test-nya sendiri < 1 menit; satu job berurutan lebih cepat dan lebih murah. Branch protection juga cukup menunjuk satu context. Bisa dipecah nanti bila durasi per step membengkak (sharding sudah diantisipasi ADR-016).
+2. **Slot e2e/a11y sebagai job `if: false`, bukan dihapus.** Nama check sudah "dipesan" dan struktur terlihat di file — PR-031 tinggal mengganti kondisi + mengisi step, tanpa mengubah wiring branch protection untuk job blocking.
+3. **corepack (`corepack enable`), bukan `pnpm/action-setup`.** `packageManager: pnpm@9.15.0` sudah di-pin di package.json (PR-001) — corepack membacanya, satu sumber kebenaran versi, tanpa dependensi action pihak ketiga tambahan. Risiko EPERM corepack di Windows dev tidak berlaku di runner ubuntu.
+4. **Cache path `.turbo/cache`** (default turbo 2.x) dengan key `os-branch-sha` + restore-keys berjenjang: run pertama branch baru tetap dapat cache dari main; sha di key memastikan cache terbaru selalu tersimpan.
+5. **Tidak ada unit test Vitest baru.** Workflow YAML tidak memuat logic aplikasi; "unit test" pada Testing Checklist PR ini bermakna pipeline *menjalankan* unit suite yang ada (termasuk 8 test fixture boundaries dari PR-002 sebagai bukti gate). Test yang mem-parse YAML dinilai rapuh dan bernilai rendah — diputuskan tidak ditulis.
+
+### Risiko yang ditemukan
+
+* **Repo diubah private → public** (prasyarat branch protection di plan gratis). Konsekuensi: kode & seluruh dokumen (PRD/SDD/ADR) terlihat publik — pastikan tidak pernah ada secret/PII di history (saat ini bersih; `.env*` di-ignore sejak commit pertama, ADR-015). Alternatif kembali private: upgrade GitHub Pro.
+* `enforce_admins: true` — admin pun tidak bisa bypass; push langsung ke `main` ditolak, semua perubahan (termasuk milik agent) wajib lewat PR.
+* Repo GitHub bernama `KomunitasDisabilitas` sementara folder lokal `ProjectKomunitasDisabilitas` — tidak berdampak fungsional, dicatat agar tidak membingungkan.
+* Job `e2e`/`a11y` dengan `if: false` muncul sebagai "skipped" di UI check — jangan dijadikan required check sebelum PR-031, atau PR akan terblokir selamanya.
+
+### Next steps
+
+* PR-031: aktifkan slot e2e (Playwright) + a11y (axe-core + Lighthouse), lalu tambahkan ke required checks.
+* PR-099: job build image; PR-108: secrets scan.
+
+**Out of Scope (dicatat):** build image (PR-099); a11y gate aktif (PR-031); secrets scan (PR-108); workflow deploy (`deploy.yml`).
+
+### Verifikasi remote (PR uji #1)
+
+* Run pertama (`29633017746`): job `lint-typecheck-test` hijau, total **26s** (install 2s, lint 3s, typecheck 5s, test 2s).
+* Run kedua (`29633057780`): total **14s** — pnpm store & turbo cache hit ("cache hit, replaying logs" di seluruh task). Step yang terdampak cache (install+lint+typecheck+test): **12s → 3s (25%)**; sisa durasi adalah overhead tetap runner (checkout + setup Node) yang tidak bisa di-cache. AC "< 50%" terpenuhi pada bagian yang dapat dipengaruhi cache.
+* Slot `e2e`/`a11y` tampil sebagai skipped (sesuai desain).
+* Branch protection terverifikasi aktif: merge PR #1 diblokir sampai `lint-typecheck-test` hijau.

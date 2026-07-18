@@ -140,14 +140,7 @@ module.exports = {
           },
           {
             // Semua elemen SELAIN core-ai dilarang impor SDK AI langsung.
-            from: [
-              "core",
-              "router",
-              "controller",
-              "service",
-              "repository",
-              "module-shared",
-            ],
+            from: ["core", "router", "controller", "service", "repository", "module-shared"],
             disallow: ["@google/generative-ai", "groq-sdk", "openai"],
             message: "Impor SDK AI hanya diizinkan di core/ai (AI Gateway, ADR-012).",
           },

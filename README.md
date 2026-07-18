@@ -68,6 +68,43 @@ Berlaku untuk semua PR (detail di [CLAUDE.md](./CLAUDE.md) dan [docs/implementat
 - **No PII/secret** — tidak ada PII atau secret di log maupun kode; `.env*` tidak pernah di-commit (lihat `.gitignore`).
 - **Ukuran PR** — target < 500 LOC.
 
+## CI — Status Check per PR
+
+Setiap PR ke `main` menjalankan workflow [`.github/workflows/pr.yml`](./.github/workflows/pr.yml) (GitHub Actions, ADR-016). Check **wajib hijau sebelum merge** (branch protection):
+
+| Status check                    | Isi                                                                                                                       | Blocking?       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `lint-typecheck-test`           | `pnpm lint` (termasuk **boundaries** — pelanggaran arsitektur = merah) → `pnpm typecheck` (strict) → `pnpm test` (Vitest) | ✅ Wajib        |
+| `e2e (slot — aktif di PR-031)`  | Slot Playwright — belum berjalan                                                                                          | ⏸ Non-blocking |
+| `a11y (slot — aktif di PR-031)` | Slot axe-core + Lighthouse CI — belum berjalan                                                                            | ⏸ Non-blocking |
+
+Karakteristik pipeline:
+
+- **Cache**: pnpm store (via `actions/setup-node`) + Turborepo (`.turbo/cache` via `actions/cache`) — run kedua dengan input sama jauh lebih cepat.
+- **Least-privilege**: `permissions: contents: read`; tanpa secrets produksi.
+- **Concurrency**: push baru ke branch PR yang sama membatalkan run lama.
+
+Kalau check merah: buka tab **Checks** di PR → lihat step yang gagal → jalankan perintah yang sama secara lokal (`pnpm lint` / `pnpm typecheck` / `pnpm test`) untuk mereproduksi.
+
+### Branch protection (setup sekali, admin repo)
+
+Settings → Branches → Add branch ruleset/protection rule untuk `main`:
+
+1. ✅ Require a pull request before merging
+2. ✅ Require status checks to pass before merging → pilih **`lint-typecheck-test`**
+3. ✅ Require branches to be up to date before merging (opsional, disarankan)
+
+Atau via CLI (`gh auth login` dulu):
+
+```bash
+gh api -X PUT repos/{owner}/{repo}/branches/main/protection \
+  -F 'required_status_checks[strict]=true' \
+  -f 'required_status_checks[checks][][context]=lint-typecheck-test' \
+  -F enforce_admins=true \
+  -F 'required_pull_request_reviews[required_approving_review_count]=0' \
+  -F restrictions=null
+```
+
 ## Secrets & Environment
 
 - Development: salin `.env.example` → `.env.local`, isi nilai lokal. File `.env*` di-ignore git (ADR-015).
