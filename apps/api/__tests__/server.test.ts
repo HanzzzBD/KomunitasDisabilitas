@@ -74,8 +74,10 @@ describe("createServer — boot & shutdown (integration)", () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       );
     }
+    // Sejak PR-007 satu request bisa menghasilkan >1 baris (completion +
+    // warn 404) yang BERBAGI requestId sama — yang unik adalah per request.
     const ids = new Set(requestLines.map((l) => l.requestId));
-    expect(ids.size).toBe(requestLines.length); // 2 request → 2 id berbeda
+    expect(ids.size).toBe(2); // 2 request → 2 id berbeda
   });
 
   it("header Authorization pada request nyata tidak muncul di log (redaction end-to-end)", async () => {

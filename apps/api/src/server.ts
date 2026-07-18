@@ -1,12 +1,16 @@
-// Bootstrap server Express (PR-006) — start/stop bersih.
-//
-// SENGAJA minim: belum ada route, error handler custom, maupun koneksi
-// DB/Redis — itu scope PR-007 (core/http) dan PR-008 (compose + health).
-// Fokus PR ini: proses hidup-mati yang benar + logging fondasi.
+// Bootstrap server Express — start/stop bersih (PR-006) + middleware stack
+// baku core/http (PR-007). Koneksi DB/Redis & health = PR-008.
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import type { Env } from "./core/config/index.js";
 import { createHttpLogger, type Logger } from "./core/logger/index.js";
+import {
+  createHelmet,
+  createCors,
+  createGlobalRateLimit,
+  notFoundHandler,
+  errorHandler,
+} from "./core/http/index.js";
 
 export interface ApiServer {
   app: Express;
@@ -16,13 +20,31 @@ export interface ApiServer {
   stop(): Promise<void>;
 }
 
-export function createServer(env: Env, logger: Logger): ApiServer {
+export interface CreateServerOptions {
+  /** Titik mount router modul (dipanggil sebelum notFound/errorHandler). */
+  routes?: (app: Express) => void;
+}
+
+export function createServer(
+  env: Env,
+  logger: Logger,
+  options: CreateServerOptions = {},
+): ApiServer {
   const app = express();
 
-  // Urutan middleware fondasi. helmet/CORS/rate-limit menyusul PR-007.
+  // Urutan middleware baku (PR-007): security → logging → parsing → routes
+  // → 404 → error handler. Jangan ubah urutan tanpa membaca SDD §5.3.
   app.disable("x-powered-by");
+  app.use(createHelmet());
+  app.use(createCors(env));
+  app.use(createGlobalRateLimit(env));
   app.use(createHttpLogger(logger));
   app.use(express.json({ limit: "1mb" }));
+
+  options.routes?.(app); // router modul (PR-008+: health; PR-016+: auth; dst.)
+
+  app.use(notFoundHandler);
+  app.use(errorHandler(logger));
 
   let server: Server | null = null;
 

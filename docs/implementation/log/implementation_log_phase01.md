@@ -281,3 +281,53 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-013: validasi `FIELD_KEY_V1` saat boot (core/crypto) — melengkapi janji "fail-fast kunci enkripsi kosong".
 
 **Out of Scope (dicatat):** error envelope & middleware HTTP (PR-007); health endpoints & koneksi DB/Redis (PR-008); validasi kunci crypto (PR-013); Sentry (ADR-017, Fase 2).
+
+---
+
+## PR-007 — core/http — Envelope, asyncHandler, Helmet, Rate Limit Global
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* `core/http` lengkap — middleware stack baku seluruh modul (SDD §5.3, §8.4):
+  * **`errors.ts`** — `ERROR_CATALOG` terpusat 7 kode: `VALIDATION_ERROR` (400), `JSON_TIDAK_VALID` (400), `TIDAK_TERAUTENTIKASI` (401), `TIDAK_BERHAK` (403), `RUTE_TIDAK_DITEMUKAN` (404), `TERLALU_BANYAK_PERMINTAAN` (429), `TERJADI_KESALAHAN` (500) — semua message+hint Bahasa Indonesia sederhana; `AppError`/`appError(code)` cara baku melempar error dari layer mana pun.
+  * **`handlers.ts`** — `notFoundHandler` + `errorHandler` global: AppError → envelope katalog; ZodError → 400 `VALIDATION_ERROR` (hint menyebut field); body-parser rusak → 400 `JSON_TIDAK_VALID`; lainnya → 500. **Stack/detail internal hanya ke log ber-requestId — tidak pernah ke klien.**
+  * **`async-handler.ts`** — propagasi rejection handler async (mitigasi ADR-002).
+  * **`validate.ts`** — `validate({body?, query?, params?})` dengan skema zod dari `packages/schemas`; req.\* diganti hasil parse (typed).
+  * **`security.ts`** — helmet dasar (nosniff, frame DENY; CSP off → PR-105; HSTS off → urusan edge), CORS whitelist exact-match dari `CORS_ORIGINS`, rate limit global per IP (`RATE_LIMIT_MAX`/`RATE_LIMIT_WINDOW_MS`, memory store) dengan handler 429 → envelope + `Retry-After`.
+* `server.ts` — urutan baku: helmet → CORS → rate limit → httpLogger → json → routes (hook `options.routes`) → notFound → errorHandler.
+* Env baru: `CORS_ORIGINS` (default `http://localhost:5173`), `RATE_LIMIT_MAX` (300), `RATE_LIMIT_WINDOW_MS` (60000) + `.env.example`.
+* 14 test baru (40 total apps/api; 73 workspace); manual curl: 404/JSON-rusak/429+Retry-After/headers — semua envelope katalog.
+
+### Scope selesai vs tidak
+
+* ✅ Error handler global + mapping error → envelope — selesai.
+* ✅ `asyncHandler` + notFound handler — selesai.
+* ✅ helmet + CORS whitelist + express-rate-limit — selesai (memory store; Redis store PR-008 sesuai scope).
+* Tambahan atas permintaan review plan: kode 401 `TIDAK_TERAUTENTIKASI` + 403 `TIDAK_BERHAK`; assertion requestId di integration test.
+
+### Keputusan teknis
+
+1. **Katalog `as const satisfies Record<string, CatalogEntry>`** — kode & status literal ter-typecheck; `appError("KODE_SALAH")` = compile error. Ini implementasi mitigasi risiko "katalog tidak disiplin" di level tipe, melengkapi rencana lint literal.
+2. **Inline snapshot untuk katalog & headers helmet** — perubahan pesan error atau security header selalu muncul eksplisit di diff review, tidak bisa berubah diam-diam.
+3. **Nama kode berbahasa Indonesia** (`TIDAK_BERHAK`, dst.) mengikuti preseden `JARINGAN_GAGAL` (api-client); `VALIDATION_ERROR` dipertahankan karena sudah dipakai CLAUDE.md & schemas sebagai contoh.
+4. **`createServer(options.routes)` sebagai titik mount router** — router modul dipasang sebelum notFound/errorHandler tanpa mengubah wiring; test memakai hook yang sama (route uji tidak pernah ada di kode produksi).
+5. **CSP & HSTS sengaja dimatikan di helmet** — CSP ketat butuh inventaris aset FE (PR-105); HSTS/TLS urusan Cloudflare/Nginx (SDD §4). Frame-deny + nosniff tetap aktif.
+6. **CORS origin asing → request tetap 200 tanpa header CORS** (bukan 403) — sesuai model CORS browser; server-to-server/curl tanpa Origin tetap dilayani.
+7. **`errorHandler` cek `res.headersSent`** — response yang sudah mengalir (mis. SSE nanti) tidak ditimpa envelope.
+
+### Risiko yang ditemukan
+
+* Rate limit memory store bersifat per proses — dua replicas (SDD §19) = limit efektif 2×; beres saat Redis store (PR-008). `trust proxy` juga belum diaktifkan: di belakang Nginx semua request terlihat dari satu IP — WAJIB set `TRUST_PROXY` saat deploy (PR-099), kalau tidak rate limit akan memblokir semua pengguna sekaligus.
+* express-rate-limit memvalidasi konfigurasi saat request pertama, bukan saat boot — salah konfigurasi baru ketahuan saat traffic. Mitigasi ringan: nilai dari env sudah tervalidasi zod.
+* Lint anti string-literal kode error (mitigasi phase file) belum dibuat — tipe TS sudah menutup sebagian besar celah; aturan eslint khusus bisa menyusul bila muncul pelanggaran nyata.
+
+### Next steps
+
+* PR-008: Redis store express-rate-limit + `trust proxy` env + health endpoints memakai `asyncHandler`.
+* PR-016: rate limit khusus OTP (3/nomor/jam, SDD §8.4) di atas fondasi ini.
+* PR-105: CSP ketat final + limit per endpoint.
+* Modul fitur: SELALU `appError("KODE")` — tambah kode baru ke katalog, jangan string literal / res.status manual.
+
+**Out of Scope (dicatat):** CSP final & limit per endpoint (PR-105); rate limit OTP khusus (PR-016); Redis store rate limit (PR-008).

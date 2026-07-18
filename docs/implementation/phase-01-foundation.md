@@ -550,11 +550,11 @@ Bisnis: pesan error ramah pengguna disabilitas (dibaca screen reader). Teknis: e
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapper error)
-* [ ] Integration Test (throw async → envelope; 429)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A — pesan diuji di FE)
-* [ ] Manual Verification (curl error paths)
+* [x] Unit Test (mapper error — katalog lolos errorCodeSchema, status/message/hint terisi, inline snapshot, AppError override, asyncHandler → next)
+* [x] Integration Test (throw async → envelope 500 tanpa bocor + proses hidup; 429 + Retry-After; validate body/query; JSON rusak → 400; 404; helmet snapshot; CORS whitelist vs asing; requestId di baris error)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — pesan diuji di FE)
+* [x] Manual Verification (curl: 404, JSON rusak, 429 ber-Retry-After, headers helmet — semua envelope katalog)
 
 **Deliverables:**
 
@@ -570,11 +570,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Error async tertangkap → envelope (tidak crash proses).
-* [ ] `message` semua error teruji berbahasa Indonesia sederhana (katalog kode error).
-* [ ] 429 dikembalikan dengan `Retry-After`.
-* [ ] Stack trace hanya ke logger, tidak ke klien.
-* [ ] Security headers dasar terpasang (helmet snapshot).
+* [x] Error async tertangkap → envelope (tidak crash proses) — `asyncHandler` → error handler global; test: setelah 500, request berikutnya tetap dilayani.
+* [x] `message` semua error teruji berbahasa Indonesia sederhana (katalog kode error) — `ERROR_CATALOG` terpusat 7 kode (+`TIDAK_TERAUTENTIKASI` 401, `TIDAK_BERHAK` 403 sesuai review); test: format kode via `errorCodeSchema`, message+hint wajib terisi, inline snapshot agar perubahan pesan selalu ke-review.
+* [x] 429 dikembalikan dengan `Retry-After` — handler kustom express-rate-limit → envelope + header; diuji integration & curl.
+* [x] Stack trace hanya ke logger, tidak ke klien — test: response 500 tidak memuat pesan internal, baris log error memuatnya + ber-requestId.
+* [x] Security headers dasar terpasang (helmet snapshot) — inline snapshot: nosniff, frame DENY, referrer-policy, CORP, tanpa x-powered-by. CSP ketat & HSTS sengaja off (PR-105 / urusan edge).
 
 #### Dependencies
 
@@ -583,6 +583,10 @@ RB-Std.
 #### Risks
 
 * Katalog kode error tidak disiplin. Mitigasi: enum kode terpusat, lint penggunaan string literal.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-007--corehttp--envelope-asynchandler-helmet-rate-limit-global).
 
 
 ### PR-008 - Docker Compose Dev + Health Endpoints
