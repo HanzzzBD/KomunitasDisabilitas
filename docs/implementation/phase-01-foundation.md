@@ -471,11 +471,11 @@ Bisnis: kegagalan konfigurasi ketahuan saat deploy, bukan saat user memakai. Tek
 
 **Testing Checklist:**
 
-* [ ] Unit Test (config parse, redaction)
-* [ ] Integration Test (boot + shutdown)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (boot dengan env rusak)
+* [x] Unit Test (config parse, redaction — 21 test: fail-fast per variabel, default, coerce PORT, 10 field redaction + nested + non-sensitif tak ter-redact)
+* [x] Integration Test (boot + shutdown — 5 test: HTTP nyata port ephemeral, requestId per baris, redaction end-to-end header nyata, SIGTERM/SIGINT via emit, stop idempotent)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (boot env kosong → exit 1 + pesan menyebut DATABASE_URL/REDIS_URL; boot env valid → "API siap menerima koneksi" bootMs=8)
 
 **Deliverables:**
 
@@ -491,11 +491,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Env wajib kosong → exit code ≠ 0 dengan pesan variabel mana yang hilang.
-* [ ] Log JSON memuat requestId di setiap baris request-scoped.
-* [ ] Redaction test: nilai secret tidak muncul di output.
-* [ ] Graceful shutdown (SIGTERM) menutup server bersih.
-* [ ] Boot < 3 detik di dev.
+* [x] Env wajib kosong → exit code ≠ 0 dengan pesan variabel mana yang hilang — `EnvError` mendaftar `[variabel, alasan]`; entry point cetak + exit 1 (diverifikasi manual: exit 1, pesan menyebut DATABASE_URL & REDIS_URL + rujukan .env.example).
+* [x] Log JSON memuat requestId di setiap baris request-scoped — pino-http `genReqId` uuid v4; test integration: 2 request → 2 requestId berbeda, semua baris request-scoped ber-requestId.
+* [x] Redaction test: nilai secret tidak muncul di output — deny list 10 kunci (authorization, cookie, otp, password, token, accessToken, refreshToken, fieldKey, apiKey, secret) level atas + bersarang + header req; diuji unit & end-to-end (header Authorization request nyata tidak menyentuh log).
+* [x] Graceful shutdown (SIGTERM) menutup server bersih — `registerShutdownHooks` (SIGTERM/SIGINT, anti-double-stop, exit 0/1); diuji via `process.emit`. Catatan: kill di Windows dev = hard-terminate (sinyal POSIX tidak sampai — keterbatasan OS, bukan kode); efektif di Linux/Docker target deploy.
+* [x] Boot < 3 detik di dev — diukur di test integration (< 3000ms); boot manual nyata: bootMs=8.
 
 #### Dependencies
 
@@ -505,6 +505,10 @@ RB-Std.
 #### Risks
 
 * Redaction list tidak lengkap. Mitigasi: deny-by-default untuk kunci baru bermuatan credential + review PR-013/014.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-006--api-bootstrap--coreconfig--corelogger).
 
 
 ### PR-007 - core/http — Envelope, asyncHandler, Helmet, Rate Limit Global

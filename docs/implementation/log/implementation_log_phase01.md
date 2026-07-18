@@ -235,3 +235,49 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * Endpoint baru selalu ikuti pola `src/endpoints/auth.ts` (skema dari @incasif/schemas, validasi body, responseSchema).
 
 **Out of Scope (dicatat):** implementasi refresh nyata (PR-018); hooks TanStack per endpoint (per PR fitur); integrasi ke apps web/mobile.
+
+---
+
+## PR-006 — API Bootstrap — core/config + core/logger
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* `apps/api` hidup (dari placeholder): bootstrap Express dengan dua modul core pertama sesuai SDD §5.1 (ADR-002 — DI manual via factory function).
+* **`src/core/config/env.ts`** — skema env zod: wajib `DATABASE_URL`/`REDIS_URL` (URL valid), default `NODE_ENV`/`HOST`/`PORT` (coerce 0–65535)/`LOG_LEVEL`. `loadEnv()` fungsi murni → `EnvError` berisi daftar `[variabel, alasan]` (Bahasa Indonesia + rujukan .env.example); keputusan exit ada di entry point.
+* **`src/core/logger/index.ts`** — pino JSON (`service: "api"`, level label, ISO time), **redaction deny-list 10 kunci** (authorization, cookie, otp, password, token, accessToken, refreshToken, fieldKey, apiKey, secret — level atas + bersarang + `req.headers.*`), censor `[RAHASIA]`; `createHttpLogger` = pino-http dengan `genReqId` uuid v4 → **setiap baris request-scoped ber-requestId**; destination injectable untuk test.
+* **`src/server.ts`** — `createServer(env, logger)` → `{app, start, stop}`: start resolve saat siap (log `bootMs`), stop tunggu koneksi aktif + idempotent; `registerShutdownHooks` SIGTERM/SIGINT anti-double-stop, `exitFn` injectable.
+* **`src/index.ts`** — entry: `loadEnv` gagal → pesan + exit 1; sukses → logger → server → start → hooks.
+* **`.env.example`** dibuat (template tanpa rahasia; placeholder berkomentar untuk FIELD_KEY_V1/GEMINI/GROQ per PR mendatang).
+* 26 test baru (59 total workspace); gate `pnpm lint`/`typecheck`/`test` 9/9 hijau; boot manual nyata `bootMs=8`.
+
+### Scope selesai vs tidak
+
+* ✅ `server.ts` start/stop bersih — selesai.
+* ✅ `core/config` skema env + fail-fast — selesai.
+* ✅ `core/logger` pino + redaction + requestId binding — selesai.
+* Tidak ada scope yang dipangkas. Catatan: validasi kunci enkripsi (`FIELD_KEY_V*`) TIDAK di sini — scope PR-013 (fail-fast kunci dilakukan `core/crypto` saat boot).
+
+### Keputusan teknis
+
+1. **`loadEnv` fungsi murni, exit di entry point** — unit test bisa menguji fail-fast tanpa mematikan proses test; pesan error tetap satu sumber (`EnvError.message`).
+2. **pino-http untuk requestId binding** (bukan AsyncLocalStorage manual) — standar ekosistem pino; `req.log` child ber-requestId + `customProps` menaruh `requestId` eksplisit di tiap baris. ALS bisa menyusul bila service layer butuh logger implicit (PR-007+).
+3. **Redaction deny-list ganda (level atas + `*.key` + headers)** — wildcard pino hanya satu level; kombinasi ini menutup pola log nyata (`logger.info({otp})`, `logger.info({body: {otp}})`, serializer pino-http). Kebijakan: kunci baru bermuatan credential WAJIB masuk list (tercatat di komentar file).
+4. **`registerShutdownHooks` terpisah dari `createServer`** — test membuat server tanpa menyentuh handler global proses; `exitFn` injectable.
+5. **Tanpa route & error handler custom** — 404 default Express cukup untuk membuktikan proses hidup; envelope error & health = PR-007/008 (tidak mencuri scope).
+6. **`x-powered-by` dimatikan** — kebiasaan keamanan kecil; helmet lengkap menyusul PR-007.
+
+### Risiko yang ditemukan
+
+* **Sinyal POSIX tidak berfungsi di Windows dev** — `kill` Git-Bash/Windows = hard-terminate (exit 143), handler SIGTERM tidak pernah terpanggil di OS ini. Bukan bug kode: perilaku dibuktikan unit test (`process.emit`) dan efektif di Linux/Docker (target deploy, ADR-006). Verifikasi ulang saat PR-008 (compose healthcheck + `docker stop`).
+* Redaction list bersifat enumerasi manual — field credential baru yang tidak didaftarkan akan lolos. Mitigasi tercatat: review wajib di PR-013/014 + komentar kebijakan di file logger.
+* `express.json()` limit 1mb global — cukup untuk MVP; endpoint upload (foto profil dsb.) perlu limit/multipart tersendiri di PR terkait.
+
+### Next steps
+
+* PR-007: `core/http` — error envelope `{code,message,hint}`, asyncHandler, helmet/CORS/rate-limit; pakai `req.id` yang sudah tersedia.
+* PR-008: compose + `/healthz` `/readyz` + koneksi DB/Redis nyata; verifikasi graceful shutdown via `docker stop`.
+* PR-013: validasi `FIELD_KEY_V1` saat boot (core/crypto) — melengkapi janji "fail-fast kunci enkripsi kosong".
+
+**Out of Scope (dicatat):** error envelope & middleware HTTP (PR-007); health endpoints & koneksi DB/Redis (PR-008); validasi kunci crypto (PR-013); Sentry (ADR-017, Fase 2).
