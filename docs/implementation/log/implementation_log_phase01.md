@@ -331,3 +331,52 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * Modul fitur: SELALU `appError("KODE")` — tambah kode baru ke katalog, jangan string literal / res.status manual.
 
 **Out of Scope (dicatat):** CSP final & limit per endpoint (PR-105); rate limit OTP khusus (PR-016); Redis store rate limit (PR-008).
+
+---
+
+## PR-008 — Docker Compose Dev + Health Endpoints
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* **Lingkungan dev satu perintah** — `docker compose -f docker-compose.dev.yml up`: `postgres` (pgvector/pgvector:pg18 + init `vector`+`pg_trgm`), `redis-cache` (maxmemory 200mb, allkeys-lru), `redis-queue` (noeviction + AOF), `api` (Dockerfile target dev, hot-reload tsx watch). Semua ber-healthcheck; API menunggu dependensi healthy.
+* **ADR-004 direvisi** (persetujuan owner): dua **service** Redis menggantikan dua DB index — `maxmemory-policy` Redis berlaku per instance dan BullMQ mensyaratkan `noeviction`; klien tetap terpisah (`REDIS_URL` cache / `REDIS_QUEUE_URL` queue, env baru wajib).
+* **`core/db`** — klien `pg` ringan (pool max 2, timeout 2s) hanya untuk ping; **`core/redis`** — dua klien ioredis (lazyConnect, gagal-cepat, tanpa offline queue).
+* **`modules/health`** — modul pertama berpola `router → controller → service` (tanpa repository — memeriksa infra, bukan data): `GET /healthz` liveness murni; `GET /readyz` ping DB+2 Redis paralel timeout 2s → gagal = 503 envelope kode baru `BELUM_SIAP` (detail per dependensi hanya ke log ber-requestId). Mount di root (konsumen: compose healthcheck & Uptime Kuma), bukan `/api/v1`.
+* `registerShutdownHooks` diperluas: hook `onStopped` menutup koneksi DB/Redis setelah server berhenti.
+* Verifikasi manual LENGKAP di Docker (daemon dinyalakan saat sesi): compose up dari nol, assert config kedua Redis, pgvector, hot-reload, readyz vs dependensi mati, dan **graceful shutdown SIGTERM via `docker stop` (ExitCode=0) — melunasi verifikasi yang tertunda dari PR-006 (keterbatasan sinyal Windows).**
+* 6 test baru (46 apps/api; 79 workspace); `.dockerignore` dibuat.
+
+### Scope selesai vs tidak
+
+* ✅ `docker-compose.dev.yml` + `apps/api/Dockerfile` (dev target) — selesai.
+* ✅ `infra/pg-init.sql` — selesai (+`pg_trgm`, kebutuhan pasti ADR-018; dicatat).
+* ✅ Redis dua service + klien terpisah — selesai (bentuk direvisi dari "dua DB index", lihat ADR-004).
+* ✅ Endpoint health & ready — selesai.
+* Ditunda dengan persetujuan owner: Redis store express-rate-limit → bersama wiring BullMQ (PR-010).
+
+### Keputusan teknis
+
+1. **Dua service Redis (revisi ADR-004)** — satu-satunya cara memenuhi dua kebijakan eviction; total RAM tetap (SDD §15); queue diberi AOF (job tahan restart) sekaligus memperbaiki konsekuensi negatif lama "RDB bukan AOF".
+2. **Klien `pg` (bukan Prisma) untuk ping DB** — Prisma init = scope PR-009/010; PR-010 tinggal mengganti isi `pingDatabase()` tanpa menyentuh modul health.
+3. **Health di root path** — `/healthz` `/readyz` bukan bagian kontrak klien `/api/v1`; konsumen adalah compose/Uptime Kuma (SDD §17).
+4. **`BELUM_SIAP` (503) masuk katalog** — konsisten envelope; detail per-dependensi tidak dibocorkan ke response (fingerprinting infra), hanya ke log.
+5. **Hot-reload via `CHOKIDAR_USEPOLLING=true`** — bind mount NTFS→container tidak meneruskan inotify (keterbatasan Docker Desktop); polling interval 800ms cukup responsif (restart <12s) tanpa membebani CPU berarti.
+6. **Image pg18 mount di `/var/lib/postgresql`** (bukan `.../data`) — konvensi baru image postgres 18+; ketahuan saat compose up pertama gagal, dikodifikasi + komentar di compose.
+7. **`.dockerignore`** — node_modules/git/docs tidak masuk build context (build cepat, image bersih).
+
+### Risiko yang ditemukan
+
+* **Insiden proses (pelajaran):** `git checkout -- server.ts` saat membersihkan uji hot-reload ikut membuang edit `onStopped` yang belum ter-commit — tertangkap `pnpm typecheck` sebelum commit. Pelajaran: bersihkan file uji dengan `sed`/patch, bukan `git checkout`, saat ada perubahan belum ter-commit.
+* Kredensial dev-only tertulis di compose (incasif/incasif) — dev-only by design (ADR-015); compose prod (PR-097) wajib env.
+* Polling chokidar menambah CPU idle kecil di container dev — dapat dimatikan per mesin (Linux host tidak membutuhkannya).
+* `depends_on: service_healthy` menunggu start_period API 60s pada mesin lambat — bila mengganggu, turunkan interval healthcheck.
+
+### Next steps
+
+* PR-009: Prisma init + migrasi identitas — jalankan terhadap postgres compose ini.
+* PR-010: BullMQ wiring (klien queue sudah tersedia) + Redis store express-rate-limit + ganti ping DB ke Prisma.
+* PR-097: compose prod/staging (image pin sama, env-based secrets, tanpa bind mount).
+
+**Out of Scope (dicatat):** compose prod/staging (PR-097); Prisma init (PR-009); BullMQ queues + Redis store rate limit (PR-010).

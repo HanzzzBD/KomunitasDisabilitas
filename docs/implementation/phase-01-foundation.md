@@ -629,11 +629,11 @@ Bisnis: onboarding engineer < 1 jam. Teknis: compose dev + init pgvector + dua k
 
 **Testing Checklist:**
 
-* [ ] Unit Test (health handler)
-* [ ] Integration Test (readyz vs dependensi mati)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (compose up dari nol)
+* [x] Unit Test (health handler — liveness tanpa dependensi; readiness siap hanya bila semua ok; detail per dependensi; ping menggantung → timeout 2s)
+* [x] Integration Test (readyz vs dependensi mati — endpoint nyata dengan DB/Redis menunjuk port mati → 503 `BELUM_SIAP`; /healthz tetap 200)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (compose up dari nol: `down -v` → `up --build` → 4 container healthy; readyz 503 saat redis-cache di-stop lalu pulih 200; hot-reload; `docker stop` graceful)
 
 **Deliverables:**
 
@@ -649,11 +649,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] `docker compose up` → API sehat dalam satu perintah di mesin bersih.
-* [ ] `/readyz` gagal bila Redis/DB mati (diuji).
-* [ ] DB cache Redis ber-`maxmemory allkeys-lru`; DB queue tanpa eviction (assert config).
-* [ ] Hot-reload API bekerja di dev.
-* [ ] pgvector tersedia (`SELECT '[]'::vector` sukses).
+* [x] `docker compose up` → API sehat dalam satu perintah di mesin bersih — diverifikasi dari nol (`down -v`): postgres+redis-cache+redis-queue+api semua healthy; API menunggu dependensi via `depends_on: service_healthy`.
+* [x] `/readyz` gagal bila Redis/DB mati (diuji) — integration test (dependensi port mati → 503 `BELUM_SIAP`) + manual (`docker stop redis-cache` → 503; start lagi → 200).
+* [x] DB cache Redis ber-`maxmemory allkeys-lru`; DB queue tanpa eviction (assert config) — `config get` di kedua container: cache `allkeys-lru` + maxmemory 200mb; queue `noeviction` + AOF. **Catatan: dua service Redis, bukan dua DB index — ADR-004 direvisi atas persetujuan owner (kebijakan eviction Redis per instance, BullMQ wajib noeviction).**
+* [x] Hot-reload API bekerja di dev — `CHOKIDAR_USEPOLLING` (bind mount NTFS tidak meneruskan inotify); edit file → restart otomatis terverifikasi di log.
+* [x] pgvector tersedia — `SELECT '[1,2,3]'::vector` sukses; ekstensi `vector` + `pg_trgm` terpasang via pg-init.sql. (Catatan: `'[]'::vector` literal AC ditolak pgvector by design — vektor minimal 1 dimensi; penolakan ini justru bukti ekstensi aktif.)
 
 #### Dependencies
 
@@ -663,6 +663,10 @@ RB-Std.
 #### Risks
 
 * Perbedaan versi image dev vs prod. Mitigasi: pin versi image sama dengan target prod.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-008--docker-compose-dev--health-endpoints).
 
 
 ### PR-009 - Migrasi Inti Identitas

@@ -97,6 +97,7 @@ export function registerShutdownHooks(
   api: ApiServer,
   logger: Logger,
   exitFn: (code: number) => void = process.exit,
+  onStopped?: () => Promise<unknown>,
 ): void {
   let shuttingDown = false;
   const shutdown = (signal: string) => {
@@ -105,6 +106,7 @@ export function registerShutdownHooks(
     logger.info({ signal }, "Menerima sinyal berhenti");
     api
       .stop()
+      .then(() => onStopped?.()) // pembersihan lanjutan: tutup koneksi DB/Redis
       .then(() => exitFn(0))
       .catch((err: unknown) => {
         logger.error({ err }, "Gagal menutup server dengan bersih");

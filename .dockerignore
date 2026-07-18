@@ -1,0 +1,15 @@
+# Jangan kirim ke build context Docker (PR-008).
+node_modules
+**/node_modules
+**/dist
+**/build
+**/coverage
+.turbo
+**/.turbo
+.git
+.github
+docs
+*.md
+.env
+.env.*
+!.env.example

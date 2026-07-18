@@ -31,8 +31,12 @@ const envSchema = z.object({
     .string({ required_error: "wajib diisi (URL PostgreSQL)" })
     .url({ message: "harus URL valid, contoh postgresql://user:pass@localhost:5432/incasif" }),
   REDIS_URL: z
-    .string({ required_error: "wajib diisi (URL Redis)" })
+    .string({ required_error: "wajib diisi (URL Redis cache)" })
     .url({ message: "harus URL valid, contoh redis://localhost:6379" }),
+  // ADR-004 (revisi PR-008): service Redis queue terpisah (noeviction, BullMQ).
+  REDIS_QUEUE_URL: z
+    .string({ required_error: "wajib diisi (URL Redis queue)" })
+    .url({ message: "harus URL valid, contoh redis://localhost:6380" }),
   // --- core/http (PR-007) ---
   CORS_ORIGINS: z.string().default("http://localhost:5173"), // comma-separated origin whitelist
   RATE_LIMIT_MAX: z.coerce
