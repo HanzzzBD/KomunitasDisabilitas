@@ -186,3 +186,52 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-016: implementasi endpoint OTP nyata memakai skema contoh ini.
 
 **Out of Scope (dicatat):** skema domain lengkap (per PR fitur); pemakaian di api-client (PR-005); middleware validasi Express (PR-007).
+
+---
+
+## PR-005 — packages/api-client
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* `packages/api-client` terisi (dari placeholder): typed client framework-agnostic dari kontrak zod, dipakai web & mobile tanpa perubahan (ADR-014).
+* `src/client.ts` — `createApiClient({baseUrl, getAccessToken?, refresh?, fetch?})`: fetch injectable (default `globalThis.fetch` — jalan browser/RN/Node ≥ 18), header Authorization dari `getAccessToken()`, parse envelope, validasi response opsional per endpoint via skema zod.
+* Interceptor 401: panggil hook `refresh()` **sekali** → bila true, retry **sekali** dengan token terbaru; tidak pernah loop. Default = stub menolak (implementasi nyata PR-018) — kontrak publik tidak akan berubah.
+* `src/errors.ts` — `ApiError {code, message, hint?, status}`; error jaringan → `JARINGAN_GAGAL` (status 0), body tak dikenal → `RESPONS_TIDAK_DIKENAL` (teks mentah server tidak pernah diteruskan ke pengguna); pesan Bahasa Indonesia sederhana.
+* `src/query-keys.ts` — konvensi `[domain, params]`, params dinormalisasi (urutan key stabil, undefined dibuang) → deterministik.
+* `src/endpoints/auth.ts` — 1 endpoint contoh terhubung skema PR-004: `requestOtp()` (validasi body sebelum kirim + `responseSchema` guard drift runtime) + factory `authKeys`.
+* 16 unit test (3 file): envelope mapping, 401→refresh→retry (termasuk anti-loop & token terbaru), error jaringan, queryKey, **bundle test esbuild** (tree-shake + bebas DOM). README konvensi lengkap.
+* `.gitattributes` ditambahkan (`* text=auto eol=lf`) — menghentikan flip-flop CRLF checkout Windows vs prettier/CI Linux.
+* Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 33 test hijau, format check hijau.
+
+### Scope selesai vs tidak
+
+* ✅ Base client + interceptor 401→refresh (stub sampai PR-018) — selesai.
+* ✅ Helper `queryKey [domain, params]` — selesai.
+* ✅ 1 endpoint contoh terhubung skema PR-004 — selesai (`requestOtp`).
+* Tidak ada scope yang dipangkas.
+
+### Keputusan teknis
+
+1. **Tanpa dependensi `@tanstack/react-query`** — scope hanya butuh konvensi query key (array murni); paket TQ dipasang di apps. Paket tetap framework-agnostic, RN-safe, dan ringan di-tree-shake.
+2. **Refresh 401 = hook point** (`refresh?: () => boolean|Promise<boolean>`) dengan default menolak — PR-018 tinggal mengisi callback nyata tanpa mengubah API publik.
+3. **`sideEffects: false` + bundle test esbuild** — AC tree-shakeable dibuktikan, bukan diklaim: impor `queryKey` saja menghasilkan bundle tanpa client/endpoint/zod; sanity test kebalikannya mencegah false positive.
+4. **Bebas DOM dibuktikan dua lapis**: suite vitest jalan di environment node polos + bundle scan assert tidak ada `document/window/localStorage/XMLHttpRequest`.
+5. **Token tidak pernah di-log/di-serialisasi** — hanya dibaca saat menyusun header; diuji: serialisasi ApiError tidak memuat token; error jaringan tidak membawa detail request.
+6. **`requestOtp` dibuat `async`** agar error validasi zod menjadi rejection (bukan throw sinkron) — konsisten untuk pemakai `.catch()`/TanStack mutation.
+7. **`.gitattributes` LF** — perbaikan infra kecil di luar paket namun perlu: tanpa ini working tree Windows terus konflik dengan prettier (`endOfLine: lf`) setiap `git checkout`.
+
+### Risiko yang ditemukan
+
+* Stub refresh menolak semua 401 → sampai PR-018, sesi kedaluwarsa memaksa login ulang (perilaku sadar, dicatat di README).
+* `queryKey` membatasi params ke nilai primitif (`QueryParams`) — objek bersarang tidak didukung; bila nanti perlu filter kompleks, perluas normalisasi (rekursif) dengan test determinisme.
+* Factory `authKeys.otpRequest` memuat nomor HP dalam key cache (in-memory TanStack, tidak di-log) — aman untuk MVP, tapi jangan pernah memasukkan key cache ke logger/telemetri.
+
+### Next steps
+
+* PR-018: implementasi `refresh()` nyata (rotasi refresh token family) — cukup mengisi hook.
+* PR fitur FE pertama (PR-019+): pasang TanStack Query di apps, konsumsi `requestOtp` + `authKeys` sebagai pola.
+* Endpoint baru selalu ikuti pola `src/endpoints/auth.ts` (skema dari @incasif/schemas, validasi body, responseSchema).
+
+**Out of Scope (dicatat):** implementasi refresh nyata (PR-018); hooks TanStack per endpoint (per PR fitur); integrasi ke apps web/mobile.
