@@ -2,24 +2,23 @@ Kamu adalah AI coding agent yang mengerjakan backlog Incasif (lihat CLAUDE.md un
 
 ## Tugas
 
-Kerjakan PR-003 - CI Pipeline Dasar (PR Checks) dari phase 1 (Foundation).
+Kerjakan PR-004 - packages/schemas + OpenAPI Generator dari phase 1 (Foundation).
 
 ## Sebelum Mulai
 
 1. Baca CLAUDE.md (arsitektur, konvensi, module boundaries, tech stack).
 2. Baca file phase terkait: docs/implementation/phase-01-foundation.md
-   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-003.
-3. Pastikan semua PR di kolom Dependencies untuk PR-003 sudah merged:
-   Dependencies: PR-001, PR-002
+   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-004.
+3. Pastikan semua PR di kolom Dependencies untuk PR-004 sudah merged:
+   Dependencies: PR-001
    - Jika ada yang belum merged, STOP dan laporkan ke saya sebelum lanjut.
 4. Cek ADR relevan jika Technical Notes merujuk ke ADR tertentu (docs/adr/).
 
 ## Scope PR Ini
 
-- `.github/workflows/pr.yml` (lint, typecheck, unit)
-- Branch protection required checks
-- Cache pnpm + turbo
-- Dokumentasi status check di README
+- Skeleton schemas per domain (auth, profiles, jobs, dst. — contoh skeleton)
+- Generator `scripts/gen-openapi.ts` + CI diff check untuk `openapi.json`
+- Konvensi penamaan skema dan dokumentasi di README
 
 ## Konvensi Wajib (Global — CLAUDE.md §5 & README.md)
 
@@ -40,7 +39,7 @@ Kerjakan PR-003 - CI Pipeline Dasar (PR Checks) dari phase 1 (Foundation).
 3. Update Acceptance Criteria checklist di file phase — tandai mana yang terpenuhi.
 4. Jalankan & laporkan hasil: `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 5. Tulis log implementasi di file terpisah sesuai CLAUDE.md §1:
-   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-003, jangan menyisipkannya ke file phase), berisi:
+   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-004, jangan menyisipkannya ke file phase), berisi:
    - Ringkasan hasil PR
    - Scope yang selesai vs yang tidak (dan kenapa)
    - Keputusan teknis penting yang diambil
@@ -50,7 +49,7 @@ Kerjakan PR-003 - CI Pipeline Dasar (PR Checks) dari phase 1 (Foundation).
 
 ## Batasan
 
-- Jangan mengerjakan scope PR lain di luar PR-003, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
+- Jangan mengerjakan scope PR lain di luar PR-004, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
 - Jangan mengubah keputusan arsitektur (ADR) tanpa konfirmasi eksplisit dariku.
 - Kalau menemukan ambiguitas antara PRD/SDD dan file phase, file phase yang jadi acuan.
 

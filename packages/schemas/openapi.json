@@ -1,0 +1,135 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Incasif API",
+    "version": "0.1.0",
+    "description": "Kontrak API Incasif — di-generate dari zod di packages/schemas. Jangan edit openapi.json manual; jalankan pnpm --filter @incasif/schemas gen:openapi."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/auth/otp/request": {
+      "post": {
+        "operationId": "requestOtp",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Minta kode OTP",
+        "security": [],
+        "description": "Mengirim kode OTP ke nomor HP via WhatsApp/SMS.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOtp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "OTP dikirim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestOtpResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Terlalu banyak permintaan — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RequestOtp": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          }
+        },
+        "required": [
+          "phone"
+        ],
+        "description": "Permintaan kirim kode OTP via WhatsApp/SMS"
+      },
+      "RequestOtpResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "retryAfterSeconds": {
+                "type": "integer",
+                "minimum": 0,
+                "example": 60
+              }
+            },
+            "required": [
+              "retryAfterSeconds"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "description": "Kode error mesin, UPPER_SNAKE_CASE",
+            "example": "VALIDATION_ERROR"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Pesan untuk pengguna, Bahasa Indonesia sederhana",
+            "example": "Input tidak valid"
+          },
+          "hint": {
+            "type": "string",
+            "description": "Saran perbaikan untuk pengguna",
+            "example": "Periksa format nomor HP Anda"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "description": "Envelope error standar Incasif"
+      }
+    }
+  }
+}

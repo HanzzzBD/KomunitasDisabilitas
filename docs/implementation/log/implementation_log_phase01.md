@@ -139,3 +139,50 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * Run kedua (`29633057780`): total **14s** — pnpm store & turbo cache hit ("cache hit, replaying logs" di seluruh task). Step yang terdampak cache (install+lint+typecheck+test): **12s → 3s (25%)**; sisa durasi adalah overhead tetap runner (checkout + setup Node) yang tidak bisa di-cache. AC "< 50%" terpenuhi pada bagian yang dapat dipengaruhi cache.
 * Slot `e2e`/`a11y` tampil sebagai skipped (sesuai desain).
 * Branch protection terverifikasi aktif: merge PR #1 diblokir sampai `lint-typecheck-test` hijau.
+
+---
+
+## PR-004 — packages/schemas + OpenAPI Generator
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* `packages/schemas` terisi: fondasi `src/common.ts` (error envelope `{code,message,hint?}` berpesan Bahasa Indonesia, success envelope `{data,meta?}`, pagination cursor `?cursor=&limit=` + `meta.nextCursor`, id uuid, timestamp ISO), 1 contoh skema lengkap `src/auth.ts` (`requestOtpSchema` + response, nomor HP E.164 `+62`), dan 10 skeleton domain (accessibility, profiles, resumes, companies, jobs, matching, applications, notifications, admin, signbridge) yang diisi bertahap per PR fitur.
+* Builder OpenAPI `src/openapi.ts` (zod-openapi, SDD §11) + generator CLI `scripts/gen-openapi.ts`: `gen:openapi` menulis `openapi.json`; `check:openapi` (mode `--check`) exit 1 bila drift → step "OpenAPI drift check" di `pr.yml`.
+* Output deterministik by design: tanpa timestamp/nilai acak, `CONTRACT_VERSION` di-pin manual (0.1.0), serialisasi kanonik `JSON.stringify(…, 2)` + newline.
+* 9 unit test Vitest: parse valid/invalid + pesan error Indonesia, type-level `expectTypeOf`, determinisme (2× byte identik), guard drift (openapi.json ter-commit = hasil generate), struktur dokumen (paths + components).
+* `README.md` paket: tabel konvensi penamaan, aturan tambahan (ekstensi `.js` ESM, `zod-openapi/extend`, envelope wajib), alur tambah skema, kebijakan drift.
+* Validasi eksternal: `redocly lint` 0 error (1 warning `info-license` — lisensi API belum ditentukan, keputusan owner).
+* Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 workspace (17 test total), format check hijau.
+
+### Scope selesai vs tidak
+
+* ✅ Skeleton schemas per domain + contoh — selesai (11 domain + common).
+* ✅ Generator `scripts/gen-openapi.ts` + CI diff check — selesai (di `packages/schemas/scripts/`, step CI ditambah di pr.yml).
+* ✅ Konvensi penamaan + dokumentasi README — selesai.
+* Tidak ada scope yang dipangkas.
+
+### Keputusan teknis
+
+1. **Library `zod-openapi` 4.2.4** (persis SDD §11), bukan `@asteasolutions/zod-to-openapi`; zod di-pin 3.24.1. `.openapi()` diaktifkan via import `"zod-openapi/extend"` per file domain.
+2. **Generator di `packages/schemas/scripts/`**, bukan root `scripts/` — concern paket; dijalankan `tsx` (devDep paket).
+3. **Determinisme dijamin desain + diuji**, bukan dijanjikan: builder murni tanpa sumber non-deterministik, unit test membandingkan 2× render byte-per-byte, dan guard drift menjadikan `pnpm test` ikut gagal bila openapi.json basi — CI mendeteksi drift lewat dua jalur (step check + unit test).
+4. **`src/openapi.ts` tidak diekspor dari `index.ts`** — konsumen paket (web/mobile/api-client) hanya butuh skema zod; builder dokumen khusus generator & test.
+5. **Skeleton domain berupa file `export {}` berkomentar konvensi** — memesan struktur & path impor stabil tanpa menebak isi skema (diisi per PR fitur, sesuai Out of Scope phase file).
+6. **`security: []` eksplisit pada operasi publik** (temuan `redocly lint` rule security-defined) — endpoint OTP memang pre-auth.
+7. **`openapi.json` masuk `.prettierignore`** — format kanonik ditentukan generator (basis diff check), bukan prettier.
+
+### Risiko yang ditemukan
+
+* Kontrak `paths` di `src/openapi.ts` bisa membengkak jadi satu file besar saat domain terisi — follow-up: pecah registrasi path per domain (mis. `src/<domain>.paths.ts`) begitu > ~3 domain aktif.
+* `info.license` belum diisi (warning redocly) — butuh keputusan owner tentang lisensi API/proyek.
+* Versi kontrak (`CONTRACT_VERSION`) dinaikkan manual — rawan lupa; pertimbangkan check CI "kontrak berubah tapi versi tidak" di masa depan.
+
+### Next steps
+
+* PR-005: `@incasif/api-client` mengonsumsi `requestOtpSchema` sebagai endpoint contoh.
+* PR-007: `validate(schema)` middleware memakai skema paket ini; katalog kode error melengkapi `errorCodeSchema`.
+* PR-016: implementasi endpoint OTP nyata memakai skema contoh ini.
+
+**Out of Scope (dicatat):** skema domain lengkap (per PR fitur); pemakaian di api-client (PR-005); middleware validasi Express (PR-007).

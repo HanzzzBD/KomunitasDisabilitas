@@ -2,7 +2,7 @@
   "name": "@incasif/schemas",
   "version": "0.0.0",
   "private": true,
-  "description": "Skema zod bersama (validasi FE = validasi BE). Placeholder — skema menyusul di PR-004.",
+  "description": "Kontrak zod tunggal FE+BE+mobile; OpenAPI di-generate dari zod (SDD §11).",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,14 +10,21 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "lint": "eslint src scripts __tests__ --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "gen:openapi": "tsx scripts/gen-openapi.ts",
+    "check:openapi": "tsx scripts/gen-openapi.ts --check"
+  },
+  "dependencies": {
+    "zod": "3.24.1",
+    "zod-openapi": "4.2.4"
   },
   "devDependencies": {
     "@incasif/config": "workspace:*",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",
+    "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   }
