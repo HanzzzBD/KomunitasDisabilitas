@@ -1,0 +1,104 @@
+// Prisma schema Incasif — sumber kebenaran struktur DB (CLAUDE.md §12).
+// Migrasi 01 (PR-009): inti identitas — users, refresh_tokens,
+// accessibility_profiles, audit_logs (SDD §6, §14; PRD §10).
+//
+// Ketetapan SDD §14:
+// - Semua PK uuid v7 — DI-GENERATE APLIKASI via core/ids (bukan default DB;
+//   gen_random_uuid() = v4, tidak sortable).
+// - Semua timestamp timestamptz.
+// - Enum PostgreSQL native.
+// - FK ON DELETE eksplisit per relasi.
+// Fitur di luar dukungan Prisma (unique parsial, BRIN) = raw SQL di file
+// migrasi (SDD §6.2) — lihat prisma/README.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Role akun. `employer` reserved — belum dipakai sampai fase employer portal.
+enum Role {
+  seeker
+  admin
+  employer
+}
+
+model User {
+  id           String    @id @db.Uuid
+  /// Nullable: signup bisa via Google (tanpa phone) atau OTP (tanpa google).
+  /// Unique PARSIAL (WHERE deleted_at IS NULL) via raw SQL — nomor boleh
+  /// dipakai ulang setelah akun soft-delete (hak hapus UU PDP + purge §6.4).
+  phone        String?
+  googleId     String?   @map("google_id")
+  email        String?
+  fullName     String    @map("full_name")
+  role         Role      @default(seeker)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(6)
+  /// Soft delete (fondasi hak hapus UU PDP); purge/anonimisasi ≤30 hari (job worker).
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  refreshTokens        RefreshToken[]
+  accessibilityProfile AccessibilityProfile?
+
+  @@map("users")
+}
+
+/// Refresh token ROTATING (SDD §8.1): hanya hash yang disimpan; familyId
+/// mendeteksi reuse — token lama dipakai ulang → cabut seluruh keluarga.
+model RefreshToken {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// SHA-256 token — token mentah tidak pernah menyentuh DB/log.
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Preferensi UI aksesibilitas (ADR-008) — BUKAN data medis/sensitif;
+/// data disabilitas terenkripsi ada di seeker_profiles (PR-010).
+model AccessibilityProfile {
+  userId              String   @id @map("user_id") @db.Uuid
+  /// Skala teks dalam persen (100 = normal).
+  textScale           Int      @default(100) @map("text_scale")
+  highContrast        Boolean  @default(false) @map("high_contrast")
+  reduceMotion        Boolean  @default(false) @map("reduce_motion")
+  simpleLanguage      Boolean  @default(false) @map("simple_language")
+  prefersSignLanguage Boolean  @default(false) @map("prefers_sign_language")
+  largeTouchTargets   Boolean  @default(false) @map("large_touch_targets")
+  screenReaderHint    Boolean  @default(false) @map("screen_reader_hint")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accessibility_profiles")
+}
+
+/// Append-only (SDD §6.3): SENGAJA tanpa relasi FK ke users — jejak audit
+/// harus tahan penghapusan akun (actorId menunjuk id historis). Enforcement
+/// no-UPDATE/DELETE via grant DB role aplikasi = PR-097. BRIN created_at via
+/// raw SQL.
+model AuditLog {
+  id        String   @id @db.Uuid
+  /// NULL = aksi sistem (job, migrasi); selain itu id user historis.
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("audit_logs")
+}

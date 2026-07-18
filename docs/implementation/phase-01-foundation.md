@@ -709,11 +709,11 @@ Bisnis: fondasi akun & jejak audit sejak hari pertama (UU PDP). Teknis: Prisma i
 
 **Testing Checklist:**
 
-* [ ] Unit Test (helper uuid v7)
-* [ ] Integration Test (migrate up/down, constraint)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql inspeksi skema)
+* [x] Unit Test (helper uuid v7 — format RFC 9562, 1000 unik, sortable antar-ms, encoding timestamp)
+* [x] Integration Test (migrate up/down, constraint — unique parsial aktif+reuse setelah soft-delete, enum menolak nilai liar, timestamptz via information_schema, indeks BRIN/parsial ada, FK CASCADE refresh_tokens, seed idempotent; skip otomatis bila DB tidak terjangkau)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql `\d users`: unique parsial + FK CASCADE + timestamptz terlihat; enum_range Role = seeker,admin,employer; down.sql diuji up→down→up nyata)
 
 **Deliverables:**
 
@@ -729,11 +729,11 @@ Migrasi down teruji; RB-Std untuk kode.
 
 #### Acceptance Criteria
 
-* [ ] `prisma migrate reset` + seed hijau di CI (Postgres service).
-* [ ] Enum role = `seeker|admin|employer` (employer reserved).
-* [ ] Semua timestamp `timestamptz`; PK uuid v7 (sortable).
-* [ ] Constraint unique diuji (duplikat ditolak).
-* [ ] Migrasi memiliki down yang teruji.
+* [x] `prisma migrate reset` + seed hijau di CI (Postgres service) — pr.yml + service `pgvector/pgvector:pg18` (image sama compose dev) + step `migrate reset --force` (menjalankan migrasi dari nol + seed) sebelum unit test.
+* [x] Enum role = `seeker|admin|employer` (employer reserved) — enum native; test menolak nilai di luar enum; psql `enum_range` terverifikasi.
+* [x] Semua timestamp `timestamptz`; PK uuid v7 (sortable) — `@db.Timestamptz(6)` seluruh kolom `*_at` (diuji via information_schema); uuid v7 di-generate aplikasi (`core/ids`, RFC 9562, sortable teruji).
+* [x] Constraint unique diuji (duplikat ditolak) — duplikat phone aktif → P2002; phone sama setelah soft-delete → boleh (unique parsial, dikonfirmasi owner).
+* [x] Migrasi memiliki down yang teruji — `down.sql` manual per folder migrasi (konvensi didokumentasikan di prisma/README.md); diuji nyata up→down (4 tabel hilang)→up (pulih).
 
 #### Dependencies
 
@@ -742,6 +742,10 @@ Migrasi down teruji; RB-Std untuk kode.
 #### Risks
 
 * Salah desain enum/kolom awal → migrasi berantai. Mitigasi: ikuti SDD §6 verbatim.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-009--migrasi-inti-identitas).
 
 
 ### PR-010 - Migrasi Domain Seeker

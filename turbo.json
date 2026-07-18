@@ -13,7 +13,8 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["DATABASE_URL", "CI"]
     },
     "test:cov": {
       "dependsOn": ["^build"],
