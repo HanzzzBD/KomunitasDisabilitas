@@ -134,3 +134,5 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 **Out of Scope (dicatat):** build image (PR-099); a11y gate aktif (PR-031); secrets scan (PR-108); workflow deploy (`deploy.yml`).
 
+
+> CI run pertama PR-003: job `lint-typecheck-test` hijau (26s).
