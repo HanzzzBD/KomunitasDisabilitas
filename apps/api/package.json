@@ -13,13 +13,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@incasif/schemas": "workspace:*",
+    "cors": "2.8.5",
     "express": "4.21.2",
+    "express-rate-limit": "7.5.0",
+    "helmet": "8.0.0",
     "pino": "9.5.0",
     "pino-http": "10.3.0",
     "zod": "3.24.1"
   },
   "devDependencies": {
     "@incasif/config": "workspace:*",
+    "@types/cors": "2.8.17",
     "@types/express": "4.17.21",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",

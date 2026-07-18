@@ -33,6 +33,18 @@ const envSchema = z.object({
   REDIS_URL: z
     .string({ required_error: "wajib diisi (URL Redis)" })
     .url({ message: "harus URL valid, contoh redis://localhost:6379" }),
+  // --- core/http (PR-007) ---
+  CORS_ORIGINS: z.string().default("http://localhost:5173"), // comma-separated origin whitelist
+  RATE_LIMIT_MAX: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1" })
+    .default(300), // request per jendela per IP
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
