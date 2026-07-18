@@ -8,7 +8,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "phase-*"]
 
 permissions:
   contents: read
