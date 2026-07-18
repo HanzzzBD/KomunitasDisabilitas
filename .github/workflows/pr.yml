@@ -69,6 +69,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Prisma client harus ter-generate sebelum typecheck/test — tanpa ini
+      # tipe @prisma/client hanyalah stub kosong (TS2347/TS2339).
+      - name: Prisma generate
+        run: pnpm --filter @incasif/api exec prisma generate
+
       # Lint mencakup eslint-plugin-boundaries — pelanggaran arsitektur = CI merah.
       - name: Lint
         run: pnpm lint
