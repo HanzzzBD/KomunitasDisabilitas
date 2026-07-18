@@ -33,9 +33,10 @@
 - Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, dan release
 
 ### Dokumentasi Log Implementasi
-- Implementasi dilakukan per PR, tetapi setiap PR dicatat di dalam file phase yang relevan di [docs/implementation](./docs/implementation)
-- Jika perlu, tambahkan bagian log di bawah PR terkait pada file phase tersebut, misalnya di [docs/implementation/phase-01-foundation.md](./docs/implementation/phase-01-foundation.md)
-- Catatan tersebut harus mencakup ringkasan hasil PR, scope yang selesai, keputusan teknis, risiko, dan next steps terkait PR tersebut
+- Implementasi dilakukan per PR.
+- Setiap PR yang selesai dicatat dalam file log phase yang relevan di folder [docs/implementation/log](./docs/implementation/log).
+- Format nama file: `implementation_log_phaseXX.md`, contohnya `implementation_log_phase01.md`.
+- Di dalam file phase ini, tambahkan catatan untuk setiap PR yang selesai, termasuk ringkasan hasil PR, scope yang selesai, keputusan teknis, risiko, dan next steps.
 
 ---
 

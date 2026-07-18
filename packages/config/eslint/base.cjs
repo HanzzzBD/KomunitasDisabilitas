@@ -1,9 +1,9 @@
 // Preset ESLint dasar bersama (legacy config) untuk seluruh workspace Incasif.
 // Dikonsumsi via: module.exports = require("@incasif/config/eslint")
 //
-// CATATAN SCOPE: Aturan `eslint-plugin-boundaries` (module boundaries) SENGAJA
-// belum ditambahkan di sini — itu cakupan PR-002 (Lint Boundaries). Preset ini
-// hanya menyediakan fondasi TypeScript + Prettier-compatible formatting.
+// Preset ini menyediakan fondasi TypeScript + formatting. Aturan module
+// boundaries (aliran lapisan, larangan impor lintas modul / SDK AI) ada di
+// preset terpisah "@incasif/config/eslint/boundaries" — dipakai apps/api.
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
   root: true,

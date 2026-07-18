@@ -11,5 +11,7 @@
     "noEmit": true
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "build", "coverage"]
+  // fixtures/ sengaja memuat kode pelanggaran (mis. impor SDK AI yang tidak
+  // di-install) untuk membuktikan gate lint bekerja — bukan untuk di-typecheck.
+  "exclude": ["node_modules", "dist", "build", "coverage", "fixtures"]
 }

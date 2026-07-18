@@ -12,6 +12,7 @@
   "exports": {
     "./prettier": "./prettier/index.js",
     "./eslint": "./eslint/base.cjs",
+    "./eslint/boundaries": "./eslint/boundaries.cjs",
     "./tsconfig/base": "./tsconfig/base.json",
     "./tsconfig/node": "./tsconfig/node.json",
     "./tsconfig/react": "./tsconfig/react.json"
@@ -26,7 +27,9 @@
     "@types/node": "22.10.2",
     "@typescript-eslint/eslint-plugin": "8.18.1",
     "@typescript-eslint/parser": "8.18.1",
+    "@types/eslint": "8.56.12",
     "eslint": "8.57.1",
+    "eslint-plugin-boundaries": "5.0.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   },

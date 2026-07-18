@@ -9,6 +9,9 @@ coverage/
 pnpm-lock.yaml
 *.tsbuildinfo
 
+# Fixtures boundaries: pelanggaran disengaja untuk uji gate, jangan diformat/lint.
+packages/config/fixtures/
+
 # Dokumen produk/teknis pre-existing — jangan diformat ulang otomatis
 # (menghindari diff besar di luar scope PR kode).
 CLAUDE.md

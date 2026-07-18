@@ -2,24 +2,24 @@ Kamu adalah AI coding agent yang mengerjakan backlog Incasif (lihat CLAUDE.md un
 
 ## Tugas
 
-Kerjakan PR-001 - Turborepo Workspace & Shared Config dari phase 1 (Foundation).
+Kerjakan PR-003 - CI Pipeline Dasar (PR Checks) dari phase 1 (Foundation).
 
 ## Sebelum Mulai
 
 1. Baca CLAUDE.md (arsitektur, konvensi, module boundaries, tech stack).
 2. Baca file phase terkait: docs/implementation/phase-01-foundation.md
-   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-001.
-3. Pastikan semua PR di kolom Dependencies untuk PR-001 sudah merged:
-   Dependencies: None
+   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-003.
+3. Pastikan semua PR di kolom Dependencies untuk PR-003 sudah merged:
+   Dependencies: PR-001, PR-002
    - Jika ada yang belum merged, STOP dan laporkan ke saya sebelum lanjut.
 4. Cek ADR relevan jika Technical Notes merujuk ke ADR tertentu (docs/adr/).
 
 ## Scope PR Ini
 
-- `turbo.json`, root `package.json` workspaces
-- `packages/config` (tsconfig base, eslint base, prettier)
-- Folder kosong `apps/{api,worker,web,mobile}`, `packages/{schemas,api-client,ui,a11y}`
-- README struktur repo & cara menjalankan
+- `.github/workflows/pr.yml` (lint, typecheck, unit)
+- Branch protection required checks
+- Cache pnpm + turbo
+- Dokumentasi status check di README
 
 ## Konvensi Wajib (Global — CLAUDE.md §5 & README.md)
 
@@ -37,9 +37,10 @@ Kerjakan PR-001 - Turborepo Workspace & Shared Config dari phase 1 (Foundation).
 
 1. Implementasi sesuai Scope + Technical Notes di file phase.
 2. Unit test (Vitest) untuk logic baru.
-3. Update Acceptance Criteria checklist — tandai mana yang terpenuhi.
+3. Update Acceptance Criteria checklist di file phase — tandai mana yang terpenuhi.
 4. Jalankan & laporkan hasil: `pnpm lint`, `pnpm typecheck`, `pnpm test`.
-5. Tambahkan bagian log di bawah section PR-001 pada file `docs/implementation/phase-01-foundation.md` (BUKAN file terpisah), berisi:
+5. Tulis log implementasi di file terpisah sesuai CLAUDE.md §1:
+   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-003, jangan menyisipkannya ke file phase), berisi:
    - Ringkasan hasil PR
    - Scope yang selesai vs yang tidak (dan kenapa)
    - Keputusan teknis penting yang diambil
@@ -49,7 +50,7 @@ Kerjakan PR-001 - Turborepo Workspace & Shared Config dari phase 1 (Foundation).
 
 ## Batasan
 
-- Jangan mengerjakan scope PR lain di luar PR-001, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
+- Jangan mengerjakan scope PR lain di luar PR-003, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
 - Jangan mengubah keputusan arsitektur (ADR) tanpa konfirmasi eksplisit dariku.
 - Kalau menemukan ambiguitas antara PRD/SDD dan file phase, file phase yang jadi acuan.
 
