@@ -68,9 +68,17 @@ Berlaku untuk semua PR (detail di [CLAUDE.md](./CLAUDE.md) dan [docs/implementat
 - **No PII/secret** — tidak ada PII atau secret di log maupun kode; `.env*` tidak pernah di-commit (lihat `.gitignore`).
 - **Ukuran PR** — target < 500 LOC.
 
+## Alur Branch (Phase → Main)
+
+- **`main`** — hanya menerima merge **satu phase utuh** (mis. seluruh Phase 01 selesai + exit criteria terpenuhi).
+- **`phase-XX-<nama>`** (mis. `phase-01-foundation`) — branch integrasi per phase; **PR per-fitur (PR-00N) menargetkan branch ini**, bukan `main`.
+- Branch kerja per PR: `pr-00N-<slug>` → PR ke branch phase → squash-merge setelah check hijau.
+
+Kedua jenis branch (`main` & branch phase aktif) diproteksi sama: wajib PR + check `lint-typecheck-test` hijau, `enforce_admins` aktif.
+
 ## CI — Status Check per PR
 
-Setiap PR ke `main` menjalankan workflow [`.github/workflows/pr.yml`](./.github/workflows/pr.yml) (GitHub Actions, ADR-016). Check **wajib hijau sebelum merge** (branch protection):
+Setiap PR ke `main` atau branch `phase-*` menjalankan workflow [`.github/workflows/pr.yml`](./.github/workflows/pr.yml) (GitHub Actions, ADR-016). Check **wajib hijau sebelum merge** (branch protection):
 
 | Status check                    | Isi                                                                                                                       | Blocking?       |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------- |
