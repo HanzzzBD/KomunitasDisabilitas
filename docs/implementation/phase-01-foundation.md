@@ -1,0 +1,1200 @@
+---
+phase: 1
+name: "Foundation"
+prs: PR-001..PR-015 (15 PR)
+sprint: "1"
+depends_on: []
+source_of_truth: PRD v1.1 + SDD v1.1 + ADR-001..018
+conventions: see README.md (Konvensi Global & RB-Std)
+---
+
+# Phase 01 - Foundation
+
+## Overview
+
+Fondasi monorepo, tooling, database, dan modul core (crypto/audit/queue) yang menjadi prasyarat seluruh phase berikutnya. Tidak ada fitur pengguna di phase ini.
+
+> Konvensi global (lint boundaries, zod, error envelope, a11y gate, AI via gateway, no-PII log, <500 LOC) dan definisi **RB-Std** berlaku untuk semua PR - lihat [README.md](README.md#konvensi-global).
+
+## Dependencies
+
+* None (phase pertama)
+
+## Deliverables
+
+* **PR-001** - Monorepo ber-workspace lengkap; Preset config terpusat
+* **PR-002** - Preset eslint boundaries + fixtures
+* **PR-003** - Pipeline CI aktif + branch protection
+* **PR-004** - Paket schemas + OpenAPI pipeline
+* **PR-005** - `@incasif/api-client` siap dipakai web/mobile
+* **PR-006** - API bootable dengan fondasi config/logging
+* **PR-007** - Middleware core/http lengkap + katalog kode error awal
+* **PR-008** - Compose dev lengkap + health endpoints
+* **PR-009** - Migrasi 01 + seed admin
+* **PR-010** - Migrasi 02
+* **PR-011** - Migrasi 03 — skema MVP komplet
+* **PR-012** - Seed + fixture terdokumentasi
+* **PR-013** - Util crypto teruji + runbook kunci
+* **PR-014** - Helper audit + katalog action
+* **PR-015** - Queue infra + worker + DLQ observability
+
+## Pull Requests
+
+### PR-001 - Turborepo Workspace & Shared Config
+
+#### Objective
+
+**Inisialisasi monorepo Turborepo + packages/config.**
+
+Bisnis: fondasi agar tim 3–5 engineer bekerja paralel di satu repo. Teknis: workspace pnpm + Turborepo dengan tsconfig/eslint/prettier terpusat (SDD §3).
+
+#### Scope
+
+* `turbo.json`, root `package.json` workspaces
+* `packages/config` (tsconfig base, eslint base, prettier)
+* Folder kosong `apps/{api,worker,web,mobile}`, `packages/{schemas,api-client,ui,a11y}`
+* README struktur repo & cara menjalankan
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Tidak ada (struktur saja).
+
+**Frontend Changes:**
+
+* Tidak ada (struktur saja).
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* `.gitignore` mencakup `.env*` sejak commit pertama (ADR-015).
+
+**Testing Checklist:**
+
+* [x] Unit Test (smoke: typecheck)
+* [x] Integration Test (N/A — dicatat)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (clone bersih → install → typecheck)
+
+**Deliverables:**
+
+* Monorepo ber-workspace lengkap
+* Preset config terpusat
+
+**Out of Scope:**
+
+* Aturan lint boundaries (PR-002); CI (PR-003); kode aplikasi apa pun.
+
+**Rollback Strategy:**
+
+RB-Std (tanpa migrasi; revert commit cukup).
+
+#### Acceptance Criteria
+
+* [x] `pnpm install && pnpm turbo typecheck` hijau dari clone bersih.
+* [x] Semua workspace ter-resolve tanpa error.
+* [x] tsconfig strict mode aktif untuk seluruh workspace.
+* [x] README menjelaskan struktur & perintah dasar.
+* [x] Tidak ada file env/secret ter-commit (cek `.gitignore`).
+
+#### Dependencies
+
+* None
+
+#### Risks
+
+* Salah desain struktur workspace → refactor mahal. Mitigasi: ikuti persis layout SDD §3.
+
+#### Log Implementasi (2026-07-18)
+
+**Ringkasan hasil:**
+
+Monorepo pnpm + Turborepo berdiri dengan 9 workspace ter-resolve: `apps/{api,worker,web,mobile}` + `packages/{config,schemas,api-client,ui,a11y}`. Preset config terpusat tersedia di `@incasif/config` (tsconfig base/node/react, eslint base, prettier). Seluruh gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 (strict), `pnpm test` 9/9 (4 unit test preset lulus). README root diganti dengan struktur repo, prasyarat, perintah dasar, konvensi global, dan RB-Std.
+
+**Scope selesai:**
+
+* `turbo.json` (task: build, dev, lint, typecheck, test, test:cov), root `package.json` (packageManager pin `pnpm@9.15.0`), `pnpm-workspace.yaml`, `.npmrc`, `.prettierignore`, `.prettierrc.cjs` (forward ke preset).
+* `packages/config`: `tsconfig/base.json` (strict + noUncheckedIndexedAccess + verbatimModuleSyntax), `tsconfig/node.json`, `tsconfig/react.json`, `eslint/base.cjs`, `prettier/index.js`, diekspos via `exports` map.
+* Placeholder workspace untuk 4 apps + 4 packages: masing-masing `package.json` + `tsconfig.json` (extends preset) + `src/index.ts` stub + `.eslintrc.cjs` — agar workspace resolve & semua task turbo bisa jalan sejak sekarang.
+* Unit test (Vitest) di `packages/config/__tests__/presets.test.ts`: memverifikasi preset prettier/eslint ter-load dan strict mode aktif di tsconfig base.
+* README struktur repo & cara menjalankan.
+
+**Scope tidak selesai:** Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install (belum ada `node_modules`) di working tree — repo belum di-push sehingga clone literal belum mungkin; ulangi verifikasi saat PR-003 (CI) berjalan di runner bersih.
+
+**Keputusan teknis:**
+
+1. **Placeholder berisi `package.json` + stub `src/index.ts`, bukan folder benar-benar kosong.** Folder kosong tidak ter-resolve sebagai workspace pnpm dan membuat acceptance criteria "semua workspace ter-resolve" tidak terverifikasi. Stub hanya mengekspor konstanta/`export {}` tanpa logika.
+2. **ESLint 8 (legacy config), bukan flat config.** `eslint-plugin-boundaries` (PR-002) dan ekosistem preset masih paling stabil di legacy config; migrasi flat config bisa jadi keputusan terpisah nanti. Konsumsi preset via `module.exports = require("@incasif/config/eslint")` karena resolver `extends` string ESLint tidak membaca `exports` map package.
+3. **`verbatimModuleSyntax` aktif di base** untuk kebersihan import type; di-override `false` hanya di tsconfig lokal `packages/config` karena file test/vitest config-nya ESM sementara paket ber-`type: commonjs`.
+4. **Versi di-pin exact** (`save-exact` di `.npmrc`; turbo 2.3.3, TS 5.7.2, eslint 8.57.1, vitest 2.1.8, prettier 3.3.3) untuk build deterministik.
+5. **Dokumen pre-existing (PRD/SDD/CLAUDE/docs) dikecualikan dari prettier** via `.prettierignore` agar `pnpm format` tidak menghasilkan diff besar di luar scope PR kode.
+
+**Risiko ditemukan:**
+
+* `corepack enable` gagal (EPERM) di mesin dev Windows tanpa admin — workaround terdokumentasi: `corepack enable --install-directory <dir-user> pnpm`. Perlu dicek ulang saat setup CI (PR-003); di runner GitHub Actions biasanya tidak bermasalah.
+* Lint script pakai `--ext .ts,.tsx` (eslint 8 default hanya `.js`) — saat migrasi ke flat config nanti, flag ini harus diganti pattern glob.
+
+**Next steps:**
+
+* PR-002: tambahkan aturan `eslint-plugin-boundaries` ke preset `@incasif/config/eslint` + fixtures pelanggaran.
+* PR-003: CI GitHub Actions memakai `corepack` + cache pnpm/turbo; verifikasi acceptance "clone bersih" di runner.
+* Saat apps terisi kode nyata: ganti stub `src/index.ts`, tambahkan `dev` script per app (task `dev` di turbo.json sudah disiapkan).
+
+
+### PR-002 - Lint Boundaries — Arsitektur sebagai Kode
+
+#### Objective
+
+**Aturan eslint-plugin-boundaries + fixture pelanggaran.**
+
+Bisnis: mencegah erosi arsitektur (risiko T1 SDD §20) tanpa mengandalkan disiplin manual. Teknis: menegakkan `router→controller→service→repo`, larangan import repo lintas modul & SDK AI di luar `core/ai` (SDD §5.1, ADR-002/012).
+
+#### Scope
+
+* Preset boundaries di `packages/config`
+* Fixture pelanggaran tiap aturan (bukti gate bekerja)
+* Dokumentasi aturan di README config
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Konvensi folder modul ditetapkan (belum ada modul nyata).
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Aturan "no direct AI SDK import" adalah kontrol keamanan data (mencegah bypass gateway/kuota/privasi).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (fixture lint)
+* [ ] Integration Test (N/A)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (jalankan lint pada fixture)
+
+**Deliverables:**
+
+* Preset eslint boundaries + fixtures
+
+**Out of Scope:**
+
+* CI enforcement (PR-003).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Import repo lintas modul → lint error (fixture).
+* [ ] Import SDK AI di luar `core/ai` → lint error (fixture).
+* [ ] Loncat lapisan (router→repo) → lint error (fixture).
+* [ ] Preset dipakai `apps/api` via extends tunggal.
+* [ ] Dokumentasi aturan tersedia.
+
+#### Dependencies
+
+* PR-001
+
+#### Risks
+
+* Aturan terlalu ketat menghambat dev. Mitigasi: escape hatch via komentar ber-review + dicatat.
+
+
+### PR-003 - CI Pipeline Dasar (PR Checks)
+
+#### Objective
+
+**GitHub Actions: lint + typecheck + test wajib per PR.**
+
+Bisnis: kualitas tidak bergantung ingatan reviewer. Teknis: workflow PR dengan cache Turborepo; slot job e2e/a11y disiapkan (diaktifkan PR-031) (ADR-016).
+
+#### Scope
+
+* `.github/workflows/pr.yml` (lint, typecheck, unit)
+* Branch protection: check wajib
+* Cache pnpm + turbo
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Tidak ada.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Workflow tanpa secrets produksi; permission `contents: read` minimal.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (pipeline menjalankan unit suite)
+* [ ] Integration Test (N/A)
+* [ ] E2E Test (slot disiapkan, non-blocking)
+* [ ] Accessibility Test (slot disiapkan, non-blocking)
+* [ ] Manual Verification (buka PR uji → check tampil)
+
+**Deliverables:**
+
+* Pipeline CI aktif + branch protection
+
+**Out of Scope:**
+
+* Build image (PR-099); a11y gate aktif (PR-031); secrets scan (PR-108).
+
+**Rollback Strategy:**
+
+Nonaktifkan required check sementara via settings; revert workflow.
+
+#### Acceptance Criteria
+
+* [ ] PR tidak dapat merge tanpa semua check hijau.
+* [ ] Pelanggaran boundaries menggagalkan CI (bukti fixture).
+* [ ] Cache mempercepat run kedua (< 50% durasi run pertama).
+* [ ] Workflow permission least-privilege.
+* [ ] Status check terdokumentasi di README.
+
+#### Dependencies
+
+* PR-001
+* PR-002
+
+#### Risks
+
+* Durasi pipeline membengkak seiring repo tumbuh. Mitigasi: turbo cache + sharding disiapkan.
+
+
+### PR-004 - packages/schemas + OpenAPI Generator
+
+#### Objective
+
+**Kontrak zod tunggal + generate openapi.json dari zod.**
+
+Bisnis: FE/BE/mobile paralel tanpa saling tunggu (kontrak dulu). Teknis: `packages/schemas` per domain + `zod-openapi`; drift kontrak = CI merah (SDD §11, G6).
+
+#### Scope
+
+* Skeleton schemas per domain (auth, profiles, jobs, dst. — kosong berisi contoh)
+* Generator `scripts/gen-openapi.ts` + check diff di CI
+* Konvensi penamaan skema
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Tidak ada (paket bersama).
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada (fondasi kontrak).
+
+**Security Considerations:**
+
+* Input Validation: skema zod adalah lapisan validasi tunggal FE+BE — mencegah drift validasi.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (skema contoh valid/invalid)
+* [ ] Integration Test (snapshot openapi.json)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (buka openapi.json di Swagger viewer)
+
+**Deliverables:**
+
+* Paket schemas + OpenAPI pipeline
+
+**Out of Scope:**
+
+* Skema domain lengkap (diisi per PR fitur).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] 1 skema contoh dipakai end-to-end (type + runtime).
+* [ ] `openapi.json` ter-generate deterministik di CI.
+* [ ] Perubahan skema tanpa regenerate → CI merah (diff check).
+* [ ] Konvensi penamaan terdokumentasi.
+* [ ] Paket ter-typecheck strict.
+
+#### Dependencies
+
+* PR-001
+
+#### Risks
+
+* Skema jadi bottleneck kepemilikan. Mitigasi: PR skema kecil terpisah per kebutuhan.
+
+
+### PR-005 - packages/api-client
+
+#### Objective
+
+**Typed API client (fetch + TanStack helpers) dari kontrak zod.**
+
+Bisnis: konsistensi perilaku web & mobile. Teknis: client dengan auth header, parse envelope, hook point refresh 401 (ADR-014).
+
+#### Scope
+
+* Base client + interceptor 401→refresh (stub sampai PR-018)
+* Helper `queryKey [domain, params]`
+* 1 endpoint contoh terhubung skema PR-004
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Tidak ada.
+
+**Frontend Changes:**
+
+* Tidak ada (paket bersama).
+
+**Mobile Changes:**
+
+* Paket ini dipakai mobile tanpa perubahan (dipastikan tanpa dependensi DOM).
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Token tidak pernah di-log; penyimpanan token di luar paket (web cookie / mobile SecureStore).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (parse, retry, error mapping)
+* [ ] Integration Test (mock server)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (contoh dipanggil dari script)
+
+**Deliverables:**
+
+* `@incasif/api-client` siap dipakai web/mobile
+
+**Out of Scope:**
+
+* Implementasi refresh nyata (PR-018).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Envelope error terpetakan ke tipe TS `{code,message,hint}`.
+* [ ] 401 → satu kali refresh → retry (mock).
+* [ ] Tidak ada dependensi DOM (jalan di RN).
+* [ ] Query key convention terdokumentasi.
+* [ ] Tree-shakeable (bundle test).
+
+#### Dependencies
+
+* PR-004
+
+#### Risks
+
+* Abstraksi berlebih. Mitigasi: hanya wrap fetch + envelope, tanpa magic.
+
+
+### PR-006 - API Bootstrap — core/config + core/logger
+
+#### Objective
+
+**Express boot: env zod fail-fast + pino JSON + redaction.**
+
+Bisnis: kegagalan konfigurasi ketahuan saat deploy, bukan saat user memakai. Teknis: `core/config` (parse env zod), `core/logger` (pino, requestId, redaction list awal) (SDD §5.1, ADR-002).
+
+#### Scope
+
+* `apps/api/src/server.ts` start/stop bersih
+* `core/config`: skema env + fail-fast
+* `core/logger`: pino + redaction + requestId binding
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Bootstrap Express + dua modul core pertama.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Redaction: daftar kunci sensitif (authorization, otp, field_key, dsb.) tidak pernah ter-log.
+* Fail-fast mencegah boot dengan kunci enkripsi kosong.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (config parse, redaction)
+* [ ] Integration Test (boot + shutdown)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (boot dengan env rusak)
+
+**Deliverables:**
+
+* API bootable dengan fondasi config/logging
+
+**Out of Scope:**
+
+* Error envelope & middleware HTTP (PR-007).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Env wajib kosong → exit code ≠ 0 dengan pesan variabel mana yang hilang.
+* [ ] Log JSON memuat requestId di setiap baris request-scoped.
+* [ ] Redaction test: nilai secret tidak muncul di output.
+* [ ] Graceful shutdown (SIGTERM) menutup server bersih.
+* [ ] Boot < 3 detik di dev.
+
+#### Dependencies
+
+* PR-001
+* PR-002
+
+#### Risks
+
+* Redaction list tidak lengkap. Mitigasi: deny-by-default untuk kunci baru bermuatan credential + review PR-013/014.
+
+
+### PR-007 - core/http — Envelope, asyncHandler, Helmet, Rate Limit Global
+
+#### Objective
+
+**Fondasi HTTP aman & respons konsisten.**
+
+Bisnis: pesan error ramah pengguna disabilitas (dibaca screen reader). Teknis: error handler global `{code,message,hint}`, `asyncHandler`, helmet dasar, CORS, rate limit global per IP (SDD §5.3, §8.4).
+
+#### Scope
+
+* Error handler global + mapping error → envelope
+* `asyncHandler` + notFound handler
+* helmet + CORS whitelist + express-rate-limit (Redis store menyusul PR-008)
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Middleware stack baku untuk seluruh modul.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada (konvensi respons).
+
+**Security Considerations:**
+
+* Input Validation: helper `validate(schema)` untuk body/query/params.
+* Rate Limiting global; stack error tidak pernah bocor ke response.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (mapper error)
+* [ ] Integration Test (throw async → envelope; 429)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A — pesan diuji di FE)
+* [ ] Manual Verification (curl error paths)
+
+**Deliverables:**
+
+* Middleware core/http lengkap + katalog kode error awal
+
+**Out of Scope:**
+
+* CSP final & limit per endpoint (PR-105); rate limit OTP khusus (PR-016).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Error async tertangkap → envelope (tidak crash proses).
+* [ ] `message` semua error teruji berbahasa Indonesia sederhana (katalog kode error).
+* [ ] 429 dikembalikan dengan `Retry-After`.
+* [ ] Stack trace hanya ke logger, tidak ke klien.
+* [ ] Security headers dasar terpasang (helmet snapshot).
+
+#### Dependencies
+
+* PR-006
+
+#### Risks
+
+* Katalog kode error tidak disiplin. Mitigasi: enum kode terpusat, lint penggunaan string literal.
+
+
+### PR-008 - Docker Compose Dev + Health Endpoints
+
+#### Objective
+
+**Lingkungan dev satu perintah: Postgres18+pgvector, Redis 2-DB, API.**
+
+Bisnis: onboarding engineer < 1 jam. Teknis: compose dev + init pgvector + dua koneksi Redis (cache LRU vs queue non-evict) + `/healthz` `/readyz` (ADR-004/006).
+
+#### Scope
+
+* `docker-compose.dev.yml` + `apps/api/Dockerfile` (dev target)
+* `infra/pg-init.sql` (CREATE EXTENSION vector)
+* Redis config dua DB index; klien terpisah
+* Endpoint health (liveness) & ready (ping DB+Redis)
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Koneksi Prisma placeholder + Redis clients; health router.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Ekstensi `vector` aktif di container dev.
+
+**API Changes:**
+
+* GET /healthz
+* GET /readyz
+
+**Security Considerations:**
+
+* Kredensial dev-only di compose; `.env.example` tanpa nilai rahasia.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (health handler)
+* [ ] Integration Test (readyz vs dependensi mati)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (compose up dari nol)
+
+**Deliverables:**
+
+* Compose dev lengkap + health endpoints
+
+**Out of Scope:**
+
+* Compose prod/staging (PR-097).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] `docker compose up` → API sehat dalam satu perintah di mesin bersih.
+* [ ] `/readyz` gagal bila Redis/DB mati (diuji).
+* [ ] DB cache Redis ber-`maxmemory allkeys-lru`; DB queue tanpa eviction (assert config).
+* [ ] Hot-reload API bekerja di dev.
+* [ ] pgvector tersedia (`SELECT '[]'::vector` sukses).
+
+#### Dependencies
+
+* PR-006
+* PR-007
+
+#### Risks
+
+* Perbedaan versi image dev vs prod. Mitigasi: pin versi image sama dengan target prod.
+
+
+### PR-009 - Migrasi Inti Identitas
+
+#### Objective
+
+**Tabel users, refresh_tokens, accessibility_profiles, audit_logs.**
+
+Bisnis: fondasi akun & jejak audit sejak hari pertama (UU PDP). Teknis: Prisma init + migrasi pertama (uuid v7, timestamptz, enum role, BRIN audit) (SDD §6, §14).
+
+#### Scope
+
+* `schema.prisma` awal + migrasi 01
+* Seed admin pertama
+* Konvensi migrasi (raw SQL untuk fitur non-Prisma)
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Prisma client ter-generate; helper uuid v7.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tabel: `users` (role enum, soft-delete `deleted_at`, unique phone/google_id), `refresh_tokens` (hash, family), `accessibility_profiles`, `audit_logs` (append-only).
+* Indeks: BRIN `audit_logs.created_at`; unique parsial users aktif.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Audit table append-only (tanpa UPDATE grant di role aplikasi — dicatat untuk PR-097).
+* Soft delete sebagai fondasi hak hapus PDP.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (helper uuid v7)
+* [ ] Integration Test (migrate up/down, constraint)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (psql inspeksi skema)
+
+**Deliverables:**
+
+* Migrasi 01 + seed admin
+
+**Out of Scope:**
+
+* Tabel domain seeker (PR-010) & marketplace (PR-011).
+
+**Rollback Strategy:**
+
+Migrasi down teruji; RB-Std untuk kode.
+
+#### Acceptance Criteria
+
+* [ ] `prisma migrate reset` + seed hijau di CI (Postgres service).
+* [ ] Enum role = `seeker|admin|employer` (employer reserved).
+* [ ] Semua timestamp `timestamptz`; PK uuid v7 (sortable).
+* [ ] Constraint unique diuji (duplikat ditolak).
+* [ ] Migrasi memiliki down yang teruji.
+
+#### Dependencies
+
+* PR-008
+
+#### Risks
+
+* Salah desain enum/kolom awal → migrasi berantai. Mitigasi: ikuti SDD §6 verbatim.
+
+
+### PR-010 - Migrasi Domain Seeker
+
+#### Objective
+
+**seeker_profiles (sensitif bytea + vector) + experiences/educations/skills + resumes.**
+
+Bisnis: menampung profil pencari kerja termasuk data disabilitas secara aman. Teknis: kolom sensitif `bytea` (ciphertext), `profile_embedding vector(768)` + HNSW (SDD §6.2).
+
+#### Scope
+
+* Migrasi 02: 5 tabel + FK CASCADE dari users
+* Raw SQL kolom vector + indeks HNSW
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Model Prisma + tipe `Unsupported("vector")` terdokumentasi.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* `seeker_profiles` (disability_types/accommodation_needs `bytea` NULL, disclosure_default enum, consent_sensitive_at, profile_embedding vector(768)), `experiences`, `educations`, `skills`, `resumes` (content jsonb, created_via enum).
+* Indeks HNSW `profile_embedding`.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Sensitive Data: tidak ada kolom sensitif bertipe text/jsonb plaintext (assert di test).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (N/A)
+* [ ] Integration Test (migrate, vector roundtrip, EXPLAIN)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (psql)
+
+**Deliverables:**
+
+* Migrasi 02
+
+**Out of Scope:**
+
+* Logika enkripsi (PR-013/037).
+
+**Rollback Strategy:**
+
+Migrasi down; RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Kolom sensitif bertipe bytea (introspeksi otomatis di test).
+* [ ] Insert/select vector via raw SQL ber-parameter sukses.
+* [ ] EXPLAIN query cosine memakai HNSW.
+* [ ] FK CASCADE dari users terverifikasi.
+* [ ] Migrasi down teruji.
+
+#### Dependencies
+
+* PR-009
+
+#### Risks
+
+* Prisma vs vector friction. Mitigasi: seluruh akses vector via repo matching (raw SQL terkurung).
+
+
+### PR-011 - Migrasi Domain Marketplace
+
+#### Objective
+
+**companies, jobs, applications, match_scores, ai_usage, notifications, sign_videos + indeks penuh.**
+
+Bisnis: menampung katalog lowongan, lamaran, dan kamus BISINDO. Teknis: sisa skema MVP + seluruh indeks SDD §6.3 (FTS indonesian, pg_trgm, GIN jsonb, HNSW job, partial unread).
+
+#### Scope
+
+* Migrasi 03: 7 tabel + raw SQL indeks
+* FK applications→jobs RESTRICT (riwayat tak hilang)
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Model Prisma lengkap MVP (kecuali devices & ai_chat_sessions — inkremental, G7).
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* `companies` (inclusivity_status enum, accommodations jsonb), `jobs` (work_mode enum, accommodations jsonb, welcomed_disability_types[], status enum, job_embedding vector(768), expires_at), `applications` (unique user+job, disclose_disability bool, status enum, status_history jsonb, hired_confirmed_at), `match_scores` (PK komposit), `ai_usage`, `notifications`, `sign_videos`.
+* Indeks: GIN FTS jobs(title+description), GIN pg_trgm title, GIN accommodations jsonb_path_ops, HNSW job_embedding, partial notifications unread, btree per SDD §6.3.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Unique (user_id, job_id) = fondasi idempotensi apply (mencegah duplikasi via race).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (N/A)
+* [ ] Integration Test (indeks, constraint, race)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (psql \d+)
+
+**Deliverables:**
+
+* Migrasi 03 — skema MVP komplet
+
+**Out of Scope:**
+
+* Tabel devices (PR-048), ai_chat_sessions (PR-065), suspended_at (PR-083).
+
+**Rollback Strategy:**
+
+Migrasi down; RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] EXPLAIN FTS & trigram & vector memakai indeks masing-masing (bukti di PR).
+* [ ] Unique apply ditegakkan pada insert paralel (test race).
+* [ ] Delete jobs dengan lamaran → ditolak (RESTRICT).
+* [ ] Seluruh enum sesuai SDD (snapshot skema).
+* [ ] Migrasi down teruji.
+
+#### Dependencies
+
+* PR-010
+
+#### Risks
+
+* Konfigurasi FTS bahasa Indonesia terbatas. Mitigasi: config 'indonesian' + trigram sebagai penyelamat typo (ADR-018).
+
+
+### PR-012 - Seed Data Dev & Fixture E2E
+
+#### Objective
+
+**Seed deterministik: 3 persona, 5 companies, 20 jobs, lamaran contoh.**
+
+Bisnis: demo & E2E memakai data yang mencerminkan persona PRD §4. Teknis: seed idempotent (faker seeded) untuk dev/CI.
+
+#### Scope
+
+* `seed.ts` idempotent
+* Fixture ID stabil untuk E2E
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Skrip seed.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Data seed (bukan skema).
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Data sensitif seed = dummy jelas (bukan data riil); tidak dipakai di produksi (guard env).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (N/A)
+* [ ] Integration Test (idempotensi)
+* [ ] E2E Test (fixture dipakai smoke)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (inspeksi data)
+
+**Deliverables:**
+
+* Seed + fixture terdokumentasi
+
+**Out of Scope:**
+
+* Data pilot produksi (kurasi admin nyata).
+
+**Rollback Strategy:**
+
+RB-Std (data dev saja).
+
+#### Acceptance Criteria
+
+* [ ] Seed 2× tidak menghasilkan duplikat.
+* [ ] 20 jobs mencakup variasi akomodasi/work_mode untuk test matching.
+* [ ] Persona selaras PRD §4 (Tuli/Netra/Daksa/Autisme).
+* [ ] Seed gagal di env production (guard).
+* [ ] ID fixture stabil terdokumentasi.
+
+#### Dependencies
+
+* PR-011
+
+#### Risks
+
+* Seed drift dari skema. Mitigasi: seed dijalankan di CI setiap PR migrasi.
+
+
+### PR-013 - core/crypto — AES-256-GCM Berversi
+
+#### Objective
+
+**encryptField/decryptField + rotasi kunci berversi.**
+
+Bisnis: data disabilitas (data spesifik UU PDP) aman meski DB/backup bocor (PRD §12, R4). Teknis: AES-256-GCM `versi‖iv‖tag‖data`, kunci env `FIELD_KEY_Vn`, dekripsi multi-versi (ADR-007).
+
+#### Scope
+
+* Util crypto + tipe `EncryptedField`
+* Validasi kunci saat boot (panjang, format)
+* `docs/runbook-keys.md` (rotasi)
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* `core/crypto` dipakai modul profiles nanti.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Encryption: GCM authenticated; kunci tidak pernah menyentuh DB/log (redaction PR-006).
+* Rotasi: multi-versi tanpa downtime.
+
+**Testing Checklist:**
+
+* [ ] Unit Test (vectors, tamper, multi-versi)
+* [ ] Integration Test (boot validation)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (rotasi kunci di dev)
+
+**Deliverables:**
+
+* Util crypto teruji + runbook kunci
+
+**Out of Scope:**
+
+* Pemakaian di profiles (PR-037); enkripsi backup (PR-104).
+
+**Rollback Strategy:**
+
+RB-Std; data terenkripsi versi lama tetap terbaca (multi-versi by design).
+
+#### Acceptance Criteria
+
+* [ ] Round-trip lintas versi kunci lulus test vector.
+* [ ] Ciphertext dimodifikasi → error autentikasi (bukan data korup).
+* [ ] Boot gagal bila kunci salah panjang/format.
+* [ ] Kunci tidak muncul di log (test redaction).
+* [ ] Runbook rotasi tersedia & direview.
+
+#### Dependencies
+
+* PR-006
+
+#### Risks
+
+* Kunci bocor via env (T8). Mitigasi: ADR-015 (chmod 600, password manager, redaction).
+
+
+### PR-014 - core/audit — Audit Logging Helper
+
+#### Objective
+
+**auditLog() append-only + strip PII by schema.**
+
+Bisnis: setiap akses data sensitif dapat dipertanggungjawabkan (SDD §8.3, PDP). Teknis: helper terpusat + enum action + writer async non-blocking.
+
+#### Scope
+
+* `auditLog(actor, action, entity, entityId, meta)`
+* Skema meta per action (PII di-strip)
+* Enum action terpusat
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* `core/audit` siap dipakai semua modul.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada (tabel di PR-009).
+
+**API Changes:**
+
+* Tidak ada.
+
+**Security Considerations:**
+
+* Audit Logging: wajib untuk akses sensitif, perubahan status, aksi admin (dipetakan per modul di PR terkait).
+* Meta tidak pernah memuat nilai field sensitif (schema-enforced).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (strip meta)
+* [ ] Integration Test (baris tertulis)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (inspeksi baris)
+
+**Deliverables:**
+
+* Helper audit + katalog action
+
+**Out of Scope:**
+
+* Pemetaan audit per modul (di PR modul); arsip 2 tahun (PR-024 hook).
+
+**Rollback Strategy:**
+
+RB-Std.
+
+#### Acceptance Criteria
+
+* [ ] Meta dengan PII → di-strip (test per skema action).
+* [ ] Penulisan async tidak memblokir request (latency test).
+* [ ] Kegagalan tulis audit ter-log + metrik (tidak senyap).
+* [ ] Enum action terdokumentasi.
+* [ ] Baris audit memuat actor, entity, entityId, requestId.
+
+#### Dependencies
+
+* PR-009
+
+#### Risks
+
+* Audit terlalu bising. Mitigasi: katalog action ditinjau; baca massal via job bukan per-row.
+
+
+### PR-015 - core/queue + Worker Bootstrap + DLQ
+
+#### Objective
+
+**BullMQ registry, apps/worker, retry/timeout/DLQ per SDD §16.**
+
+Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. Teknis: registry queue config-driven, job-id deterministik, DLQ + endpoint internal (ADR-004).
+
+#### Scope
+
+* `core/queue` (definisi + enqueue helper)
+* `apps/worker` bootstrap + graceful shutdown (drain)
+* DLQ handler + `GET /internal/queues`
+
+#### Technical Notes
+
+**Backend Changes:**
+
+* Infrastruktur queue lengkap; worker service di compose dev.
+
+**Frontend Changes:**
+
+* Tidak ada.
+
+**Database Changes:**
+
+* Tidak ada.
+
+**API Changes:**
+
+* GET /internal/queues (auth internal)
+
+**Security Considerations:**
+
+* Endpoint internal dilindungi (network internal + token internal); payload job tanpa PII bila memungkinkan (ID reference, bukan data).
+
+**Testing Checklist:**
+
+* [ ] Unit Test (enqueue helper)
+* [ ] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI)
+* [ ] E2E Test (N/A)
+* [ ] Accessibility Test (N/A)
+* [ ] Manual Verification (kill worker saat job jalan)
+
+**Deliverables:**
+
+* Queue infra + worker + DLQ observability
+
+**Out of Scope:**
+
+* Processor fitur (PR terkait); alert DLQ (PR-103).
+
+**Rollback Strategy:**
+
+RB-Std; antrean in-flight aman karena idempotensi.
+
+#### Acceptance Criteria
+
+* [ ] Job dengan job-id sama tidak diproses dua kali.
+* [ ] Job gagal-final masuk DLQ & terlihat di endpoint.
+* [ ] removeOnComplete/Fail sesuai SDD §16.
+* [ ] Shutdown drain job aktif (tidak terpotong).
+* [ ] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode.
+
+#### Dependencies
+
+* PR-008
+
+#### Risks
+
+* Kehilangan job saat Redis crash. Mitigasi: semua job idempotent + re-enqueue dari state DB (SDD §16).
+
+
+## Exit Criteria
+
+Phase 01 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
+
+* Seluruh 15 PR (PR-001..PR-015) merged ke main.
+* Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
+* CI hijau penuh: lint boundaries, typecheck, unit, integration.
+* Tidak ada regresi pada E2E alur yang sudah ada.
+
+## Next Phase
+
+[Phase 02 - Authentication & Account](phase-02-authentication-account.md)

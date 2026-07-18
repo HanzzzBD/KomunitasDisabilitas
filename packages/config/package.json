@@ -1,0 +1,38 @@
+{
+  "name": "@incasif/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Preset config terpusat: tsconfig, eslint, prettier (SDD §3).",
+  "type": "commonjs",
+  "files": [
+    "tsconfig",
+    "eslint",
+    "prettier"
+  ],
+  "exports": {
+    "./prettier": "./prettier/index.js",
+    "./eslint": "./eslint/base.cjs",
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tsconfig/node": "./tsconfig/node.json",
+    "./tsconfig/react": "./tsconfig/react.json"
+  },
+  "scripts": {
+    "lint": "eslint . --ext .ts,.cjs,.js --max-warnings=0",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@typescript-eslint/eslint-plugin": "8.18.1",
+    "@typescript-eslint/parser": "8.18.1",
+    "eslint": "8.57.1",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  },
+  "peerDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Monorepo cache / build output
+.turbo/
+coverage/
+**/coverage/
+dist/
+build/
+**/dist/
+**/build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local databases / temp data
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+tmp/
+temp/
+.cache/
+
+# Docker local volumes
+/docker-data/
+/docker/volumes/

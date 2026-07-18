@@ -1,0 +1,24 @@
+{
+  "name": "@incasif/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Skema zod bersama (validasi FE = validasi BE). Placeholder — skema menyusul di PR-004.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@incasif/config": "workspace:*",
+    "@types/node": "22.10.2",
+    "eslint": "8.57.1",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

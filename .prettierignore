@@ -1,0 +1,18 @@
+node_modules/
+.turbo/
+dist/
+build/
+coverage/
+**/dist/
+**/build/
+**/coverage/
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# Dokumen produk/teknis pre-existing — jangan diformat ulang otomatis
+# (menghindari diff besar di luar scope PR kode).
+CLAUDE.md
+DESIGN.md
+PRD.md
+SDD.md
+docs/

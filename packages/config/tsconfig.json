@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig/node.json",
+  "compilerOptions": {
+    // File di paket ini (test + vitest config) di-typecheck sebagai ESM oleh Vitest.
+    // Override module resolution ke Bundler & matikan verbatimModuleSyntax di sini
+    // saja — preset yang dikonsumsi paket lain (tsconfig/*.json) tidak terpengaruh.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": false,
+    "types": ["node", "vitest/globals"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}

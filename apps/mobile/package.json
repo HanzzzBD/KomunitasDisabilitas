@@ -1,0 +1,18 @@
+{
+  "name": "@incasif/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "React Native + Expo (Android) app. Placeholder — bootstrap menyusul di phase Mobile.",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@incasif/config": "workspace:*",
+    "eslint": "8.57.1",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
