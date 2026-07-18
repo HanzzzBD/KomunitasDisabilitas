@@ -1,0 +1,79 @@
+# CI PR Checks — lint (termasuk boundaries), typecheck, unit test (ADR-016, PR-003).
+#
+# Semua check WAJIB hijau sebelum merge (branch protection required checks).
+# Slot job e2e & a11y disiapkan non-blocking; diaktifkan di PR-031.
+# Tanpa secrets produksi; permission least-privilege (contents: read).
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Push baru ke branch PR yang sama membatalkan run lama (hemat menit runner).
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint-typecheck-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # corepack membaca field "packageManager" di package.json (pnpm@9.15.0 pinned).
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Setup Node 20 + cache pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Cache turbo (turbo 2.x default cache dir = .turbo/cache):
+      # run kedua dengan input sama memakai hasil cache (< 50% durasi).
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.ref_name }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Lint mencakup eslint-plugin-boundaries — pelanggaran arsitektur = CI merah.
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit test
+        run: pnpm test
+
+  # ---- Slot non-blocking (diaktifkan PR-031) ----
+  # `if: false` = job tidak pernah jalan, tapi struktur & nama check sudah dipesan
+  # sehingga PR-031 cukup mengganti kondisi + mengisi langkah.
+  e2e:
+    name: e2e (slot — aktif di PR-031)
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Slot e2e — diaktifkan PR-031 (Playwright)."
+
+  a11y:
+    name: a11y (slot — aktif di PR-031)
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Slot a11y — diaktifkan PR-031 (axe-core + Lighthouse CI)."

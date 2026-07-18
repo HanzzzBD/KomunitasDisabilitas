@@ -1,17 +1,16 @@
-
 # @incasif/config
 
 Preset bersama (shared config) untuk seluruh workspace Incasif: TypeScript, ESLint, Prettier, dan **ESLint boundaries** (arsitektur sebagai kode).
 
 ## Isi Paket
 
-| Export | Isi |
-|--------|-----|
-| `@incasif/config/tsconfig/base` | tsconfig strict dasar |
-| `@incasif/config/tsconfig/node` | turunan base untuk app Node (api, worker) |
-| `@incasif/config/tsconfig/react` | turunan base untuk app React (web, ui) |
-| `@incasif/config/prettier` | konfigurasi Prettier bersama |
-| `@incasif/config/eslint` | preset ESLint dasar (semua app & paket) |
+| Export                              | Isi                                                |
+| ----------------------------------- | -------------------------------------------------- |
+| `@incasif/config/tsconfig/base`     | tsconfig strict dasar                              |
+| `@incasif/config/tsconfig/node`     | turunan base untuk app Node (api, worker)          |
+| `@incasif/config/tsconfig/react`    | turunan base untuk app React (web, ui)             |
+| `@incasif/config/prettier`          | konfigurasi Prettier bersama                       |
+| `@incasif/config/eslint`            | preset ESLint dasar (semua app & paket)            |
 | `@incasif/config/eslint/boundaries` | preset ESLint + **boundaries** (khusus `apps/api`) |
 
 ## Preset ESLint Dasar
@@ -36,15 +35,15 @@ module.exports = require("@incasif/config/eslint/boundaries");
 
 Setiap file di `apps/api` diklasifikasikan dari path-nya:
 
-| Tipe | Pattern | Keterangan |
-|------|---------|------------|
-| `core-ai` | `src/core/ai` | Satu-satunya tempat SDK AI boleh diimpor (AI Gateway) |
-| `core` | `src/core/*` | Shared: http, auth, config |
-| `router` | `src/modules/*/routers` | Lapisan route |
-| `controller` | `src/modules/*/controllers` | Lapisan controller |
-| `service` | `src/modules/*/services` | Lapisan business logic |
-| `repository` | `src/modules/*/repositories` | Lapisan akses DB |
-| `module-shared` | `src/modules/*` | File modul lain (types.ts, index.ts) |
+| Tipe            | Pattern                      | Keterangan                                            |
+| --------------- | ---------------------------- | ----------------------------------------------------- |
+| `core-ai`       | `src/core/ai`                | Satu-satunya tempat SDK AI boleh diimpor (AI Gateway) |
+| `core`          | `src/core/*`                 | Shared: http, auth, config                            |
+| `router`        | `src/modules/*/routers`      | Lapisan route                                         |
+| `controller`    | `src/modules/*/controllers`  | Lapisan controller                                    |
+| `service`       | `src/modules/*/services`     | Lapisan business logic                                |
+| `repository`    | `src/modules/*/repositories` | Lapisan akses DB                                      |
+| `module-shared` | `src/modules/*`              | File modul lain (types.ts, index.ts)                  |
 
 Nama modul (`auth`, `jobs`, dst.) di-`capture` sehingga aturan bisa membedakan "modul sama" vs "modul berbeda".
 
