@@ -61,6 +61,10 @@ jobs:
       - name: Unit test
         run: pnpm test
 
+      # Drift kontrak: openapi.json wajib sinkron dengan skema zod (PR-004).
+      - name: OpenAPI drift check
+        run: pnpm --filter @incasif/schemas check:openapi
+
   # ---- Slot non-blocking (diaktifkan PR-031) ----
   # `if: false` = job tidak pernah jalan, tapi struktur & nama check sudah dipesan
   # sehingga PR-031 cukup mengganti kondisi + mengisi langkah.

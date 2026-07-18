@@ -12,6 +12,9 @@ pnpm-lock.yaml
 # Fixtures boundaries: pelanggaran disengaja untuk uji gate, jangan diformat/lint.
 packages/config/fixtures/
 
+# Hasil generate — format kanonik ditentukan generator (drift check), bukan prettier.
+packages/schemas/openapi.json
+
 # Dokumen produk/teknis pre-existing — jangan diformat ulang otomatis
 # (menghindari diff besar di luar scope PR kode).
 CLAUDE.md

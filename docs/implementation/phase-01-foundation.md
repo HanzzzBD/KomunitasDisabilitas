@@ -312,11 +312,11 @@ Bisnis: FE/BE/mobile paralel tanpa saling tunggu (kontrak dulu). Teknis: `packag
 
 **Testing Checklist:**
 
-* [ ] Unit Test (skema contoh valid/invalid)
-* [ ] Integration Test (snapshot openapi.json)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (buka openapi.json di Swagger viewer)
+* [x] Unit Test (skema contoh valid/invalid — 9 test: parse valid, pesan error Indonesia, type-level via expectTypeOf)
+* [x] Integration Test (guard: openapi.json ter-commit dibandingkan byte-per-byte dengan hasil generate di unit test)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (validasi `redocly lint`: 0 error; struktur paths/components diinspeksi — setara buka di Swagger viewer)
 
 **Deliverables:**
 
@@ -332,11 +332,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] 1 skema contoh dipakai end-to-end (type + runtime).
-* [ ] `openapi.json` ter-generate deterministik di CI.
-* [ ] Perubahan skema tanpa regenerate → CI merah (diff check).
-* [ ] Konvensi penamaan terdokumentasi.
-* [ ] Paket ter-typecheck strict.
+* [x] 1 skema contoh dipakai end-to-end (type + runtime) — `requestOtpSchema`: runtime `parse` + tipe `RequestOtp` via `z.infer` (diuji `expectTypeOf`), tampil di openapi.json sebagai component `RequestOtp` + path `/auth/otp/request`.
+* [x] `openapi.json` ter-generate deterministik di CI — tanpa timestamp, `CONTRACT_VERSION` di-pin; test determinisme (2× generate byte identik); step CI `check:openapi`.
+* [x] Perubahan skema tanpa regenerate → CI merah (diff check) — mode `--check` exit 1 (dibuktikan lokal dengan openapi.json dimodifikasi); step "OpenAPI drift check" di pr.yml.
+* [x] Konvensi penamaan terdokumentasi — `packages/schemas/README.md` (tabel konvensi + aturan tambahan + alur tambah skema).
+* [x] Paket ter-typecheck strict — `tsc --noEmit` hijau (preset node strict, termasuk scripts & tests).
 
 #### Dependencies
 
@@ -345,6 +345,10 @@ RB-Std.
 #### Risks
 
 * Skema jadi bottleneck kepemilikan. Mitigasi: PR skema kecil terpisah per kebutuhan.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-004--packagesschemas--openapi-generator).
 
 
 ### PR-005 - packages/api-client
