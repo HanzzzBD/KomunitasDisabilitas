@@ -51,6 +51,11 @@ export const ERROR_CATALOG = {
     message: "Terjadi kesalahan pada server",
     hint: "Coba lagi beberapa saat; laporkan bila terus terjadi",
   },
+  BELUM_SIAP: {
+    status: 503,
+    message: "Layanan sedang tidak siap",
+    hint: "Tunggu sebentar, lalu coba lagi",
+  },
 } as const satisfies Record<string, CatalogEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

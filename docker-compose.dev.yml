@@ -1,0 +1,92 @@
+# Docker Compose DEV (PR-008, ADR-004/006). Prod/staging = PR-097.
+# Satu perintah: docker compose -f docker-compose.dev.yml up
+# Kredensial di file ini DEV-ONLY (localhost) — nilai produksi via env (ADR-015).
+
+name: incasif-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18 # pin mayor = target prod (SDD: PostgreSQL 18)
+    environment:
+      POSTGRES_USER: incasif
+      POSTGRES_PASSWORD: incasif # dev-only
+      POSTGRES_DB: incasif
+    ports:
+      - "5432:5432"
+    volumes:
+      # Catatan image pg18+: mount di /var/lib/postgresql (bukan .../data).
+      - pgdata:/var/lib/postgresql
+      - ./infra/pg-init.sql:/docker-entrypoint-initdb.d/pg-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incasif -d incasif"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ADR-004 (revisi): dua service Redis — kebijakan eviction tidak bisa per DB index.
+  redis-cache:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-queue:
+    image: redis:7.4-alpine
+    # noeviction (wajib BullMQ) + AOF: job tidak hilang saat restart.
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisqueue:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://incasif:incasif@postgres:5432/incasif
+      REDIS_URL: redis://redis-cache:6379
+      REDIS_QUEUE_URL: redis://redis-queue:6379
+      # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
+      # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "800"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    volumes:
+      # Hot-reload: source di-mount; node_modules milik container (binary Linux).
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  pgdata:
+  redisqueue:
+  api_node_modules:
+  api_app_node_modules:

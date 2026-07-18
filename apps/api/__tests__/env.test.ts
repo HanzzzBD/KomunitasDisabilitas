@@ -4,6 +4,7 @@ import { loadEnv, EnvError } from "../src/core/config/env.js";
 const VALID: NodeJS.ProcessEnv = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/incasif",
   REDIS_URL: "redis://localhost:6379",
+  REDIS_QUEUE_URL: "redis://localhost:6380",
 };
 
 describe("loadEnv — fail-fast (AC PR-006)", () => {

@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-Tanggal: 2026-07-15
+Tanggal: 2026-07-15 (revisi 2026-07-18: dua service Redis menggantikan dua DB index — lihat Decision)
 
 ## Context
 
@@ -17,7 +17,11 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Incasif menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, dan penyimpanan OTP, serta **BullMQ** di atas Redis sebagai job queue dengan worker terpisah. Queue dan cache memakai **database Redis index terpisah**: database cache dikonfigurasi `maxmemory` + `allkeys-lru`, database queue tidak boleh ter-evict. Spesifikasi tiap queue (concurrency, retry, backoff, timeout, DLQ) mengikuti SDD §16.
+Incasif menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, dan penyimpanan OTP, serta **BullMQ** di atas Redis sebagai job queue dengan worker terpisah. Queue dan cache memakai **dua service Redis terpisah** (`redis-cache` dan `redis-queue`): `redis-cache` dikonfigurasi `maxmemory` + `allkeys-lru`, `redis-queue` `noeviction` + AOF.
+
+> **Revisi 2026-07-18 (PR-008):** rumusan awal "dua database Redis index terpisah dalam satu instance" tidak dapat memenuhi kebutuhan eviction yang berbeda — `maxmemory-policy` Redis berlaku per instance, bukan per DB index, dan BullMQ mensyaratkan `noeviction`. Diganti dua service Redis dalam compose yang sama; total budget RAM tidak berubah (SDD §15), klien tetap terpisah (`REDIS_URL` cache, `REDIS_QUEUE_URL` queue).
+
+Spesifikasi tiap queue (concurrency, retry, backoff, timeout, DLQ) mengikuti SDD §16.
 
 ## Consequences
 
@@ -30,14 +34,14 @@ Incasif menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, dan
 ### Negatif
 
 * Redis menjadi dependensi kritis kedua setelah PostgreSQL — Redis down berarti fitur AI, notifikasi, dan rate limiting terganggu.
-* Job in-flight hilang bila Redis crash (persistensi RDB default, bukan AOF).
-* Pemisahan DB index cache vs queue harus dijaga konfigurasi, bukan otomatis.
+* Job in-flight hilang bila Redis crash — dimitigasi AOF pada `redis-queue` (cache tetap RDB default; kehilangan cache bukan masalah).
+* Pemisahan service cache vs queue harus dijaga konfigurasi, bukan otomatis.
 
 ### Mitigasi
 
 * Semua job idempotent dengan job-id deterministik → kehilangan antrean dipulihkan dengan re-enqueue dari state DB (SDD §16, §18).
-* Healthcheck `/readyz` mencakup ping Redis; alert Uptime Kuma saat gagal (ADR-017).
-* Konfigurasi Redis (dua DB index, maxmemory per DB cache) dikodifikasi di docker-compose — bukan pengaturan manual.
+* Healthcheck `/readyz` mencakup ping kedua Redis; alert Uptime Kuma saat gagal (ADR-017).
+* Konfigurasi Redis (dua service, maxmemory+allkeys-lru untuk cache, noeviction+AOF untuk queue) dikodifikasi di docker-compose — bukan pengaturan manual.
 
 ## Referensi
 

@@ -25,6 +25,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "BELUM_SIAP": {
+          "hint": "Tunggu sebentar, lalu coba lagi",
+          "message": "Layanan sedang tidak siap",
+          "status": 503,
+        },
         "JSON_TIDAK_VALID": {
           "hint": "Coba ulangi; laporkan bila terus terjadi",
           "message": "Format data yang dikirim rusak",
