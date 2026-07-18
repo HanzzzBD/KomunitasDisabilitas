@@ -23,6 +23,24 @@ jobs:
     name: lint-typecheck-test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Postgres service (PR-009): migrate reset + seed + integration test DB.
+    # Image sama dengan compose dev — hindari drift versi.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: incasif
+          POSTGRES_PASSWORD: incasif
+          POSTGRES_DB: incasif
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U incasif -d incasif"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://incasif:incasif@localhost:5433/incasif
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,6 +75,11 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      # AC PR-009: migrate reset + seed hijau di CI (Postgres service).
+      # Menjalankan seluruh migrasi dari nol + seed admin idempotent.
+      - name: Prisma migrate reset + seed
+        run: pnpm --filter @incasif/api exec prisma migrate reset --force
 
       - name: Unit test
         run: pnpm test

@@ -12,7 +12,9 @@ services:
       POSTGRES_PASSWORD: incasif # dev-only
       POSTGRES_DB: incasif
     ports:
-      - "5432:5432"
+      # Host 5433: hindari bentrok dengan PostgreSQL lokal (mis. Laragon)
+      # yang umum menempati 5432. Dalam network compose tetap 5432.
+      - "5433:5432"
     volumes:
       # Catatan image pg18+: mount di /var/lib/postgresql (bukan .../data).
       - pgdata:/var/lib/postgresql

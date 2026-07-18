@@ -380,3 +380,53 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-097: compose prod/staging (image pin sama, env-based secrets, tanpa bind mount).
 
 **Out of Scope (dicatat):** compose prod/staging (PR-097); Prisma init (PR-009); BullMQ queues + Redis store rate limit (PR-010).
+
+---
+
+## PR-009 — Migrasi Inti Identitas
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* **Prisma init** (`apps/api/prisma/`, Prisma 5.22): `schema.prisma` = sumber kebenaran struktur DB; migrasi 01 `01_inti_identitas` menghasilkan 4 tabel sesuai SDD §6/§14 + PRD §10:
+  * `users` — role enum native (`seeker|admin|employer`, employer reserved), soft-delete `deleted_at`, phone/google_id nullable dengan **unique PARSIAL** (`WHERE deleted_at IS NULL`, raw SQL) — nomor boleh dipakai ulang setelah hapus akun (hak hapus UU PDP; dikonfirmasi owner).
+  * `refresh_tokens` — hanya `token_hash` (token mentah tidak pernah ke DB), `family_id` untuk deteksi reuse rotating token (SDD §8.1), FK CASCADE.
+  * `accessibility_profiles` — preferensi UI ADR-008 (text_scale, high_contrast, reduce_motion, simple_language, prefers_sign_language, large_touch_targets, screen_reader_hint), 1:1 users, BUKAN data medis.
+  * `audit_logs` — append-only, **sengaja tanpa FK** (jejak tahan penghapusan akun; actor NULL = aksi sistem), BRIN `created_at` (raw SQL).
+* **Konvensi migrasi terdokumentasi** (`prisma/README.md`): raw SQL di file migrasi yang sama; **`down.sql` manual wajib per migrasi + diuji up→down→up** (keputusan implementasi untuk memenuhi AC "down teruji" — bukan ADR); backward-compatible satu versi (expand→contract); jebakan `findFirst + deletedAt: null` untuk lookup phone (findUnique tidak bisa dengan unique parsial).
+* **Helper uuid v7** (`core/ids`) — implementasi murni RFC 9562 tanpa dependensi; sortable antar-ms (diuji); dipakai seed + service layer ke depan.
+* **Seed admin idempotent** (`prisma/seed.ts`, terdaftar di `prisma.seed`): findFirst aktif → create (dengan audit log `seed.admin_dibuat`) / naikkan role / no-op; identitas via env `SEED_ADMIN_PHONE`/`SEED_ADMIN_NAME`, default dev bukan-rahasia (`+620000000001`).
+* **CI**: service Postgres `pgvector/pgvector:pg18` (image = compose dev, hindari drift) + step `prisma migrate reset --force` (migrasi dari nol + seed) sebelum test; `turbo.json` meneruskan `DATABASE_URL`/`CI` ke task test.
+* 10 test baru (4 unit uuid v7 + 6 integration DB dengan skip anggun bila DB tidak terjangkau); 89 test workspace.
+
+### Scope selesai vs tidak
+
+* ✅ `schema.prisma` awal + migrasi 01 — selesai.
+* ✅ Seed admin pertama — selesai (idempotent, diuji 2×).
+* ✅ Konvensi migrasi (raw SQL non-Prisma) — selesai (README + contoh nyata unique parsial & BRIN).
+* Tidak ada scope dipangkas.
+
+### Keputusan teknis
+
+1. **uuid v7 di-generate aplikasi** — `gen_random_uuid()` DB = v4 (tidak sortable); extension pg_uuidv7 tidak tersedia di image resmi. Konsekuensi: kolom id tanpa default DB — insert wajib lewat kode (seed/service memakai `core/ids`).
+2. **`down.sql` manual per migrasi** — Prisma tidak meng-generate down (by design sejak v3); bentuk pemenuhan AC diputuskan di PR ini, didokumentasikan sebagai konvensi. Diuji nyata: down → 4 tabel + enum hilang; deploy ulang → pulih.
+3. **`audit_logs` tanpa FK** — append-only harus tahan `ON DELETE` users (jejak PDP); enforcement no-UPDATE/DELETE via grant DB role dicatat untuk PR-097.
+4. **Port host Postgres compose pindah 5432→5433** — mesin dev umum (Laragon di mesin owner) sudah menempati 5432; ketahuan saat `prisma migrate` gagal auth (menyambung ke Postgres lokal, bukan container). Dalam network compose tetap 5432; `.env.example` + CI disesuaikan.
+5. **Integration test dengan skip anggun** — `beforeAll` ping DB; tidak terjangkau → semua test DB di-skip dengan pesan (unit test lain tetap jalan). CI selalu menjalankannya (service Postgres); lokal butuh compose hidup.
+6. **`turbo.json` env passthrough** — `DATABASE_URL`/`CI` masuk cache key task test; tanpa ini turbo menyajikan hasil cache lama saat env berubah (ketahuan saat verifikasi lokal).
+
+### Risiko yang ditemukan
+
+* **Window pra-purge**: bisa ada ≥2 baris phone sama (1 aktif + N soft-deleted) sampai job purge (≤30 hari, worker Fase mendatang). Semua lookup identitas WAJIB filter `deleted_at IS NULL` — tercatat tebal di prisma/README.md; PR-016 (OTP login) harus mengikuti.
+* Enum `Role` bernama PascalCase default Prisma (`"Role"` quoted di SQL) — kosmetik, konsisten selama dari Prisma; disadari, tidak diubah.
+* `migrate reset` di CI menambah ±10 detik per run — dapat diterima; bila membengkak, pindah ke `migrate deploy` + seed terpisah.
+* Insert manual bypass aplikasi (psql) bisa membuat id non-v7 — tidak di-enforce DB; disiplin kode + review.
+
+### Next steps
+
+* PR-010: migrasi 02 domain seeker (vector(768) + HNSW raw SQL — konvensi sudah siap); ganti ping `core/db` ke Prisma; BullMQ wiring.
+* PR-016/018: modul auth memakai `refresh_tokens` (hash + family) — ikuti jebakan `findFirst deletedAt: null`.
+* PR-097: grant DB role aplikasi tanpa UPDATE/DELETE pada audit_logs.
+
+**Out of Scope (dicatat):** tabel domain seeker (PR-010) & marketplace (PR-011); seed persona lengkap (PR-012); grant append-only (PR-097); pemakaian refresh_tokens oleh auth (PR-016/018).
