@@ -93,7 +93,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ## PR-003 — CI Pipeline Dasar (PR Checks)
 
-**Tanggal selesai:** 2026-07-18 (1 AC pending verifikasi remote — cache run kedua)
+**Tanggal selesai:** 2026-07-18
 
 ### Ringkasan hasil
 
@@ -128,11 +128,14 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ### Next steps
 
-* Verifikasi 2 AC pending pada PR nyata pertama: merge terblokir saat check merah; durasi run kedua < 50% (cache).
 * PR-031: aktifkan slot e2e (Playwright) + a11y (axe-core + Lighthouse), lalu tambahkan ke required checks.
 * PR-099: job build image; PR-108: secrets scan.
 
 **Out of Scope (dicatat):** build image (PR-099); a11y gate aktif (PR-031); secrets scan (PR-108); workflow deploy (`deploy.yml`).
 
+### Verifikasi remote (PR uji #1)
 
-> CI run pertama PR-003: job `lint-typecheck-test` hijau (26s).
+* Run pertama (`29633017746`): job `lint-typecheck-test` hijau, total **26s** (install 2s, lint 3s, typecheck 5s, test 2s).
+* Run kedua (`29633057780`): total **14s** — pnpm store & turbo cache hit ("cache hit, replaying logs" di seluruh task). Step yang terdampak cache (install+lint+typecheck+test): **12s → 3s (25%)**; sisa durasi adalah overhead tetap runner (checkout + setup Node) yang tidak bisa di-cache. AC "< 50%" terpenuhi pada bagian yang dapat dipengaruhi cache.
+* Slot `e2e`/`a11y` tampil sebagai skipped (sesuai desain).
+* Branch protection terverifikasi aktif: merge PR #1 diblokir sampai `lint-typecheck-test` hijau.
