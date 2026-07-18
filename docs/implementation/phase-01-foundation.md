@@ -393,11 +393,11 @@ Bisnis: konsistensi perilaku web & mobile. Teknis: client dengan auth header, pa
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parse, retry, error mapping)
-* [ ] Integration Test (mock server)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (contoh dipanggil dari script)
+* [x] Unit Test (parse, retry, error mapping — 16 test: envelope→ApiError, 401→refresh→retry tanpa loop, JARINGAN_GAGAL/RESPONS_TIDAK_DIKENAL, queryKey deterministik)
+* [x] Integration Test (mock server via fetch injection — jsonResponse stub; tanpa DOM/msw)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (contoh `requestOtp` dipanggil dari script tsx dengan fetch stub — sukses + validasi klien menolak input buruk)
 
 **Deliverables:**
 
@@ -413,11 +413,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Envelope error terpetakan ke tipe TS `{code,message,hint}`.
-* [ ] 401 → satu kali refresh → retry (mock).
-* [ ] Tidak ada dependensi DOM (jalan di RN).
-* [ ] Query key convention terdokumentasi.
-* [ ] Tree-shakeable (bundle test).
+* [x] Envelope error terpetakan ke tipe TS `{code,message,hint}` — class `ApiError` membawa `ErrorEnvelope` + `status`; body tak dikenal → `RESPONS_TIDAK_DIKENAL` (teks mentah server tidak diteruskan).
+* [x] 401 → satu kali refresh → retry (mock) — hook `refresh()` dipanggil sekali, retry sekali dengan token terbaru dari `getAccessToken()`; 401 kedua tidak loop; default stub menolak (implementasi nyata PR-018).
+* [x] Tidak ada dependensi DOM (jalan di RN) — fetch injectable (default `globalThis.fetch`); bundle test assert tidak ada `document/window/localStorage/XMLHttpRequest`; suite jalan di environment node polos.
+* [x] Query key convention terdokumentasi — `[domain, params]` (params dinormalisasi deterministik) + factory `authKeys`; README paket.
+* [x] Tree-shakeable (bundle test) — `sideEffects: false`; test esbuild: impor `queryKey` saja → bundle tanpa client/endpoint/zod.
 
 #### Dependencies
 
@@ -426,6 +426,10 @@ RB-Std.
 #### Risks
 
 * Abstraksi berlebih. Mitigasi: hanya wrap fetch + envelope, tanpa magic.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-005--packagesapi-client).
 
 
 ### PR-006 - API Bootstrap — core/config + core/logger

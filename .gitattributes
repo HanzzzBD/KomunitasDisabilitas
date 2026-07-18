@@ -1,0 +1,11 @@
+# Normalisasi line ending: repo & working tree selalu LF (prettier endOfLine=lf,
+# CI Linux). Mencegah flip-flop CRLF pada checkout Windows (core.autocrlf).
+* text=auto eol=lf
+
+# Binary — jangan dinormalisasi.
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
