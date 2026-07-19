@@ -430,3 +430,54 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-097: grant DB role aplikasi tanpa UPDATE/DELETE pada audit_logs.
 
 **Out of Scope (dicatat):** tabel domain seeker (PR-010) & marketplace (PR-011); seed persona lengkap (PR-012); grant append-only (PR-097); pemakaian refresh_tokens oleh auth (PR-016/018).
+
+---
+
+## PR-010 — Migrasi Domain Seeker
+
+**Tanggal selesai:** 2026-07-18
+
+### Ringkasan hasil
+
+* **Migrasi 02** `02_domain_seeker` — 5 tabel domain seeker (SDD §6.2, PRD §10):
+  * `seeker_profiles` — kolom sensitif **`disability_types`/`accommodation_needs` bertipe `bytea` (ciphertext)** (logika enkripsi PR-013); `disclosureDefault` enum native; **`profileEmbedding Unsupported("vector(768)")`** (akses hanya via `$queryRaw` terkurung di repo matching, PR-025+); `consentSensitiveAt` bukti consent UU PDP; FK CASCADE dari users.
+  * `experiences`, `educations`, `skills`, `resumes` — FK CASCADE dari users; `content Json`; `createdVia` enum native; `startDate`/`endDate` tipe `date`.
+* **Raw SQL di file migrasi** (konvensi PR-009):
+  * `CREATE EXTENSION IF NOT EXISTS vector` **self-contained** — diprepend di migrasi (CI service Postgres tidak mount pg-init.sql; `migrate reset` drop extension → harus dibuat ulang dari dalam file migrasi).
+  * `CREATE INDEX ... USING hnsw (profile_embedding vector_cosine_ops)` — dibuat saat tabel kosong (build instan); parameter default m=16/ef_construction=64.
+* **`down.sql`** manual — diuji up→down (5 tabel + 2 enum hilang) → up (pulih); extension NOT di-drop (dipakai migrasi lain).
+* **Schema update**: BRIN `audit_logs.created_at` dipindah dari raw SQL ke deklarasi Prisma (`@@index [...Brin]`) — mencegah Prisma meng-generate `DROP INDEX` di migrasi berikutnya saat drift detection.
+* **`prisma/README.md`** diperbarui: catatan `apps/api/.env` (jebakan port 5432 vs 5433 debugged PR-009); konvensi `CREATE EXTENSION` self-contained.
+* 11 test baru (integration DB; 62 total apps/api; 95 workspace): bytea introspeksi, bytea no-plaintext, vector roundtrip self-distance ≈0, EXPLAIN HNSW (via `$transaction` — `SET LOCAL` + `EXPLAIN` harus satu transaksi), FK CASCADE 5 tabel, enum menolak nilai liar.
+* `openapi.json` di-regenerasi (CRLF→LF akibat git checkout Windows).
+
+### Scope selesai vs tidak
+
+* ✅ Migrasi 02: 5 tabel + FK CASCADE dari users — selesai.
+* ✅ Raw SQL kolom vector + indeks HNSW — selesai (sekaligus `CREATE EXTENSION IF NOT EXISTS vector` self-contained).
+* ✅ down.sql teruji — selesai.
+* Tidak ada scope dipangkas. Catatan: schema update BRIN adalah perbaikan kecil supaya migrasi berikutnya bersih (bukan scope baru).
+
+### Keputusan teknis
+
+1. **`CREATE EXTENSION IF NOT EXISTS vector` di file migrasi (self-contained)** — ini beda dengan migrasi 01: saat itu extension sudah ada di DB lokal (pg-init.sql compose). CI tidak mount compose, jadi `migrate reset` men-drop extension → tipe `vector` tidak ditemukan. Solusi definitif: extension dibuat kembali dari dalam file migrasi (idempotent `IF NOT EXISTS`). Ini juga membuat proyek bisa berjalan tanpa pg-init.sql sama sekali.
+2. **BRIN dipindah ke deklarasi Prisma** — Prisma 5 mendukung `type: Brin` + `map` untuk nama eksplisit. Tanpa ini, setiap `prisma migrate dev` berikutnya mendeteksi "drift" (index ada di DB, tidak di schema) dan meng-generate `DROP INDEX "audit_logs_created_at_brin"` secara otomatis — ketahuan saat generate migrasi 02.
+3. **`SET LOCAL enable_seqscan=off` + `EXPLAIN` via `$transaction`** — Prisma `$queryRaw` menolak multi-statement dalam prepared statement (error 42601). Solusi: `$transaction(async tx => { await tx.$executeRaw; return tx.$queryRaw })` memberikan koneksi yang sama sehingga `SET LOCAL` efektif untuk query berikutnya dalam transaksi yang sama.
+4. **`profileEmbedding Unsupported("vector(768)")`** — Prisma tidak mendukung tipe vector secara native; `Unsupported` mencegah Prisma Client memuat kolom (tidak bisa di-select biasa) dan mendokumentasikan pembatasan ini secara eksplisit di schema. Komentar di field mengarahkan developer ke pola `$queryRaw`.
+5. **`Skill.level` = `String?`** — leveling belum diputuskan produk; teks bebas dulu; persempit via expand→contract nanti (konvensi prisma/README.md).
+6. **Cleanup artefak test via `afterAll`** — phone prefix `+62888` khusus test; `afterAll` hard-delete (purge path) sehingga test idempotent dan tidak mengotori DB dev bersama.
+
+### Risiko yang ditemukan
+
+* Vector 768-dim dalam SQL parameter adalah literal string panjang (`"[0.1,0.1,...,0.1]"`, 768 nilai) — driver Prisma mengirimnya sebagai prepared statement parameter, bukan inline. Perlu diverifikasi di produksi bahwa pg tidak punya batas `max_lock_bytes` atau `max_query_length` yang menjadi masalah saat batch embedding insert (PR-025+).
+* HNSW index EXPLAIN hanya bisa diverifikasi reliable setelah ada baris data — test roundtrip menyisipkan 1 baris sebelum EXPLAIN; dengan `enable_seqscan=off` Postgres dipaksa ke index bahkan untuk tabel kecil. Periksa ulang saat data volume prod nyata.
+* `Skill.level` String? memungkinkan nilai bebas masuk DB — bila produk memutuskan enum, migrasi `ALTER TYPE` dibutuhkan (expand→contract PR tersendiri).
+
+### Next steps
+
+* PR-011: migrasi 03 marketplace (companies, jobs + `job_embedding vector(768)`, applications, match_scores, ai_usage, notifications, sign_videos + seluruh indeks SDD §6.3). `CREATE EXTENSION IF NOT EXISTS vector` tidak perlu diulang (sudah dari migrasi 02).
+* PR-013/037: util `core/crypto` AES-256-GCM — mengisi `disabilityTypes`/`accommodationNeeds` yang selama ini `NULL` (ciphertext kosong tidak valid). Perhatikan konvensi `iv‖tag‖data` prefix versi kunci.
+* PR-025+: repo matching pemakai `profileEmbedding` — `$queryRaw` terkurung di satu file, akses via service layer.
+* Tambahkan catatan `apps/api/.env` yang harus dibuat lokal (jangan commit) ke README onboarding root — ketahuan saat debugging PR-009/010.
+
+**Out of Scope (dicatat):** logika enkripsi (PR-013/037); repo matching (PR-025+); tabel marketplace (PR-011); seed persona (PR-012).

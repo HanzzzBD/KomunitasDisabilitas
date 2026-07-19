@@ -786,11 +786,11 @@ Bisnis: menampung profil pencari kerja termasuk data disabilitas secara aman. Te
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (migrate, vector roundtrip, EXPLAIN)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql)
+* [x] Unit Test (N/A — logika murni DB, diuji integration)
+* [x] Integration Test (migrate, bytea introspeksi, vector roundtrip 768-dim, EXPLAIN HNSW via $transaction, FK CASCADE 5 tabel, enum DisclosureDefault; skip anggun tanpa DB)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql: `\d seeker_profiles` — tipe bytea, vector(768), index HNSW terlihat)
 
 **Deliverables:**
 
@@ -806,11 +806,11 @@ Migrasi down; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Kolom sensitif bertipe bytea (introspeksi otomatis di test).
-* [ ] Insert/select vector via raw SQL ber-parameter sukses.
-* [ ] EXPLAIN query cosine memakai HNSW.
-* [ ] FK CASCADE dari users terverifikasi.
-* [ ] Migrasi down teruji.
+* [x] Kolom sensitif bertipe bytea (introspeksi otomatis di test) — `disability_types`/`accommodation_needs` = `bytea` diuji via information_schema; assert negatif: tidak ada kolom nama-sensitif bertipe text/jsonb.
+* [x] Insert/select vector via raw SQL ber-parameter sukses — embedding 768-dim (0.1 semua), cosine self-distance < 1e-6.
+* [x] EXPLAIN query cosine memakai HNSW — `SET LOCAL enable_seqscan=off` + EXPLAIN dalam `$transaction` (single statement per prepared statement); plan memuat "hnsw|index".
+* [x] FK CASCADE dari users terverifikasi — delete user → seeker_profile + experience + skill + resume hilang semua.
+* [x] Migrasi down teruji — up→down (5 tabel + 2 enum hilang)→up (pulih), nyata terhadap Postgres compose.
 
 #### Dependencies
 
@@ -819,6 +819,10 @@ Migrasi down; RB-Std.
 #### Risks
 
 * Prisma vs vector friction. Mitigasi: seluruh akses vector via repo matching (raw SQL terkurung).
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-010--migrasi-domain-seeker).
 
 
 ### PR-011 - Migrasi Domain Marketplace
