@@ -115,7 +115,7 @@ gh api -X PUT repos/{owner}/{repo}/branches/main/protection \
 
 ## Secrets & Environment
 
-- Development: salin `.env.example` → `.env.local`, isi nilai lokal. File `.env*` di-ignore git (ADR-015).
+- **`.env.example` hidup per app** (di folder app yang membacanya) — TIDAK ada di root. Backend: `cp apps/api/.env.example apps/api/.env` (Prisma & API hanya membaca dari `apps/api/`). File `.env*` di-ignore git (ADR-015).
 - CI/Production: env vars via GitHub Secrets — tidak ada file `.env` di repo.
 
 ## Rollback (RB-Std)
