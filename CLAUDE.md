@@ -348,8 +348,8 @@ describe("matching service", () => {
 
 **Development (local):**
 ```bash
-# .env.local (NEVER commit)
-DATABASE_URL="postgresql://user:pass@localhost/incasif"
+# apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
+DATABASE_URL="postgresql://incasif:incasif@localhost:5433/incasif"
 REDIS_URL="redis://localhost:6379"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
@@ -401,7 +401,7 @@ ProjectKomunitasDisabilitas/
 │   └── README.md         (ADR index)
 ├── .github/
 │   └── workflows/        (GitHub Actions: pr.yml, deploy.yml)
-├── .env.example          (template only; NEVER commit actual .env)
+├── apps/api/.env.example (template per app — TIDAK ada .env.example di root)
 ├── docker-compose.yml    (local dev, staging, production overlays)
 ├── Dockerfile            (single multi-stage for API + worker)
 ├──     .md             (product design, personas, flows)
@@ -430,7 +430,7 @@ ProjectKomunitasDisabilitas/
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
 | [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
 | [docs/adr/README.md](./docs/adr/README.md) | ADR index & navigation |
-| `.env.example` | Template for environment variables (NEVER commit actual `.env`) |
+| `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.yml` | Multi-container setup (PostgreSQL, Redis, API, worker, web) |
 
 ---
@@ -442,8 +442,8 @@ ProjectKomunitasDisabilitas/
 pnpm install
 
 # 2. Setup environment
-cp .env.example .env.local
-# Edit .env.local with local values (db, redis, api keys)
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env bila perlu (default sudah cocok dengan compose dev)
 
 # 3. Start PostgreSQL + Redis locally (or Docker Compose)
 docker-compose up -d postgres redis
