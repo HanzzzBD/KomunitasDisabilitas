@@ -863,11 +863,11 @@ Bisnis: menampung katalog lowongan, lamaran, dan kamus BISINDO. Teknis: sisa ske
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (indeks, constraint, race)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql \d+)
+* [x] Unit Test (N/A — murni DB, diuji integration)
+* [x] Integration Test (EXPLAIN 3 indeks, race unique paralel, RESTRICT vs Cascade kontras, enum snapshot, partial index unread)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql: FK applications RESTRICT/CASCADE/NO ACTION terlihat; 6 indeks jobs)
 
 **Deliverables:**
 
@@ -883,11 +883,11 @@ Migrasi down; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] EXPLAIN FTS & trigram & vector memakai indeks masing-masing (bukti di PR).
-* [ ] Unique apply ditegakkan pada insert paralel (test race).
-* [ ] Delete jobs dengan lamaran → ditolak (RESTRICT).
-* [ ] Seluruh enum sesuai SDD (snapshot skema).
-* [ ] Migrasi down teruji.
+* [x] EXPLAIN FTS & trigram & vector memakai indeks masing-masing (bukti di PR) — `jobs_fts_gin` (plainto_tsquery indonesian), `jobs_title_trgm` (operator `%`), `jobs_embedding_hnsw` (`<=>` LIMIT) — ketiganya via `$transaction` + seqscan off.
+* [x] Unique apply ditegakkan pada insert paralel (test race) — 2× create `Promise.allSettled` → tepat 1 sukses + 1 P2002.
+* [x] Delete jobs dengan lamaran → ditolak (RESTRICT) — diuji + kontras: delete USER → application ikut Cascade (hak hapus PDP). Catatan: pelanggaran RESTRICT = SQLSTATE 23001 (Prisma tidak memetakan ke P2003 — assert perilaku ditolak & baris utuh).
+* [x] Seluruh enum sesuai SDD (snapshot skema) — 8 enum via pg_enum → inline snapshot.
+* [x] Migrasi down teruji — up→down (7 tabel + 8 enum hilang)→up (pulih) + full `migrate reset` 01→02→03+seed hijau.
 
 #### Dependencies
 
@@ -895,7 +895,11 @@ Migrasi down; RB-Std.
 
 #### Risks
 
-* Konfigurasi FTS bahasa Indonesia terbatas. Mitigasi: config 'indonesian' + trigram sebagai penyelamat typo (ADR-018).
+* Konfigurasi FTS bahasa Indonesia terbatas. Mitigasi: config 'indonesian' + trigram sebagai penyelamat typo (ADR-018). (Verifikasi PR-011: config `indonesian` TERSEDIA di image pgvector/pg18 — risiko tidak terwujud.)
+
+#### Log Implementasi
+
+* 2026-07-19 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-011--migrasi-domain-marketplace).
 
 
 ### PR-012 - Seed Data Dev & Fixture E2E

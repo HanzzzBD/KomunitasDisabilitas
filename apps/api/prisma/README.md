@@ -27,6 +27,8 @@ pnpm --filter @incasif/api db:seed      # seed idempotent saja
 
 ## Jebakan yang harus diingat
 
+- **Index raw SQL pada kolom `Unsupported(...)` (HNSW embedding) dianggap drift oleh Prisma** — setiap `migrate dev` berikutnya menyisipkan `-- DropIndex` untuk index tsb ke migrasi baru secara diam-diam. **SELALU periksa file migrasi generated dan hapus blok `DropIndex` nyasar itu** sebelum apply (terjadi di migrasi 02 → BRIN, migrasi 03 → HNSW seeker). Index yang bisa dideklarasikan Prisma (BRIN, btree, GIN biasa) pindahkan ke schema dengan `map:`; HNSW/FTS-expression tidak bisa — tetap raw SQL + ritual periksa-hapus.
+
 - **Unique phone/google_id bersifat PARSIAL (aktif saja).** Bisa ada baris soft-deleted dengan phone sama. Query login/lookup **WAJIB** filter `deleted_at IS NULL` — `findUnique` Prisma tidak bisa dipakai untuk phone; gunakan `findFirst({ where: { phone, deletedAt: null } })`.
 - `audit_logs` dilarang UPDATE/DELETE dari aplikasi (append-only). Enforcement grant DB role = PR-097; sampai itu, disiplin kode + review.
 - Seed (`seed.ts`) harus **idempotent** — dipanggil otomatis oleh `migrate reset` (CI melakukannya setiap run).
