@@ -2,22 +2,22 @@ Kamu adalah AI coding agent yang mengerjakan backlog Incasif (lihat CLAUDE.md un
 
 ## Tugas
 
-Kerjakan PR-010 - Migrasi Domain Seeker dari phase 1 (Foundation).
+Kerjakan PR-011 - Migrasi Domain Marketplace dari phase 1 (Foundation).
 
 ## Sebelum Mulai
 
 1. Baca CLAUDE.md (arsitektur, konvensi, module boundaries, tech stack).
 2. Baca file phase terkait: docs/implementation/phase-01-foundation.md
-   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-010.
-3. Pastikan semua PR di kolom Dependencies untuk PR-010 sudah merged:
-   Dependencies: PR-009
+   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-011.
+3. Pastikan semua PR di kolom Dependencies untuk PR-011 sudah merged:
+   Dependencies: PR-010
    - Jika ada yang belum merged, STOP dan laporkan ke saya sebelum lanjut.
 4. Cek ADR relevan jika Technical Notes merujuk ke ADR tertentu (docs/adr/).
 
 ## Scope PR Ini
 
-- Migrasi 02: 5 tabel + FK CASCADE dari users
-- Raw SQL kolom vector + indeks HNSW
+- Migrasi 03: 7 tabel + raw SQL indeks
+- FK applications→jobs RESTRICT (riwayat tak hilang)
 
 ## Konvensi Wajib (Global — CLAUDE.md §5 & README.md)
 
@@ -38,7 +38,7 @@ Kerjakan PR-010 - Migrasi Domain Seeker dari phase 1 (Foundation).
 3. Update Acceptance Criteria checklist di file phase — tandai mana yang terpenuhi.
 4. Jalankan & laporkan hasil: `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 5. Tulis log implementasi di file terpisah sesuai CLAUDE.md §1:
-   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-010, jangan menyisipkannya ke file phase), berisi:
+   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-011, jangan menyisipkannya ke file phase), berisi:
    - Ringkasan hasil PR
    - Scope yang selesai vs yang tidak (dan kenapa)
    - Keputusan teknis penting yang diambil
@@ -48,7 +48,7 @@ Kerjakan PR-010 - Migrasi Domain Seeker dari phase 1 (Foundation).
 
 ## Batasan
 
-- Jangan mengerjakan scope PR lain di luar PR-010, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
+- Jangan mengerjakan scope PR lain di luar PR-011, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
 - Jangan mengubah keputusan arsitektur (ADR) tanpa konfirmasi eksplisit dariku.
 - Kalau menemukan ambiguitas antara PRD/SDD dan file phase, file phase yang jadi acuan.
 

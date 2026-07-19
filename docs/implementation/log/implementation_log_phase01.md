@@ -481,3 +481,47 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * Tambahkan catatan `apps/api/.env` yang harus dibuat lokal (jangan commit) ke README onboarding root — ketahuan saat debugging PR-009/010.
 
 **Out of Scope (dicatat):** logika enkripsi (PR-013/037); repo matching (PR-025+); tabel marketplace (PR-011); seed persona (PR-012).
+
+---
+
+## PR-011 — Migrasi Domain Marketplace
+
+**Tanggal selesai:** 2026-07-19
+
+### Ringkasan hasil
+
+* **Migrasi 03** `03_domain_marketplace` — 7 tabel + 8 enum melengkapi skema MVP (SDD §6.2–6.3, PRD §10):
+  * `companies` (inclusivity_status enum, accommodations jsonb, verified_by SetNull), `jobs` (employment/work_mode/status/source enum, salary Int, accommodations jsonb, welcomed_disability_types text[] — data lowongan publik, bukan data pribadi; `job_embedding vector(768)` Unsupported), `applications` (**unique (user_id, job_id)** idempotensi; user Cascade / **job Restrict** / resume NoAction; status_history jsonb append-only; hired_confirmed_at = North Star), `match_scores` (PK komposit, Cascade dua arah — cache), `ai_usage` (feature enum + index kuota harian), `notifications` (partial index unread), `sign_videos` (SignBridge v1, FTS phrase).
+* **Raw SQL indeks lengkap SDD §6.3**: FTS `'indonesian'` GIN (title+description), pg_trgm GIN title (extension self-contained), GIN accommodations `jsonb_path_ops`, HNSW job_embedding, btree (status, published_at DESC), partial notifications unread, btree applications ×2, FTS sign_videos.phrase.
+* **down.sql** — 7 tabel + 8 enum; diuji up→down→up + full `migrate reset` (01→02→03+seed) hijau.
+* 8 test integration baru (70 total apps/api; 103 workspace): EXPLAIN×3 membuktikan tiap indeks terpakai, race apply paralel, Restrict vs Cascade kontras, enum snapshot (pg_enum), partial index.
+
+### Scope selesai vs tidak
+
+* ✅ Migrasi 03: 7 tabel + raw SQL indeks — selesai.
+* ✅ FK applications→jobs RESTRICT — selesai (+resume NoAction, lihat keputusan 3).
+* Tidak ada scope dipangkas.
+
+### Keputusan teknis
+
+1. **Enum yang PRD/SDD tidak rinci** (`EmploymentType`, `AiFeature`) kudetailkan sendiri — nilai standar pasar kerja & daftar fitur kuota SDD §7.2; enum PostgreSQL bisa `ADD VALUE` tanpa rewrite. Snapshot test membuat perubahan selalu terlihat di review.
+2. **`applications.resume_id` = `NoAction`** (bukan Restrict): RESTRICT dicek segera per baris — hapus akun (cascade users→applications+resumes dalam satu statement) bisa gagal tergantung urutan eksekusi; NO ACTION dicek di akhir statement sehingga cascade bersih, tapi DELETE resume langsung yang masih dipakai lamaran tetap ditolak. Semantik "CV tak hilang selama lamaran ada" terpenuhi tanpa menghalangi hak hapus akun PDP.
+3. **Pelanggaran RESTRICT = SQLSTATE 23001, bukan P2003** — Prisma hanya memetakan 23503 (foreign key violation NO ACTION) ke P2003; 23001 jadi `PrismaClientUnknownRequestError`. Test assert perilaku (ditolak + baris utuh), bukan kode error. Catatan penting untuk error handling modul jobs nanti (PR-024+): tangkap kedua bentuk.
+4. **DropIndex nyasar kedua kalinya** — Prisma kembali menganggap index HNSW (kolom Unsupported) sebagai drift dan menyisipkan `DROP INDEX seeker_profiles_embedding_hnsw` diam-diam ke migrasi 03. Ritual "periksa & hapus blok DropIndex pada file migrasi generated" kini terdokumentasi tebal di prisma/README.md (Jebakan) — berlaku untuk SEMUA migrasi ke depan yang menyentuh tabel ber-embedding.
+5. **Verifikasi risiko FTS**: text search config `'indonesian'` TERSEDIA di image pgvector/pg18 (dicek `pg_ts_config` sebelum implementasi) — risiko phase file tidak terwujud, tidak perlu fallback 'simple'.
+
+### Risiko yang ditemukan
+
+* SQLSTATE 23001 tidak terpetakan Prisma (lihat keputusan 3) — modul jobs/companies HARUS menangani `PrismaClientUnknownRequestError` berisi "restrict" saat delete, bukan hanya P2003.
+* `welcomed_disability_types text[]` plaintext adalah keputusan sadar (data lowongan yang MENYAMBUT, milik perusahaan, publik) — jangan dikacaukan dengan `disability_types` seeker (bytea). Kalau kelak ada kebijakan lain, kolom mudah dienkripsi menyusul.
+* HNSW jobs dibuat saat tabel kosong; dengan ~150 lowongan target tahun 1, recall/latency bukan isu — evaluasi ulang parameter (m, ef) saat katalog ribuan.
+* Advisory lock Prisma sempat menggantung berulang di sesi dev Windows (proses tsx/prisma zombie) — bila `migrate` timeout advisory lock: cari & kill proses node prisma (`Get-CimInstance ... -match 'prisma'`), lalu `pg_terminate_backend` sisa koneksi. Belum perlu otomasi; catat gejalanya.
+
+### Next steps
+
+* PR-012: seed persona (3 seeker, 5 companies, 20 jobs, lamaran contoh) — seluruh tabel kini tersedia.
+* PR-024+ (modul jobs): error handling delete → tangkap 23001; soft-close lowongan alih-alih delete.
+* PR-025+ (matching): `$queryRaw` HNSW terkurung repo matching; pola `$transaction` untuk SET LOCAL sudah teruji.
+* PR-048/065/083: devices, ai_chat_sessions, suspended_at — inkremental sesuai backlog.
+
+**Out of Scope (dicatat):** devices (PR-048); ai_chat_sessions (PR-065); suspended_at (PR-083); seed persona (PR-012); modul pemakai tabel (PR-021+).
