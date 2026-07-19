@@ -525,3 +525,52 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-048/065/083: devices, ai_chat_sessions, suspended_at — inkremental sesuai backlog.
 
 **Out of Scope (dicatat):** devices (PR-048); ai_chat_sessions (PR-065); suspended_at (PR-083); seed persona (PR-012); modul pemakai tabel (PR-021+).
+
+---
+
+## PR-012 — Seed Data Dev & Fixture E2E
+
+**Tanggal selesai:** 2026-07-19
+
+### Ringkasan hasil
+
+* **`prisma/fixtures.ts`** — konstanta UUID stabil (format v7 valid, timestamp beku 2026-01-01, blok akhiran readable): 5 users (admin + 4 persona), 5 companies, 20 jobs, 4 resumes, 6 applications; derivatif stabil untuk experience/education/skills.
+* **`prisma/seed-data.ts`** — logika seed importable (dipisah dari entry `seed.ts` supaya test bisa memanggil `runSeed(prisma)` langsung):
+  * **Guard produksi**: `NODE_ENV=production` → `SeedProductionError` SEBELUM query DB apa pun.
+  * **Idempotent via upsert by fixture ID** — 2× jalan = jumlah identik; data dev lain tak tersentuh (bukan delete-recreate).
+  * **4 persona PRD §4** (AC menulis 4; Objective "3 persona" — AC diikuti): Rina/Tuli (prefers_sign_language+simple_language), Bayu/Netra (screen_reader_hint+high_contrast), Sari/Daksa (large_touch_targets), Dimas/Autisme (simple_language+reduce_motion) — masing-masing lengkap dengan seeker_profile, pendidikan, keahlian, resume (content jsonb).
+  * **5 companies** variasi inclusivity_status (2 verified, 2 self_claimed, 1 unverified) + taksonomi akomodasi berbeda.
+  * **20 jobs** matriks matching: 3 work_mode × 6 jenis akomodasi × status (17 published, 2 draft, 1 closed), salary variatif, welcomed_disability_types sebagian terisi, relevansi per persona (j01–03 Rina, j04–07 Bayu, j08–11 Sari, j12–15 Dimas).
+  * **6 lamaran** pipeline beragam termasuk **Sari→j09 hired ber-hired_confirmed_at + status_history 4 langkah (North Star terlihat)**.
+* **`prisma/FIXTURES.md`** — dokumentasi blok ID, aturan "jangan ubah UUID", tabel persona/jobs/applications.
+* **Kolom sensitif (disability_types/accommodation_needs/consent) SEMUA NULL** — bytea ciphertext, util enkripsi = PR-013; dilarang plaintext. Diuji eksplisit (guard kebijakan).
+* 6 test integration baru (76 total apps/api; 109 workspace); manual `db:reset` penuh + inspeksi psql.
+
+### Scope selesai vs tidak
+
+* ✅ `seed.ts` idempotent — selesai (upsert by ID, diuji 2×).
+* ✅ Fixture ID stabil untuk E2E — selesai (fixtures.ts + FIXTURES.md).
+* Tidak ada scope dipangkas.
+
+### Keputusan teknis
+
+1. **Tanpa faker** (phase file §backlog menyebut "faker seeded") — fixture E2E butuh nilai stabil PERSIS antar-run & antar-mesin, bukan sekadar deterministik dalam satu proses; literal tetap juga diff-able di review dan tanpa dependensi baru. Penyimpangan sadar, dicatat.
+2. **`seed-data.ts` dipisah dari `seed.ts`** — entry CLI tetap tipis; test memanggil `runSeed()` langsung tanpa spawn proses (idempotensi 2× diuji dalam satu suite).
+3. **Guard produksi dilempar sebelum koneksi DB** — diuji dengan client palsu yang meledak bila tersentuh; seed tidak akan pernah menulis apa pun ke DB produksi bahkan bila DATABASE_URL produksi terpasang.
+4. **UUID fixture memakai timestamp beku (2026-01-01)** — tetap lolos format v7/varian (validasi zod `idSchema` kompatibel), sortable konsisten, dan segmen akhiran readable per blok entitas (…0011 = Rina, …0201 = j01).
+5. **Kebutuhan akomodasi persona diwakili data non-sensitif** — preferensi UI (accessibility_profiles) + akomodasi jobs; kolom sensitif menunggu PR-013. Matching dev tetap bisa diuji via accommodations jobs vs preferensi.
+6. **Nomor HP fixture prefix `+62115…`** — dummy jelas di luar rentang operator nyata; nama semua berlabel "(Fiktif)".
+
+### Risiko yang ditemukan
+
+* Fixture applications memakai resume persona — bila PR-013 nanti mengenkripsi kolom sensitif seed (mengisi nilai), test "SEMUA NULL" harus diperbarui sadar (bukan dilonggarkan diam-diam).
+* `db:seed` di mesin dev butuh Docker hidup — gejala `Can't reach database server at localhost:5433` = Docker Desktop mati (terjadi di sesi ini; nyalakan dulu). Sudah terdokumentasi di prisma/README.md gejala serupa.
+* Derivatif ID (`…e`/`…d`/hex) valid uuid tapi tidak berversi-7 murni pada digit varian — hanya dipakai internal seed, tidak diekspor sebagai fixture E2E; kalau kelak dibutuhkan E2E, promosikan ke konstanta eksplisit.
+
+### Next steps
+
+* PR-013: core/crypto — setelahnya pertimbangkan mengisi kolom sensitif persona via seed TERENKRIPSI (dengan kunci dev) agar flow disclosure bisa diuji end-to-end.
+* PR-031: E2E smoke memakai FIXTURE.* — jangan hardcode UUID di spec, impor dari fixtures.ts.
+* PR-025+ (matching): jobs j01–j20 dirancang untuk menguji ranking per persona — pakai sebagai dataset evaluasi awal.
+
+**Out of Scope (dicatat):** data pilot produksi (kurasi admin nyata); embeddings (PR-025+); pengisian kolom terenkripsi (PR-013/037); E2E smoke run (PR-031).

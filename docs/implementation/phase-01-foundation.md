@@ -939,11 +939,11 @@ Bisnis: demo & E2E memakai data yang mencerminkan persona PRD §4. Teknis: seed 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (idempotensi)
-* [ ] E2E Test (fixture dipakai smoke)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi data)
+* [x] Unit Test (N/A — guard produksi diuji tanpa DB di suite integration)
+* [x] Integration Test (idempotensi — seed 2× jumlah identik; variasi jobs; persona; kolom sensitif NULL; North Star)
+* [x] E2E Test (fixture siap dipakai smoke — E2E sendiri aktif PR-031; ID stabil terdokumentasi FIXTURES.md)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (db:reset penuh + inspeksi psql: 5 users, 20 jobs variasi, lamaran hired ber-hired_confirmed_at)
 
 **Deliverables:**
 
@@ -959,11 +959,11 @@ RB-Std (data dev saja).
 
 #### Acceptance Criteria
 
-* [ ] Seed 2× tidak menghasilkan duplikat.
-* [ ] 20 jobs mencakup variasi akomodasi/work_mode untuk test matching.
-* [ ] Persona selaras PRD §4 (Tuli/Netra/Daksa/Autisme).
-* [ ] Seed gagal di env production (guard).
-* [ ] ID fixture stabil terdokumentasi.
+* [x] Seed 2× tidak menghasilkan duplikat — upsert by fixture ID; test: jumlah baris identik setelah run kedua.
+* [x] 20 jobs mencakup variasi akomodasi/work_mode untuk test matching — 3 work_mode, 6 jenis akomodasi, draft+closed+published, welcomed_disability_types sebagian terisi; relevansi per persona (FIXTURES.md).
+* [x] Persona selaras PRD §4 (Tuli/Netra/Daksa/Autisme) — 4 persona (Rina/Bayu/Sari/Dimas) + accessibility_profile sesuai kebutuhan masing-masing (diuji). Catatan: Objective menulis "3 persona", AC menulis 4 — AC yang diikuti.
+* [x] Seed gagal di env production (guard) — `SeedProductionError` dilempar SEBELUM query DB apa pun (diuji dengan client palsu).
+* [x] ID fixture stabil terdokumentasi — `prisma/fixtures.ts` (konstanta) + `prisma/FIXTURES.md` (blok ID, aturan jangan-ubah, tabel persona/jobs/applications).
 
 #### Dependencies
 
@@ -971,7 +971,11 @@ RB-Std (data dev saja).
 
 #### Risks
 
-* Seed drift dari skema. Mitigasi: seed dijalankan di CI setiap PR migrasi.
+* Seed drift dari skema. Mitigasi: seed dijalankan di CI setiap PR migrasi. (Aktif sejak PR-009: `migrate reset` CI menjalankan seed setiap run.)
+
+#### Log Implementasi
+
+* 2026-07-19 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-012--seed-data-dev--fixture-e2e).
 
 
 ### PR-013 - core/crypto — AES-256-GCM Berversi
