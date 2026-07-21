@@ -574,3 +574,48 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR-025+ (matching): jobs j01–j20 dirancang untuk menguji ranking per persona — pakai sebagai dataset evaluasi awal.
 
 **Out of Scope (dicatat):** data pilot produksi (kurasi admin nyata); embeddings (PR-025+); pengisian kolom terenkripsi (PR-013/037); E2E smoke run (PR-031).
+
+## PR-013 — core/crypto — AES-256-GCM Berversi
+
+* 2026-07-21 — Selesai. `core/crypto` (`encryptField`/`decryptField` + rotasi kunci berversi), fail-fast validasi kunci saat boot, dan `docs/runbook-keys.md`.
+
+### Ringkasan hasil
+
+* `apps/api/src/core/crypto/index.ts` — util enkripsi field sensitif AES-256-GCM berversi (ADR-007). Format biner `[1 byte versi][12 byte IV][16 byte tag][n byte ciphertext]`. API: `parseFieldKeys()`, `createFieldCrypto()` (`encryptField`/`decryptField`/`encryptJson`/`decryptJson`/`versionOf`), `isEncryptedField()`, tipe branded `EncryptedField`, error `FieldKeyError`/`DekripsiError`.
+* Fail-fast kunci di `apps/api/src/index.ts` — `parseFieldKeys()` dipanggil SEBELUM `createLogger`/`createDbClient`/`createRedisClients`/`createServer`. Kunci hilang/salah panjang/format → `console.error` + `process.exit(1)`, server tidak pernah listen.
+* `docs/runbook-keys.md` — runbook rotasi (konsep, generate, rotasi tanpa downtime, retire, kompromi kunci, verifikasi dev, DR/ADR-015, tabel troubleshooting).
+* `apps/api/.env.example` + `docker-compose.dev.yml` — `FIELD_KEY_V1` dummy dev-only (base64 32 byte valid) + instruksi `openssl rand -base64 32`.
+* 2 file test baru (13 unit + 4 integration); **101 test workspace apps/api hijau**. Lint & typecheck hijau. Rotasi diverifikasi manual via tsx.
+
+### Scope selesai vs tidak
+
+* ✅ Util crypto + tipe `EncryptedField` — selesai.
+* ✅ Validasi kunci saat boot (panjang, format, versi) — selesai, fail-fast di entry point.
+* ✅ `docs/runbook-keys.md` (rotasi) — selesai.
+* Tidak ada scope dipangkas.
+
+### Keputusan teknis
+
+1. **`parseFieldKeys()` sebelum segala inisialisasi** (permintaan eksplisit + AC): dipanggil tepat setelah `loadEnv()`, sebelum logger/DB/Redis/listener. Instance `FieldKeys` disimpan (`void fieldKeys`) untuk diteruskan ke modul profiles (PR-037) — validasi kunci sudah terjadi di boot sejak sekarang, bukan saat enkripsi pertama.
+2. **Validasi kunci TIDAK di `core/config` (env.ts)**: kepemilikan validasi kunci di `core/crypto` (dicatat sebagai janji PR-006 → dilunasi di sini). `loadEnv` tetap murni tanpa `FIELD_KEY_*`, jadi test env/server lama tidak berubah.
+3. **Round-trip guard base64**: `key.toString("base64") !== raw.trim()` menolak base64 rusak yang "diam-diam" di-decode Node jadi buffer 32 byte tapi bukan encoding kanonik.
+4. **Versi kanonik (`match[1] !== String(version)`)**: menolak `FIELD_KEY_V01` agar tidak ada dua nama env menunjuk versi 1 yang sama (ambiguitas kunci aktif).
+5. **Modul crypto tidak import logger**: material kunci/plaintext tidak boleh berisiko ter-log dari dalam modul; redaction pino (`fieldKey`) adalah lapisan kedua, bukan satu-satunya.
+6. **Boot test via child process nyata** (`node --import tsx src/index.ts`, bukan `.bin/tsx`): membuktikan ORDERING fail-fast (exit sebelum "API siap") lintas OS tanpa masalah resolusi `.cmd` di Windows.
+7. **Truncation test di SEMUA panjang 0..len-1** (bukan sampel): memastikan tidak ada panjang potong yang lolos mengembalikan plaintext — GCM auth + guard panjang minimum menutup seluruh rentang.
+
+### Risiko yang ditemukan
+
+* **Kunci bocor via env (T8)** — mitigasi tercatat di runbook §5/§7 & ADR-015 (chmod 600, password manager, redaction). Job re-encrypt untuk retire kunci bocor = PR-037+.
+* **Dummy `FIELD_KEY_V1` di `.env.example`/compose bersifat publik** — sengaja dummy dev-only dengan peringatan eksplisit "WAJIB ganti"; kunci prod via env vars/secret store, tidak pernah di compose (dicatat di komentar compose).
+* **Retire kunci prematur** — mendekripsi data yang versinya sudah di-retire melempar `DekripsiError` (bukan senyap). Runbook §4/§8 menegaskan jangan retire sebelum re-encrypt tuntas; `versionOf()` disediakan untuk memilih baris belum-migrasi.
+
+### Next steps
+
+* PR-037 (profiles): pakai `createFieldCrypto` untuk mengisi `disability_types`/`accommodation_needs`; sediakan job re-encrypt bertahap (retire kunci lama). `versionOf()` sudah tersedia untuk monitoring versi.
+* PR-012 follow-up: pertimbangkan mengisi kolom sensitif seed via ciphertext (kunci dev) agar flow disclosure teruji end-to-end — saat itu test "SEMUA NULL" di `db-seed.test.ts` harus diperbarui sadar.
+* PR-014 (audit): tinjau ulang deny list redaction bersama helper audit (janji bersama PR-006).
+
+**Out of Scope (dicatat):** pemakaian di profiles (PR-037); enkripsi backup `age` (PR-104); job re-encrypt/retire otomatis (PR-037+); pengisian kolom sensitif seed (PR-012 follow-up / PR-037).
+
+
