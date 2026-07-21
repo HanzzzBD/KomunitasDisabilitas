@@ -1,6 +1,7 @@
 // Entry point apps/api — fail-fast env, lalu boot (PR-006; wiring modul PR-008).
 /* eslint-disable no-console -- sebelum logger siap, satu-satunya saluran adalah console */
 import { loadEnv, EnvError } from "./core/config/index.js";
+import { parseFieldKeys, FieldKeyError, type FieldKeys } from "./core/crypto/index.js";
 import { createLogger } from "./core/logger/index.js";
 import { createDbClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
@@ -15,6 +16,19 @@ try {
   console.error(err instanceof EnvError ? err.message : err);
   process.exit(1);
 }
+
+// Fail-fast kunci enkripsi (PR-013, ADR-007): divalidasi SEBELUM logger, koneksi
+// DB/Redis, atau listener dibuat — boot dengan kunci hilang/salah panjang/format
+// berhenti di sini, bukan saat modul profiles pertama kali mengenkripsi field.
+// Kunci hanya hidup di memori; JANGAN log fieldKeys (redaction = lapisan kedua).
+let fieldKeys: FieldKeys;
+try {
+  fieldKeys = parseFieldKeys();
+} catch (err) {
+  console.error(err instanceof FieldKeyError ? err.message : err);
+  process.exit(1);
+}
+void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
 
 const logger = createLogger(env);
 const db = createDbClient(env);

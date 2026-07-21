@@ -62,6 +62,9 @@ services:
       DATABASE_URL: postgresql://incasif:incasif@postgres:5432/incasif
       REDIS_URL: redis://redis-cache:6379
       REDIS_QUEUE_URL: redis://redis-queue:6379
+      # Kunci enkripsi field sensitif (PR-013, ADR-007). DEV-ONLY dummy — jangan
+      # dipakai di staging/prod (kunci prod via env vars, bukan compose).
+      FIELD_KEY_V1: aW5jYXNpZi1kZXYtZHVtbXkta2V5LTAwMDAwMDAwMDA=
       # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
       # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
       CHOKIDAR_USEPOLLING: "true"

@@ -1017,11 +1017,11 @@ Bisnis: data disabilitas (data spesifik UU PDP) aman meski DB/backup bocor (PRD 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (vectors, tamper, multi-versi)
-* [ ] Integration Test (boot validation)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (rotasi kunci di dev)
+* [x] Unit Test (vectors, tamper, multi-versi — `__tests__/crypto.test.ts`: test vector format biner beku, round-trip UTF-8/JSON, IV unik, rotasi V1→V2, tamper per segmen + truncation di semua panjang + append → selalu `DekripsiError`, `parseFieldKeys` validasi panjang/base64/versi)
+* [x] Integration Test (boot validation — `__tests__/crypto-boot.test.ts`: entry point nyata via child process; kunci hilang/salah panjang → exit ≠ 0 SEBELUM "API siap"; kunci valid → server listen; material kunci tak muncul di stdout/stderr; redaction `fieldKey`)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (rotasi kunci di dev via tsx: encrypt V1 → tambah V2 aktif → data V1 tetap terbaca, enkripsi baru = V2, retire V1 → `DekripsiError` terkontrol)
 
 **Deliverables:**
 
@@ -1037,11 +1037,11 @@ RB-Std; data terenkripsi versi lama tetap terbaca (multi-versi by design).
 
 #### Acceptance Criteria
 
-* [ ] Round-trip lintas versi kunci lulus test vector.
-* [ ] Ciphertext dimodifikasi → error autentikasi (bukan data korup).
-* [ ] Boot gagal bila kunci salah panjang/format.
-* [ ] Kunci tidak muncul di log (test redaction).
-* [ ] Runbook rotasi tersedia & direview.
+* [x] Round-trip lintas versi kunci lulus test vector — grup "rotasi multi-versi": data V1 tetap terbaca setelah V2 aktif; enkripsi baru pakai V2; format biner `[versi][iv][tag][data]` dikunci test (byte versi, panjang segmen).
+* [x] Ciphertext dimodifikasi → error autentikasi (bukan data korup) — tamper 1 bit per segmen (iv/tag/data), versi tak dikenal, **truncation di SEMUA panjang 0..len-1**, dan append byte → semuanya `DekripsiError`; tidak pernah mengembalikan plaintext korup.
+* [x] Boot gagal bila kunci salah panjang/format — `parseFieldKeys` fail-fast di `apps/api/src/index.ts` SEBELUM logger/DB/Redis/listener; diuji unit + integration child-process (exit ≠ 0, server tak start).
+* [x] Kunci tidak muncul di log (test redaction) — `core/crypto` tidak menyentuh logger (lapisan pertama); deny list `fieldKey` (PR-006) me-redaksi bila material kunci masuk objek log (diuji); boot test asсерt material kunci absen dari stdout/stderr.
+* [x] Runbook rotasi tersedia & direview — `docs/runbook-keys.md` (konsep, generate, rotasi, retire, kompromi, verifikasi, DR/ADR-015, troubleshooting).
 
 #### Dependencies
 
@@ -1050,6 +1050,10 @@ RB-Std; data terenkripsi versi lama tetap terbaca (multi-versi by design).
 #### Risks
 
 * Kunci bocor via env (T8). Mitigasi: ADR-015 (chmod 600, password manager, redaction).
+
+#### Log Implementasi
+
+* 2026-07-21 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-013--corecrypto--aes-256-gcm-berversi).
 
 
 ### PR-014 - core/audit — Audit Logging Helper
