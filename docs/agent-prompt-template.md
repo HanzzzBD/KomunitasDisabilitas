@@ -46,6 +46,11 @@ Kerjakan PR-012 - Seed Data Dev & Fixture E2E dari phase 1 (Foundation).
    - Risiko yang ditemukan
    - Next steps / follow-up yang direkomendasikan
 6. Deskripsi PR (untuk PR description di GitHub): what, why, acceptance criteria yang terpenuhi.
+7. Setelah semua di atas beres (lint/typecheck/test hijau): jalankan Alur Pengiriman PR
+   sesuai CLAUDE.md §5.8 TANPA menunggu perintah lagi — commit di branch `pr-XXX-<slug>`,
+   push, `gh pr create` ke branch phase (BUKAN main), tunggu CI `gh pr checks --watch`,
+   dan merge `gh pr merge --merge` HANYA bila check hijau. CI merah = perbaiki dulu,
+   jangan merge. Jangan pernah merge/PR ke `main`.
 
 ## Batasan
 
