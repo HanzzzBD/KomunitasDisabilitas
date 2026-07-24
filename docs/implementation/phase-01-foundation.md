@@ -1095,11 +1095,11 @@ Bisnis: setiap akses data sensitif dapat dipertanggungjawabkan (SDD §8.3, PDP).
 
 **Testing Checklist:**
 
-* [ ] Unit Test (strip meta)
-* [ ] Integration Test (baris tertulis)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi baris)
+* [x] Unit Test (strip meta per action + writer failure + latency)
+* [x] Integration Test (baris tertulis ke PostgreSQL nyata)
+* [x] E2E Test (N/A — tidak ada endpoint/flow pengguna)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (inspeksi baris via integration test)
 
 **Deliverables:**
 
@@ -1109,17 +1109,19 @@ Bisnis: setiap akses data sensitif dapat dipertanggungjawabkan (SDD §8.3, PDP).
 
 * Pemetaan audit per modul (di PR modul); arsip 2 tahun (PR-024 hook).
 
+> Status: seluruh acceptance criteria PR-014 terpenuhi. Verifikasi stripping PII dilakukan per action pada unit test dan dicatat di log implementasi.
+
 **Rollback Strategy:**
 
 RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Meta dengan PII → di-strip (test per skema action).
-* [ ] Penulisan async tidak memblokir request (latency test).
-* [ ] Kegagalan tulis audit ter-log + metrik (tidak senyap).
-* [ ] Enum action terdokumentasi.
-* [ ] Baris audit memuat actor, entity, entityId, requestId.
+* [x] Meta dengan PII → di-strip (test per skema action).
+* [x] Penulisan async tidak memblokir request (latency test).
+* [x] Kegagalan tulis audit ter-log + metrik (tidak senyap).
+* [x] Enum action terdokumentasi.
+* [x] Baris audit memuat actor, entity, entityId, requestId.
 
 #### Dependencies
 
@@ -1128,6 +1130,10 @@ RB-Std.
 #### Risks
 
 * Audit terlalu bising. Mitigasi: katalog action ditinjau; baca massal via job bukan per-row.
+
+#### Log Implementasi
+
+* 2026-07-24 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-014--coreaudit--audit-logging-helper).
 
 
 ### PR-015 - core/queue + Worker Bootstrap + DLQ
