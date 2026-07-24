@@ -12,3 +12,4 @@ export * from "./applications.js";
 export * from "./notifications.js";
 export * from "./admin.js";
 export * from "./signbridge.js";
+export * from "./audit.js";

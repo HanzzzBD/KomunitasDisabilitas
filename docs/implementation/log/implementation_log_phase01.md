@@ -618,4 +618,43 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 **Out of Scope (dicatat):** pemakaian di profiles (PR-037); enkripsi backup `age` (PR-104); job re-encrypt/retire otomatis (PR-037+); pengisian kolom sensitif seed (PR-012 follow-up / PR-037).
 
+---
 
+## PR-014 — core/audit — Audit Logging Helper
+
+**Tanggal selesai:** 2026-07-24
+
+### Ringkasan hasil
+
+* `core/audit` menyediakan factory `createAuditLog()` yang menghasilkan kontrak `auditLog(actor, action, entity, entityId, meta)`. Entry memiliki UUID v7 dan hanya dikirim melalui `AuditWriter.append()`; adapter Prisma hanya menjalankan `create`.
+* `actor` membawa `actorId` historis (boleh `null` untuk sistem) dan `requestId`. Karena tabel PR-009 tidak memiliki kolom request ID, helper menyimpan `requestId` tervalidasi UUID dalam `meta` tanpa migrasi.
+* Katalog action terpusat berada di `packages/schemas/src/audit.ts`: login gagal, baca/ubah profil sensitif, perubahan status lamaran, verifikasi perusahaan, aksi admin, ekspor data, dan hapus akun. Dokumentasi meta aman ada di `docs/audit-action-catalog.md`.
+* Zod allowlist per action membuang key tidak dikenal sebelum insert. Nilai disabilitas, kebutuhan akomodasi, nama, dan nomor telepon tidak masuk ke `audit_logs`.
+* Promise writer tidak ditunggu sehingga aksi bisnis tidak terblokir. Jika gagal, helper menaikkan metric sink `audit_write_failed` dan menulis konteks aman saja (tanpa error atau meta mentah) ke Pino.
+* Dua file test baru mencakup 12 unit test (strip semua action, validasi meta, latency, failure) dan satu integration test PostgreSQL untuk insert nyata.
+
+### Scope selesai vs tidak
+
+* Selesai: helper append-only, meta schema per action, enum action terpusat dan dokumentasinya.
+* Tidak ada scope dipangkas.
+
+### Keputusan teknis
+
+1. `requestId` disimpan di `meta` karena kolom terpisah tidak ada dan perubahan database di luar scope.
+2. Allowlist Zod dipilih alih-alih redaction blacklist agar field baru tidak terekam secara tidak sengaja.
+3. Writer dan metric sink diinjeksi agar core tidak membuat koneksi Prisma atau memilih backend observability sendiri.
+4. Kegagalan tidak melog objek error atau meta mentah agar error database tidak menjadi jalur PII.
+
+### Risiko yang ditemukan
+
+* Grant database yang melarang `UPDATE`/`DELETE` belum ada; enforcement append-only pada DB tetap follow-up PR-097 sesuai PR-009.
+* Katalog action perlu ditinjau saat modul mulai memakainya agar tidak bising; baca massal harus dicatat per job/ringkasan, bukan per record.
+* Integration test memakai PostgreSQL development Nawasena yang sudah hidup karena port 5433 telah dipakai. Artefak `audit-test` dibersihkan; CI tetap memakai service PostgreSQL sendiri.
+
+### Next steps
+
+* PR auth, profiles, applications, companies, admin, dan PDP memetakan aksi mereka ke katalog ini.
+* PR-097 menambahkan grant database append-only untuk `audit_logs`.
+* PR observability berikutnya menghubungkan `AuditMetricSink` ke backend metrik produksi.
+
+**Out of Scope (dicatat):** pemetaan panggilan audit per modul; retensi/arsip 2 tahun (PR-024 hook); grant append-only database (PR-097); backend metrik produksi.
