@@ -375,6 +375,23 @@ git revert <commit-hash>
 # (DB NOT rolled back with image; ensures no data loss)
 ```
 
+### 5.8 Alur Pengiriman PR (Wajib — Setelah Task PR Selesai)
+
+Setelah sebuah task PR-XXX **selesai** (implementasi + test + `pnpm lint`/`typecheck`/`test` hijau + log implementasi ditulis), agent LANGSUNG menjalankan alur berikut **tanpa menunggu perintah tambahan**:
+
+1. **Branch:** kerja di `pr-XXX-<slug>` yang dibuat dari tip branch phase aktif (`phase-XX-<nama>`). Jangan pernah bekerja langsung di branch phase atau `main`.
+2. **Commit:** satu commit bermakna, pesan `PR-XXX: <ringkasan singkat>`. Jangan commit file di luar scope PR (mis. file modified yang bukan hasil kerja task ini — biarkan).
+3. **Push:** `git push -u origin pr-XXX-<slug>`.
+4. **Buat PR** ke branch phase (BUKAN `main`):
+   `gh pr create --base phase-XX-<nama> --head pr-XXX-<slug>` dengan body what/why/AC terpenuhi/hasil verifikasi.
+   - Push langsung ke branch phase DITOLAK (protected, required check `lint-typecheck-test`) — PR adalah satu-satunya jalur masuk.
+5. **Tunggu CI:** `gh pr checks <nomor> --watch --interval 15`. Merge HANYA bila `lint-typecheck-test` pass.
+   - CI merah → STOP merge, perbaiki di branch PR, push lagi, tunggu ulang. Jangan pernah bypass check.
+6. **Merge manual setelah hijau:** `gh pr merge <nomor> --merge`.
+   - Auto-merge repo DINONAKTIFKAN (by design) — jangan pakai `--auto`; agent yang menunggu CI lalu merge.
+7. **Sinkron lokal:** `git fetch origin --prune && git checkout phase-XX-<nama> && git pull --ff-only`, lalu kembali/berhenti.
+8. **Larangan keras:** JANGAN pernah membuat PR atau merge apa pun ke `main`. `phase-XX → main` hanya terjadi setelah SELURUH PR phase selesai (Exit Criteria terpenuhi) **dan** atas perintah eksplisit owner.
+
 ---
 
 ## 6. Project Structure (Monorepo)
