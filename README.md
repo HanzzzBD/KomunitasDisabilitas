@@ -1,6 +1,6 @@
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Masa Depan Karier Tanpa Batas
 
-Platform pencarian kerja berbasis AI yang dirancang khusus dan sepenuhnya aksesibel bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda). Standar aksesibilitas: **WCAG 2.2 Level AA** (end-to-end).
+Nawasena adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka. Kami membangun pengalaman yang optimistis, profesional, dan *accessible by design*, dengan standar **WCAG 2.2 Level AA** end-to-end.
 
 Dokumen produk & teknis: [PRD.md](./PRD.md) · [SDD.md](./SDD.md) · [DESIGN.md](./DESIGN.md) · [ADR](./docs/adr/) · [Rencana implementasi](./docs/implementation/README.md)
 
@@ -19,7 +19,7 @@ ProjectKomunitasDisabilitas/
 │   ├── api-client/   Client TS dari kontrak zod + TanStack Query
 │   ├── ui/           Design system aksesibel (web + RN counterpart)
 │   └── a11y/         Hook & context profil aksesibilitas
-├── docs/             ADR, rencana implementasi (18 phase / 112 PR)
+├── docs/             ADR, rencana implementasi (18 MVP phase / 112 PR + Phase 19 Community post-MVP)
 ├── turbo.json        Pipeline Turborepo (build, lint, typecheck, test, dev)
 └── pnpm-workspace.yaml
 ```
@@ -61,7 +61,7 @@ Semua perintah di atas dijalankan lewat Turborepo (`turbo run <task>`) sehingga 
 Berlaku untuk semua PR (detail di [CLAUDE.md](./CLAUDE.md) dan [docs/implementation/README.md](./docs/implementation/README.md)):
 
 - **Lint boundaries** — batas modul ditegakkan `eslint-plugin-boundaries` (mulai PR-002); no cross-module repo import, no direct AI SDK import di luar `core/ai`.
-- **Validasi input** — selalu via zod dari `@incasif/schemas`.
+- **Validasi input** — selalu via zod dari `@nawasena/schemas`.
 - **Error envelope** — `{code, message, hint}` dalam Bahasa Indonesia sederhana.
 - **A11y gate** — perubahan frontend wajib lolos axe-core + jsx-a11y + Lighthouse (WCAG 2.2 AA).
 - **AI via gateway** — panggilan LLM hanya lewat `core/ai`, hormati kuota per-user.

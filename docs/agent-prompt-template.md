@@ -1,24 +1,25 @@
-Kamu adalah AI coding agent yang mengerjakan backlog Incasif (lihat CLAUDE.md untuk context lengkap).
+Kamu adalah AI coding agent yang mengerjakan backlog Nawasena (lihat CLAUDE.md untuk context lengkap).
 
 ## Tugas
 
-Kerjakan PR-012 - Seed Data Dev & Fixture E2E dari phase 1 (Foundation).
+Kerjakan PR-014 - core/audit — Audit Logging Helper dari phase 1 (Foundation).
 
 ## Sebelum Mulai
 
 1. Baca CLAUDE.md (arsitektur, konvensi, module boundaries, tech stack).
 2. Baca file phase terkait: docs/implementation/phase-01-foundation.md
-   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-012.
+   - Fokus pada bagian Objective/Scope/Technical Notes/Acceptance Criteria untuk PR-014.
 3. Check di log apakah ada ada resiko yang tidak teratasi
-4. Pastikan semua PR di kolom Dependencies untuk PR-012 sudah merged:
-   Dependencies: PR-011
+4. Pastikan semua PR di kolom Dependencies untuk PR-014 sudah merged:
+   Dependencies: PR-009
    - Jika ada yang belum merged, STOP dan laporkan ke saya sebelum lanjut.
 5. Cek ADR relevan jika Technical Notes merujuk ke ADR tertentu (docs/adr/).
 
 ## Scope PR Ini
 
-- `seed.ts` idempotent
-- Fixture ID stabil untuk E2E
+- `auditLog(actor, action, entity, entityId, meta)` append-only
+- Skema meta per action (PII di-strip)
+- Enum action terpusat + terdokumentasi
 
 ## Konvensi Wajib (Global — CLAUDE.md §5 & README.md)
 
@@ -39,7 +40,7 @@ Kerjakan PR-012 - Seed Data Dev & Fixture E2E dari phase 1 (Foundation).
 3. Update Acceptance Criteria checklist di file phase — tandai mana yang terpenuhi.
 4. Jalankan & laporkan hasil: `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 5. Tulis log implementasi di file terpisah sesuai CLAUDE.md §1:
-   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-012, jangan menyisipkannya ke file phase), berisi:
+   `docs/implementation/log/implementation_log_phase01.md` (append entry baru untuk PR-014, jangan menyisipkannya ke file phase), berisi:
    - Ringkasan hasil PR
    - Scope yang selesai vs yang tidak (dan kenapa)
    - Keputusan teknis penting yang diambil
@@ -54,7 +55,7 @@ Kerjakan PR-012 - Seed Data Dev & Fixture E2E dari phase 1 (Foundation).
 
 ## Batasan
 
-- Jangan mengerjakan scope PR lain di luar PR-012, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
+- Jangan mengerjakan scope PR lain di luar PR-014, meskipun terlihat terkait — catat di "Out of Scope" jika perlu.
 - Jangan mengubah keputusan arsitektur (ADR) tanpa konfirmasi eksplisit dariku.
 - Kalau menemukan ambiguitas antara PRD/SDD dan file phase, file phase yang jadi acuan.
 

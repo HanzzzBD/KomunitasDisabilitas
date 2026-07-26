@@ -1,8 +1,8 @@
 {
-  "name": "incasif",
+  "name": "nawasena",
   "version": "0.0.0",
   "private": true,
-  "description": "Incasif — Inclusive Career Ecosystem for People with Disabilities (monorepo)",
+  "description": "Nawasena — Masa Depan Karier Tanpa Batas. Monorepo platform karier inklusif.",
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"
@@ -18,7 +18,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,mjs,json,md}\""
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "prettier": "3.3.3",
     "turbo": "2.3.3",
     "typescript": "5.7.2"

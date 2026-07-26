@@ -26,7 +26,7 @@ Fondasi monorepo, tooling, database, dan modul core (crypto/audit/queue) yang me
 * **PR-002** - Preset eslint boundaries + fixtures
 * **PR-003** - Pipeline CI aktif + branch protection
 * **PR-004** - Paket schemas + OpenAPI pipeline
-* **PR-005** - `@incasif/api-client` siap dipakai web/mobile
+* **PR-005** - `@nawasena/api-client` siap dipakai web/mobile
 * **PR-006** - API bootable dengan fondasi config/logging
 * **PR-007** - Middleware core/http lengkap + katalog kode error awal
 * **PR-008** - Compose dev lengkap + health endpoints
@@ -180,7 +180,7 @@ RB-Std.
 * [x] Import repo lintas modul → lint error (fixture `violations/cross-module-repo`, rule `boundaries/element-types`).
 * [x] Import SDK AI di luar `core/ai` → lint error (fixture `violations/ai-sdk-outside-core`, rule `boundaries/external`).
 * [x] Loncat lapisan (router→repo) → lint error (fixture `violations/layer-jump`, rule `boundaries/element-types`).
-* [x] Preset dipakai `apps/api` via extends tunggal (`apps/api/.eslintrc.cjs` = satu baris `require("@incasif/config/eslint/boundaries")`).
+* [x] Preset dipakai `apps/api` via extends tunggal (`apps/api/.eslintrc.cjs` = satu baris `require("@nawasena/config/eslint/boundaries")`).
 * [x] Dokumentasi aturan tersedia (`packages/config/README.md`: klasifikasi elemen, 3 aturan, escape hatch, cara menjalankan test fixture).
 
 #### Dependencies
@@ -234,7 +234,7 @@ Bisnis: kualitas tidak bergantung ingatan reviewer. Teknis: workflow PR dengan c
 
 **Testing Checklist:**
 
-* [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@incasif/config`, bukti fixture boundaries)
+* [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@nawasena/config`, bukti fixture boundaries)
 * [x] Integration Test (N/A — dicatat)
 * [x] E2E Test (slot job `e2e` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
 * [x] Accessibility Test (slot job `a11y` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
@@ -255,7 +255,7 @@ Nonaktifkan required check sementara via settings; revert workflow.
 #### Acceptance Criteria
 
 * [x] PR tidak dapat merge tanpa semua check hijau — branch protection aktif di `main`: required check `lint-typecheck-test` (strict), require PR before merge, `enforce_admins: true`.
-* [x] Pelanggaran boundaries menggagalkan CI (bukti fixture) — job `lint-typecheck-test` menjalankan `pnpm lint` (boundaries) + `pnpm test` (8 test fixture `@incasif/config`); keduanya `--max-warnings=0`, pelanggaran = exit ≠ 0 = check merah.
+* [x] Pelanggaran boundaries menggagalkan CI (bukti fixture) — job `lint-typecheck-test` menjalankan `pnpm lint` (boundaries) + `pnpm test` (8 test fixture `@nawasena/config`); keduanya `--max-warnings=0`, pelanggaran = exit ≠ 0 = check merah.
 * [x] Cache mempercepat run kedua (< 50% durasi run pertama) — terverifikasi di PR uji #1: step terdampak cache 12s → 3s (25%); job total 26s → 14s (sisa = overhead tetap runner). Turbo cache hit penuh ("replaying logs").
 * [x] Workflow permission least-privilege (`permissions: contents: read`; tanpa secrets).
 * [x] Status check terdokumentasi di README (tabel check, cara baca kegagalan, langkah branch protection).
@@ -401,7 +401,7 @@ Bisnis: konsistensi perilaku web & mobile. Teknis: client dengan auth header, pa
 
 **Deliverables:**
 
-* `@incasif/api-client` siap dipakai web/mobile
+* `@nawasena/api-client` siap dipakai web/mobile
 
 **Out of Scope:**
 

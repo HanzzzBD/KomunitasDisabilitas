@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif harus berjalan dengan biaya infrastruktur ≤ ~Rp300rb/bulan pada fase validasi (< 5.000 pengguna), dioperasikan tim 2–5 orang tanpa DevOps khusus, dengan target ketersediaan 99%, RPO ≤ 24 jam, RTO ≤ 4 jam (PRD §7). Dibutuhkan environment produksi dan staging.
+Nawasena harus berjalan dengan biaya infrastruktur ≤ ~Rp300rb/bulan pada fase validasi (< 5.000 pengguna), dioperasikan tim 2–5 orang tanpa DevOps khusus, dengan target ketersediaan 99%, RPO ≤ 24 jam, RTO ≤ 4 jam (PRD §7). Dibutuhkan environment produksi dan staging.
 
 Constraint: pemilik produk memilih VPS sendiri (bukan PaaS/managed cloud) pada discovery PRD.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Incasif di-deploy menggunakan **Docker Compose pada satu VPS Ubuntu LTS** (4 vCPU/8 GB): produksi dan staging sebagai **compose project terpisah** (`incasif-prod`, `incasif-stg`) dengan database, kredensial, dan kuota AI terpisah, di belakang satu Nginx + Cloudflare. Setiap container memiliki resource limit eksplisit (SDD §9.2). Image di-pin per digest dari GHCR; deploy dan rollback melalui skrip `deploy.sh` yang dipicu CI (ADR-016). Provisioning VPS dikodifikasi di `infra/provision.sh` (idempotent).
+Nawasena di-deploy menggunakan **Docker Compose pada satu VPS Ubuntu LTS** (4 vCPU/8 GB): produksi dan staging sebagai **compose project terpisah** (`nawasena-prod`, `nawasena-stg`) dengan database, kredensial, dan kuota AI terpisah, di belakang satu Nginx + Cloudflare. Setiap container memiliki resource limit eksplisit (SDD §9.2). Image di-pin per digest dari GHCR; deploy dan rollback melalui skrip `deploy.sh` yang dipicu CI (ADR-016). Provisioning VPS dikodifikasi di `infra/provision.sh` (idempotent).
 
 ## Consequences
 

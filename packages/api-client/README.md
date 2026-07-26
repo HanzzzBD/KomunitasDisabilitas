@@ -1,14 +1,14 @@
-# @incasif/api-client
+# @nawasena/api-client
 
-Typed API client dari kontrak zod (`@incasif/schemas`) — dipakai **web dan mobile** tanpa perubahan (ADR-014). Bebas dependensi DOM: jalan di browser, React Native, dan Node ≥ 18. `sideEffects: false` — tree-shakeable (diuji bundle test).
+Typed API client dari kontrak zod (`@nawasena/schemas`) — dipakai **web dan mobile** tanpa perubahan (ADR-014). Bebas dependensi DOM: jalan di browser, React Native, dan Node ≥ 18. `sideEffects: false` — tree-shakeable (diuji bundle test).
 
 ## Pemakaian
 
 ```ts
-import { createApiClient, requestOtp, ApiError } from "@incasif/api-client";
+import { createApiClient, requestOtp, ApiError } from "@nawasena/api-client";
 
 const client = createApiClient({
-  baseUrl: "https://incasif.id/api/v1",
+  baseUrl: "https://nawasena.id/api/v1",
   // Penyimpanan token DI LUAR paket ini:
   // web → cookie/memory store; mobile → expo-secure-store.
   getAccessToken: () => tokenStore.access,
@@ -44,7 +44,8 @@ try {
 Bentuk key: **`[domain, params]`** — `params` dinormalisasi (urutan key stabil, `undefined` dibuang) sehingga deterministik.
 
 ```ts
-import { queryKey } from "@incasif/api-client";
+import { queryKey } from "@nawasena/api-clien…5536 tokens truncated…ine, aplikasi menampilkan banner `role="alert"` berbahasa sederhana dengan tombol coba lagi; TanStack Query dikonfigurasi `networkMode: 'online'` sehingga mutasi tertahan, tidak gagal diam-diam. Fondasi PWA (manifest + service worker untuk cache aset statis saja) tetap dipasang sejak MVP agar peningkatan ke offline dasar pada Fase 2 tidak merombak arsitektur. Kemampuan offline penuh adalah item roadmap Fase 2, bukan penghapusan fitur.
+MVP Nawasena adalah **online-only**. Saat offline, aplikasi menampilkan banner `role="alert"` berbahasa sederhana dengan tombol coba lagi; TanStack Query dikonfigurasi `networkMode: 'online'` sehingga mutasi tertahan, tidak gagal diam-diam. Fondasi PWA (manifest + service worker untuk cache aset statis saja) tetap dipasang sejak MVP agar peningkatan ke offline dasar pada Fase 2 tidak merombak arsitektur. Kemampuan offline penuh adalah item roadmap Fase 2, bukan penghapusan fitur.
 
 queryKey("jobs"); // ["jobs"]
 queryKey("jobs", { q: "kasir", page: 2 }); // ["jobs", { page: 2, q: "kasir" }]
@@ -63,7 +64,7 @@ Aturan:
 
 Pola di `src/endpoints/auth.ts` (contoh PR-005):
 
-1. Ambil skema request+response dari `@incasif/schemas` — **jangan** definisikan skema di sini.
+1. Ambil skema request+response dari `@nawasena/schemas` — **jangan** definisikan skema di sini.
 2. Validasi body dengan `schema.parse` sebelum kirim (fail cepat di klien).
 3. Beri `responseSchema` agar response tervalidasi.
 4. Ekspor factory `…Keys` untuk query key domain tersebut.

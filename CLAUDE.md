@@ -1,14 +1,14 @@
 # CLAUDE.md — Project Context & Development Guide
 
-> **Last Updated:** 2026-07-17  
-> **Project:** Incasif (Inclusive Career Ecosystem for People with Disabilities)  
-> **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, PR-PLAN v3.0
+> **Last Updated:** 2026-07-24
+> **Project:** Nawasena — Masa Depan Karier Tanpa Batas
+> **Documentation Source:** PRD v1.2, SDD v1.2, ADRs 001–018, Implementation Plan v3.1
 
 ---
 
 ## 1. Project Overview
 
-**Incasif** adalah platform pencarian kerja berbasis AI yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda).
+**Nawasena** adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka.
 
 ### North Star Metrics
 - **Primary:** Jumlah penempatan kerja (pengguna diterima bekerja melalui platform)
@@ -20,6 +20,7 @@
 3. **AI Career Assistant** — CV builder percakapan terpandu, simulasi wawancara, AI CV Checker
 4. **SignBridge Indonesia** (Fase 2–3) — penerjemah Bahasa Isyarat Indonesia ↔ Bahasa Indonesia via computer vision + AI
 5. **Company Accessibility Profile** — transparansi fasilitas aksesibel & tingkat inklusivitas perusahaan
+6. **Community** (Phase 19, post-MVP) — ruang diskusi topik/kota, membership, post teks, report, dan moderasi; tanpa pesan pribadi atau unggahan media pada fase awal
 
 ### Target & Timeline
 - **Target tahun 1:** Validasi dengan < 5.000 pengguna terdaftar di 1–2 kota/komunitas (~500 DAU)
@@ -29,8 +30,9 @@
 
 ### Roadmap Implementasi Terbaru
 - Dokumentasi implementasi terbaru tersedia di [docs/implementation/README.md](./docs/implementation/README.md)
-- Backlog dibagi ke dalam **18 phase** dan **112 PR** untuk 8 sprint + soak/release
-- Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, dan release
+- MVP dibagi ke dalam **18 phase** dan **112 PR** untuk 8 sprint + soak/release; Community adalah **Phase 19** post-MVP dengan PR-113..PR-119, dimulai setelah v1.0.0 stabil
+- Implementasi hingga PR-013 tetap valid; Community masuk melalui migrasi additive PR-113 dan feature flag sampai readiness gate PR-119 lulus
+- Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, release, dan Community post-MVP
 
 ### Dokumentasi Log Implementasi
 - Implementasi dilakukan per PR.
@@ -205,7 +207,7 @@ Database (PostgreSQL)
 | **ADR-010** | SignBridge v2 Service Terpisah | SignBridge (BISINDO↔Indonesia translator) sebagai service terpisah; bridge via API |
 | **ADR-011** | React Native + Expo | Mobile frontend (iOS/Android); same state/UI component strategy as web |
 | **ADR-012** | AI Gateway Pattern | Centralized LLM access; forbids direct SDK imports outside `core/ai` |
-| **ADR-013** | Scope MVP, Reserved Boundaries | MVP scope defined; boundaries for future modules (SignBridge, advanced matching) |
+| **ADR-013** | Scope MVP, Reserved Boundaries | MVP scope defined; Community dipromosikan ke Phase 19 post-MVP, boundary lain tetap reserved |
 | **ADR-014** | TanStack Query + Zustand | Web/mobile state: server state (TQ), global state (Zustand) |
 | **ADR-015** | Secrets via `.env` (dev) & env vars | Never commit secrets; `.gitignore` `.env*` sejak commit pertama |
 | **ADR-016** | GitHub Actions CI/CD | PR checks: lint, typecheck, unit; deploy via `deploy.sh --rollback` |
@@ -232,7 +234,7 @@ const name = req.body.name;
 
 // ✅ DO: Validasi via zod dari packages/schemas
 import { z } from "zod";
-import { createUserSchema } from "@incasif/schemas";
+import { createUserSchema } from "@nawasena/schemas";
 
 const parsed = createUserSchema.parse(req.body);
 const { name } = parsed;
@@ -253,7 +255,7 @@ res.status(400).json({
 **Error Handling Async (Express):**
 ```typescript
 // ✅ DO: Wrap async handlers
-import { asyncHandler } from "@incasif/core/http";
+import { asyncHandler } from "@nawasena/core/http";
 
 router.get("/:id", asyncHandler(async (req, res) => {
   const profile = await profileService.getById(req.params.id);
@@ -349,7 +351,7 @@ describe("matching service", () => {
 **Development (local):**
 ```bash
 # apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
-DATABASE_URL="postgresql://incasif:incasif@localhost:5433/incasif"
+DATABASE_URL="postgresql://nawasena:nawasena@localhost:5433/nawasena"
 REDIS_URL="redis://localhost:6379"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
@@ -442,7 +444,8 @@ ProjectKomunitasDisabilitas/
 | [SDD.md](./SDD.md) | Software Design Document v1.1 — technical architecture, module design, risks/mitigations |
 | [DESIGN.md](./DESIGN.md) | Product Design — UI flows, accessibility specs, design system |
 | [docs/PR-PLAN.md](./docs/PR-PLAN.md) | Engineering Backlog v3.0 — PR breakdown, dependencies, acceptance criteria |
-| [docs/implementation/README.md](./docs/implementation/README.md) | Implementation plan index — 18 phases, 112 PR, sprint roadmap, dependency graph |
+| [docs/implementation/README.md](./docs/implementation/README.md) | Implementation plan index — 18 MVP phases / 112 PR + Community Phase 19 post-MVP |
+| [docs/implementation/phase-19-community.md](./docs/implementation/phase-19-community.md) | Community post-MVP: schema, API, moderasi, readiness gate, dan PR-113..PR-119 |
 | [docs/implementation/phase-01-foundation.md](./docs/implementation/phase-01-foundation.md) | Phase 1 foundation PRs and execution scope |
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
 | [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
@@ -466,7 +469,7 @@ cp apps/api/.env.example apps/api/.env
 docker-compose up -d postgres redis
 
 # 4. Run migrations
-pnpm --filter @incasif/api exec prisma migrate dev
+pnpm --filter @nawasena/api exec prisma migrate dev
 
 # 5. Run dev servers (all workspaces)
 pnpm dev
@@ -478,7 +481,7 @@ pnpm typecheck && pnpm lint
 pnpm test
 
 # 8. Check accessibility (web only, slot PR-031)
-# pnpm --filter @incasif/web test:a11y
+# pnpm --filter @nawasena/web test:a11y
 ```
 
 ---
@@ -526,19 +529,19 @@ pnpm test:cov
 ### Database
 ```bash
 # Create migration
-pnpm --filter @incasif/api exec prisma migrate dev --name feature_name
+pnpm --filter @nawasena/api exec prisma migrate dev --name feature_name
 
 # Open Prisma Studio
-pnpm --filter @incasif/api exec prisma studio
+pnpm --filter @nawasena/api exec prisma studio
 
 # Reset DB (dev only, destructive)
-pnpm --filter @incasif/api exec prisma migrate reset
+pnpm --filter @nawasena/api exec prisma migrate reset
 ```
 
 ### Docker & Deployment
 ```bash
 # Build Docker image locally
-docker build -t incasif:latest .
+docker build -t nawasena:latest .
 
 # Start full stack (local dev)
 docker-compose up
@@ -553,13 +556,13 @@ git push origin main  # triggers GitHub Actions
 ### Monorepo
 ```bash
 # Run script in specific workspace
-pnpm --filter @incasif/api <script>
+pnpm --filter @nawasena/api <script>
 
 # List all workspaces
 pnpm ls -r
 
 # Update Turborepo cache
-pnpm turbo prune --scope=@incasif/api
+pnpm turbo prune --scope=@nawasena/api
 ```
 
 ---

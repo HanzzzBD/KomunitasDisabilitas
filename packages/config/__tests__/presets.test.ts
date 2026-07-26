@@ -11,7 +11,7 @@ function readJson(relativePath: string): Record<string, unknown> {
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
-describe("@incasif/config presets", () => {
+describe("@nawasena/config presets", () => {
   it("mengekspor preset prettier yang valid", () => {
     const prettier = require("../prettier/index.js") as Record<string, unknown>;
     expect(prettier.printWidth).toBe(100);

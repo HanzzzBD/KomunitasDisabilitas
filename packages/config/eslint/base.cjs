@@ -1,9 +1,9 @@
-// Preset ESLint dasar bersama (legacy config) untuk seluruh workspace Incasif.
-// Dikonsumsi via: module.exports = require("@incasif/config/eslint")
+// Preset ESLint dasar bersama (legacy config) untuk seluruh workspace Nawasena.
+// Dikonsumsi via: module.exports = require("@nawasena/config/eslint")
 //
 // Preset ini menyediakan fondasi TypeScript + formatting. Aturan module
 // boundaries (aliran lapisan, larangan impor lintas modul / SDK AI) ada di
-// preset terpisah "@incasif/config/eslint/boundaries" — dipakai apps/api.
+// preset terpisah "@nawasena/config/eslint/boundaries" — dipakai apps/api.
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
   root: true,

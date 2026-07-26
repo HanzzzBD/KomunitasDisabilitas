@@ -8,7 +8,7 @@ importers:
 
   .:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:packages/config
       prettier:
@@ -23,7 +23,7 @@ importers:
 
   apps/api:
     dependencies:
-      '@incasif/schemas':
+      '@nawasena/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
       '@prisma/client':
@@ -57,7 +57,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/cors':
@@ -93,7 +93,7 @@ importers:
 
   apps/mobile:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../../packages/config
       eslint:
@@ -108,7 +108,7 @@ importers:
 
   apps/web:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../../packages/config
       eslint:
@@ -123,7 +123,7 @@ importers:
 
   apps/worker:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -141,7 +141,7 @@ importers:
 
   packages/a11y:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../config
       eslint:
@@ -156,14 +156,14 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@incasif/schemas':
+      '@nawasena/schemas':
         specifier: workspace:*
         version: link:../schemas
       zod:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -222,7 +222,7 @@ importers:
         specifier: 4.2.4
         version: 4.2.4(zod@3.24.1)
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -243,7 +243,7 @@ importers:
 
   packages/ui:
     devDependencies:
-      '@incasif/config':
+      '@nawasena/config':
         specifier: workspace:*
         version: link:../config
       eslint:

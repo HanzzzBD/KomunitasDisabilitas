@@ -29,7 +29,7 @@ const envSchema = z.object({
     .default("info"),
   DATABASE_URL: z
     .string({ required_error: "wajib diisi (URL PostgreSQL)" })
-    .url({ message: "harus URL valid, contoh postgresql://user:pass@localhost:5432/incasif" }),
+    .url({ message: "harus URL valid, contoh postgresql://user:pass@localhost:5432/nawasena" }),
   REDIS_URL: z
     .string({ required_error: "wajib diisi (URL Redis cache)" })
     .url({ message: "harus URL valid, contoh redis://localhost:6379" }),

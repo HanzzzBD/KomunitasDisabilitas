@@ -1,12 +1,12 @@
-# Incasif - Implementation Plan (Index)
+# Nawasena - Implementation Plan (Index)
 
 | | |
 |---|---|
-| **Versi** | 3.0 (dipecah per phase dari docs/PR-PLAN.md - isi PR verbatim, tanpa perubahan scope) |
-| **Tanggal** | 2026-07-15 |
-| **Source of truth** | PRD v1.1 (bisnis) + SDD v1.1 (teknis) + ADR-001..018 (docs/adr/) |
+| **Versi** | 3.1 (MVP 3.0 + Community post-MVP) |
+| **Tanggal** | 2026-07-24 |
+| **Source of truth** | PRD v1.2 (bisnis) + SDD v1.2 (teknis) + ADR-001..018 (docs/adr/) |
 | **Skala kompleksitas** | XS < 1 hari - S 1-2 hari - M 2-4 hari - L 4-7 hari - XL dilarang |
-| **Total** | 112 PR - 18 phase - 8 sprint (+2 minggu soak/rilis) |
+| **Total** | 112 PR MVP / 18 phase + 7 PR Community post-MVP / Phase 19 |
 
 Panduan untuk AI coding agent: kerjakan PR sesuai **Execution Order** di bawah; sebelum memulai sebuah PR, baca file phase-nya (Objective/Scope/Technical Notes/AC) + pastikan seluruh PR di kolom Dependencies sudah merged. Satu PR = satu branch = satu unit review.
 
@@ -38,6 +38,7 @@ Rollback baku (dirujuk sebagai **RB-Std**): revert merge → CI build ulang imag
 | 16 | Infrastructure & Observability | [phase-16-infrastructure-observability.md](phase-16-infrastructure-observability.md) | PR-096..PR-104 (9) | 2-5 |
 | 17 | Security Hardening & PDP Compliance | [phase-17-security-pdp-hardening.md](phase-17-security-pdp-hardening.md) | PR-105..PR-108 (4) | 8 |
 | 18 | Release | [phase-18-release.md](phase-18-release.md) | PR-109..PR-112 (4) | 8+ (minggu 17-18) |
+| 19 | Community (post-MVP) | [phase-19-community.md](phase-19-community.md) | PR-113..PR-119 (7) | setelah v1.0.0 stabil |
 
 ## Execution Order
 
@@ -54,6 +55,7 @@ Urutan eksekusi mengikuti Sprint Roadmap (tabel lengkap di bawah). Ringkas per s
 | 7 | 064, 068, 073-077, 080, 083-084, 090-092 |
 | 8 | 078-079, 081-082, 085-087, 093-095, 105-110 |
 | 8+ | 111-112 (soak 1 minggu lalu launch) |
+| Post-MVP | 113-119 (Community; dimulai setelah v1.0.0 stabil) |
 
 # Dependency Graph
 
@@ -205,6 +207,18 @@ graph TD
     PR106 --> PR111
     PR107 --> PR111
     PR108 --> PR111
+  end
+  subgraph P19[Phase 19 Community Post-MVP]
+    PR112 --> PR113 --> PR114
+    PR114 --> PR115
+    PR114 --> PR116
+    PR115 --> PR117
+    PR116 --> PR117
+    PR052 --> PR118
+    PR116 --> PR118
+    PR117 --> PR119
+    PR118 --> PR119
+    PR105 --> PR119
   end
 ```
 
@@ -363,8 +377,21 @@ Aturan anti-merge-conflict: kontrak zod dibuat lebih dulu (PR kecil terpisah bil
 | PR-110 | Audit Penguji Disabilitas | M | 109, 094 | 8 |
 | PR-111 | RC Soak + Play Readiness | S | 110, 104–108 | 8+ |
 | PR-112 | v1.0.0 Launch | XS | 111 | 8+ |
+| PR-113 | Community Schema + Prisma Migration | M | 011, 013, 112 | Post-MVP |
+| PR-114 | Community API + Membership | M | 019, 113, 112 | Post-MVP |
+| PR-115 | Community Browse + Join Web | M | 028, 114, 112 | Post-MVP |
+| PR-116 | Post, Comment, Report + Moderation Service | L | 014, 083, 114, 112 | Post-MVP |
+| PR-117 | Post, Comment + Report Web UI | M | 115, 116, 112 | Post-MVP |
+| PR-118 | Admin Community + Moderation Queue | M | 052, 116, 112 | Post-MVP |
+| PR-119 | Community Readiness Gate | M | 031, 105, 117, 118, 112 | Post-MVP |
 
 Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR-084–087 (SignBridge/simplify) dan PR-095 +1 sprint tanpa menyentuh critical path; PR-110/111 TIDAK boleh dikompresi. "8+" = minggu 17–18 (soak + rilis).
+
+## Status Implementasi dan Transisi
+
+Implementasi sampai **PR-013** tetap menjadi baseline yang sah. Jangan mengubah atau mengulang PR-001..PR-013 untuk Community; lakukan verifikasi terhadap acceptance criteria yang ada, lalu lanjutkan PR berikutnya sesuai urutan normal.
+
+Saat Community dimulai, gunakan PR-113 sebagai migrasi additive baru di atas skema v1.0.0, bukan mengedit migrasi lama. Fitur Community tetap di belakang feature flag sampai PR-119 lulus gate aksesibilitas, PDP, keamanan, dan SOP moderasi.
 
 # Coverage Matrix
 
@@ -394,6 +421,9 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 | FR-6.2 Moderasi user | PR-083 |
 | FR-6.3 Dashboard metrik + funnel | PR-080, PR-081 |
 | FR-7 BISINDO Support (kamus video) | PR-084, PR-085, PR-086 |
+| FR-7.5 Komunitas: ruang, anggota, post, balasan | PR-113, PR-114, PR-115, PR-117 |
+| FR-7.6 Moderasi komunitas | PR-116, PR-118, PR-119 |
+| FR-7.7 Privasi komunitas + PDP | PR-113, PR-114, PR-116, PR-119 |
 | FR-8 Akses publik (landing, company page, browse) | PR-032, PR-054, PR-058, PR-059 |
 | NFR WCAG 2.2 AA sebagai gate rilis | PR-031, PR-109, PR-110 (+ semua PR FE) |
 | NFR Kinerja 3G (<3 dtk interaktif) | PR-025, PR-032, PR-098 |
@@ -406,7 +436,9 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 | §3 Monorepo Turborepo + packages | PR-001, PR-004, PR-005 |
 | §4 Frontend architecture (SPA/state/i18n/online-only) | PR-025–PR-033 |
 | §5 Konvensi modul + lint boundaries | PR-002, PR-006, PR-007 |
+| §5.4 Community module | PR-113–PR-119 |
 | §6 Database (skema/indeks/retensi/enkripsi at-field) | PR-009–PR-012, PR-013, PR-024 |
+| §6 Community schema dan indeks | PR-113 |
 | §7.1 AI Gateway (kuota/cache/router/breaker/ai_usage) | PR-041–PR-046 |
 | §7.2 Matching pipeline (embed→filter→skor→rerank→cache) | PR-069–PR-074 |
 | §7.3 Prompt berversi + privasi AI + injection guard | PR-044 |
@@ -420,10 +452,11 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 | §9 Infrastruktur (VPS/compose/limits/nginx/CF) | PR-096–PR-098 |
 | §10 Deployment (GHCR digest/urutan/rollback) | PR-099–PR-101 |
 | §11 API design (envelope/OpenAPI/simplify-text) | PR-004, PR-007, PR-087 |
+| §11 Community API + moderation API | PR-114, PR-116, PR-118 |
 | §12 Sequence (onboarding→CV SSE; matching→apply→hired) | PR-066–PR-068, PR-073–PR-079 |
 | §13 DFD disclosure snapshot | PR-075 |
 | §14 ERD (uuid v7/timestamptz/FK policies) | PR-009–PR-011 |
-| §15 Module design + typed events | PR-002, PR-038, PR-047, PR-055 |
+| §15 Module design + typed events | PR-002, PR-038, PR-047, PR-055, PR-114, PR-116 |
 | §16 Queue design (retry/timeout/DLQ per queue) | PR-015, PR-023, PR-024, PR-048, PR-049, PR-063, PR-067, PR-069, PR-072, PR-104 |
 | §17 Monitoring & logging (Sentry/Kuma/metrics/pino) | PR-006, PR-102, PR-103 |
 | §18 Backup & recovery (age→R2/drill/RTO) | PR-104 |
@@ -433,14 +466,14 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 
 # Missing Requirement Analysis
 
-Verifikasi akhir terhadap PRD v1.1 + SDD v1.1:
+Verifikasi akhir terhadap PRD v1.2 + SDD v1.2:
 
-1. **Seluruh FR PRD (FR-1 s.d. FR-8)** terpetakan ke ≥1 PR — tidak ada yang hilang (matrix di atas).
+1. **Seluruh FR PRD (FR-1 s.d. FR-8, termasuk FR-7.5..7.7 Community)** terpetakan ke ≥1 PR — tidak ada yang hilang (matrix di atas).
 2. **Seluruh NFR PRD** (WCAG gate, kinerja 3G, keamanan/PDP, ketersediaan/DR) terpetakan.
 3. **Seluruh bagian SDD §3–§21** terpetakan. Dua pengecualian yang disengaja dan BUKAN missing: §7.4 SignBridge **v2** tanpa PR kode (kontrak dokumen saja — gerbang riset Fase 3, ADR-010); §19 scalability = pemicu terdokumentasi untuk masa depan, bukan pekerjaan MVP.
 4. **Gap audit v2.0 tetap tertutup di v3.0**: G1 simplify-text (PR-087), G2 analytics funnel (PR-082), G3 retention (PR-024), G4 landing (PR-032), G5 company public page (PR-054), G6 OpenAPI/staging-auth/secrets-scan (PR-004/097/108), G7 migrasi inkremental eksplisit (PR-009–011, 048, 049, 065, 083).
-5. **Di luar scope by design** (roadmap ADR-013, bukan missing): employer portal, interview simulator, STT caption, forum/mentoring/webinar/training, SignBridge v2, iOS, offline dasar, Meilisearch, Prometheus/Grafana, voice interface. Chat AI CV di mobile menyusul segera pasca-RC (dicatat di PR-092 Out of Scope).
+5. **Di luar scope by design** (roadmap ADR-013, bukan missing): employer portal, interview simulator, STT caption, mentoring/webinar/training, SignBridge v2, iOS, offline dasar, Meilisearch, Prometheus/Grafana, voice interface. Community sudah menjadi Phase 19; pesan pribadi, unggahan media, live chat, user-created group, dan event tetap di luar scope Community awal.
 6. **Prasyarat non-teknis dijahit sebagai Acceptance Criteria** (agar tidak terlupakan meski bukan kerja koding): ≥100 lowongan kurasi (PR-111), rekrutmen + kompensasi penguji disabilitas (PR-110), konten juru bahasa BISINDO (PR-084 — risiko anggaran PRD §17), review legal privasi (PR-107).
 
-**Kesimpulan: 112 PR · 18 phase · 8 sprint (+2 minggu soak/rilis) · 0 requirement PRD/SDD tak terpetakan · 0 PR berukuran XL.** Backlog siap dikonversi ke GitHub Issues/Jira: 1 PR = 1 issue, Phase = Epic, Sprint = Milestone.
+**Kesimpulan: 112 PR / 18 phase untuk MVP tetap utuh; Community = 7 PR post-MVP pada Phase 19; 0 requirement PRD/SDD tak terpetakan; 0 PR berukuran XL.** PR-001..PR-013 tetap valid dan tidak perlu diulang. Backlog siap dikonversi ke GitHub Issues/Jira: 1 PR = 1 issue, Phase = Epic, Sprint = Milestone.
 

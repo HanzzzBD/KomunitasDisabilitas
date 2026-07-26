@@ -1,4 +1,4 @@
-// Prisma schema Incasif — sumber kebenaran struktur DB (CLAUDE.md §12).
+// Prisma schema Nawasena — sumber kebenaran struktur DB (CLAUDE.md §12).
 // Migrasi 01 (PR-009): inti identitas — users, refresh_tokens,
 // accessibility_profiles, audit_logs (SDD §6, §14; PRD §10).
 //

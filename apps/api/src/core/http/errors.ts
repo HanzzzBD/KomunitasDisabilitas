@@ -7,7 +7,7 @@
 // - message = Bahasa Indonesia sederhana (dibacakan screen reader apa adanya);
 //   hint = saran tindakan untuk pengguna.
 // - Kode baru WAJIB ditambahkan di sini (test memvalidasi format & kelengkapan).
-import type { ErrorEnvelope } from "@incasif/schemas";
+import type { ErrorEnvelope } from "@nawasena/schemas";
 
 export interface CatalogEntry {
   status: number;

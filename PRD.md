@@ -1,19 +1,20 @@
 # Product Requirements Document (PRD)
 
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Masa Depan Karier Tanpa Batas
 
 | | |
 |---|---|
-| **Versi** | 1.1 |
-| **Tanggal** | 15 Juli 2026 |
+| **Versi** | 1.2 |
+| **Tanggal** | 24 Juli 2026 |
 | **Status** | Untuk review tim |
-| **Nama produk** | **Incasif** (resmi & final — menggantikan nama kerja "KarirInklusif"/"Inklusia AI" pada versi sebelumnya) |
+| **Nama produk** | **Nawasena** |
+| **Tagline** | **Masa Depan Karier Tanpa Batas** |
 
 ---
 
 ## 1. Executive Summary
 
-Incasif adalah platform pencarian kerja (web + mobile) yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia — Tuli, Netra, Daksa, Autisme, dan disabilitas ganda. Platform menggabungkan **AI matching** yang mempertimbangkan jenis disabilitas, kemampuan, dan kebutuhan akomodasi; **asisten karier AI** (pembuatan CV terpandu, simulasi wawancara); serta **transparansi inklusivitas perusahaan**.
+Nawasena adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka. Melalui web dan mobile, Nawasena menghubungkan talenta dengan perusahaan inklusif melalui **AI matching** yang mempertimbangkan keterampilan, pengalaman, preferensi, dan kebutuhan akomodasi; asisten karier AI; serta transparansi aksesibilitas perusahaan.
 
 Pencari kerja menggunakan platform **100% gratis**. Pendapatan berasal dari sisi B2B (perusahaan): lowongan premium, akses kandidat, dan success fee — diaktifkan bertahap mulai Fase 2.
 
@@ -40,13 +41,18 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
 
 ## 3. Product Vision
 
-> **"Setiap penyandang disabilitas di Indonesia dapat menemukan, melamar, dan mendapatkan pekerjaan yang layak — tanpa hambatan akses dan tanpa diskriminasi."**
+**Positioning:** Nawasena adalah platform digital yang menghubungkan penyandang disabilitas dengan peluang kerja yang inklusif. Dengan semangat harapan baru dan kesetaraan, Nawasena membantu setiap individu menunjukkan kemampuan terbaiknya serta membangun masa depan karier yang lebih cerah.
+
+**Kepribadian brand:** ramah, mendukung, memberdayakan, berorientasi masa depan, dan tidak mengasihani. Copy produk mengutamakan kesempatan, potensi, kesetaraan, aksesibilitas, pertumbuhan, masa depan, dan pemberdayaan.
+
+> **"Setiap penyandang disabilitas di Indonesia dapat menemukan, melamar, dan mendapatkan pekerjaan yang layak tanpa hambatan akses dan tanpa diskriminasi."**
 
 **Nilai inti / USP:**
 1. **AI matching disabilitas-pekerjaan** — mencocokkan berdasarkan kemampuan, jenis disabilitas, dan akomodasi yang dibutuhkan vs. yang tersedia; bukan sekadar kata kunci.
 2. **Pengalaman 100% aksesibel** — WCAG 2.2 AA end-to-end: pembaca layar, mode low vision, konten BISINDO, teks sederhana, input alternatif.
 3. **Asisten karier AI** — CV builder percakapan terpandu dan simulasi wawancara dengan umpan balik.
 4. **Transparansi inklusivitas perusahaan** — informasi fasilitas aksesibel, akomodasi, dan (Fase 2) review dari pekerja disabilitas.
+5. **Ruang komunitas aman** — ruang diskusi berdasarkan topik atau kota untuk berbagi informasi karier, pengalaman, dan dukungan antarpengguna, dengan moderasi aktif.
 
 **Prinsip desain:** *Nothing about us without us* — melibatkan komunitas disabilitas (Gerkatin, Pertuni, HWDI, dll.) dalam desain, pengujian, dan konten sejak hari pertama.
 
@@ -116,6 +122,8 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
 - **US-17:** Sebagai employer, saya bisa memasang lowongan dan melihat pelamar ke lowongan saya.
 - **US-18:** Sebagai pencari kerja Tuli, saya bisa menonton panduan utama aplikasi dalam video BISINDO.
 - **US-19:** Sebagai pencari kerja, saya bisa membaca/menulis review pengalaman kerja di perusahaan (moderated).
+- **US-20:** Sebagai pencari kerja, saya bisa bergabung ke ruang komunitas berdasarkan topik atau kota, membaca diskusi, lalu membuat post atau balasan agar dapat bertukar informasi dan dukungan karier.
+- **US-21:** Sebagai pengguna, saya bisa melaporkan post atau balasan yang melanggar aturan komunitas; sebagai admin, saya bisa meninjau laporan serta menyembunyikan atau memulihkan konten dengan alasan yang tercatat.
 
 ---
 
@@ -162,6 +170,9 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
 - FR-7.2 Portal employer self-service + alur verifikasi perusahaan.
 - FR-7.3 Review perusahaan oleh pekerja/alumni disabilitas (moderated, anonim opsional).
 - FR-7.4 Video BISINDO untuk panduan aplikasi dan konten kunci.
+- FR-7.5 Komunitas (post-MVP, Phase 19): ruang komunitas dikelola admin berdasarkan topik atau kota; pengguna terautentikasi dapat bergabung, membaca, membuat post teks, dan membalas.
+- FR-7.6 Moderasi komunitas: pengguna dapat melaporkan konten; admin dapat menyembunyikan, memulihkan, atau menghapus konten sesuai pedoman. Semua tindakan moderasi tercatat di audit log dan pemilik konten menerima notifikasi.
+- FR-7.7 Privasi komunitas: data disabilitas, kebutuhan akomodasi, lamaran, dan CV tidak pernah ditampilkan atau dipakai untuk menentukan keanggotaan komunitas. Saat akun dihapus, identitas penulis pada konten komunitas dianonimkan sesuai kebijakan PDP.
 
 ### FR-8 Fase 3
 - FR-8.1 Avatar penerjemah teks→BISINDO (evaluasi teknologi; alternatif: perpustakaan video isyarat manusia).
@@ -521,6 +532,13 @@ Pantau dashboard metrik
 - Voice interface penuh untuk pengguna Netra
 - Kemitraan formal Kemnaker (interop dengan ekosistem Kerjabilitas)
 
+### Phase 19 - Komunitas (post-MVP, setelah v1.0.0 stabil)
+- Ruang komunitas berdasarkan topik atau kota, dibuat dan dikelola admin
+- Keanggotaan, post teks, balasan satu tingkat, serta pencarian/browse ringan
+- Laporan konten, antrean moderasi, alasan tindakan, audit log, dan notifikasi hasil moderasi
+- Gate peluncuran: pedoman komunitas, SOP eskalasi, serta uji aksesibilitas oleh pengguna disabilitas
+- Di luar scope awal: pesan pribadi, unggahan media, live chat, user-created group, event, mentoring, dan webinar
+
 ---
 
 ## 15. KPI & Metrics
@@ -548,7 +566,7 @@ Instrumentasi: analytics self-hosted (PostHog CE / Umami) — hindari tracker pi
 
 ## 16. Kompetisi & Positioning
 
-| Aspek | **Incasif** | Kerjabilitas (Kemnaker) | Difalink | Portal umum (JobStreet dll.) |
+| Aspek | **Nawasena** | Kerjabilitas (Kemnaker) | Difalink | Portal umum (JobStreet dll.) |
 |---|---|---|---|---|
 | Fokus disabilitas | ✅ inti produk | ✅ | ✅ | ❌ |
 | Aksesibilitas WCAG AA menyeluruh | ✅ gate rilis | Parsial | Parsial | Lemah |
@@ -558,7 +576,7 @@ Instrumentasi: analytics self-hosted (PostHog CE / Umami) — hindari tracker pi
 | Disclosure control per lamaran | ✅ | ❌ | ❌ | ❌ |
 | Konten BISINDO | ✅ (Fase 2–3) | ❌ | ❌ | ❌ |
 
-**Positioning:** bukan sekadar "portal kerja untuk difabel", melainkan **asisten karier aksesibel end-to-end**. Kompetitor menyelesaikan *distribusi lowongan*; Incasif menyelesaikan *seluruh perjalanan*: kepercayaan diri (CV, wawancara), akses (WCAG, BISINDO), kecocokan (AI + akomodasi), dan keamanan psikologis (transparansi + disclosure control). Terhadap Kerjabilitas, posisinya **komplemen, bukan lawan** — jajaki interop/kemitraan dengan Kemnaker (sudah masuk daftar stakeholder).
+**Positioning:** bukan sekadar "portal kerja untuk difabel", melainkan **asisten karier aksesibel end-to-end**. Kompetitor menyelesaikan *distribusi lowongan*; Nawasena menyelesaikan *seluruh perjalanan*: kepercayaan diri (CV, wawancara), akses (WCAG, BISINDO), kecocokan (AI + akomodasi), dan keamanan psikologis (transparansi + disclosure control). Terhadap Kerjabilitas, posisinya **komplemen, bukan lawan** — jajaki interop/kemitraan dengan Kemnaker (sudah masuk daftar stakeholder).
 
 ---
 

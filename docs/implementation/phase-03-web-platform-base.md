@@ -191,7 +191,7 @@ RB-Std.
 
 **Button, Input, FormField, Select (Radix + token-aware).**
 
-Bisnis: semua form Incasif aksesibel by-construction. Teknis: primitives Radix + Tailwind membaca token a11y; jest-axe per komponen (SDD §4.3).
+Bisnis: semua form Nawasena aksesibel by-construction. Teknis: primitives Radix + Tailwind membaca token a11y; jest-axe per komponen (SDD §4.3).
 
 #### Scope
 

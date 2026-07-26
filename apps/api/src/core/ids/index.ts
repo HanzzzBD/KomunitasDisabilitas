@@ -1,7 +1,7 @@
 // core/ids — UUID v7 (RFC 9562): 48-bit timestamp ms + random.
 // Ketetapan SDD §14: semua PK uuid v7 (sortable → index locality bagus).
 // Di-generate APLIKASI (bukan default DB — gen_random_uuid() = v4).
-// Implementasi murni tanpa dependensi; cukup untuk kebutuhan Incasif
+// Implementasi murni tanpa dependensi; cukup untuk kebutuhan Nawasena
 // (sortable antar-milidetik; urutan DALAM milidetik yang sama tidak dijamin).
 import { randomBytes } from "node:crypto";
 

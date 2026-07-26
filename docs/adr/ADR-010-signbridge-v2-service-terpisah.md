@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-SignBridge Indonesia — penerjemah dua arah BISINDO/SIBI ↔ Bahasa Indonesia berbasis computer vision — adalah inovasi utama dalam visi produk (Deskripsi Incasif) dan bagian dari fitur pembeda BISINDO Support. Pengenalan bahasa isyarat via computer vision membutuhkan model ML custom, dataset BISINDO, GPU, dan keahlian ML — di luar kapasitas tim MVP (2–5 orang, biaya AI ~Rp0, timeline 3–4 bulan).
+SignBridge Indonesia — penerjemah dua arah BISINDO/SIBI ↔ Bahasa Indonesia berbasis computer vision — adalah inovasi utama dalam visi produk (Deskripsi Nawasena) dan bagian dari fitur pembeda BISINDO Support. Pengenalan bahasa isyarat via computer vision membutuhkan model ML custom, dataset BISINDO, GPU, dan keahlian ML — di luar kapasitas tim MVP (2–5 orang, biaya AI ~Rp0, timeline 3–4 bulan).
 
 Constraint: roadmap SignBridge WAJIB dipertahankan (Master Instruction); MVP tidak boleh terblokir oleh riset ML; monolith (ADR-001) berjalan di VPS tanpa GPU.
 
@@ -41,4 +41,4 @@ SignBridge dibangun **bertahap**. **v1** (MVP–Fase 2, di dalam monolith sebaga
 
 ## Referensi
 
-Deskripsi Incasif; PRD §17 (R6); SDD §5.2, §7.4, §19. Terkait: ADR-001, ADR-012.
+Deskripsi Nawasena; PRD §17 (R6); SDD §5.2, §7.4, §19. Terkait: ADR-001, ADR-012.

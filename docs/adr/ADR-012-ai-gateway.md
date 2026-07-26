@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Banyak modul Incasif memakai AI (Resumes, Matching, AI, SignBridge; Fase 2: interview simulator, deskripsi gambar). Tanpa titik kontrol tunggal, penegakan kuota free tier, fallback provider, caching, dan larangan pengiriman data sensitif akan tersebar dan tidak konsisten — pelanggaran satu titik cukup untuk menghabiskan kuota global atau membocorkan data.
+Banyak modul Nawasena memakai AI (Resumes, Matching, AI, SignBridge; Fase 2: interview simulator, deskripsi gambar). Tanpa titik kontrol tunggal, penegakan kuota free tier, fallback provider, caching, dan larangan pengiriman data sensitif akan tersebar dan tidak konsisten — pelanggaran satu titik cukup untuk menghabiskan kuota global atau membocorkan data.
 
 Constraint: biaya AI ~Rp0 (kuota ketat); privacy-by-design (data disabilitas tidak boleh mencapai provider); graceful degradation wajib untuk seluruh fitur AI.
 

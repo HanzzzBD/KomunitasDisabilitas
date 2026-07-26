@@ -110,7 +110,7 @@ Re-provision dari skrip (idempotent).
 
 #### Objective
 
-**incasif-prod & incasif-stg terisolasi + resource limits + .env per env.**
+**nawasena-prod & nawasena-stg terisolasi + resource limits + .env per env.**
 
 Bisnis: staging yang menyerupai produksi tanpa biaya host tambahan (ADR-006). Teknis: dua compose project (DB, kredensial, kuota AI terpisah), resource limit SDD §9.2, staging basic-auth, `.env` chmod 600 + template (ADR-015).
 

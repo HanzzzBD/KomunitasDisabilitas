@@ -1,4 +1,4 @@
-// Base client Incasif — fetch + envelope + hook refresh 401 (ADR-014, SDD §11).
+// Base client Nawasena — fetch + envelope + hook refresh 401 (ADR-014, SDD §11).
 //
 // TANPA dependensi DOM/Node-spesifik: fetch di-inject (default globalThis.fetch)
 // sehingga jalan di browser, React Native, dan Node ≥ 18.
@@ -9,7 +9,7 @@ import type { z } from "zod";
 import { ApiError, JARINGAN_GAGAL, RESPONS_TIDAK_DIKENAL, toErrorEnvelope } from "./errors.js";
 
 export interface ApiClientOptions {
-  /** Contoh: "https://incasif.id/api/v1" (tanpa trailing slash). */
+  /** Contoh: "https://nawasena.id/api/v1" (tanpa trailing slash). */
   baseUrl: string;
   /** Ambil access token saat ini; null = request tanpa Authorization. */
   getAccessToken?: () => string | null | Promise<string | null>;

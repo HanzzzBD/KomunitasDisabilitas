@@ -6,7 +6,7 @@ Tanggal: 2026-07-15 (revisi 2026-07-18: dua service Redis menggantikan dua DB in
 
 ## Context
 
-Seluruh panggilan AI Incasif berjalan async (ekstraksi CV, embedding, re-rank) untuk melindungi API dari latensi LLM dan menegakkan kuota free tier (SDD §7). Selain itu dibutuhkan: render PDF di background, pengiriman notifikasi, job maintenance (purge UU PDP, backup), cache penjelasan matching, penghitung kuota AI, rate limiting, dan penyimpanan OTP.
+Seluruh panggilan AI Nawasena berjalan async (ekstraksi CV, embedding, re-rank) untuk melindungi API dari latensi LLM dan menegakkan kuota free tier (SDD §7). Selain itu dibutuhkan: render PDF di background, pengiriman notifikasi, job maintenance (purge UU PDP, backup), cache penjelasan matching, penghitung kuota AI, rate limiting, dan penyimpanan OTP.
 
 Constraint: berjalan di VPS yang sama dengan API (limit RAM 256 MB prod); antrean tidak boleh hilang karena eviction cache.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Incasif menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, dan penyimpanan OTP, serta **BullMQ** di atas Redis sebagai job queue dengan worker terpisah. Queue dan cache memakai **dua service Redis terpisah** (`redis-cache` dan `redis-queue`): `redis-cache` dikonfigurasi `maxmemory` + `allkeys-lru`, `redis-queue` `noeviction` + AOF.
+Nawasena menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, dan penyimpanan OTP, serta **BullMQ** di atas Redis sebagai job queue dengan worker terpisah. Queue dan cache memakai **dua service Redis terpisah** (`redis-cache` dan `redis-queue`): `redis-cache` dikonfigurasi `maxmemory` + `allkeys-lru`, `redis-queue` `noeviction` + AOF.
 
 > **Revisi 2026-07-18 (PR-008):** rumusan awal "dua database Redis index terpisah dalam satu instance" tidak dapat memenuhi kebutuhan eviction yang berbeda — `maxmemory-policy` Redis berlaku per instance, bukan per DB index, dan BullMQ mensyaratkan `noeviction`. Diganti dua service Redis dalam compose yang sama; total budget RAM tidak berubah (SDD §15), klien tetap terpisah (`REDIS_URL` cache, `REDIS_QUEUE_URL` queue).
 

@@ -1,8 +1,8 @@
 {
-  "name": "@incasif/worker",
+  "name": "@nawasena/worker",
   "version": "0.0.0",
   "private": true,
-  "description": "BullMQ worker (codebase sama dengan api, entry berbeda). Placeholder.",
+  "description": "Nawasena background worker untuk layanan platform karier inklusif.",
   "type": "module",
   "scripts": {
     "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",
     "typescript": "5.7.2",

@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/a11y",
+  "name": "@nawasena/a11y",
   "version": "0.0.0",
   "private": true,
   "description": "Hook & context profil aksesibilitas (dipakai web + mobile). Placeholder — menyusul di phase Accessibility.",
@@ -15,7 +15,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "eslint": "8.57.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
