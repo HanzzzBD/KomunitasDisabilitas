@@ -1174,11 +1174,11 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 
 **Testing Checklist:**
 
-* [ ] Unit Test (enqueue helper)
-* [ ] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kill worker saat job jalan)
+* [x] Unit Test (enqueue helper — 25 test di `__tests__/queue.test.ts`, PR-015a)
+* [ ] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI) — PR-015b
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [ ] Manual Verification (kill worker saat job jalan) — PR-015b
 
 **Deliverables:**
 
@@ -1187,18 +1187,23 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 **Out of Scope:**
 
 * Processor fitur (PR terkait); alert DLQ (PR-103).
+* Redis store `express-rate-limit` — utang PR-008 yang catatannya menunjuk "PR-010" (penomoran basi; wiring BullMQ sebenarnya PR-015). Tidak ada di Scope PR-015, jadi tetap ditunda dan dicatat sebagai follow-up.
 
 **Rollback Strategy:**
 
 RB-Std; antrean in-flight aman karena idempotensi.
 
+> **Dipecah jadi dua PR (persetujuan owner 2026-07-27):** scope utuh ~800–900 LOC, jauh di atas target <500.
+> **PR-015a** — `core/queue` (definisi + config env + enqueue helper) — *selesai*.
+> **PR-015b** — `apps/worker` bootstrap + drain, DLQ handler, `GET /internal/queues`, Redis di CI, integration test — *belum*.
+
 #### Acceptance Criteria
 
-* [ ] Job dengan job-id sama tidak diproses dua kali.
-* [ ] Job gagal-final masuk DLQ & terlihat di endpoint.
-* [ ] removeOnComplete/Fail sesuai SDD §16.
-* [ ] Shutdown drain job aktif (tidak terpotong).
-* [ ] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode.
+* [ ] Job dengan job-id sama tidak diproses dua kali. — **sebagian (PR-015a):** `buildJobId()` deterministik + `jobId` diteruskan ke BullMQ sebagai kunci anti-duplikat (diuji unit). Pembuktian "tidak diproses dua kali" butuh worker nyata → PR-015b.
+* [ ] Job gagal-final masuk DLQ & terlihat di endpoint. — PR-015b.
+* [x] removeOnComplete/Fail sesuai SDD §16 — `QUEUE_RETENTION` (100/1000) melekat pada seluruh 8 queue via `jobOptionsFor()`; diuji per queue.
+* [ ] Shutdown drain job aktif (tidak terpotong). — PR-015b.
+* [x] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode — default = tabel SDD §16, setiap field bisa ditimpa `QUEUE_<NAMA>_<FIELD>`; override tidak valid → `EnvError` fail-fast (diuji: default, override parsial, non-angka, di luar rentang, multi-error).
 
 #### Dependencies
 

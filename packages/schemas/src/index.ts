@@ -13,3 +13,4 @@ export * from "./notifications.js";
 export * from "./admin.js";
 export * from "./signbridge.js";
 export * from "./audit.js";
+export * from "./queue.js";
