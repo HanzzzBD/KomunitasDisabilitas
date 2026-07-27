@@ -658,3 +658,52 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * PR observability berikutnya menghubungkan `AuditMetricSink` ke backend metrik produksi.
 
 **Out of Scope (dicatat):** pemetaan panggilan audit per modul; retensi/arsip 2 tahun (PR-024 hook); grant append-only database (PR-097); backend metrik produksi.
+
+---
+
+## PR-015a — core/queue (Registry, Config Env, Enqueue Helper)
+
+*2026-07-27 — bagian pertama dari PR-015 yang dipecah dua.*
+
+### Ringkasan
+
+`core/queue` berdiri sebagai satu-satunya jalur produser job: tabel 8 queue SDD §16 menjadi default terdokumentasi, setiap field dapat ditimpa lewat env, dan `enqueue()` melekatkan kebijakan retry/backoff/retensi queue-nya sendiri sehingga pemanggil tidak pernah menentukan angka itu. Sisi konsumen (worker, DLQ, endpoint internal) sengaja belum disentuh — itu PR-015b.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (112 passed, 26 skipped di `@incasif/api`; +25 test baru), `check:openapi` sinkron.
+
+### Scope selesai vs tidak
+
+Selesai:
+
+* `packages/schemas/src/queue.ts` — `QUEUE_NAME` (8 queue), `queueNameSchema`, `queueConfigSchema`, `QUEUE_CONFIG_FIELDS`.
+* `apps/api/src/core/queue/definitions.ts` — `QUEUE_DEFAULTS` (tabel SDD §16), `queueEnvVar()`, `loadQueueConfigs()` dengan fail-fast `EnvError`.
+* `apps/api/src/core/queue/index.ts` — `createQueueRegistry()`, `enqueue()`, `jobOptionsFor()`, `buildJobId()`; factory Queue injectable.
+* `apps/api/.env.example` — dokumentasi pola override queue; dependency `bullmq` 5.81.2.
+
+Tidak selesai (dipindah ke PR-015b, dengan alasan): `apps/worker` bootstrap + graceful drain, DLQ handler, `GET /internal/queues`, service Redis di CI, dan integration test retry/backoff/DLQ/drain. Alasannya ukuran: PR-015 utuh diperkirakan ~800–900 LOC, dua kali lipat target <500 LOC. Pemecahan disetujui owner 2026-07-27.
+
+### Keputusan teknis
+
+1. **`attempts = retry + 1` dipetakan sekali di tabel default.** Kolom "Retry" SDD §16 berarti jumlah retry, sedangkan `attempts` BullMQ menghitung percobaan pertama. Pemetaan dilakukan di satu tempat agar tidak ada salah tafsir berulang di kode pemanggil.
+2. **`buildJobId()` memakai `-`, bukan `:`.** BullMQ melarang karakter `:` pada custom job id (dipakai untuk namespacing key Redis), sehingga contoh SDD §16 `extract:{sessionId}` tidak dapat dipakai apa adanya. Determinisme tetap terjaga; hanya separatornya berbeda. **Menyimpang dari contoh SDD — dicatat agar tidak dianggap bug.**
+3. **Config env berpola `QUEUE_<NAMA>_<FIELD>`, seluruhnya opsional.** Memenuhi AC "bukan hardcode" tanpa memaksa 48 variabel wajib; `.env` yang sudah jalan tetap valid (backward-compatible).
+4. **Kegagalan override = `EnvError`,** kelas yang sama dengan `core/config` (PR-006), sehingga salah konfigurasi antrean mati saat boot dan seluruh variabel bermasalah dilaporkan sekaligus.
+5. **Factory Queue diinjeksi** (pola `AuditWriter` PR-014) sehingga 25 unit test berjalan tanpa Redis; registry tetap memakai BullMQ sungguhan di produksi.
+6. **Tidak mengarang penanda duplikat.** `add()` BullMQ tidak mengembalikan sinyal "ini duplikat", jadi `enqueue()` hanya mengembalikan `jobId`. Klaim anti-duplikat diverifikasi dengan worker nyata di PR-015b, bukan disimpulkan dari nilai balik.
+7. **`timeoutMs` disimpan di config tetapi belum dipakai** — timeout bukan opsi job BullMQ v5 (dihapus sejak v4); yang menegakkannya adalah worker (PR-015b).
+
+### Risiko yang ditemukan
+
+* **Contoh job-id di SDD §16 tidak dapat dieksekusi** (karakter `:`). Sudah dimitigasi `buildJobId()`, tetapi SDD sebaiknya dikoreksi agar PR fitur berikutnya tidak menyalin pola yang salah.
+* **Utang PR-008 menunjuk PR nomor basi.** Log PR-008 menunda Redis store `express-rate-limit` "bersama wiring BullMQ (PR-010)"; PR-010 ternyata migrasi seeker dan wiring BullMQ sebenarnya PR-015. Utang ini tidak ada di Scope PR-015 sehingga tetap ditunda — perlu keputusan owner untuk menempatkannya di PR mana.
+* **Angka default belum pernah diuji beban.** Nilai SDD §16 adalah estimasi desain; concurrency/timeout nyata baru terukur setelah processor asli ada. Override env sudah tersedia sebagai katup penyesuaian tanpa deploy ulang kode.
+* **Mengubah nama queue = migrasi antrean.** Nama adalah key Redis; job lama pada nama lama tidak akan terbaca worker baru. Tercatat di komentar `queue.ts`.
+
+### Next steps
+
+* **PR-015b** — `apps/worker` + graceful drain, DLQ handler, `GET /internal/queues`, service Redis di `pr.yml`, integration test retry/backoff/DLQ/drain. Menuntaskan AC #1, #2, #4.
+* Koreksi contoh job-id di SDD §16 (`extract:{sessionId}` → separator non-`:`).
+* Owner menentukan penempatan Redis store `express-rate-limit`.
+* PR fitur yang mengirim job wajib lewat `enqueue()` registry, tidak membuat `new Queue(...)` sendiri.
+
+**Out of Scope (dicatat):** processor fitur (PR terkait); alert DLQ (PR-103); Redis store rate limit (utang PR-008); seluruh sisi konsumen queue (PR-015b).
