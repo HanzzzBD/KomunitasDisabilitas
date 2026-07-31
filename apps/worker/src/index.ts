@@ -39,7 +39,7 @@ try {
 const logger = createLogger(env).child({ service: "worker" });
 const connection = { url: env.REDIS_QUEUE_URL };
 
-// DLQ ditulis lewat pool queue bernama bebas (`<queue>:dlq`).
+// DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
 const dlqPool = createRawQueuePool(connection);
 const dlq = createDlqHandler({
   dlqFactory: (nama) => dlqPool.queueOf(nama),

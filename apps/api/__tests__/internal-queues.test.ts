@@ -192,7 +192,7 @@ describe("GET /internal/queues — isi respons", () => {
 });
 
 describe("createQueuesService", () => {
-  it("membaca DLQ dari nama <queue>:dlq untuk setiap queue", async () => {
+  it("membaca DLQ dari nama <queue>-dlq untuk setiap queue", async () => {
     const diminta: string[] = [];
     const service = createQueuesService({
       registry: registryPalsu(),

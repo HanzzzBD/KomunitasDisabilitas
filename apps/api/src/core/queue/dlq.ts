@@ -1,7 +1,7 @@
 // core/queue/dlq — pencatatan job gagal-final (SDD §16, §17).
 //
 // BullMQ tidak punya DLQ bawaan. Pola di sini: saat sebuah job kehabisan
-// `attempts`, sebuah CATATAN dimasukkan ke queue pendamping `<queue>:dlq`.
+// `attempts`, sebuah CATATAN dimasukkan ke queue pendamping `<queue>-dlq`.
 // Kedalaman DLQ dibaca GET /internal/queues dan menjadi sinyal alert
 // "DLQ > 0" (SDD §17).
 //
@@ -55,7 +55,7 @@ export interface FailedJobInfo {
 }
 
 export interface DlqHandlerOptions {
-  /** Pembuat queue DLQ (nama `<queue>:dlq`). */
+  /** Pembuat queue DLQ (nama `<queue>-dlq`). */
   dlqFactory: (dlqName: string) => QueueLike;
   logger: Pick<Logger, "error" | "warn">;
   metrics: DlqMetricSink;

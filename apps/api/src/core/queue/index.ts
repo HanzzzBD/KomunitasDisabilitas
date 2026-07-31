@@ -119,7 +119,7 @@ function defaultFactory(connection: ConnectionOptions | undefined): QueueFactory
 }
 
 /**
- * Pool queue bernama bebas — dipakai untuk queue DLQ (`<queue>:dlq`) yang
+ * Pool queue bernama bebas — dipakai untuk queue DLQ (`<queue>-dlq`) yang
  * namanya bukan anggota QueueName. API memakainya untuk MEMBACA kedalaman
  * DLQ, worker untuk MENULIS catatan gagal-final.
  */

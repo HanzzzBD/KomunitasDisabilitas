@@ -764,3 +764,19 @@ Tidak selesai: **Manual Verification "kill worker saat job jalan"** — Docker D
 * Owner menentukan penempatan Redis store `express-rate-limit` (utang PR-008).
 
 **Out of Scope (dicatat):** processor fitur (PR terkait); alert & re-drive DLQ (PR-103); Redis store rate limit (utang PR-008); backend metrik produksi.
+
+### Tambahan PR-015b — nama queue SDD §16 tidak dapat dipakai apa adanya
+
+CI (Redis nyata) menggagalkan run pertama PR-015b dengan `Error: Queue name cannot contain :`. **BullMQ melarang karakter `:` bukan hanya pada custom job id, tetapi juga pada NAMA QUEUE** — keduanya dipakai untuk namespacing key Redis. Seluruh 8 nama di tabel SDD §16 (`ai:extract-resume`, `pdf:render`, `notify:push`, …) memakai `:`, jadi tidak satu pun dapat dibuat sebagai `new Queue(...)`.
+
+Perbaikan: separator nama queue menjadi `-` (`ai-extract-resume`, `pdf-render`, `maintenance-pdp-purge`, …) dan DLQ menjadi `<queue>-dlq`. Domain/pekerjaan tetap terbaca; hanya pemisahnya berubah. **Nama variabel env override TIDAK berubah** (`queueEnvVar` sudah memetakan `:` dan `-` ke `_`), jadi tidak ada `.env` yang rusak.
+
+Catatan proses — ini kegagalan unit test, bukan hanya kegagalan SDD:
+
+* Unit test PR-015a lolos karena **tidak pernah membuat `Queue` BullMQ sungguhan** (factory selalu diinjeksi palsu). Injeksi itu membuat test cepat, tapi juga membuat asumsi tentang BullMQ tidak pernah teruji.
+* Komentar di `packages/schemas/src/queue.ts` bahkan menyatakan dengan yakin bahwa `:` aman untuk nama queue — salah, dan tidak ada yang memverifikasinya.
+* Guard baru ditambahkan di `queue.test.ts`: nama queue dan nama DLQ tidak boleh memuat `:`. Menangkap kelas kesalahan ini tanpa perlu Redis.
+
+Pelajaran yang relevan untuk PR berikutnya: setiap batasan pustaka pihak ketiga yang kita tulis sebagai komentar sebaiknya punya satu test yang menegakkannya — kalau tidak, komentar itu hanya keyakinan.
+
+Dampak ke SDD: §16 perlu dikoreksi pada DUA hal — contoh job id `extract:{sessionId}` (temuan PR-015a) dan penamaan queue `<domain>:<pekerjaan>` (temuan ini).

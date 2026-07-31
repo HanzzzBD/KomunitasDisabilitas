@@ -11,7 +11,7 @@ import type { QueueLike, QueueRegistry } from "../../../core/queue/index.js";
 
 export interface QueuesServiceDeps {
   registry: QueueRegistry;
-  /** Queue DLQ pendamping (`<queue>:dlq`) — dibuat malas oleh pemanggil. */
+  /** Queue DLQ pendamping (`<queue>-dlq`) — dibuat malas oleh pemanggil. */
   dlqQueueOf: (dlqName: string) => QueueLike;
 }
 

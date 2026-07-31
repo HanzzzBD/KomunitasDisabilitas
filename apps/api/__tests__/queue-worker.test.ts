@@ -74,7 +74,7 @@ describe("isFinalFailure & payloadKeysOf", () => {
 describe("createDlqHandler", () => {
   const jobGagalFinal: FailedJobInfo = {
     id: "job-9",
-    name: "ai:embed",
+    name: "ai-embed",
     attemptsMade: 4,
     opts: { attempts: 4 },
     data: { profileId: "p-1", phone: "nomor-rahasia" },
@@ -92,7 +92,7 @@ describe("createDlqHandler", () => {
     expect(increment).not.toHaveBeenCalled();
   });
 
-  it("gagal-final ditulis ke <queue>:dlq TANPA nilai payload", async () => {
+  it("gagal-final ditulis ke <queue>-dlq TANPA nilai payload", async () => {
     const dlqQueue = fakeDlqQueue();
     const logger = fakeLogger();
     const increment = vi.fn();
@@ -111,7 +111,7 @@ describe("createDlqHandler", () => {
     expect(record).toEqual({
       queue: QUEUE_NAME.AI_EMBED,
       jobId: "job-9",
-      jobName: "ai:embed",
+      jobName: "ai-embed",
       attemptsMade: 4,
       failedReason: "provider mati",
       payloadKeys: ["phone", "profileId"],
