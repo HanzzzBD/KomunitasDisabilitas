@@ -39,8 +39,22 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      # Redis queue (PR-015b): integration test retry/backoff/DLQ/drain.
+      # Image & port sama dengan compose dev. Tanpa --maxmemory, default Redis
+      # adalah noeviction — syarat BullMQ (ADR-004) terpenuhi tanpa flag
+      # tambahan (service container GitHub tidak menerima argumen command).
+      redis-queue:
+        image: redis:7.4-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://incasif:incasif@localhost:5433/incasif
+      REDIS_QUEUE_URL: redis://localhost:6380
     steps:
       - name: Checkout
         uses: actions/checkout@v4

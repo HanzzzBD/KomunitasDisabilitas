@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { QUEUE_NAME, QUEUE_NAMES, queueConfigSchema, type QueueName } from "@incasif/schemas";
+import {
+  QUEUE_NAME,
+  QUEUE_NAMES,
+  dlqNameOf,
+  queueConfigSchema,
+  type QueueName,
+} from "@incasif/schemas";
 import { EnvError } from "../src/core/config/index.js";
 import {
   QUEUE_DEFAULTS,
@@ -22,6 +28,24 @@ function fakeQueue(): QueueLike & { add: ReturnType<typeof vi.fn>; close: Return
     close: ReturnType<typeof vi.fn>;
   };
 }
+
+describe("nama queue harus valid untuk BullMQ", () => {
+  // Regresi PR-015b: BullMQ melempar "Queue name cannot contain :" saat
+  // Queue/Worker dibuat. Unit test PR-015a lolos karena tidak pernah membuat
+  // Queue sungguhan — kesalahan baru ketahuan di integration test CI.
+  // Guard ini menangkapnya tanpa perlu Redis.
+  it("tidak ada nama queue yang memuat ':'", () => {
+    for (const queue of QUEUE_NAMES) {
+      expect(queue).not.toContain(":");
+    }
+  });
+
+  it("tidak ada nama DLQ yang memuat ':'", () => {
+    for (const queue of QUEUE_NAMES) {
+      expect(dlqNameOf(queue)).not.toContain(":");
+    }
+  });
+});
 
 describe("QUEUE_DEFAULTS — tabel SDD §16", () => {
   it("mencakup seluruh queue dan semuanya lolos queueConfigSchema", () => {

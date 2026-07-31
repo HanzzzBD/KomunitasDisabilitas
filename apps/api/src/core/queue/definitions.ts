@@ -38,32 +38,32 @@ export const QUEUE_RETENTION = {
  *   "2×, exp 5 s" → attempts 3, backoffMs 5000.
  * - "manual" (pdp-purge) dan "alert bila gagal" (backup) = tanpa retry
  *   otomatis → attempts 1. Penanganannya operasional, bukan retry BullMQ.
- * - SDD tidak menyebut backoff untuk `ai:rerank-feed` dan `pdf:render`;
+ * - SDD tidak menyebut backoff untuk `ai-rerank-feed` dan `pdf-render`;
  *   backoffMs 0 = retry langsung (keputusan sadar, bukan nilai karangan).
  */
 export const QUEUE_DEFAULTS: QueueConfigs = {
-  "ai:extract-resume": {
+  "ai-extract-resume": {
     concurrency: 2,
     attempts: 3,
     backoffMs: 5_000,
     timeoutMs: 60_000,
     ...QUEUE_RETENTION,
   },
-  "ai:rerank-feed": {
+  "ai-rerank-feed": {
     concurrency: 2,
     attempts: 2,
     backoffMs: 0,
     timeoutMs: 30_000,
     ...QUEUE_RETENTION,
   },
-  "ai:embed": {
+  "ai-embed": {
     concurrency: 4,
     attempts: 4,
     backoffMs: 10_000,
     timeoutMs: 30_000,
     ...QUEUE_RETENTION,
   },
-  "pdf:render": {
+  "pdf-render": {
     // Concurrency 1 disengaja: Puppeteer boros RAM (risiko T4 SDD §20).
     concurrency: 1,
     attempts: 3,
@@ -71,28 +71,28 @@ export const QUEUE_DEFAULTS: QueueConfigs = {
     timeoutMs: 90_000,
     ...QUEUE_RETENTION,
   },
-  "notify:push": {
+  "notify-push": {
     concurrency: 8,
     attempts: 4,
     backoffMs: 30_000,
     timeoutMs: 15_000,
     ...QUEUE_RETENTION,
   },
-  "notify:email": {
+  "notify-email": {
     concurrency: 4,
     attempts: 4,
     backoffMs: 30_000,
     timeoutMs: 15_000,
     ...QUEUE_RETENTION,
   },
-  "maintenance:pdp-purge": {
+  "maintenance-pdp-purge": {
     concurrency: 1,
     attempts: 1,
     backoffMs: 0,
     timeoutMs: 600_000, // 10 menit
     ...QUEUE_RETENTION,
   },
-  "maintenance:backup": {
+  "maintenance-backup": {
     concurrency: 1,
     attempts: 1,
     backoffMs: 0,
@@ -103,7 +103,7 @@ export const QUEUE_DEFAULTS: QueueConfigs = {
 
 /**
  * Nama variabel env override untuk satu field satu queue.
- * `ai:extract-resume` + `backoffMs` → `QUEUE_AI_EXTRACT_RESUME_BACKOFF_MS`.
+ * `ai-extract-resume` + `backoffMs` → `QUEUE_AI_EXTRACT_RESUME_BACKOFF_MS`.
  */
 export function queueEnvVar(queue: QueueName, field: QueueConfigField): string {
   const namaQueue = queue.replace(/[:-]/g, "_").toUpperCase();

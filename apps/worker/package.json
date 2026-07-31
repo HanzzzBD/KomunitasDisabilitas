@@ -2,15 +2,24 @@
   "name": "@incasif/worker",
   "version": "0.0.0",
   "private": true,
-  "description": "BullMQ worker (codebase sama dengan api, entry berbeda). Placeholder.",
+  "description": "BullMQ worker (codebase sama dengan api, entry berbeda).",
   "type": "module",
+  "main": "./src/index.ts",
   "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
     "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@incasif/api": "workspace:*",
+    "bullmq": "5.81.2",
+    "pino": "9.5.0"
+  },
   "devDependencies": {
     "@incasif/config": "workspace:*",
+    "tsx": "4.19.2",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",
     "typescript": "5.7.2",

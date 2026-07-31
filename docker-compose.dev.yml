@@ -90,8 +90,39 @@ services:
       retries: 10
       start_period: 60s
 
+  # Konsumen BullMQ (PR-015b). Image sama dengan api, entry berbeda (ADR-004:
+  # beban AI/PDF tidak boleh menyentuh latensi request API).
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    command: ["pnpm", "--filter", "@incasif/worker", "dev"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://incasif:incasif@postgres:5432/incasif
+      REDIS_URL: redis://redis-cache:6379
+      REDIS_QUEUE_URL: redis://redis-queue:6379
+      FIELD_KEY_V1: aW5jYXNpZi1kZXYtZHVtbXkta2V5LTAwMDAwMDAwMDA=
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "800"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+      - worker_app_node_modules:/workspace/apps/worker/node_modules
+    # SIGTERM → drain job aktif. Beri waktu lebih dari default 10s karena
+    # job terpanjang (maintenance:backup) berdurasi menit.
+    stop_grace_period: 60s
+
 volumes:
   pgdata:
   redisqueue:
   api_node_modules:
   api_app_node_modules:
+  worker_app_node_modules:

@@ -12,6 +12,8 @@ import { QUEUE_NAMES } from "@incasif/schemas";
 import type { QueueConfigs } from "./definitions.js";
 
 export * from "./definitions.js";
+export * from "./dlq.js";
+export * from "./worker.js";
 
 /**
  * Permukaan Queue yang dipakai registry. Sengaja sempit supaya unit test bisa
@@ -20,6 +22,8 @@ export * from "./definitions.js";
  */
 export interface QueueLike {
   add(jobName: string, payload: unknown, options: JobsOptions): Promise<{ id?: string | null }>;
+  /** Cacah job per state — dibaca GET /internal/queues (PR-015b). */
+  getJobCounts(): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
 
@@ -111,6 +115,48 @@ function defaultFactory(connection: ConnectionOptions | undefined): QueueFactory
       );
     }
     return new Queue(name, { connection }) as unknown as QueueLike;
+  };
+}
+
+/**
+ * Pool queue bernama bebas — dipakai untuk queue DLQ (`<queue>-dlq`) yang
+ * namanya bukan anggota QueueName. API memakainya untuk MEMBACA kedalaman
+ * DLQ, worker untuk MENULIS catatan gagal-final.
+ */
+export interface RawQueuePool {
+  queueOf(name: string): QueueLike;
+  close(): Promise<void>;
+}
+
+export function createRawQueuePool(
+  connection: ConnectionOptions | undefined,
+  factory?: (name: string) => QueueLike,
+): RawQueuePool {
+  const buat =
+    factory ??
+    ((name: string) => {
+      if (connection === undefined) {
+        throw new Error(
+          "createRawQueuePool membutuhkan `connection` (REDIS_QUEUE_URL) atau `factory` pengganti",
+        );
+      }
+      return new Queue(name, { connection }) as unknown as QueueLike;
+    });
+
+  const queues = new Map<string, QueueLike>();
+
+  return {
+    queueOf(name) {
+      const cached = queues.get(name);
+      if (cached !== undefined) return cached;
+      const dibuat = buat(name);
+      queues.set(name, dibuat);
+      return dibuat;
+    },
+    async close() {
+      await Promise.all([...queues.values()].map((queue) => queue.close()));
+      queues.clear();
+    },
   };
 }
 
