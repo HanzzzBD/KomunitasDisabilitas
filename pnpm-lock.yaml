@@ -125,6 +125,16 @@ importers:
         version: 2.1.8(@types/node@22.10.2)
 
   apps/worker:
+    dependencies:
+      '@incasif/api':
+        specifier: workspace:*
+        version: link:../api
+      bullmq:
+        specifier: 5.81.2
+        version: 5.81.2
+      pino:
+        specifier: 9.5.0
+        version: 9.5.0
     devDependencies:
       '@incasif/config':
         specifier: workspace:*
@@ -135,6 +145,9 @@ importers:
       eslint:
         specifier: 8.57.1
         version: 8.57.1
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
       typescript:
         specifier: 5.7.2
         version: 5.7.2

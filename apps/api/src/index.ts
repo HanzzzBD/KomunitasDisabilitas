@@ -6,6 +6,8 @@ import { createLogger } from "./core/logger/index.js";
 import { createDbClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
 import { createHealthModule } from "./modules/health/index.js";
+import { createInternalModule } from "./modules/internal/index.js";
+import { createQueueRegistry, createRawQueuePool, loadQueueConfigs } from "./core/queue/index.js";
 import { createServer, registerShutdownHooks } from "./server.js";
 
 let env;
@@ -30,19 +32,43 @@ try {
 }
 void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
 
+// Konfigurasi antrean juga fail-fast (PR-015a): override env yang salah
+// ketahuan saat boot, bukan saat job pertama dikirim.
+let queueConfigs;
+try {
+  queueConfigs = loadQueueConfigs();
+} catch (err) {
+  console.error(err instanceof EnvError ? err.message : err);
+  process.exit(1);
+}
+
 const logger = createLogger(env);
 const db = createDbClient(env);
 const redis = createRedisClients(env);
 
+// API hanya PRODUSER job; konsumennya proses apps/worker terpisah (ADR-004).
+const queues = createQueueRegistry({
+  configs: queueConfigs,
+  connection: { url: env.REDIS_QUEUE_URL },
+});
+const dlqQueues = createRawQueuePool({ url: env.REDIS_QUEUE_URL });
+
 const api = createServer(env, logger, {
   routes: (app) => {
     app.use(createHealthModule(db, redis)); // /healthz /readyz (root, non-versioned)
+    app.use(
+      createInternalModule({
+        registry: queues,
+        dlqQueueOf: (dlqName) => dlqQueues.queueOf(dlqName),
+        internalToken: env.INTERNAL_TOKEN,
+      }),
+    );
   },
 });
 
 registerShutdownHooks(api, logger, undefined, async () => {
   // Setelah server berhenti menerima koneksi: tutup koneksi infra.
-  await Promise.allSettled([db.end(), redis.end()]);
+  await Promise.allSettled([queues.close(), dlqQueues.close(), db.end(), redis.end()]);
 });
 
 try {

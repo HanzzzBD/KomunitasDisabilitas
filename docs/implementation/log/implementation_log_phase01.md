@@ -707,3 +707,60 @@ Tidak selesai (dipindah ke PR-015b, dengan alasan): `apps/worker` bootstrap + gr
 * PR fitur yang mengirim job wajib lewat `enqueue()` registry, tidak membuat `new Queue(...)` sendiri.
 
 **Out of Scope (dicatat):** processor fitur (PR terkait); alert DLQ (PR-103); Redis store rate limit (utang PR-008); seluruh sisi konsumen queue (PR-015b).
+
+---
+
+## PR-015b — Worker Bootstrap, DLQ, dan GET /internal/queues
+
+*2026-07-27 — bagian kedua (penutup) dari PR-015.*
+
+### Ringkasan
+
+Sisi konsumen antrean berdiri: `apps/worker` menjadi proses terpisah yang menjalankan satu BullMQ Worker per queue ber-processor, dengan concurrency dan timeout dari konfigurasi PR-015a. Job gagal-final tercatat ke `<queue>:dlq` dan kedalamannya terbaca lewat `GET /internal/queues` yang dijaga token internal. Service Redis ditambahkan ke CI sehingga retry/backoff/DLQ/drain diuji terhadap Redis nyata, bukan mock.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (`@incasif/api` 140 passed, 31 skipped; +33 test baru), `check:openapi` sinkron.
+
+Seluruh 5 Acceptance Criteria PR-015 kini terpenuhi.
+
+### Scope selesai vs tidak
+
+Selesai:
+
+* `core/queue/worker.ts` — `createWorkerRuntime()`, `withTimeout()`, `JobTimeoutError`; worker hanya dibuat untuk queue yang punya processor.
+* `core/queue/dlq.ts` — `createDlqHandler()`, `isFinalFailure()`, `payloadKeysOf()`, metrik `queue_job_dead_lettered` / `queue_dlq_write_failed`.
+* `core/queue/index.ts` — `createRawQueuePool()` untuk queue bernama bebas (DLQ).
+* `modules/internal/` — `GET /internal/queues` (router→controller→service) + penjaga token `internal-auth.ts`.
+* `apps/worker/src/index.ts` — bootstrap nyata menggantikan placeholder, graceful drain SIGTERM/SIGINT.
+* Infra: service `worker` di `docker-compose.dev.yml` (`stop_grace_period: 60s`), service `redis-queue` di `pr.yml`, Dockerfile menginstal dependensi worker.
+* Kontrak: `queueCountsSchema`, `queueStatusSchema`, `internalQueuesResponseSchema`, `dlqNameOf()`.
+
+Tidak selesai: **Manual Verification "kill worker saat job jalan"** — Docker Desktop tidak berjalan di mesin dev saat PR ini dikerjakan, sehingga `docker stop` pada worker nyata belum dicoba. Perilaku drain sudah dibuktikan integration test terhadap Redis nyata, tapi itu bukan hal yang sama dengan menguji sinyal SIGTERM container. Dicatat terbuka di checklist phase.
+
+### Keputusan teknis
+
+1. **DLQ tidak menyalin payload job.** Yang disimpan hanya penunjuk (queue, jobId, nama job, attemptsMade, alasan gagal dipotong 500 karakter) plus **daftar NAMA key payload tanpa nilainya**. SDD §16 meminta payload bebas PII "bila memungkinkan"; DLQ bukan tempat mengambil risiko itu. Payload asli tetap bisa diinvestigasi lewat job gagal yang ditahan BullMQ (`removeOnFail: 1000`), jadi tidak ada informasi yang hilang.
+2. **DLQ sebagai queue pendamping `<queue>:dlq`**, bukan tabel DB. Kedalamannya jadi angka yang bisa dibaca `GET /internal/queues` dan dipakai ambang alert "DLQ > 0" (SDD §17) tanpa menambah skema database.
+3. **Endpoint internal deny-by-default.** `INTERNAL_TOKEN` opsional di env (agar `.env` lama tetap valid), tetapi bila tidak di-set SEMUA permintaan ditolak 401 — konfigurasi yang hilang berarti tertutup, bukan terbuka. Perbandingan token memakai `timingSafeEqual` atas digest SHA-256 sehingga panjang token pun tidak bocor, dan alasan penolakan tidak dibedakan antara "token salah" dan "belum dikonfigurasi" (diuji: kedua respons identik).
+4. **Timeout ditegakkan di worker, bukan di job.** BullMQ v5 tidak lagi punya opsi `timeout` per job; `withTimeout()` mengubah processor yang menggantung menjadi kegagalan biasa sehingga tunduk pada retry/DLQ yang normal.
+5. **Drain memakai `worker.close()` tanpa argumen.** `close(true)` memotong job aktif dan sengaja TIDAK dipakai; test menegaskan `close` dipanggil tanpa argumen agar regresi ke mode paksa ketahuan.
+6. **`apps/worker` mengimpor core lewat subpath export `@incasif/api/core/*`.** Sesuai deskripsi paket "codebase sama dengan api, entry berbeda", tanpa menduplikasi config/logger/queue. `exports` map ditambahkan di `apps/api/package.json`.
+7. **Redis CI tanpa flag `--maxmemory`.** Service container GitHub tidak menerima argumen command; tanpa `maxmemory`, default Redis adalah `noeviction` — syarat BullMQ (ADR-004) tetap terpenuhi.
+8. **Guard skip integration memakai `ctx.skip()`**, bukan `return` biasa. Versi awal melaporkan 5 test "passed" padahal tidak menguji apa pun; sekarang laporannya jujur "5 skipped".
+
+### Risiko yang ditemukan
+
+* **Manual verification container belum dilakukan** (lihat di atas). Risiko nyata: `stop_grace_period: 60s` dan perilaku SIGTERM di container Linux belum pernah diamati langsung. Perlu dicoba saat Docker tersedia, sebelum deploy.
+* **Catatan DLQ tidak pernah dikonsumsi.** Tidak ada worker untuk `<queue>:dlq`, jadi catatan menumpuk sebagai `waiting` selamanya. Itu memang desainnya (DLQ = kotak masuk operator), tetapi berarti butuh mekanisme purge/re-drive — belum ada, dan bukan scope PR-015. Alert DLQ adalah PR-103.
+* **`GET /internal/queues` melakukan 16 panggilan `getJobCounts` per request** (8 queue × queue+DLQ). Aman pada skala MVP, tapi bisa berat bila dipoll agresif Uptime Kuma. Belum ada cache — dicatat bila nanti terasa.
+* **Angka SDD §16 masih belum teruji beban** (dibawa dari PR-015a).
+
+### Next steps
+
+* Manual verification `docker stop` worker saat job berjalan, begitu Docker tersedia.
+* PR fitur mendaftarkan processor-nya di `PROCESSORS` (`apps/worker/src/index.ts`) dan mengirim job HANYA lewat `enqueue()`.
+* PR-103: alert DLQ > 0 dari `dlqTotal`; mekanisme re-drive/purge catatan DLQ.
+* ADR-017 follow-up: `AuditMetricSink` dan `DlqMetricSink` diarahkan ke backend metrik nyata (sekarang keduanya menulis ke log).
+* Koreksi contoh job-id di SDD §16 (dibawa dari PR-015a).
+* Owner menentukan penempatan Redis store `express-rate-limit` (utang PR-008).
+
+**Out of Scope (dicatat):** processor fitur (PR terkait); alert & re-drive DLQ (PR-103); Redis store rate limit (utang PR-008); backend metrik produksi.

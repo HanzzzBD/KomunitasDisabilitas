@@ -1174,11 +1174,11 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 
 **Testing Checklist:**
 
-* [x] Unit Test (enqueue helper — 25 test di `__tests__/queue.test.ts`, PR-015a)
-* [ ] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI) — PR-015b
+* [x] Unit Test (enqueue helper — 25 test `queue.test.ts` PR-015a; 17 test worker/DLQ `queue-worker.test.ts` + 11 test endpoint `internal-queues.test.ts` PR-015b)
+* [x] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI; `queue-redis.test.ts`, 5 test, service `redis-queue` ditambahkan ke `pr.yml`)
 * [x] E2E Test (N/A — dicatat)
 * [x] Accessibility Test (N/A — tidak ada perubahan frontend)
-* [ ] Manual Verification (kill worker saat job jalan) — PR-015b
+* [ ] Manual Verification (kill worker saat job jalan) — **belum**: Docker Desktop tidak berjalan di mesin dev saat PR-015b dikerjakan. Perilaku drain terbukti lewat integration test (job aktif diselesaikan sebelum `drain()` resolve), tetapi `docker stop` pada worker nyata belum dicoba.
 
 **Deliverables:**
 
@@ -1195,15 +1195,15 @@ RB-Std; antrean in-flight aman karena idempotensi.
 
 > **Dipecah jadi dua PR (persetujuan owner 2026-07-27):** scope utuh ~800–900 LOC, jauh di atas target <500.
 > **PR-015a** — `core/queue` (definisi + config env + enqueue helper) — *selesai*.
-> **PR-015b** — `apps/worker` bootstrap + drain, DLQ handler, `GET /internal/queues`, Redis di CI, integration test — *belum*.
+> **PR-015b** — `apps/worker` bootstrap + drain, DLQ handler, `GET /internal/queues`, Redis di CI, integration test — *selesai*.
 
 #### Acceptance Criteria
 
-* [ ] Job dengan job-id sama tidak diproses dua kali. — **sebagian (PR-015a):** `buildJobId()` deterministik + `jobId` diteruskan ke BullMQ sebagai kunci anti-duplikat (diuji unit). Pembuktian "tidak diproses dua kali" butuh worker nyata → PR-015b.
-* [ ] Job gagal-final masuk DLQ & terlihat di endpoint. — PR-015b.
-* [x] removeOnComplete/Fail sesuai SDD §16 — `QUEUE_RETENTION` (100/1000) melekat pada seluruh 8 queue via `jobOptionsFor()`; diuji per queue.
-* [ ] Shutdown drain job aktif (tidak terpotong). — PR-015b.
-* [x] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode — default = tabel SDD §16, setiap field bisa ditimpa `QUEUE_<NAMA>_<FIELD>`; override tidak valid → `EnvError` fail-fast (diuji: default, override parsial, non-angka, di luar rentang, multi-error).
+* [x] Job dengan job-id sama tidak diproses dua kali — `buildJobId()` deterministik + `jobId` sebagai kunci anti-duplikat BullMQ. Dibuktikan integration test dengan Redis & worker nyata: 3× enqueue jobId sama → processor hanya menerima job pertama.
+* [x] Job gagal-final masuk DLQ & terlihat di endpoint — `createDlqHandler` hanya menulis saat `attemptsMade >= attempts` (job yang masih punya sisa retry diabaikan); catatan masuk `<queue>:dlq` dan muncul sebagai `dlqDepth`/`dlqTotal` di `GET /internal/queues`. Diuji unit + integration (retry berjalan 2×, DLQ menerima tepat 1 catatan).
+* [x] removeOnComplete/Fail sesuai SDD §16 — `QUEUE_RETENTION` (100/1000) melekat pada seluruh 8 queue via `jobOptionsFor()`; diuji per queue (unit) dan diverifikasi terpasang nyata di Redis (integration).
+* [x] Shutdown drain job aktif (tidak terpotong) — `runtime.drain()` memanggil `worker.close()` tanpa argumen (graceful; `close(true)` yang memotong paksa sengaja tidak dipakai). Integration test: job 1,5 detik masih berjalan saat drain dimulai, dan sudah selesai setelah `drain()` resolve.
+* [x] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode — default = tabel SDD §16, setiap field bisa ditimpa `QUEUE_<NAMA>_<FIELD>`; override tidak valid → `EnvError` fail-fast (diuji: default, override parsial, non-angka, di luar rentang, multi-error). Worker mengambil concurrency & timeout dari config yang sama (diverifikasi dengan BullMQ nyata).
 
 #### Dependencies
 

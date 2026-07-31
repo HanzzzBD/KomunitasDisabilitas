@@ -49,6 +49,10 @@ const envSchema = z.object({
     .int({ message: "harus bilangan bulat" })
     .min(1000, { message: "minimal 1000 (1 detik)" })
     .default(60_000),
+  // --- Endpoint internal (PR-015b) ---
+  // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
+  // menolak semua permintaan (deny-by-default) — bukan terbuka.
+  INTERNAL_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

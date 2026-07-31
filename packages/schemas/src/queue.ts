@@ -83,6 +83,45 @@ export const queueConfigSchema = z.object({
 
 export type QueueConfig = z.infer<typeof queueConfigSchema>;
 
+/**
+ * Nama queue DLQ pendamping. BullMQ tidak punya DLQ bawaan: job gagal-final
+ * dicatat ke queue terpisah `<queue>:dlq` (PR-015b). Karakter ':' aman untuk
+ * NAMA queue — yang dilarang BullMQ adalah ':' pada custom job id.
+ */
+export function dlqNameOf(queue: QueueName): string {
+  return `${queue}:dlq`;
+}
+
+/** Cacah job per state satu queue — dibaca GET /internal/queues (PR-015b). */
+export const queueCountsSchema = z.object({
+  waiting: z.number().int().min(0),
+  active: z.number().int().min(0),
+  delayed: z.number().int().min(0),
+  failed: z.number().int().min(0),
+  completed: z.number().int().min(0),
+});
+
+export type QueueCounts = z.infer<typeof queueCountsSchema>;
+
+/** Ringkasan satu queue + kedalaman DLQ-nya. */
+export const queueStatusSchema = z.object({
+  name: queueNameSchema,
+  counts: queueCountsSchema,
+  /** Jumlah job gagal-final yang tercatat di `<queue>:dlq`. */
+  dlqDepth: z.number().int().min(0),
+  concurrency: z.number().int().min(1),
+});
+
+export type QueueStatus = z.infer<typeof queueStatusSchema>;
+
+/** Respons GET /internal/queues. `dlqTotal` = sinyal alert (SDD §17: DLQ > 0). */
+export const internalQueuesResponseSchema = z.object({
+  queues: z.array(queueStatusSchema),
+  dlqTotal: z.number().int().min(0),
+});
+
+export type InternalQueuesResponse = z.infer<typeof internalQueuesResponseSchema>;
+
 /** Field konfigurasi yang boleh di-override lewat env (PR-015a, AC "bukan hardcode"). */
 export const QUEUE_CONFIG_FIELDS = [
   "concurrency",

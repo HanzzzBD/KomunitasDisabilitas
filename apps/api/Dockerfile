@@ -20,7 +20,8 @@ COPY packages/schemas/package.json packages/schemas/
 COPY packages/api-client/package.json packages/api-client/
 COPY packages/ui/package.json packages/ui/
 COPY packages/a11y/package.json packages/a11y/
-RUN pnpm install --frozen-lockfile --filter @incasif/api...
+# api DAN worker: satu image, entry berbeda (worker dep ke @incasif/api).
+RUN pnpm install --frozen-lockfile --filter @incasif/api... --filter @incasif/worker...
 # Source di-overlay volume mount saat runtime (hot-reload tsx watch);
 # COPY di bawah hanya agar image bisa jalan tanpa mount.
 COPY . .

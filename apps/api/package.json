@@ -5,6 +5,11 @@
   "description": "Express backend Incasif (monolith modular, ADR-001/002).",
   "type": "module",
   "main": "./src/index.ts",
+  "exports": {
+    "./core/queue": "./src/core/queue/index.ts",
+    "./core/config": "./src/core/config/index.ts",
+    "./core/logger": "./src/core/logger/index.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
