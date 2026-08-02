@@ -1,11 +1,11 @@
 # Software Design Document (SDD)
 
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Inclusive Career Ecosystem for People with Disabilities
 
 | | |
 |---|---|
 | **Versi** | 1.1 |
-| **Nama produk** | **Incasif** (resmi & final — menggantikan "Inklusia AI" pada versi 1.0) |
+| **Nama produk** | **Nawasena** (resmi & final — menggantikan "Inklusia AI" pada versi 1.0) |
 | **Tanggal** | 15 Juli 2026 |
 | **Status** | Baseline untuk implementasi MVP (Fase 1) |
 | **Sumber kebenaran** | PRD.md v1.0 + Deskripsi.txt + hasil architecture discovery |
@@ -15,7 +15,7 @@
 
 ## 1. Executive Summary
 
-Dokumen ini mendefinisikan desain teknis **Incasif** — platform kerja inklusif berbasis AI untuk penyandang disabilitas Indonesia (Tuli, Netra, Daksa, Autisme, ganda), sesuai PRD v1.0.
+Dokumen ini mendefinisikan desain teknis **Nawasena** — platform kerja inklusif berbasis AI untuk penyandang disabilitas Indonesia (Tuli, Netra, Daksa, Autisme, ganda), sesuai PRD v1.0.
 
 **Bentuk arsitektur:** monolith modular **Express + Prisma** di atas **PostgreSQL 18 + pgvector** dan **Redis + BullMQ**, berjalan dalam **Docker Compose di satu VPS** (prod + staging terpisah per compose project). Klien: **React (Vite) SPA** untuk web dan **React Native (Expo)** untuk Android (iOS di Fase 2), berbagi kode melalui **monorepo Turborepo**. Seluruh fitur AI berjalan melalui satu **AI Gateway** internal (Gemini free tier utama, Groq fallback) dengan kuota per pengguna dan degradasi anggun ke jalur non-AI.
 
@@ -53,7 +53,7 @@ Dokumen ini mendefinisikan desain teknis **Incasif** — platform kerja inklusif
                                             │ HTTPS
                                             ▼
    ┌───────────────────────────────────────────────────────────────────┐
-   │                      SISTEM INCASIF (1 VPS)                       │
+   │                      SISTEM NAWASENA (1 VPS)                       │
    │   API monolith modular + worker + PostgreSQL + Redis + Nginx      │
    └───┬───────────┬────────────┬────────────┬────────────┬────────────┘
        │           │            │            │            │
@@ -397,7 +397,7 @@ Modul fitur ──► aiGateway.chat()/embed()/stt()/rerank()
 
 **v2 (Fase 3, kontrak dirancang sekarang — implementasi riset):**
 ```
-POST /sign/translate-session  (rev future)   Incasif API ──► SignBridge Service
+POST /sign/translate-session  (rev future)   Nawasena API ──► SignBridge Service
   WS/WebRTC: klien → frame video → SignBridge → teks parsial (isyarat→teks)
              klien ← urutan pose/klip     ← teks (teks→isyarat)
 ```
@@ -478,7 +478,7 @@ Implementasi: middleware `requireRole()` + `requireSelf()` di router; **kolom se
 | uptime-kuma + dozzle | 256 MB | — |
 | **Total** | ~5.4 GB | ~1.5 GB → sisa ~1 GB headroom OS |
 
-Staging memakai kuota AI & kredensial terpisah (API key Gemini berbeda) dan basis data berbeda; subdomain `staging.incasif.id` dilindungi basic-auth.
+Staging memakai kuota AI & kredensial terpisah (API key Gemini berbeda) dan basis data berbeda; subdomain `staging.nawasena.id` dilindungi basic-auth.
 
 ### 9.3 CI/CD (GitHub Actions)
 
@@ -506,12 +506,12 @@ Rollback: `deploy.sh --rollback` → compose kembali ke digest sebelumnya
 ## 10. Deployment Architecture
 
 ```
-Repo GitHub ──CI──► GHCR: ghcr.io/incasif/{api,worker}@sha256:…
+Repo GitHub ──CI──► GHCR: ghcr.io/nawasena/{api,worker}@sha256:…
                           web build → artifact statis → rsync ke VPS
 
-VPS /srv/incasif/
-  prod/     docker-compose.yml  .env  web-dist/   (project: incasif-prod)
-  staging/  docker-compose.yml  .env  web-dist/   (project: incasif-stg)
+VPS /srv/nawasena/
+  prod/     docker-compose.yml  .env  web-dist/   (project: nawasena-prod)
+  staging/  docker-compose.yml  .env  web-dist/   (project: nawasena-stg)
   shared/   nginx/ certbot/ uptime-kuma/ dozzle/  backups/
 
 Urutan deploy (zero/near-zero downtime utk skala ini):
@@ -729,7 +729,7 @@ Anti-goal yang disengaja: microservices hari pertama, Kubernetes hari pertama, v
 
 ## 21. Architecture Decision Records (ADR)
 
-ADR resmi Incasif berada di **`docs/adr/`** (satu file per keputusan, format lengkap Context → Decision → Consequences → Mitigasi, append-only). Bagian ini adalah **indeks rujukan** — bukan sumber kebenaran ADR. Penomoran ringkas ADR-1..12 pada SDD v1.0/v1.1 digantikan penomoran resmi di bawah (pemetaan lengkap di `docs/adr/README.md`).
+ADR resmi Nawasena berada di **`docs/adr/`** (satu file per keputusan, format lengkap Context → Decision → Consequences → Mitigasi, append-only). Bagian ini adalah **indeks rujukan** — bukan sumber kebenaran ADR. Penomoran ringkas ADR-1..12 pada SDD v1.0/v1.1 digantikan penomoran resmi di bawah (pemetaan lengkap di `docs/adr/README.md`).
 
 | ADR | Judul | Status |
 |---|---|---|

@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/config",
+  "name": "@nawasena/config",
   "version": "0.0.0",
   "private": true,
   "description": "Preset config terpusat: tsconfig, eslint, prettier (SDD §3).",

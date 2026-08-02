@@ -3,7 +3,7 @@ import {
   AUDIT_ACTION,
   type AuditAction,
   type AuditActor,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import {
   AUDIT_METRIC,
   createAuditLog,

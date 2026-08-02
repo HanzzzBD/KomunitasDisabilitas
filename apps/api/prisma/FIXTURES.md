@@ -1,6 +1,6 @@
 # Fixture Seed — ID Stabil untuk Dev & E2E
 
-Sumber kode: [`fixtures.ts`](./fixtures.ts) (konstanta) + [`seed-data.ts`](./seed-data.ts) (isi). Jalankan: `pnpm --filter @incasif/api db:seed` (atau otomatis via `db:reset` / CI).
+Sumber kode: [`fixtures.ts`](./fixtures.ts) (konstanta) + [`seed-data.ts`](./seed-data.ts) (isi). Jalankan: `pnpm --filter @nawasena/api db:seed` (atau otomatis via `db:reset` / CI).
 
 ## Aturan
 

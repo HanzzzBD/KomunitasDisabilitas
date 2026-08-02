@@ -1,14 +1,14 @@
-# @incasif/api-client
+# @nawasena/api-client
 
-Typed API client dari kontrak zod (`@incasif/schemas`) — dipakai **web dan mobile** tanpa perubahan (ADR-014). Bebas dependensi DOM: jalan di browser, React Native, dan Node ≥ 18. `sideEffects: false` — tree-shakeable (diuji bundle test).
+Typed API client dari kontrak zod (`@nawasena/schemas`) — dipakai **web dan mobile** tanpa perubahan (ADR-014). Bebas dependensi DOM: jalan di browser, React Native, dan Node ≥ 18. `sideEffects: false` — tree-shakeable (diuji bundle test).
 
 ## Pemakaian
 
 ```ts
-import { createApiClient, requestOtp, ApiError } from "@incasif/api-client";
+import { createApiClient, requestOtp, ApiError } from "@nawasena/api-client";
 
 const client = createApiClient({
-  baseUrl: "https://incasif.id/api/v1",
+  baseUrl: "https://nawasena.id/api/v1",
   // Penyimpanan token DI LUAR paket ini:
   // web → cookie/memory store; mobile → expo-secure-store.
   getAccessToken: () => tokenStore.access,
@@ -44,7 +44,7 @@ try {
 Bentuk key: **`[domain, params]`** — `params` dinormalisasi (urutan key stabil, `undefined` dibuang) sehingga deterministik.
 
 ```ts
-import { queryKey } from "@incasif/api-client";
+import { queryKey } from "@nawasena/api-client";
 
 queryKey("jobs"); // ["jobs"]
 queryKey("jobs", { q: "kasir", page: 2 }); // ["jobs", { page: 2, q: "kasir" }]
@@ -63,7 +63,7 @@ Aturan:
 
 Pola di `src/endpoints/auth.ts` (contoh PR-005):
 
-1. Ambil skema request+response dari `@incasif/schemas` — **jangan** definisikan skema di sini.
+1. Ambil skema request+response dari `@nawasena/schemas` — **jangan** definisikan skema di sini.
 2. Validasi body dengan `schema.parse` sebelum kirim (fail cepat di klien).
 3. Beri `responseSchema` agar response tervalidasi.
 4. Ekspor factory `…Keys` untuk query key domain tersebut.

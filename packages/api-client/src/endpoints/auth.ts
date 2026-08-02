@@ -5,7 +5,7 @@ import {
   requestOtpResponseSchema,
   type RequestOtp,
   type RequestOtpResponse,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
 

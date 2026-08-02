@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/ui",
+  "name": "@nawasena/ui",
   "version": "0.0.0",
   "private": true,
   "description": "Design system aksesibel (Radix + Tailwind; RN counterpart). Placeholder — menyusul di phase UI/a11y.",
@@ -15,7 +15,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "eslint": "8.57.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"

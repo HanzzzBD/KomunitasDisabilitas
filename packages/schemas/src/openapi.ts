@@ -21,11 +21,11 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
   return createDocument({
     openapi: "3.1.0",
     info: {
-      title: "Incasif API",
+      title: "Nawasena API",
       version: CONTRACT_VERSION,
       description:
-        "Kontrak API Incasif — di-generate dari zod di packages/schemas. " +
-        "Jangan edit openapi.json manual; jalankan pnpm --filter @incasif/schemas gen:openapi.",
+        "Kontrak API Nawasena — di-generate dari zod di packages/schemas. " +
+        "Jangan edit openapi.json manual; jalankan pnpm --filter @nawasena/schemas gen:openapi.",
     },
     servers: [{ url: "/api/v1" }],
     paths: {

@@ -1,6 +1,6 @@
-# @incasif/schemas
+# @nawasena/schemas
 
-Kontrak zod **tunggal** untuk backend (validasi), frontend web/mobile (form), dan `@incasif/api-client` (typed client). OpenAPI di-generate dari zod — dokumentasi tidak pernah drift dari kode (SDD §11).
+Kontrak zod **tunggal** untuk backend (validasi), frontend web/mobile (form), dan `@nawasena/api-client` (typed client). OpenAPI di-generate dari zod — dokumentasi tidak pernah drift dari kode (SDD §11).
 
 ## Struktur
 
@@ -43,7 +43,7 @@ Aturan tambahan:
 # 1. Tulis/ubah skema di src/<domain>.ts (+ unit test valid & invalid)
 # 2. Kalau skema tampil di API: daftarkan path-nya di src/openapi.ts
 # 3. Regenerate openapi.json
-pnpm --filter @incasif/schemas gen:openapi
+pnpm --filter @nawasena/schemas gen:openapi
 
 # 4. Commit skema + openapi.json BERSAMA dalam satu commit
 ```
@@ -53,7 +53,7 @@ pnpm --filter @incasif/schemas gen:openapi
 `openapi.json` wajib selalu sinkron dengan skema zod. CI menjalankan:
 
 ```bash
-pnpm --filter @incasif/schemas check:openapi   # beda → exit 1 → CI merah
+pnpm --filter @nawasena/schemas check:openapi   # beda → exit 1 → CI merah
 ```
 
 Generator **deterministik**: tanpa timestamp, versi kontrak di-pin manual (`CONTRACT_VERSION` di `src/openapi.ts`), urutan mengikuti deklarasi — dua kali generate menghasilkan byte identik (diuji di unit test).

@@ -1,8 +1,8 @@
 {
-  "name": "@incasif/api-client",
+  "name": "@nawasena/api-client",
   "version": "0.0.0",
   "private": true,
-  "description": "Typed API client dari kontrak zod (@incasif/schemas) — dipakai web & mobile (ADR-014).",
+  "description": "Typed API client dari kontrak zod (@nawasena/schemas) — dipakai web & mobile (ADR-014).",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -16,11 +16,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@incasif/schemas": "workspace:*",
+    "@nawasena/schemas": "workspace:*",
     "zod": "3.24.1"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "@types/node": "22.10.2",
     "esbuild": "0.24.2",
     "eslint": "8.57.1",

@@ -1,4 +1,4 @@
-# Prisma — Konvensi Migrasi Incasif
+# Prisma — Konvensi Migrasi Nawasena
 
 Prisma adalah **pemilik migrasi** (SDD §6.2); `schema.prisma` = sumber kebenaran struktur DB (CLAUDE.md §12). Perubahan raw SQL wajib review.
 
@@ -9,9 +9,9 @@ Prisma adalah **pemilik migrasi** (SDD §6.2); `schema.prisma` = sumber kebenara
 cp apps/api/.env.example apps/api/.env
 
 # Dev lokal (compose harus hidup; Postgres di host port 5433)
-pnpm --filter @incasif/api db:migrate    # buat + apply migrasi baru (interaktif)
-pnpm --filter @incasif/api db:reset     # reset dari nol + seed (destruktif!)
-pnpm --filter @incasif/api db:seed      # seed idempotent saja
+pnpm --filter @nawasena/api db:migrate    # buat + apply migrasi baru (interaktif)
+pnpm --filter @nawasena/api db:reset     # reset dari nol + seed (destruktif!)
+pnpm --filter @nawasena/api db:seed      # seed idempotent saja
 ```
 
 `DATABASE_URL` dibaca dari `apps/api/.env` (atau environment shell). Gejala salah lokasi/kredensial: `Environment variable not found: DATABASE_URL` (file di root — tidak terbaca) atau `P1000 Authentication failed` (menyambung ke Postgres lain, mis. Laragon di 5432 — compose dev memakai host port **5433**).

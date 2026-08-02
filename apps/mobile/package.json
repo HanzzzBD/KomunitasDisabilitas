@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/mobile",
+  "name": "@nawasena/mobile",
   "version": "0.0.0",
   "private": true,
   "description": "React Native + Expo (Android) app. Placeholder — bootstrap menyusul di phase Mobile.",
@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "eslint": "8.57.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"

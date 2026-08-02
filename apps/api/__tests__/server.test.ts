@@ -6,7 +6,7 @@ import { createServer, registerShutdownHooks, type ApiServer } from "../src/serv
 
 function testEnv(): Env {
   return loadEnv({
-    DATABASE_URL: "postgresql://user:pass@localhost:5432/incasif",
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/nawasena",
     REDIS_URL: "redis://localhost:6379",
     REDIS_QUEUE_URL: "redis://localhost:6380",
     NODE_ENV: "test",

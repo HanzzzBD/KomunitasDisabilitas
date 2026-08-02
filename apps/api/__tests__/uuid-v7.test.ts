@@ -16,7 +16,7 @@ describe("uuidV7 (SDD §14 — PK sortable)", () => {
   });
 
   it("sortable: timestamp naik → urutan leksikografis naik", () => {
-    // Urutan DALAM ms yang sama tidak dijamin (cukup untuk kebutuhan Incasif);
+    // Urutan DALAM ms yang sama tidak dijamin (cukup untuk kebutuhan Nawasena);
     // yang dijamin: antar-milidetik.
     const t0 = Date.parse("2026-07-18T00:00:00Z");
     const ids = Array.from({ length: 50 }, (_, i) => uuidV7(t0 + i * 10));

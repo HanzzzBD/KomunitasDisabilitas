@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import { z } from "zod";
-import { requestOtpSchema } from "@incasif/schemas";
+import { requestOtpSchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { asyncHandler, appError, validate } from "../src/core/http/index.js";
@@ -9,13 +9,13 @@ import { createServer, type ApiServer } from "../src/server.js";
 
 function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
   return loadEnv({
-    DATABASE_URL: "postgresql://user:pass@localhost:5432/incasif",
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/nawasena",
     REDIS_URL: "redis://localhost:6379",
     REDIS_QUEUE_URL: "redis://localhost:6380",
     NODE_ENV: "test",
     PORT: "0",
     HOST: "127.0.0.1",
-    CORS_ORIGINS: "http://localhost:5173,https://incasif.id",
+    CORS_ORIGINS: "http://localhost:5173,https://nawasena.id",
     ...overrides,
   });
 }
@@ -209,8 +209,8 @@ describe("security middleware (integration)", () => {
   it("CORS: origin whitelist dapat header; origin asing tidak", async () => {
     const { api, base } = await bootTestServer();
     active = api;
-    const ok = await fetch(`${base}/uji/ok`, { headers: { origin: "https://incasif.id" } });
-    expect(ok.headers.get("access-control-allow-origin")).toBe("https://incasif.id");
+    const ok = await fetch(`${base}/uji/ok`, { headers: { origin: "https://nawasena.id" } });
+    expect(ok.headers.get("access-control-allow-origin")).toBe("https://nawasena.id");
     expect(ok.headers.get("access-control-allow-credentials")).toBe("true");
 
     const asing = await fetch(`${base}/uji/ok`, { headers: { origin: "https://jahat.example" } });

@@ -1,4 +1,4 @@
-// @incasif/schemas — kontrak zod tunggal FE+BE+mobile (SDD §11).
+// @nawasena/schemas — kontrak zod tunggal FE+BE+mobile (SDD §11).
 // Satu file per domain; fondasi bersama di ./common.js.
 export * from "./common.js";
 export * from "./auth.js";

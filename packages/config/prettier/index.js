@@ -1,5 +1,5 @@
-// Preset Prettier bersama untuk seluruh workspace Incasif.
-// Dikonsumsi via `@incasif/config/prettier`.
+// Preset Prettier bersama untuk seluruh workspace Nawasena.
+// Dikonsumsi via `@nawasena/config/prettier`.
 /** @type {import("prettier").Config} */
 module.exports = {
   printWidth: 100,

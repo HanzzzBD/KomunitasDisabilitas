@@ -6,7 +6,7 @@ import {
   type QueueCounts,
   type QueueName,
   type QueueStatus,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import type { QueueLike, QueueRegistry } from "../../../core/queue/index.js";
 
 export interface QueuesServiceDeps {

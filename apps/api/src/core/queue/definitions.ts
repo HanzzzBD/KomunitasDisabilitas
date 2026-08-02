@@ -7,7 +7,7 @@
 // Semua override opsional, jadi menambah variabel baru tidak pernah memaksa
 // perubahan .env yang sudah jalan (backward-compatible).
 //
-// Validasi memakai queueConfigSchema dari @incasif/schemas dan kegagalannya
+// Validasi memakai queueConfigSchema dari @nawasena/schemas dan kegagalannya
 // dilempar sebagai EnvError — pola fail-fast yang sama dengan core/config
 // (PR-006): proses mati saat boot dengan daftar variabel bermasalah, bukan
 // berjalan dengan antrean salah konfigurasi.
@@ -18,7 +18,7 @@ import {
   type QueueConfig,
   type QueueConfigField,
   type QueueName,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import { EnvError } from "../config/index.js";
 
 /** Konfigurasi seluruh queue, ter-index nama. */

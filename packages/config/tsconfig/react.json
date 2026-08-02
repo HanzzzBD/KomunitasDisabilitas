@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Incasif React (web, ui, a11y)",
+  "display": "Nawasena React (web, ui, a11y)",
   "extends": "./base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

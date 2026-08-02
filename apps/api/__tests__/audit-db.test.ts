@@ -1,7 +1,7 @@
 // Integration audit (PR-014) — mengikuti pola skip-anggun test DB lain.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
-import { AUDIT_ACTION } from "@incasif/schemas";
+import { AUDIT_ACTION } from "@nawasena/schemas";
 import { createAuditLog, createPrismaAuditWriter, type AuditLoggerOptions } from "../src/core/audit/index.js";
 import { uuidV7 } from "../src/core/ids/index.js";
 

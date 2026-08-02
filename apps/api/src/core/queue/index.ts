@@ -7,8 +7,8 @@
 // Konsumen (Worker + processor + DLQ) menyusul di PR-015b; file ini sengaja
 // hanya sisi produser agar PR tetap kecil dan teruji.
 import { Queue, type ConnectionOptions, type JobsOptions } from "bullmq";
-import type { QueueConfig, QueueName } from "@incasif/schemas";
-import { QUEUE_NAMES } from "@incasif/schemas";
+import type { QueueConfig, QueueName } from "@nawasena/schemas";
+import { QUEUE_NAMES } from "@nawasena/schemas";
 import type { QueueConfigs } from "./definitions.js";
 
 export * from "./definitions.js";

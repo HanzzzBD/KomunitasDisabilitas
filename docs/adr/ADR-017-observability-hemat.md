@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif berjalan pada satu VPS 8 GB yang juga menampung staging (ADR-006). Dibutuhkan: error tracking lintas klien-server, alert downtime, log terstruktur tanpa PII, dan metrik dasar (latensi, queue depth, kuota AI) — tanpa memakan RAM yang dibutuhkan aplikasi.
+Nawasena berjalan pada satu VPS 8 GB yang juga menampung staging (ADR-006). Dibutuhkan: error tracking lintas klien-server, alert downtime, log terstruktur tanpa PII, dan metrik dasar (latensi, queue depth, kuota AI) — tanpa memakan RAM yang dibutuhkan aplikasi.
 
 Constraint: stack observability penuh (Prometheus + Grafana + Loki) memakan ratusan MB–GB RAM; anggaran layanan berbayar Rp0.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Observability Incasif menggunakan: **Sentry** (free tier) untuk error tracking di web, mobile, api, dan worker dengan release tagging + PII scrubbing; **Uptime Kuma** (self-host) untuk probe `/healthz`, `/readyz`, dan halaman publik dengan alert ke Telegram/WhatsApp; **pino** untuk log JSON terstruktur (requestId, userId-hash, redaction PII) dengan rotasi Docker json-file dan **Dozzle** untuk inspeksi; serta endpoint `GET /internal/metrics` (JSON: p95 ring-buffer, queue depth, kuota AI, error rate) yang dipantau Uptime Kuma keyword-monitor untuk ambang alert. Prometheus/Grafana/Loki adalah jalur upgrade dengan pemicu multi-VPS (SDD §19).
+Observability Nawasena menggunakan: **Sentry** (free tier) untuk error tracking di web, mobile, api, dan worker dengan release tagging + PII scrubbing; **Uptime Kuma** (self-host) untuk probe `/healthz`, `/readyz`, dan halaman publik dengan alert ke Telegram/WhatsApp; **pino** untuk log JSON terstruktur (requestId, userId-hash, redaction PII) dengan rotasi Docker json-file dan **Dozzle** untuk inspeksi; serta endpoint `GET /internal/metrics` (JSON: p95 ring-buffer, queue depth, kuota AI, error rate) yang dipantau Uptime Kuma keyword-monitor untuk ambang alert. Prometheus/Grafana/Loki adalah jalur upgrade dengan pemicu multi-VPS (SDD §19).
 
 ## Consequences
 

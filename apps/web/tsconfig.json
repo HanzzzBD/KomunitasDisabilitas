@@ -1,5 +1,5 @@
 {
-  "extends": "@incasif/config/tsconfig/react",
+  "extends": "@nawasena/config/tsconfig/react",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",

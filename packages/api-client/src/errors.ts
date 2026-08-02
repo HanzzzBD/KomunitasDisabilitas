@@ -1,7 +1,7 @@
 // Pemetaan error API → tipe TS. Semua kegagalan request bermuara ke ApiError
 // yang membawa ErrorEnvelope {code, message, hint?} (pesan Bahasa Indonesia
 // sederhana — dibacakan screen reader apa adanya).
-import { errorEnvelopeSchema, type ErrorEnvelope } from "@incasif/schemas";
+import { errorEnvelopeSchema, type ErrorEnvelope } from "@nawasena/schemas";
 
 /** Error tunggal seluruh client — periksa `code` untuk penanganan spesifik. */
 export class ApiError extends Error {

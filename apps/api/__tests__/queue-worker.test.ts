@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { QUEUE_NAME, dlqNameOf } from "@incasif/schemas";
+import { QUEUE_NAME, dlqNameOf } from "@nawasena/schemas";
 import {
   DLQ_METRIC,
   JobTimeoutError,

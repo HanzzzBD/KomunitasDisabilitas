@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Incasif API",
+    "title": "Nawasena API",
     "version": "0.1.0",
-    "description": "Kontrak API Incasif — di-generate dari zod di packages/schemas. Jangan edit openapi.json manual; jalankan pnpm --filter @incasif/schemas gen:openapi."
+    "description": "Kontrak API Nawasena — di-generate dari zod di packages/schemas. Jangan edit openapi.json manual; jalankan pnpm --filter @nawasena/schemas gen:openapi."
   },
   "servers": [
     {
@@ -128,7 +128,7 @@
           "code",
           "message"
         ],
-        "description": "Envelope error standar Incasif"
+        "description": "Envelope error standar Nawasena"
       }
     }
   }

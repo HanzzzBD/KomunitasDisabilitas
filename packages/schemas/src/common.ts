@@ -26,7 +26,7 @@ export const errorEnvelopeSchema = z
       example: "Periksa format nomor HP Anda",
     }),
   })
-  .openapi({ ref: "ErrorEnvelope", description: "Envelope error standar Incasif" });
+  .openapi({ ref: "ErrorEnvelope", description: "Envelope error standar Nawasena" });
 
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
 

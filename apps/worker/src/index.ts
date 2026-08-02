@@ -1,21 +1,21 @@
 // Entry point apps/worker — konsumen BullMQ (PR-015b, ADR-004, SDD §16).
 //
 // Proses TERPISAH dari API: beban Puppeteer/AI tidak boleh menyentuh latensi
-// request. Codebase sama dengan api (core/queue diimpor lewat @incasif/api),
+// request. Codebase sama dengan api (core/queue diimpor lewat @nawasena/api),
 // hanya entry-nya berbeda.
 //
 // Processor fitur (ekstraksi CV, embedding, render PDF, notifikasi) belum ada
 // di Phase 1 — masing-masing didaftarkan oleh PR fiturnya di PROCESSORS.
 /* eslint-disable no-console -- sebelum logger siap, satu-satunya saluran adalah console */
-import { loadEnv, EnvError } from "@incasif/api/core/config";
-import { createLogger } from "@incasif/api/core/logger";
+import { loadEnv, EnvError } from "@nawasena/api/core/config";
+import { createLogger } from "@nawasena/api/core/logger";
 import {
   createDlqHandler,
   createRawQueuePool,
   createWorkerRuntime,
   loadQueueConfigs,
   type ProcessorMap,
-} from "@incasif/api/core/queue";
+} from "@nawasena/api/core/queue";
 
 /** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
 const PROCESSORS: ProcessorMap = {};
