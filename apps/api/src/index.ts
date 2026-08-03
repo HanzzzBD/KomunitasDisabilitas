@@ -3,10 +3,12 @@
 import { loadEnv, EnvError } from "./core/config/index.js";
 import { parseFieldKeys, FieldKeyError, type FieldKeys } from "./core/crypto/index.js";
 import { createLogger } from "./core/logger/index.js";
-import { createDbClient } from "./core/db/index.js";
+import { createDbClient, createPrismaClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
+import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
 import { createHealthModule } from "./modules/health/index.js";
 import { createInternalModule } from "./modules/internal/index.js";
+import { createAuthModule } from "./modules/auth/index.js";
 import { createQueueRegistry, createRawQueuePool, loadQueueConfigs } from "./core/queue/index.js";
 import { createServer, registerShutdownHooks } from "./server.js";
 
@@ -44,7 +46,17 @@ try {
 
 const logger = createLogger(env);
 const db = createDbClient(env);
+const prisma = createPrismaClient();
 const redis = createRedisClients(env);
+
+// Audit (PR-014) mulai dipakai modul auth. Sink metrik masih hitungan memori:
+// pengiriman ke backend metrik produksi = PR observability (PR-103).
+const auditMetricCounts = new Map<string, number>();
+const auditLog = createAuditLog({
+  writer: createPrismaAuditWriter(prisma),
+  logger,
+  metrics: { increment: (name) => auditMetricCounts.set(name, (auditMetricCounts.get(name) ?? 0) + 1) },
+});
 
 // API hanya PRODUSER job; konsumennya proses apps/worker terpisah (ADR-004).
 const queues = createQueueRegistry({
@@ -63,12 +75,29 @@ const api = createServer(env, logger, {
         internalToken: env.INTERNAL_TOKEN,
       }),
     );
+    // Endpoint klien selalu di bawah /api/v1 (SDD §11).
+    app.use(
+      "/api/v1",
+      createAuthModule({
+        prisma,
+        redis: redis.cache,
+        otpHashSecret: env.OTP_HASH_SECRET,
+        auditLog,
+        logger,
+      }),
+    );
   },
 });
 
 registerShutdownHooks(api, logger, undefined, async () => {
   // Setelah server berhenti menerima koneksi: tutup koneksi infra.
-  await Promise.allSettled([queues.close(), dlqQueues.close(), db.end(), redis.end()]);
+  await Promise.allSettled([
+    queues.close(),
+    dlqQueues.close(),
+    db.end(),
+    prisma.$disconnect(),
+    redis.end(),
+  ]);
 });
 
 try {

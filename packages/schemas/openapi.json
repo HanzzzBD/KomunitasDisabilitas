@@ -60,6 +60,89 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Pengiriman OTP belum dikonfigurasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/otp/verify": {
+      "post": {
+        "operationId": "verifyOtp",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verifikasi kode OTP",
+        "security": [],
+        "description": "Memeriksa kode OTP. Bila cocok, akun dicari berdasarkan nomor HP dan dibuat bila belum ada (find-or-create).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kode cocok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyOtpResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Kode salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Kode hangus atau kedaluwarsa — minta kode baru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Percobaan terkunci sementara — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -91,7 +174,7 @@
               "retryAfterSeconds": {
                 "type": "integer",
                 "minimum": 0,
-                "example": 60
+                "example": 0
               }
             },
             "required": [
@@ -129,6 +212,55 @@
           "message"
         ],
         "description": "Envelope error standar Nawasena"
+      },
+      "VerifyOtp": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Kode OTP 6 angka dari WhatsApp/SMS",
+            "example": "482913"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ],
+        "description": "Verifikasi kode OTP yang diterima pengguna"
+      },
+      "VerifyOtpResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID",
+                "example": "01912345-89ab-7def-8123-456789abcdef"
+              },
+              "isNewUser": {
+                "type": "boolean",
+                "example": false
+              }
+            },
+            "required": [
+              "userId",
+              "isNewUser"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
       }
     }
   }

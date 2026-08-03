@@ -1,5 +1,5 @@
-// Domain: auth — SATU contoh skema lengkap sebagai acuan konvensi (AC PR-004).
-// Skema lain domain ini (verify, refresh, Google sign-in) diisi di PR-016..018.
+// Domain: auth — skema OTP (PR-004 request; PR-016 verify).
+// Skema Google sign-in & refresh menyusul di PR-017/018.
 //
 // Konvensi (lihat README):
 // - nama skema camelCase + suffix Schema: requestOtpSchema
@@ -7,6 +7,7 @@
 // - component OpenAPI PascalCase via .openapi({ ref: "..." })
 import "zod-openapi/extend";
 import { z } from "zod";
+import { idSchema } from "./common.js";
 
 /** Nomor HP Indonesia format E.164 (+62…). */
 export const phoneNumberSchema = z
@@ -29,10 +30,46 @@ export type RequestOtp = z.infer<typeof requestOtpSchema>;
 export const requestOtpResponseSchema = z
   .object({
     data: z.object({
-      /** Detik sebelum boleh minta OTP lagi (rate limit per nomor, PR-016). */
-      retryAfterSeconds: z.number().int().min(0).openapi({ example: 60 }),
+      /**
+       * Detik sebelum boleh minta OTP lagi (rate limit kirim per nomor, PR-016).
+       * 0 = kuota jam berjalan masih tersisa, boleh langsung minta lagi.
+       */
+      retryAfterSeconds: z.number().int().min(0).openapi({ example: 0 }),
     }),
   })
   .openapi({ ref: "RequestOtpResponse" });
 
 export type RequestOtpResponse = z.infer<typeof requestOtpResponseSchema>;
+
+/** Kode OTP 6 angka. String (bukan number) — angka 0 di depan bermakna. */
+export const otpCodeSchema = z
+  .string()
+  .regex(/^\d{6}$/, { message: "Kode OTP harus 6 angka" })
+  .openapi({ description: "Kode OTP 6 angka dari WhatsApp/SMS", example: "482913" });
+
+/** POST /api/v1/auth/otp/verify — body. */
+export const verifyOtpSchema = z
+  .object({
+    phone: phoneNumberSchema,
+    code: otpCodeSchema,
+  })
+  .openapi({ ref: "VerifyOtp", description: "Verifikasi kode OTP yang diterima pengguna" });
+
+export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
+
+/**
+ * POST /api/v1/auth/otp/verify — response 200.
+ * Sengaja BELUM memuat pasangan JWT: penerbitan token = PR-018, yang akan
+ * menambah field token pada envelope ini (perubahan additive).
+ */
+export const verifyOtpResponseSchema = z
+  .object({
+    data: z.object({
+      userId: idSchema,
+      /** true bila akun baru dibuat pada verifikasi ini (find-or-create). */
+      isNewUser: z.boolean().openapi({ example: false }),
+    }),
+  })
+  .openapi({ ref: "VerifyOtpResponse" });
+
+export type VerifyOtpResponse = z.infer<typeof verifyOtpResponseSchema>;

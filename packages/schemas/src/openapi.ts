@@ -7,7 +7,12 @@
 // untuk input sama → diff check di CI valid.
 import { createDocument, type oas31 } from "zod-openapi";
 import { errorEnvelopeSchema } from "./common.js";
-import { requestOtpSchema, requestOtpResponseSchema } from "./auth.js";
+import {
+  requestOtpSchema,
+  requestOtpResponseSchema,
+  verifyOtpSchema,
+  verifyOtpResponseSchema,
+} from "./auth.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -29,7 +34,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
     },
     servers: [{ url: "/api/v1" }],
     paths: {
-      // Contoh end-to-end pertama (PR-004). Endpoint nyata diimplementasi PR-016.
+      // Alur OTP (PR-016): request → verify. Pengiriman JWT menyusul di PR-018.
       "/auth/otp/request": {
         post: {
           operationId: "requestOtp",
@@ -49,6 +54,32 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             },
             "400": errorResponse("Input tidak valid"),
             "429": errorResponse("Terlalu banyak permintaan — lihat header Retry-After"),
+            "503": errorResponse("Pengiriman OTP belum dikonfigurasi"),
+          },
+        },
+      },
+      "/auth/otp/verify": {
+        post: {
+          operationId: "verifyOtp",
+          tags: ["auth"],
+          summary: "Verifikasi kode OTP",
+          security: [], // eksplisit publik: endpoint pre-auth
+          description:
+            "Memeriksa kode OTP. Bila cocok, akun dicari berdasarkan nomor HP " +
+            "dan dibuat bila belum ada (find-or-create).",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: verifyOtpSchema } },
+          },
+          responses: {
+            "200": {
+              description: "Kode cocok",
+              content: { "application/json": { schema: verifyOtpResponseSchema } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "401": errorResponse("Kode salah"),
+            "410": errorResponse("Kode hangus atau kedaluwarsa — minta kode baru"),
+            "429": errorResponse("Percobaan terkunci sementara — lihat header Retry-After"),
           },
         },
       },

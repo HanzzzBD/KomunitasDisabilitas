@@ -50,6 +50,12 @@ export function errorHandler(fallbackLogger: Logger): ErrorRequestHandler {
 
     if (res.headersSent) return; // response sudah mengalir — jangan ditimpa
 
+    // Retry-After hanya ditulis bila error memang membawanya (mis. 429 OTP,
+    // PR-016) — klien tahu persis berapa lama harus menunggu.
+    if (mapped.retryAfterSeconds !== undefined) {
+      res.setHeader("Retry-After", String(Math.max(0, Math.ceil(mapped.retryAfterSeconds))));
+    }
+
     res.status(mapped.status).json(mapped.envelope);
   };
 }

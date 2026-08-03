@@ -35,6 +35,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Format data yang dikirim rusak",
           "status": 400,
         },
+        "KODE_OTP_HANGUS": {
+          "hint": "Minta kode baru, lalu masukkan dalam 5 menit",
+          "message": "Kode sudah tidak berlaku",
+          "status": 410,
+        },
+        "KODE_OTP_SALAH": {
+          "hint": "Periksa kembali kode dari WhatsApp atau SMS",
+          "message": "Kode yang Anda masukkan salah",
+          "status": 401,
+        },
         "RUTE_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali alamat yang Anda tuju",
           "message": "Halaman atau data tidak ditemukan",
@@ -44,6 +54,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Coba lagi beberapa saat; laporkan bila terus terjadi",
           "message": "Terjadi kesalahan pada server",
           "status": 500,
+        },
+        "TERLALU_BANYAK_PERCOBAAN": {
+          "hint": "Tunggu sesuai waktu yang diberitahukan, lalu minta kode baru",
+          "message": "Terlalu banyak percobaan kode",
+          "status": 429,
         },
         "TERLALU_BANYAK_PERMINTAAN": {
           "hint": "Tunggu sebentar, lalu coba lagi",
