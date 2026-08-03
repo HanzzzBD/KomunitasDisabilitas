@@ -1,14 +1,14 @@
 # CLAUDE.md — Project Context & Development Guide
 
 > **Last Updated:** 2026-07-17  
-> **Project:** Incasif (Inclusive Career Ecosystem for People with Disabilities)  
+> **Project:** Nawasena (Inclusive Career Ecosystem for People with Disabilities)  
 > **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, PR-PLAN v3.0
 
 ---
 
 ## 1. Project Overview
 
-**Incasif** adalah platform pencarian kerja berbasis AI yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda).
+**Nawasena** adalah platform pencarian kerja berbasis AI yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda).
 
 ### North Star Metrics
 - **Primary:** Jumlah penempatan kerja (pengguna diterima bekerja melalui platform)
@@ -232,7 +232,7 @@ const name = req.body.name;
 
 // ✅ DO: Validasi via zod dari packages/schemas
 import { z } from "zod";
-import { createUserSchema } from "@incasif/schemas";
+import { createUserSchema } from "@nawasena/schemas";
 
 const parsed = createUserSchema.parse(req.body);
 const { name } = parsed;
@@ -253,7 +253,7 @@ res.status(400).json({
 **Error Handling Async (Express):**
 ```typescript
 // ✅ DO: Wrap async handlers
-import { asyncHandler } from "@incasif/core/http";
+import { asyncHandler } from "@nawasena/core/http";
 
 router.get("/:id", asyncHandler(async (req, res) => {
   const profile = await profileService.getById(req.params.id);
@@ -349,7 +349,7 @@ describe("matching service", () => {
 **Development (local):**
 ```bash
 # apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
-DATABASE_URL="postgresql://incasif:incasif@localhost:5433/incasif"
+DATABASE_URL="postgresql://nawasena:nawasena@localhost:5433/nawasena"
 REDIS_URL="redis://localhost:6379"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
@@ -466,7 +466,7 @@ cp apps/api/.env.example apps/api/.env
 docker-compose up -d postgres redis
 
 # 4. Run migrations
-pnpm --filter @incasif/api exec prisma migrate dev
+pnpm --filter @nawasena/api exec prisma migrate dev
 
 # 5. Run dev servers (all workspaces)
 pnpm dev
@@ -478,7 +478,7 @@ pnpm typecheck && pnpm lint
 pnpm test
 
 # 8. Check accessibility (web only, slot PR-031)
-# pnpm --filter @incasif/web test:a11y
+# pnpm --filter @nawasena/web test:a11y
 ```
 
 ---
@@ -526,19 +526,19 @@ pnpm test:cov
 ### Database
 ```bash
 # Create migration
-pnpm --filter @incasif/api exec prisma migrate dev --name feature_name
+pnpm --filter @nawasena/api exec prisma migrate dev --name feature_name
 
 # Open Prisma Studio
-pnpm --filter @incasif/api exec prisma studio
+pnpm --filter @nawasena/api exec prisma studio
 
 # Reset DB (dev only, destructive)
-pnpm --filter @incasif/api exec prisma migrate reset
+pnpm --filter @nawasena/api exec prisma migrate reset
 ```
 
 ### Docker & Deployment
 ```bash
 # Build Docker image locally
-docker build -t incasif:latest .
+docker build -t nawasena:latest .
 
 # Start full stack (local dev)
 docker-compose up
@@ -553,13 +553,13 @@ git push origin main  # triggers GitHub Actions
 ### Monorepo
 ```bash
 # Run script in specific workspace
-pnpm --filter @incasif/api <script>
+pnpm --filter @nawasena/api <script>
 
 # List all workspaces
 pnpm ls -r
 
 # Update Turborepo cache
-pnpm turbo prune --scope=@incasif/api
+pnpm turbo prune --scope=@nawasena/api
 ```
 
 ---

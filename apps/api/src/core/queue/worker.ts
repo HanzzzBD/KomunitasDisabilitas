@@ -7,7 +7,7 @@
 // Processor fitur (ekstraksi CV, embedding, render PDF, notifikasi) didaftarkan
 // oleh PR fitur masing-masing; di Phase 1 registry-nya sengaja kosong.
 import { Worker, type ConnectionOptions } from "bullmq";
-import type { QueueConfig, QueueName } from "@incasif/schemas";
+import type { QueueConfig, QueueName } from "@nawasena/schemas";
 import type { Logger } from "../logger/index.js";
 import type { QueueConfigs } from "./definitions.js";
 import type { FailedJobInfo } from "./dlq.js";

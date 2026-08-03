@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { errorCodeSchema } from "@incasif/schemas";
+import { errorCodeSchema } from "@nawasena/schemas";
 import { ERROR_CATALOG, AppError, appError } from "../src/core/http/errors.js";
 import { asyncHandler } from "../src/core/http/async-handler.js";
 import type { NextFunction, Request, Response } from "express";

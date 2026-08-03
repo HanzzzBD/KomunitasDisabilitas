@@ -1,9 +1,9 @@
 // Preset ESLint "boundaries" — menegakkan arsitektur monolith modular (ADR-001,
 // ADR-012, SDD §5.1) sebagai kode, bukan disiplin manual.
 //
-// Dikonsumsi via: module.exports = require("@incasif/config/eslint/boundaries")
+// Dikonsumsi via: module.exports = require("@nawasena/config/eslint/boundaries")
 // Dipakai HANYA oleh apps/api (satu-satunya artefak dengan modul & lapisan).
-// App/paket lain cukup pakai preset dasar "@incasif/config/eslint".
+// App/paket lain cukup pakai preset dasar "@nawasena/config/eslint".
 //
 // Aturan yang ditegakkan:
 //   1. Lapisan satu arah: router → controller → service → repository.

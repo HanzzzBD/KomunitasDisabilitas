@@ -2,15 +2,15 @@
 # Satu perintah: docker compose -f docker-compose.dev.yml up
 # Kredensial di file ini DEV-ONLY (localhost) — nilai produksi via env (ADR-015).
 
-name: incasif-dev
+name: nawasena-dev
 
 services:
   postgres:
     image: pgvector/pgvector:pg18 # pin mayor = target prod (SDD: PostgreSQL 18)
     environment:
-      POSTGRES_USER: incasif
-      POSTGRES_PASSWORD: incasif # dev-only
-      POSTGRES_DB: incasif
+      POSTGRES_USER: nawasena
+      POSTGRES_PASSWORD: nawasena # dev-only
+      POSTGRES_DB: nawasena
     ports:
       # Host 5433: hindari bentrok dengan PostgreSQL lokal (mis. Laragon)
       # yang umum menempati 5432. Dalam network compose tetap 5432.
@@ -20,7 +20,7 @@ services:
       - pgdata:/var/lib/postgresql
       - ./infra/pg-init.sql:/docker-entrypoint-initdb.d/pg-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U incasif -d incasif"]
+      test: ["CMD-SHELL", "pg_isready -U nawasena -d nawasena"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -59,12 +59,12 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DATABASE_URL: postgresql://incasif:incasif@postgres:5432/incasif
+      DATABASE_URL: postgresql://nawasena:nawasena@postgres:5432/nawasena
       REDIS_URL: redis://redis-cache:6379
       REDIS_QUEUE_URL: redis://redis-queue:6379
       # Kunci enkripsi field sensitif (PR-013, ADR-007). DEV-ONLY dummy — jangan
       # dipakai di staging/prod (kunci prod via env vars, bukan compose).
-      FIELD_KEY_V1: aW5jYXNpZi1kZXYtZHVtbXkta2V5LTAwMDAwMDAwMDA=
+      FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
       # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
       # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
       CHOKIDAR_USEPOLLING: "true"
@@ -97,13 +97,13 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
       target: dev
-    command: ["pnpm", "--filter", "@incasif/worker", "dev"]
+    command: ["pnpm", "--filter", "@nawasena/worker", "dev"]
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://incasif:incasif@postgres:5432/incasif
+      DATABASE_URL: postgresql://nawasena:nawasena@postgres:5432/nawasena
       REDIS_URL: redis://redis-cache:6379
       REDIS_QUEUE_URL: redis://redis-queue:6379
-      FIELD_KEY_V1: aW5jYXNpZi1kZXYtZHVtbXkta2V5LTAwMDAwMDAwMDA=
+      FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "800"
     depends_on:

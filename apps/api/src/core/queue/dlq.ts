@@ -12,8 +12,8 @@
 // dipotong) plus DAFTAR NAMA KEY payload — bukan nilainya. Payload aslinya
 // tetap tersedia untuk investigasi lewat job gagal yang ditahan BullMQ
 // (`removeOnFail: 1000`, SDD §16), jadi tidak ada informasi yang hilang.
-import type { QueueName } from "@incasif/schemas";
-import { dlqNameOf } from "@incasif/schemas";
+import type { QueueName } from "@nawasena/schemas";
+import { dlqNameOf } from "@nawasena/schemas";
 import type { Logger } from "../logger/index.js";
 import type { QueueLike } from "./index.js";
 

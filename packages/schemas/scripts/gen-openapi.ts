@@ -1,8 +1,8 @@
 /* eslint-disable no-console -- script CLI: output ke console adalah antarmukanya */
 // Generator openapi.json dari skema zod (PR-004).
 //
-//   pnpm --filter @incasif/schemas gen:openapi     → tulis openapi.json
-//   pnpm --filter @incasif/schemas check:openapi   → diff; drift = exit 1 (CI merah)
+//   pnpm --filter @nawasena/schemas gen:openapi     → tulis openapi.json
+//   pnpm --filter @nawasena/schemas check:openapi   → diff; drift = exit 1 (CI merah)
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,7 @@ if (checkMode) {
     [
       "DRIFT KONTRAK: openapi.json tidak sinkron dengan skema zod.",
       actual === null ? "(openapi.json belum ada)" : "(isi berbeda dengan hasil generate)",
-      "Perbaiki dengan: pnpm --filter @incasif/schemas gen:openapi, lalu commit hasilnya.",
+      "Perbaiki dengan: pnpm --filter @nawasena/schemas gen:openapi, lalu commit hasilnya.",
     ].join("\n"),
   );
   process.exit(1);

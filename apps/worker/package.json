@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/worker",
+  "name": "@nawasena/worker",
   "version": "0.0.0",
   "private": true,
   "description": "BullMQ worker (codebase sama dengan api, entry berbeda).",
@@ -13,12 +13,12 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@incasif/api": "workspace:*",
+    "@nawasena/api": "workspace:*",
     "bullmq": "5.81.2",
     "pino": "9.5.0"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "tsx": "4.19.2",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",

@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif (PRD §8) dibangun oleh tim 2–5 orang dengan target < 5.000 pengguna terdaftar (~500 DAU) pada tahun pertama, timeline MVP 3–4 bulan, dan anggaran infrastruktur ≤ ~Rp300rb/bulan. Sistem terdiri dari 13 modul resmi (Auth, Users, Accessibility, Profiles, Resumes, Companies, Jobs, Matching, Applications, AI, Notifications, Admin, SignBridge) yang harus bisa berevolusi menuju ekosistem lebih besar (Fase 2–3).
+Nawasena (PRD §8) dibangun oleh tim 2–5 orang dengan target < 5.000 pengguna terdaftar (~500 DAU) pada tahun pertama, timeline MVP 3–4 bulan, dan anggaran infrastruktur ≤ ~Rp300rb/bulan. Sistem terdiri dari 13 modul resmi (Auth, Users, Accessibility, Profiles, Resumes, Companies, Jobs, Matching, Applications, AI, Notifications, Admin, SignBridge) yang harus bisa berevolusi menuju ekosistem lebih besar (Fase 2–3).
 
 Constraint: satu VPS 4 vCPU/8 GB; tanpa DevOps engineer khusus; kecepatan pengembangan adalah prioritas.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Backend Incasif menggunakan arsitektur **monolith modular**: satu aplikasi API dan satu proses worker dari codebase yang sama, dengan batas modul ditegakkan melalui konvensi lapisan `router → controller → service → repo` dan aturan import `eslint-plugin-boundaries` di CI (SDD §5.1, §15). Antar modul hanya boleh berkomunikasi melalui service layer atau event domain in-process. Microservices ditolak untuk MVP; pemecahan ke service terpisah hanya dilakukan berdasarkan pemicu terukur (SDD §19).
+Backend Nawasena menggunakan arsitektur **monolith modular**: satu aplikasi API dan satu proses worker dari codebase yang sama, dengan batas modul ditegakkan melalui konvensi lapisan `router → controller → service → repo` dan aturan import `eslint-plugin-boundaries` di CI (SDD §5.1, §15). Antar modul hanya boleh berkomunikasi melalui service layer atau event domain in-process. Microservices ditolak untuk MVP; pemecahan ke service terpisah hanya dilakukan berdasarkan pemicu terukur (SDD §19).
 
 ## Consequences
 

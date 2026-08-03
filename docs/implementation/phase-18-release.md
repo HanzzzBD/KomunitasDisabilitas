@@ -31,7 +31,7 @@ Gerbang rilis: sweep a11y otomatis penuh, audit formal penguji disabilitas (gate
 * **PR-109** - Baseline a11y otomatis bersih
 * **PR-110** - Laporan audit RC + produk lulus gate aksesibilitas
 * **PR-111** - RC ditandatangani + app di internal track
-* **PR-112** - Incasif v1.0.0 live + pilot berjalan
+* **PR-112** - Nawasena v1.0.0 live + pilot berjalan
 
 ## Pull Requests
 
@@ -326,7 +326,7 @@ Bisnis: MVP live untuk pilot 1–2 komunitas disabilitas (menuju North Star ≥5
 
 **Deliverables:**
 
-* Incasif v1.0.0 live + pilot berjalan
+* Nawasena v1.0.0 live + pilot berjalan
 
 **Out of Scope:**
 

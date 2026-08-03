@@ -1,4 +1,4 @@
-// @incasif/api-client — typed client dari kontrak zod (ADR-014, SDD §11).
+// @nawasena/api-client — typed client dari kontrak zod (ADR-014, SDD §11).
 // Bebas dependensi DOM: jalan di browser, React Native, dan Node ≥ 18.
 export {
   createApiClient,

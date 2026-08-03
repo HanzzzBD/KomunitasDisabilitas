@@ -12,7 +12,7 @@ import { createLogger, REDACTED } from "../src/core/logger/index.js";
 const apiDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const BASE_ENV: NodeJS.ProcessEnv = {
-  DATABASE_URL: "postgresql://user:pass@localhost:5432/incasif",
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/nawasena",
   REDIS_URL: "redis://localhost:6379",
   REDIS_QUEUE_URL: "redis://localhost:6380",
   NODE_ENV: "test",

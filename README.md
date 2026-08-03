@@ -1,4 +1,4 @@
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Inclusive Career Ecosystem for People with Disabilities
 
 Platform pencarian kerja berbasis AI yang dirancang khusus dan sepenuhnya aksesibel bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda). Standar aksesibilitas: **WCAG 2.2 Level AA** (end-to-end).
 
@@ -61,7 +61,7 @@ Semua perintah di atas dijalankan lewat Turborepo (`turbo run <task>`) sehingga 
 Berlaku untuk semua PR (detail di [CLAUDE.md](./CLAUDE.md) dan [docs/implementation/README.md](./docs/implementation/README.md)):
 
 - **Lint boundaries** — batas modul ditegakkan `eslint-plugin-boundaries` (mulai PR-002); no cross-module repo import, no direct AI SDK import di luar `core/ai`.
-- **Validasi input** — selalu via zod dari `@incasif/schemas`.
+- **Validasi input** — selalu via zod dari `@nawasena/schemas`.
 - **Error envelope** — `{code, message, hint}` dalam Bahasa Indonesia sederhana.
 - **A11y gate** — perubahan frontend wajib lolos axe-core + jsx-a11y + Lighthouse (WCAG 2.2 AA).
 - **AI via gateway** — panggilan LLM hanya lewat `core/ai`, hormati kuota per-user.

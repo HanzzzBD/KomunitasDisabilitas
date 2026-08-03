@@ -8,7 +8,7 @@ import {
   auditMetaSchemas,
   type AuditAction,
   type AuditActor,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import type { Logger } from "../logger/index.js";
 import { uuidV7 } from "../ids/index.js";
 

@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { Queue } from "bullmq";
 import { Redis } from "ioredis";
-import { QUEUE_NAME, dlqNameOf, type QueueName } from "@incasif/schemas";
+import { QUEUE_NAME, dlqNameOf, type QueueName } from "@nawasena/schemas";
 import {
   QUEUE_DEFAULTS,
   buildJobId,

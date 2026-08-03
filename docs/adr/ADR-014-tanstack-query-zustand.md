@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Web (React + Vite) dan mobile (React Native + Expo) Incasif berbagi logika melalui monorepo. Dibutuhkan pola state yang sama di kedua platform untuk: data server (feed matching, lamaran, notifikasi — dengan cache/retry/loading state) dan state global klien (Accessibility Profile, sesi, UI).
+Web (React + Vite) dan mobile (React Native + Expo) Nawasena berbagi logika melalui monorepo. Dibutuhkan pola state yang sama di kedua platform untuk: data server (feed matching, lamaran, notifikasi — dengan cache/retry/loading state) dan state global klien (Accessibility Profile, sesi, UI).
 
 Constraint: tim kecil — boilerplate harus minimal; Accessibility Profile adalah global state produk (ADR-008) yang wajib persisted.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Klien Incasif menggunakan **TanStack Query** untuk seluruh data server (konvensi key `[domain, params]`, staleTime 60 s, retry 2 dengan backoff, `networkMode: 'online'`) dan **Zustand** untuk state global klien (`useA11yStore`, `useSessionStore`, `useUiStore`) dengan persist + migrasi versi. Pola ini identik di web dan mobile. Mutasi kritis (apply) tidak memakai optimistic update; hanya aksi ringan (tandai notifikasi terbaca) yang optimistic.
+Klien Nawasena menggunakan **TanStack Query** untuk seluruh data server (konvensi key `[domain, params]`, staleTime 60 s, retry 2 dengan backoff, `networkMode: 'online'`) dan **Zustand** untuk state global klien (`useA11yStore`, `useSessionStore`, `useUiStore`) dengan persist + migrasi versi. Pola ini identik di web dan mobile. Mutasi kritis (apply) tidak memakai optimistic update; hanya aksi ringan (tandai notifikasi terbaca) yang optimistic.
 
 ## Consequences
 

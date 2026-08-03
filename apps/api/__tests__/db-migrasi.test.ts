@@ -1,6 +1,6 @@
 // Integration test DB (PR-009) — butuh PostgreSQL hidup (compose dev lokal
 // atau service CI) + migrasi ter-apply (prisma migrate reset dijalankan CI
-// sebelum test; lokal: pnpm --filter @incasif/api db:reset).
+// sebelum test; lokal: pnpm --filter @nawasena/api db:reset).
 // Skip otomatis bila DB tidak terjangkau — unit test lain tetap jalan.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient, Prisma } from "@prisma/client";

@@ -11,7 +11,7 @@
 
 ### Ringkasan hasil
 
-Monorepo pnpm + Turborepo berdiri dengan 9 workspace ter-resolve: `apps/{api,worker,web,mobile}` + `packages/{config,schemas,api-client,ui,a11y}`. Preset config terpusat tersedia di `@incasif/config` (tsconfig base/node/react, eslint base, prettier). Seluruh gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 (strict), `pnpm test` 9/9 (4 unit test preset lulus). README root diganti dengan struktur repo, prasyarat, perintah dasar, konvensi global, dan RB-Std.
+Monorepo pnpm + Turborepo berdiri dengan 9 workspace ter-resolve: `apps/{api,worker,web,mobile}` + `packages/{config,schemas,api-client,ui,a11y}`. Preset config terpusat tersedia di `@nawasena/config` (tsconfig base/node/react, eslint base, prettier). Seluruh gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 (strict), `pnpm test` 9/9 (4 unit test preset lulus). README root diganti dengan struktur repo, prasyarat, perintah dasar, konvensi global, dan RB-Std.
 
 ### Scope selesai
 
@@ -28,7 +28,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 ### Keputusan teknis
 
 1. **Placeholder berisi `package.json` + stub `src/index.ts`, bukan folder benar-benar kosong.** Folder kosong tidak ter-resolve sebagai workspace pnpm dan membuat acceptance criteria "semua workspace ter-resolve" tidak terverifikasi. Stub hanya mengekspor konstanta/`export {}` tanpa logika.
-2. **ESLint 8 (legacy config), bukan flat config.** `eslint-plugin-boundaries` (PR-002) dan ekosistem preset masih paling stabil di legacy config; migrasi flat config bisa jadi keputusan terpisah nanti. Konsumsi preset via `module.exports = require("@incasif/config/eslint")` karena resolver `extends` string ESLint tidak membaca `exports` map package.
+2. **ESLint 8 (legacy config), bukan flat config.** `eslint-plugin-boundaries` (PR-002) dan ekosistem preset masih paling stabil di legacy config; migrasi flat config bisa jadi keputusan terpisah nanti. Konsumsi preset via `module.exports = require("@nawasena/config/eslint")` karena resolver `extends` string ESLint tidak membaca `exports` map package.
 3. **`verbatimModuleSyntax` aktif di base** untuk kebersihan import type; di-override `false` hanya di tsconfig lokal `packages/config` karena file test/vitest config-nya ESM sementara paket ber-`type: commonjs`.
 4. **Versi di-pin exact** (`save-exact` di `.npmrc`; turbo 2.3.3, TS 5.7.2, eslint 8.57.1, vitest 2.1.8, prettier 3.3.3) untuk build deterministik.
 5. **Dokumen pre-existing (PRD/SDD/CLAUDE/docs) dikecualikan dari prettier** via `.prettierignore` agar `pnpm format` tidak menghasilkan diff besar di luar scope PR kode.
@@ -40,7 +40,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ### Next steps
 
-- PR-002: tambahkan aturan `eslint-plugin-boundaries` ke preset `@incasif/config/eslint` + fixtures pelanggaran.
+- PR-002: tambahkan aturan `eslint-plugin-boundaries` ke preset `@nawasena/config/eslint` + fixtures pelanggaran.
 - PR-003: CI GitHub Actions memakai `corepack` + cache pnpm/turbo; verifikasi acceptance "clone bersih" di runner.
 - Saat apps terisi kode nyata: ganti stub `src/index.ts`, tambahkan `dev` script per app (task `dev` di turbo.json sudah disiapkan).
 
@@ -50,7 +50,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ### Ringkasan hasil
 
-* Preset `@incasif/config/eslint/boundaries` (`packages/config/eslint/boundaries.cjs`) menegakkan 3 aturan arsitektur via `eslint-plugin-boundaries` v5:
+* Preset `@nawasena/config/eslint/boundaries` (`packages/config/eslint/boundaries.cjs`) menegakkan 3 aturan arsitektur via `eslint-plugin-boundaries` v5:
   1. Lapisan satu arah `router → controller → service → repository` (dilarang loncat lapisan).
   2. Dilarang impor repository lintas modul — antar-modul hanya via service layer.
   3. Dilarang impor SDK AI (`@google/generative-ai`, `groq-sdk`, `openai`) di luar `src/core/ai` (ADR-012).
@@ -181,7 +181,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ### Next steps
 
-* PR-005: `@incasif/api-client` mengonsumsi `requestOtpSchema` sebagai endpoint contoh.
+* PR-005: `@nawasena/api-client` mengonsumsi `requestOtpSchema` sebagai endpoint contoh.
 * PR-007: `validate(schema)` middleware memakai skema paket ini; katalog kode error melengkapi `errorCodeSchema`.
 * PR-016: implementasi endpoint OTP nyata memakai skema contoh ini.
 
@@ -232,7 +232,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 * PR-018: implementasi `refresh()` nyata (rotasi refresh token family) — cukup mengisi hook.
 * PR fitur FE pertama (PR-019+): pasang TanStack Query di apps, konsumsi `requestOtp` + `authKeys` sebagai pola.
-* Endpoint baru selalu ikuti pola `src/endpoints/auth.ts` (skema dari @incasif/schemas, validasi body, responseSchema).
+* Endpoint baru selalu ikuti pola `src/endpoints/auth.ts` (skema dari @nawasena/schemas, validasi body, responseSchema).
 
 **Out of Scope (dicatat):** implementasi refresh nyata (PR-018); hooks TanStack per endpoint (per PR fitur); integrasi ke apps web/mobile.
 
@@ -369,7 +369,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 ### Risiko yang ditemukan
 
 * **Insiden proses (pelajaran):** `git checkout -- server.ts` saat membersihkan uji hot-reload ikut membuang edit `onStopped` yang belum ter-commit — tertangkap `pnpm typecheck` sebelum commit. Pelajaran: bersihkan file uji dengan `sed`/patch, bukan `git checkout`, saat ada perubahan belum ter-commit.
-* Kredensial dev-only tertulis di compose (incasif/incasif) — dev-only by design (ADR-015); compose prod (PR-097) wajib env.
+* Kredensial dev-only tertulis di compose (nawasena/nawasena) — dev-only by design (ADR-015); compose prod (PR-097) wajib env.
 * Polling chokidar menambah CPU idle kecil di container dev — dapat dimatikan per mesin (Linux host tidak membutuhkannya).
 * `depends_on: service_healthy` menunggu start_period API 60s pada mesin lambat — bila mengganggu, turunkan interval healthcheck.
 
@@ -669,7 +669,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 `core/queue` berdiri sebagai satu-satunya jalur produser job: tabel 8 queue SDD §16 menjadi default terdokumentasi, setiap field dapat ditimpa lewat env, dan `enqueue()` melekatkan kebijakan retry/backoff/retensi queue-nya sendiri sehingga pemanggil tidak pernah menentukan angka itu. Sisi konsumen (worker, DLQ, endpoint internal) sengaja belum disentuh — itu PR-015b.
 
-Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (112 passed, 26 skipped di `@incasif/api`; +25 test baru), `check:openapi` sinkron.
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (112 passed, 26 skipped di `@nawasena/api`; +25 test baru), `check:openapi` sinkron.
 
 ### Scope selesai vs tidak
 
@@ -718,7 +718,7 @@ Tidak selesai (dipindah ke PR-015b, dengan alasan): `apps/worker` bootstrap + gr
 
 Sisi konsumen antrean berdiri: `apps/worker` menjadi proses terpisah yang menjalankan satu BullMQ Worker per queue ber-processor, dengan concurrency dan timeout dari konfigurasi PR-015a. Job gagal-final tercatat ke `<queue>:dlq` dan kedalamannya terbaca lewat `GET /internal/queues` yang dijaga token internal. Service Redis ditambahkan ke CI sehingga retry/backoff/DLQ/drain diuji terhadap Redis nyata, bukan mock.
 
-Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (`@incasif/api` 140 passed, 31 skipped; +33 test baru), `check:openapi` sinkron.
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (`@nawasena/api` 140 passed, 31 skipped; +33 test baru), `check:openapi` sinkron.
 
 Seluruh 5 Acceptance Criteria PR-015 kini terpenuhi.
 
@@ -743,7 +743,7 @@ Tidak selesai: **Manual Verification "kill worker saat job jalan"** — Docker D
 3. **Endpoint internal deny-by-default.** `INTERNAL_TOKEN` opsional di env (agar `.env` lama tetap valid), tetapi bila tidak di-set SEMUA permintaan ditolak 401 — konfigurasi yang hilang berarti tertutup, bukan terbuka. Perbandingan token memakai `timingSafeEqual` atas digest SHA-256 sehingga panjang token pun tidak bocor, dan alasan penolakan tidak dibedakan antara "token salah" dan "belum dikonfigurasi" (diuji: kedua respons identik).
 4. **Timeout ditegakkan di worker, bukan di job.** BullMQ v5 tidak lagi punya opsi `timeout` per job; `withTimeout()` mengubah processor yang menggantung menjadi kegagalan biasa sehingga tunduk pada retry/DLQ yang normal.
 5. **Drain memakai `worker.close()` tanpa argumen.** `close(true)` memotong job aktif dan sengaja TIDAK dipakai; test menegaskan `close` dipanggil tanpa argumen agar regresi ke mode paksa ketahuan.
-6. **`apps/worker` mengimpor core lewat subpath export `@incasif/api/core/*`.** Sesuai deskripsi paket "codebase sama dengan api, entry berbeda", tanpa menduplikasi config/logger/queue. `exports` map ditambahkan di `apps/api/package.json`.
+6. **`apps/worker` mengimpor core lewat subpath export `@nawasena/api/core/*`.** Sesuai deskripsi paket "codebase sama dengan api, entry berbeda", tanpa menduplikasi config/logger/queue. `exports` map ditambahkan di `apps/api/package.json`.
 7. **Redis CI tanpa flag `--maxmemory`.** Service container GitHub tidak menerima argumen command; tanpa `maxmemory`, default Redis adalah `noeviction` — syarat BullMQ (ADR-004) tetap terpenuhi.
 8. **Guard skip integration memakai `ctx.skip()`**, bukan `return` biasa. Versi awal melaporkan 5 test "passed" padahal tidak menguji apa pun; sekarang laporannya jujur "5 skipped".
 

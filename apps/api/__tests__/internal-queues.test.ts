@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Writable } from "node:stream";
-import { QUEUE_NAME, QUEUE_NAMES, dlqNameOf, internalQueuesResponseSchema } from "@incasif/schemas";
+import { QUEUE_NAME, QUEUE_NAMES, dlqNameOf, internalQueuesResponseSchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { QUEUE_DEFAULTS, type QueueLike, type QueueRegistry } from "../src/core/queue/index.js";
@@ -12,7 +12,7 @@ const TOKEN = "token-internal-dev";
 
 function testEnv(overrides: NodeJS.ProcessEnv = {}): Env {
   return loadEnv({
-    DATABASE_URL: "postgresql://user:pass@localhost:5432/incasif",
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/nawasena",
     REDIS_URL: "redis://localhost:6379",
     REDIS_QUEUE_URL: "redis://localhost:6380",
     NODE_ENV: "test",

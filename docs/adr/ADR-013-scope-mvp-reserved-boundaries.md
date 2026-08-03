@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Visi Incasif (Deskripsi) mencakup ekosistem penuh: forum komunitas, mentoring, pelatihan, webinar, AI Interview Simulator, dan SignBridge. PRD membaginya ke Fase 1–3. Mendesain rinci seluruh ekosistem sekarang menghasilkan desain spekulatif untuk fitur yang belum tervalidasi; mengabaikannya menghasilkan arsitektur yang harus dirombak saat fitur tiba.
+Visi Nawasena (Deskripsi) mencakup ekosistem penuh: forum komunitas, mentoring, pelatihan, webinar, AI Interview Simulator, dan SignBridge. PRD membaginya ke Fase 1–3. Mendesain rinci seluruh ekosistem sekarang menghasilkan desain spekulatif untuk fitur yang belum tervalidasi; mengabaikannya menghasilkan arsitektur yang harus dirombak saat fitur tiba.
 
 Constraint: Master Instruction melarang penghapusan fitur roadmap; tim harus tetap fokus pada MVP 3–4 bulan.
 
@@ -39,4 +39,4 @@ SDD dan seluruh artefak teknis mendesain **rinci hanya Fase 1 (MVP)**. Fitur eko
 
 ## Referensi
 
-Deskripsi Incasif; PRD §14; SDD §1, §6.1, §15, §19. Terkait: ADR-001, ADR-010.
+Deskripsi Nawasena; PRD §14; SDD §1, §6.1, §15, §19. Terkait: ADR-001, ADR-010.

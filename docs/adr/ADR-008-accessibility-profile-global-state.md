@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Accessibility Profile adalah fitur pembeda utama Incasif (PRD FR-2): pengguna — termasuk penyandang disabilitas ganda — menyusun kombinasi preferensi (skala teks, kontras tinggi, kurangi animasi, bahasa sederhana, preferensi BISINDO, target sentuh besar) dan seluruh UI harus menyesuaikan secara konsisten di web dan mobile, tersinkron antar perangkat (Accessibility Preferences Sync).
+Accessibility Profile adalah fitur pembeda utama Nawasena (PRD FR-2): pengguna — termasuk penyandang disabilitas ganda — menyusun kombinasi preferensi (skala teks, kontras tinggi, kurangi animasi, bahasa sederhana, preferensi BISINDO, target sentuh besar) dan seluruh UI harus menyesuaikan secara konsisten di web dan mobile, tersinkron antar perangkat (Accessibility Preferences Sync).
 
 Constraint: WCAG 2.2 AA adalah gate rilis; implementasi per-halaman akan menghasilkan inkonsistensi yang tidak lolos audit.
 

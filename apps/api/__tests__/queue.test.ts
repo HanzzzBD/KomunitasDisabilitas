@@ -5,7 +5,7 @@ import {
   dlqNameOf,
   queueConfigSchema,
   type QueueName,
-} from "@incasif/schemas";
+} from "@nawasena/schemas";
 import { EnvError } from "../src/core/config/index.js";
 import {
   QUEUE_DEFAULTS,

@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Fitur AI Incasif (AI CV Builder, AI Job Matching re-rank, ekstraksi profil, simplify-text; Fase 2: STT caption, deskripsi gambar) membutuhkan LLM, model embedding, dan STT dengan biaya ~Rp0 pada fase validasi (PRD §9). Melatih model sendiri ditolak pada discovery PRD (tim tanpa ML engineer, tanpa dana GPU).
+Fitur AI Nawasena (AI CV Builder, AI Job Matching re-rank, ekstraksi profil, simplify-text; Fase 2: STT caption, deskripsi gambar) membutuhkan LLM, model embedding, dan STT dengan biaya ~Rp0 pada fase validasi (PRD §9). Melatih model sendiri ditolak pada discovery PRD (tim tanpa ML engineer, tanpa dana GPU).
 
 Constraint: hanya free tier resmi yang diizinkan untuk produksi; kredit proxy development (freemodel.dev) DILARANG dipakai produksi; privasi — data disabilitas tidak dikirim ke provider AI (SDD §7.3).
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Provider AI utama Incasif adalah **Google Gemini** (Gemini Flash untuk chat/ekstraksi JSON/re-rank/multimodal; text-embedding 768-dim untuk matching). **Groq** adalah fallback (Llama untuk chat saat Gemini gagal/429; Whisper untuk STT Fase 2). Seluruh akses provider WAJIB melalui AI Gateway (ADR-012); tidak ada modul yang memanggil provider secara langsung. Setiap fitur AI WAJIB memiliki jalur degradasi non-AI yang berfungsi penuh.
+Provider AI utama Nawasena adalah **Google Gemini** (Gemini Flash untuk chat/ekstraksi JSON/re-rank/multimodal; text-embedding 768-dim untuk matching). **Groq** adalah fallback (Llama untuk chat saat Gemini gagal/429; Whisper untuk STT Fase 2). Seluruh akses provider WAJIB melalui AI Gateway (ADR-012); tidak ada modul yang memanggil provider secara langsung. Setiap fitur AI WAJIB memiliki jalur degradasi non-AI yang berfungsi penuh.
 
 ## Consequences
 

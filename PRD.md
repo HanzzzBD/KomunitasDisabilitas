@@ -1,19 +1,19 @@
 # Product Requirements Document (PRD)
 
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Inclusive Career Ecosystem for People with Disabilities
 
 | | |
 |---|---|
 | **Versi** | 1.1 |
 | **Tanggal** | 15 Juli 2026 |
 | **Status** | Untuk review tim |
-| **Nama produk** | **Incasif** (resmi & final — menggantikan nama kerja "KarirInklusif"/"Inklusia AI" pada versi sebelumnya) |
+| **Nama produk** | **Nawasena** (resmi & final — menggantikan nama kerja "KarirInklusif"/"Inklusia AI" pada versi sebelumnya) |
 
 ---
 
 ## 1. Executive Summary
 
-Incasif adalah platform pencarian kerja (web + mobile) yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia — Tuli, Netra, Daksa, Autisme, dan disabilitas ganda. Platform menggabungkan **AI matching** yang mempertimbangkan jenis disabilitas, kemampuan, dan kebutuhan akomodasi; **asisten karier AI** (pembuatan CV terpandu, simulasi wawancara); serta **transparansi inklusivitas perusahaan**.
+Nawasena adalah platform pencarian kerja (web + mobile) yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia — Tuli, Netra, Daksa, Autisme, dan disabilitas ganda. Platform menggabungkan **AI matching** yang mempertimbangkan jenis disabilitas, kemampuan, dan kebutuhan akomodasi; **asisten karier AI** (pembuatan CV terpandu, simulasi wawancara); serta **transparansi inklusivitas perusahaan**.
 
 Pencari kerja menggunakan platform **100% gratis**. Pendapatan berasal dari sisi B2B (perusahaan): lowongan premium, akses kandidat, dan success fee — diaktifkan bertahap mulai Fase 2.
 
@@ -548,7 +548,7 @@ Instrumentasi: analytics self-hosted (PostHog CE / Umami) — hindari tracker pi
 
 ## 16. Kompetisi & Positioning
 
-| Aspek | **Incasif** | Kerjabilitas (Kemnaker) | Difalink | Portal umum (JobStreet dll.) |
+| Aspek | **Nawasena** | Kerjabilitas (Kemnaker) | Difalink | Portal umum (JobStreet dll.) |
 |---|---|---|---|---|
 | Fokus disabilitas | ✅ inti produk | ✅ | ✅ | ❌ |
 | Aksesibilitas WCAG AA menyeluruh | ✅ gate rilis | Parsial | Parsial | Lemah |
@@ -558,7 +558,7 @@ Instrumentasi: analytics self-hosted (PostHog CE / Umami) — hindari tracker pi
 | Disclosure control per lamaran | ✅ | ❌ | ❌ | ❌ |
 | Konten BISINDO | ✅ (Fase 2–3) | ❌ | ❌ | ❌ |
 
-**Positioning:** bukan sekadar "portal kerja untuk difabel", melainkan **asisten karier aksesibel end-to-end**. Kompetitor menyelesaikan *distribusi lowongan*; Incasif menyelesaikan *seluruh perjalanan*: kepercayaan diri (CV, wawancara), akses (WCAG, BISINDO), kecocokan (AI + akomodasi), dan keamanan psikologis (transparansi + disclosure control). Terhadap Kerjabilitas, posisinya **komplemen, bukan lawan** — jajaki interop/kemitraan dengan Kemnaker (sudah masuk daftar stakeholder).
+**Positioning:** bukan sekadar "portal kerja untuk difabel", melainkan **asisten karier aksesibel end-to-end**. Kompetitor menyelesaikan *distribusi lowongan*; Nawasena menyelesaikan *seluruh perjalanan*: kepercayaan diri (CV, wawancara), akses (WCAG, BISINDO), kecocokan (AI + akomodasi), dan keamanan psikologis (transparansi + disclosure control). Terhadap Kerjabilitas, posisinya **komplemen, bukan lawan** — jajaki interop/kemitraan dengan Kemnaker (sudah masuk daftar stakeholder).
 
 ---
 
