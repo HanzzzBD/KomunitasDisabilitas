@@ -359,7 +359,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 ### Keputusan teknis
 
 1. **Dua service Redis (revisi ADR-004)** — satu-satunya cara memenuhi dua kebijakan eviction; total RAM tetap (SDD §15); queue diberi AOF (job tahan restart) sekaligus memperbaiki konsekuensi negatif lama "RDB bukan AOF".
-2. **Klien `pg` (bukan Prisma) untuk ping DB** — Prisma init = scope PR-009/010; PR-010 tinggal mengganti isi `pingDatabase()` tanpa menyentuh modul health. *[Koreksi 2026-08-01: penggantian ini TIDAK pernah dilakukan. PR-010 merged sebagai migrasi domain seeker tanpa menyentuh `core/db`, sehingga API sampai kini membawa dua klien DB (`pg` khusus readiness ping + Prisma). Utang terbuka — belum punya pemilik.]*
+2. **Klien `pg` (bukan Prisma) untuk ping DB** — Prisma init = scope PR-009/010; PR-010 tinggal mengganti isi `pingDatabase()` tanpa menyentuh modul health. *[Koreksi 2026-08-01: penggantian ini TIDAK pernah dilakukan. PR-010 merged sebagai migrasi domain seeker tanpa menyentuh `core/db`, sehingga API sampai kini membawa dua klien DB (`pg` khusus readiness ping + Prisma). Utang ini ditempatkan di **PR-097** (Phase 16) atas keputusan owner 2026-08-01.]*
 3. **Health di root path** — `/healthz` `/readyz` bukan bagian kontrak klien `/api/v1`; konsumen adalah compose/Uptime Kuma (SDD §17).
 4. **`BELUM_SIAP` (503) masuk katalog** — konsisten envelope; detail per-dependensi tidak dibocorkan ke response (fingerprinting infra), hanya ke log.
 5. **Hot-reload via `CHOKIDAR_USEPOLLING=true`** — bind mount NTFS→container tidak meneruskan inotify (keterbatasan Docker Desktop); polling interval 800ms cukup responsif (restart <12s) tanpa membebani CPU berarti.
