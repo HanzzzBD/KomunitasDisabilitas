@@ -780,3 +780,21 @@ Catatan proses — ini kegagalan unit test, bukan hanya kegagalan SDD:
 Pelajaran yang relevan untuk PR berikutnya: setiap batasan pustaka pihak ketiga yang kita tulis sebagai komentar sebaiknya punya satu test yang menegakkannya — kalau tidak, komentar itu hanya keyakinan.
 
 Dampak ke SDD: §16 perlu dikoreksi pada DUA hal — contoh job id `extract:{sessionId}` (temuan PR-015a) dan penamaan queue `<domain>:<pekerjaan>` (temuan ini).
+
+### Tambahan PR-015b — Manual Verification container: dua bug yang lolos dari test
+
+*2026-08-01 — AC "kill worker saat job jalan" akhirnya dikerjakan setelah Docker tersedia.*
+
+Hasil akhir **LULUS**: job 20 detik, `docker stop` di detik 5 → worker menerima SIGTERM, job berlanjut sampai detik 20 dan selesai utuh, "Worker berhenti bersih" (exit 0, tanpa force-kill). Redis mengonfirmasi `active=0` dan `finishedOn` terisi.
+
+Tetapi untuk sampai ke sana, verifikasi ini menyingkap **dua bug yang seluruh 173 test tidak bisa menangkapnya**, karena keduanya ada di lapisan container, bukan di kode aplikasi.
+
+**Bug 1 — `tsx watch` membatalkan drain.** Compose menjalankan worker dengan `pnpm --filter @nawasena/worker dev` (= `tsx watch`). Saat SIGTERM, handler kita berjalan benar dan job memang dilanjutkan — tetapi 5 detik kemudian `tsx` mencetak `Process didn't exit in 5s. Force killing...` dan membunuh prosesnya. Job 20 detik terputus di detik 10 dan tertinggal di state `active` (`processedOn` terisi, `finishedOn` kosong). `stop_grace_period: 60s` yang dipasang PR-015b jadi tidak ada artinya. Perbaikan: worker dev memakai `start` (tsx biasa), bukan `dev`. Konsekuensi yang diterima: worker tidak hot-reload.
+
+**Bug 2 — `node_modules` workspace rusak di container.** pnpm di Windows membuat symlink **absolut** ke `/mnt/host/c/...`, path yang tidak ada di dalam container. Named volume hanya menutupi `node_modules` root, `apps/api`, dan `apps/worker` — `packages/*/node_modules` tidak, sehingga terbawa dari host dalam keadaan rusak. Gejalanya menyesatkan: `ERR_MODULE_NOT_FOUND: Cannot find package 'zod-openapi'` untuk paket yang jelas ada di `package.json` dan lockfile. Perbaikan: tambah named volume untuk `packages/schemas` dan `packages/config`, plus komentar aturannya di compose.
+
+**Bug 3 (kecil) — kunci `service` ganda di log worker.** `createLogger(env).child({ service: "worker" })` tidak menimpa `base`, jadi baris JSON berisi `{"service":"api","service":"worker"}`. `createLogger` kini menerima opsi `service`; ditambahkan test regresi yang menghitung kemunculan kunci `"service":` pada baris mentah.
+
+Catatan proses yang layak diingat: PR-015b lolos CI dengan 173 test hijau — termasuk integration test drain terhadap Redis nyata — dan tetap menyimpan bug yang membuat drain tidak berfungsi di container. Integration test membuktikan `runtime.drain()` menunggu job; ia tidak bisa tahu bahwa pembungkus prosesnya membunuh worker duluan. Untuk komponen yang perilakunya ditentukan lingkungan (sinyal, mount, proses), menjalankannya sungguhan tidak tergantikan oleh test.
+
+Perbaikannya ada di PR `fix-worker-dev-container` (terpisah dari PR-015b yang sudah merged).

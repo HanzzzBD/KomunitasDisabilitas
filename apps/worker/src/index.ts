@@ -36,7 +36,7 @@ try {
   process.exit(1);
 }
 
-const logger = createLogger(env).child({ service: "worker" });
+const logger = createLogger(env, { service: "worker" });
 const connection = { url: env.REDIS_QUEUE_URL };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).

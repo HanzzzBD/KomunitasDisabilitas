@@ -39,6 +39,13 @@ export const REDACTION_PATHS: string[] = [
 export interface LoggerOptions {
   /** Override tujuan output (test menangkap stream). Default: stdout. */
   destination?: DestinationStream;
+  /**
+   * Nama service pada setiap baris log. Default "api"; apps/worker
+   * memakai "worker". Diberikan di sini, BUKAN lewat `.child({service})`,
+   * karena child tidak menimpa `base` — hasilnya baris JSON dengan kunci
+   * `service` ganda (terlihat di manual verification PR-015).
+   */
+  service?: string;
 }
 
 /** Logger dasar aplikasi — JSON satu baris per event, siap dikonsumsi Dozzle. */
@@ -46,7 +53,7 @@ export function createLogger(env: Pick<Env, "LOG_LEVEL">, options: LoggerOptions
   return pino(
     {
       level: env.LOG_LEVEL,
-      base: { service: "api" },
+      base: { service: options.service ?? "api" },
       redact: { paths: REDACTION_PATHS, censor: REDACTED },
       timestamp: pino.stdTimeFunctions.isoTime,
       formatters: {

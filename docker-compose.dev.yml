@@ -80,9 +80,19 @@ services:
         condition: service_healthy
     volumes:
       # Hot-reload: source di-mount; node_modules milik container (binary Linux).
+      #
+      # SETIAP folder node_modules workspace WAJIB ditutup named volume.
+      # Sebabnya: pnpm di Windows membuat symlink ABSOLUT ke
+      # /mnt/host/c/... — path itu tidak ada di dalam container, jadi
+      # node_modules host yang ikut terbawa bind mount seluruhnya rusak.
+      # Gejalanya menyesatkan: ERR_MODULE_NOT_FOUND untuk paket yang jelas
+      # ada di package.json dan lockfile.
+      # Menambah workspace baru yang dipakai runtime = tambahkan volumenya.
       - .:/workspace
       - api_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
       interval: 10s
@@ -97,7 +107,16 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
       target: dev
-    command: ["pnpm", "--filter", "@nawasena/worker", "dev"]
+    # `start` (tsx biasa), BUKAN `dev` (tsx watch) — disengaja.
+    # `tsx watch` membunuh paksa proses anaknya 5 detik setelah SIGTERM
+    # ("Process didn't exit in 5s. Force killing"), sehingga drain job aktif
+    # terpotong dan `stop_grace_period` di bawah tidak ada gunanya.
+    # Terbukti pada manual verification PR-015: dengan `dev`, job 20 detik
+    # terputus di detik 10 dan tertinggal di state `active`; dengan `start`,
+    # job selesai utuh lalu worker keluar bersih (exit 0).
+    # Konsekuensi: worker tidak hot-reload — restart manual setelah mengubah
+    # processor (`docker compose restart worker`).
+    command: ["pnpm", "--filter", "@nawasena/worker", "start"]
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://nawasena:nawasena@postgres:5432/nawasena
@@ -112,12 +131,15 @@ services:
       redis-queue:
         condition: service_healthy
     volumes:
+      # Lihat catatan node_modules pada service api — berlaku sama di sini.
       - .:/workspace
       - api_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules
       - worker_app_node_modules:/workspace/apps/worker/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
     # SIGTERM → drain job aktif. Beri waktu lebih dari default 10s karena
-    # job terpanjang (maintenance:backup) berdurasi menit.
+    # job terpanjang (maintenance-backup) berdurasi menit.
     stop_grace_period: 60s
 
 volumes:
@@ -126,3 +148,5 @@ volumes:
   api_node_modules:
   api_app_node_modules:
   worker_app_node_modules:
+  schemas_node_modules:
+  config_node_modules:
