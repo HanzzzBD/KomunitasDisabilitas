@@ -1213,6 +1213,13 @@ RB-Std; antrean in-flight aman karena idempotensi.
 
 * Kehilangan job saat Redis crash. Mitigasi: semua job idempotent + re-enqueue dari state DB (SDD §16).
 
+#### Log Implementasi
+
+* 2026-07-27 — PR-015a selesai (registry, config env, enqueue helper). Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-015a--corequeue-registry-config-env-enqueue-helper).
+* 2026-07-27 — PR-015b selesai (worker bootstrap, DLQ, `GET /internal/queues`). Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-015b--worker-bootstrap-dlq-dan-get-internalqueues).
+* 2026-07-31 — Koreksi nama queue: BullMQ melarang `:` pada nama queue (CI merah). Lihat [Tambahan PR-015b](log/implementation_log_phase01.md#tambahan-pr-015b--nama-queue-sdd-16-tidak-dapat-dipakai-apa-adanya).
+* 2026-08-01 — Manual Verification container selesai; menemukan 2 bug yang lolos dari 173 test. Lihat [Tambahan PR-015b](log/implementation_log_phase01.md#tambahan-pr-015b--manual-verification-container-dua-bug-yang-lolos-dari-test).
+
 
 ## Exit Criteria
 
