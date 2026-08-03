@@ -267,6 +267,7 @@ Bisnis: artefak rilis deterministik (rollback pasti). Teknis: workflow build mul
 **Backend Changes:**
 
 * Dockerfile produksi (non-root, distroless/slim).
+* **Entry worker produksi WAJIB non-watch** (`tsx src/index.ts` atau JS ter-compile), **JANGAN `tsx watch`.** Alasan konkret, bukan preferensi: `tsx watch` membunuh paksa proses anaknya 5 detik setelah SIGTERM (`Process didn't exit in 5s. Force killing...`), sehingga graceful drain BullMQ terpotong dan job aktif tertinggal di state `active`. Terbukti pada Manual Verification PR-015 (2026-08-01): job 20 detik terputus di detik 10 dengan `tsx watch`, selesai utuh dengan entry non-watch. `stop_grace_period` di compose tidak menolong — pembungkus proses membunuh lebih dulu. Compose dev sudah diperbaiki; target prod di PR ini tidak boleh mengulanginya. Rujukan: log implementasi Phase 01, bagian "Manual Verification container".
 
 **Frontend Changes:**
 

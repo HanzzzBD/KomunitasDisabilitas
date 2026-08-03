@@ -47,6 +47,7 @@ Bisnis: kepercayaan pengguna atas platform yang menyimpan data spesifik. Teknis:
 * CSP final (tanpa unsafe-inline; nonce bila perlu)
 * Review limit semua mutasi + endpoint sensitif
 * Update nginx (PR-098) selaras
+* **Redis store untuk `express-rate-limit`** — utang dari PR-008 (ditunda dengan persetujuan owner). Saat ini limiter memakai memory store bawaan, artinya hitungan **tidak dibagi antar-replika**: dengan 2 replika API (SDD §19), pengguna efektif mendapat 2× jatah, dan hitungan hilang setiap restart. Klien Redis queue sudah tersedia sejak PR-008 (`core/redis`). Ditempatkan di sini atas keputusan owner 2026-08-01 karena PR inilah yang menggarap rate limit secara serius. **Catatan penomoran:** log PR-008 menulis utang ini akan dikerjakan "bersama wiring BullMQ (PR-010)" — nomor itu basi; wiring BullMQ ternyata PR-015, dan PR-010 adalah migrasi seeker.
 
 #### Technical Notes
 

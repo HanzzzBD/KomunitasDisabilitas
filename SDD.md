@@ -652,17 +652,21 @@ Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
 
 ## 16. Queue Design (BullMQ / Redis)
 
+> **Koreksi 2026-08-01 (PR-015):** separator nama queue dan job id semula ditulis `:`. **BullMQ melarang karakter `:` pada nama queue MAUPUN custom job id** (dipakai untuk namespacing key Redis) — `new Queue("ai:embed")` melempar `Queue name cannot contain :`. Kesalahan ini baru ketahuan saat integration test berjalan terhadap Redis nyata di CI. Seluruh nama di bawah karena itu memakai `-`; domain dan pekerjaan tetap terbaca.
+
 | Queue | Producer → Processor | Concurrency | Retry/Backoff | Timeout | Catatan |
 |---|---|---|---|---|---|
-| `ai:extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
-| `ai:rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
-| `ai:embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
-| `pdf:render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
-| `notify:push` / `notify:email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
-| `maintenance:pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
-| `maintenance:backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
+| `ai-extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
+| `ai-rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
+| `ai-embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
+| `pdf-render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
+| `notify-push` / `notify-email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
+| `maintenance-pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
+| `maintenance-backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
 
-Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract:{sessionId}`) untuk anti-duplikat; Redis untuk queue memakai DB index terpisah dari cache (cache boleh LRU-evict, queue tidak boleh).
+Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue (queue pendamping `<queue>-dlq`) → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract-{sessionId}`, dibangun lewat `buildJobId()` di `core/queue`) untuk anti-duplikat; queue dan cache memakai **dua service Redis terpisah** — cache boleh LRU-evict, queue wajib `noeviction` (ADR-004 revisi PR-008; rumusan lama "dua DB index" tidak dapat memenuhi kebutuhan eviction yang berbeda karena `maxmemory-policy` berlaku per instance).
+
+Kolom **Retry** di tabel ini berarti jumlah RETRY, sedangkan opsi `attempts` BullMQ menghitung percobaan pertama — pemetaan `attempts = retry + 1` dilakukan sekali di `QUEUE_DEFAULTS` (`apps/api/src/core/queue/definitions.ts`). Kolom **Timeout** ditegakkan worker, bukan opsi job: BullMQ v5 tidak lagi punya `timeout` per job.
 
 ---
 
