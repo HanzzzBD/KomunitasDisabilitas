@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif menyimpan secrets kritis: kunci enkripsi field (`FIELD_KEY_*`, ADR-007), kunci backup `age`, kredensial DB, API key Gemini/Groq/Fonnte/FCM/R2, private key JWT. Kebocoran kunci enkripsi mengalahkan perlindungan data spesifik UU PDP (Risiko T8).
+Nawasena menyimpan secrets kritis: kunci enkripsi field (`FIELD_KEY_*`, ADR-007), kunci backup `age`, kredensial DB, API key Gemini/Groq/Fonnte/FCM/R2, private key JWT. Kebocoran kunci enkripsi mengalahkan perlindungan data spesifik UU PDP (Risiko T8).
 
 Constraint: satu VPS, tim 2–5 orang, tanpa anggaran layanan KMS; deploy via CI (ADR-016).
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Secrets Incasif dikelola melalui **file `.env` per environment di VPS** (`/srv/incasif/{prod,staging}/.env`, `chmod 600`, owner deploy-user, di luar git) dan **GitHub Actions Secrets** untuk kebutuhan CI. Template `.env.example` tanpa nilai berada di repo; parsing env divalidasi zod saat boot (fail-fast). Kunci enkripsi field dan kunci backup juga disimpan di password manager tim sebagai jalur disaster recovery. Prosedur rotasi terdokumentasi di runbook. Vault/Infisical adalah jalur upgrade bila tim > 5 orang atau multi-host.
+Secrets Nawasena dikelola melalui **file `.env` per environment di VPS** (`/srv/nawasena/{prod,staging}/.env`, `chmod 600`, owner deploy-user, di luar git) dan **GitHub Actions Secrets** untuk kebutuhan CI. Template `.env.example` tanpa nilai berada di repo; parsing env divalidasi zod saat boot (fail-fast). Kunci enkripsi field dan kunci backup juga disimpan di password manager tim sebagai jalur disaster recovery. Prosedur rotasi terdokumentasi di runbook. Vault/Infisical adalah jalur upgrade bila tim > 5 orang atau multi-host.
 
 ## Consequences
 

@@ -40,7 +40,7 @@ async function lintFile(relPath: string) {
   };
 }
 
-describe("preset boundaries (@incasif/config/eslint/boundaries)", () => {
+describe("preset boundaries (@nawasena/config/eslint/boundaries)", () => {
   it("menolak impor repository lintas modul (element-types)", async () => {
     const { ruleIds } = await lintFile(
       "violations/cross-module-repo/src/modules/jobs/services/jobs.service.ts",

@@ -31,7 +31,7 @@ Gerbang rilis: sweep a11y otomatis penuh, audit formal penguji disabilitas (gate
 * **PR-109** - Baseline a11y otomatis bersih
 * **PR-110** - Laporan audit RC + produk lulus gate aksesibilitas
 * **PR-111** - RC ditandatangani + app di internal track
-* **PR-112** - Incasif v1.0.0 live + pilot berjalan
+* **PR-112** - Nawasena v1.0.0 live + pilot berjalan
 
 ## Pull Requests
 
@@ -289,6 +289,7 @@ Bisnis: MVP live untuk pilot 1–2 komunitas disabilitas (menuju North Star ≥5
 * Eksekusi rilis + rollout Play bertahap (20%→100%)
 * Monitoring intensif + go/no-go pilot
 * Pengumuman ke komunitas pilot (materi aksesibel)
+* **Lisensi proyek/API ditetapkan** — prasyarat rilis publik, keputusan owner yang masih terbuka sejak PR-004 (2026-07-18). Saat ini tidak ada file `LICENSE` di root dan `info.license` kosong di `openapi.json` (`redocly lint` memberi warning `info-license`). Rilis v1.0.0 ke publik tanpa lisensi eksplisit membuat status hak cipta dan hak pakai tidak jelas bagi pengguna maupun calon kontributor. Setelah diputuskan: tambah `LICENSE` di root + isi `info.license` pada generator OpenAPI (`packages/schemas`), lalu regenerate `openapi.json`.
 
 #### Technical Notes
 
@@ -326,7 +327,7 @@ Bisnis: MVP live untuk pilot 1–2 komunitas disabilitas (menuju North Star ≥5
 
 **Deliverables:**
 
-* Incasif v1.0.0 live + pilot berjalan
+* Nawasena v1.0.0 live + pilot berjalan
 
 **Out of Scope:**
 

@@ -6,18 +6,18 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif membutuhkan: (a) data relasional transaksional (users, jobs, applications dengan integritas FK), (b) penyimpanan embedding 768-dimensi untuk AI Job Matching (PRD §9), (c) full-text search lowongan, dan (d) penyimpanan data sensitif terenkripsi (UU PDP). Semua harus berjalan pada satu VPS 8 GB dengan tim tanpa DBA khusus.
+Nawasena membutuhkan: (a) data relasional transaksional (users, jobs, applications dengan integritas FK), (b) penyimpanan embedding 768-dimensi untuk AI Job Matching (PRD §9), (c) full-text search lowongan, dan (d) penyimpanan data sensitif terenkripsi (UU PDP). Semua harus berjalan pada satu VPS 8 GB dengan tim tanpa DBA khusus.
 
 Constraint: biaya ≤ Rp300rb/bulan; satu datastore lebih murah dioperasikan daripada beberapa.
 
 Alternatif yang dipertimbangkan:
-1. **PostgreSQL + vector DB terpisah (Qdrant/Pinecone)** — performa vektor lebih tinggi pada skala jutaan embedding, tetapi menambah sistem yang harus disinkronkan dan dipelihara; skala Incasif (ribuan embedding) tidak membutuhkannya.
+1. **PostgreSQL + vector DB terpisah (Qdrant/Pinecone)** — performa vektor lebih tinggi pada skala jutaan embedding, tetapi menambah sistem yang harus disinkronkan dan dipelihara; skala Nawasena (ribuan embedding) tidak membutuhkannya.
 2. **MySQL/MariaDB** — tanpa dukungan vector native yang matang dan FTS lebih lemah.
 3. **PostgreSQL 18 + pgvector** — satu datastore untuk relasional + vektor + FTS.
 
 ## Decision
 
-Database utama Incasif adalah **PostgreSQL 18 dengan ekstensi pgvector**, diakses melalui **Prisma** sebagai ORM. Kolom embedding (`seeker_profiles.profile_embedding`, `jobs.job_embedding`) bertipe `vector(768)` dengan indeks HNSW; fitur yang belum didukung Prisma (tipe vector, indeks HNSW/GIN/FTS) ditulis sebagai raw SQL di dalam file migrasi Prisma. Pencarian lowongan menggunakan FTS + pg_trgm bawaan PostgreSQL (ADR-018).
+Database utama Nawasena adalah **PostgreSQL 18 dengan ekstensi pgvector**, diakses melalui **Prisma** sebagai ORM. Kolom embedding (`seeker_profiles.profile_embedding`, `jobs.job_embedding`) bertipe `vector(768)` dengan indeks HNSW; fitur yang belum didukung Prisma (tipe vector, indeks HNSW/GIN/FTS) ditulis sebagai raw SQL di dalam file migrasi Prisma. Pencarian lowongan menggunakan FTS + pg_trgm bawaan PostgreSQL (ADR-018).
 
 ## Consequences
 

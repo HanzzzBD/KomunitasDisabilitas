@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Sebagian pengguna target Incasif memakai koneksi 3G/kuota terbatas (PRD §7: interaktif < 3 detik pada 3G). Strategi offline memiliki spektrum biaya: dari online-only hingga offline-first dengan sinkronisasi dua arah. Timeline MVP 3–4 bulan dengan tim 2–5 orang menuntut pemangkasan kompleksitas yang tidak esensial untuk validasi.
+Sebagian pengguna target Nawasena memakai koneksi 3G/kuota terbatas (PRD §7: interaktif < 3 detik pada 3G). Strategi offline memiliki spektrum biaya: dari online-only hingga offline-first dengan sinkronisasi dua arah. Timeline MVP 3–4 bulan dengan tim 2–5 orang menuntut pemangkasan kompleksitas yang tidak esensial untuk validasi.
 
 Constraint: fitur inti (feed matching, apply, chat AI) secara inheren membutuhkan server; nilai offline pada MVP terbatas pada pembacaan konten.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-MVP Incasif adalah **online-only**. Saat offline, aplikasi menampilkan banner `role="alert"` berbahasa sederhana dengan tombol coba lagi; TanStack Query dikonfigurasi `networkMode: 'online'` sehingga mutasi tertahan, tidak gagal diam-diam. Fondasi PWA (manifest + service worker untuk cache aset statis saja) tetap dipasang sejak MVP agar peningkatan ke offline dasar pada Fase 2 tidak merombak arsitektur. Kemampuan offline penuh adalah item roadmap Fase 2, bukan penghapusan fitur.
+MVP Nawasena adalah **online-only**. Saat offline, aplikasi menampilkan banner `role="alert"` berbahasa sederhana dengan tombol coba lagi; TanStack Query dikonfigurasi `networkMode: 'online'` sehingga mutasi tertahan, tidak gagal diam-diam. Fondasi PWA (manifest + service worker untuk cache aset statis saja) tetap dipasang sejak MVP agar peningkatan ke offline dasar pada Fase 2 tidak merombak arsitektur. Kemampuan offline penuh adalah item roadmap Fase 2, bukan penghapusan fitur.
 
 ## Consequences
 

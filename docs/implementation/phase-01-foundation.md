@@ -26,7 +26,7 @@ Fondasi monorepo, tooling, database, dan modul core (crypto/audit/queue) yang me
 * **PR-002** - Preset eslint boundaries + fixtures
 * **PR-003** - Pipeline CI aktif + branch protection
 * **PR-004** - Paket schemas + OpenAPI pipeline
-* **PR-005** - `@incasif/api-client` siap dipakai web/mobile
+* **PR-005** - `@nawasena/api-client` siap dipakai web/mobile
 * **PR-006** - API bootable dengan fondasi config/logging
 * **PR-007** - Middleware core/http lengkap + katalog kode error awal
 * **PR-008** - Compose dev lengkap + health endpoints
@@ -180,7 +180,7 @@ RB-Std.
 * [x] Import repo lintas modul → lint error (fixture `violations/cross-module-repo`, rule `boundaries/element-types`).
 * [x] Import SDK AI di luar `core/ai` → lint error (fixture `violations/ai-sdk-outside-core`, rule `boundaries/external`).
 * [x] Loncat lapisan (router→repo) → lint error (fixture `violations/layer-jump`, rule `boundaries/element-types`).
-* [x] Preset dipakai `apps/api` via extends tunggal (`apps/api/.eslintrc.cjs` = satu baris `require("@incasif/config/eslint/boundaries")`).
+* [x] Preset dipakai `apps/api` via extends tunggal (`apps/api/.eslintrc.cjs` = satu baris `require("@nawasena/config/eslint/boundaries")`).
 * [x] Dokumentasi aturan tersedia (`packages/config/README.md`: klasifikasi elemen, 3 aturan, escape hatch, cara menjalankan test fixture).
 
 #### Dependencies
@@ -234,7 +234,7 @@ Bisnis: kualitas tidak bergantung ingatan reviewer. Teknis: workflow PR dengan c
 
 **Testing Checklist:**
 
-* [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@incasif/config`, bukti fixture boundaries)
+* [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@nawasena/config`, bukti fixture boundaries)
 * [x] Integration Test (N/A — dicatat)
 * [x] E2E Test (slot job `e2e` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
 * [x] Accessibility Test (slot job `a11y` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
@@ -255,7 +255,7 @@ Nonaktifkan required check sementara via settings; revert workflow.
 #### Acceptance Criteria
 
 * [x] PR tidak dapat merge tanpa semua check hijau — branch protection aktif di `main`: required check `lint-typecheck-test` (strict), require PR before merge, `enforce_admins: true`.
-* [x] Pelanggaran boundaries menggagalkan CI (bukti fixture) — job `lint-typecheck-test` menjalankan `pnpm lint` (boundaries) + `pnpm test` (8 test fixture `@incasif/config`); keduanya `--max-warnings=0`, pelanggaran = exit ≠ 0 = check merah.
+* [x] Pelanggaran boundaries menggagalkan CI (bukti fixture) — job `lint-typecheck-test` menjalankan `pnpm lint` (boundaries) + `pnpm test` (8 test fixture `@nawasena/config`); keduanya `--max-warnings=0`, pelanggaran = exit ≠ 0 = check merah.
 * [x] Cache mempercepat run kedua (< 50% durasi run pertama) — terverifikasi di PR uji #1: step terdampak cache 12s → 3s (25%); job total 26s → 14s (sisa = overhead tetap runner). Turbo cache hit penuh ("replaying logs").
 * [x] Workflow permission least-privilege (`permissions: contents: read`; tanpa secrets).
 * [x] Status check terdokumentasi di README (tabel check, cara baca kegagalan, langkah branch protection).
@@ -393,15 +393,15 @@ Bisnis: konsistensi perilaku web & mobile. Teknis: client dengan auth header, pa
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parse, retry, error mapping)
-* [ ] Integration Test (mock server)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (contoh dipanggil dari script)
+* [x] Unit Test (parse, retry, error mapping — 16 test: envelope→ApiError, 401→refresh→retry tanpa loop, JARINGAN_GAGAL/RESPONS_TIDAK_DIKENAL, queryKey deterministik)
+* [x] Integration Test (mock server via fetch injection — jsonResponse stub; tanpa DOM/msw)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (contoh `requestOtp` dipanggil dari script tsx dengan fetch stub — sukses + validasi klien menolak input buruk)
 
 **Deliverables:**
 
-* `@incasif/api-client` siap dipakai web/mobile
+* `@nawasena/api-client` siap dipakai web/mobile
 
 **Out of Scope:**
 
@@ -413,11 +413,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Envelope error terpetakan ke tipe TS `{code,message,hint}`.
-* [ ] 401 → satu kali refresh → retry (mock).
-* [ ] Tidak ada dependensi DOM (jalan di RN).
-* [ ] Query key convention terdokumentasi.
-* [ ] Tree-shakeable (bundle test).
+* [x] Envelope error terpetakan ke tipe TS `{code,message,hint}` — class `ApiError` membawa `ErrorEnvelope` + `status`; body tak dikenal → `RESPONS_TIDAK_DIKENAL` (teks mentah server tidak diteruskan).
+* [x] 401 → satu kali refresh → retry (mock) — hook `refresh()` dipanggil sekali, retry sekali dengan token terbaru dari `getAccessToken()`; 401 kedua tidak loop; default stub menolak (implementasi nyata PR-018).
+* [x] Tidak ada dependensi DOM (jalan di RN) — fetch injectable (default `globalThis.fetch`); bundle test assert tidak ada `document/window/localStorage/XMLHttpRequest`; suite jalan di environment node polos.
+* [x] Query key convention terdokumentasi — `[domain, params]` (params dinormalisasi deterministik) + factory `authKeys`; README paket.
+* [x] Tree-shakeable (bundle test) — `sideEffects: false`; test esbuild: impor `queryKey` saja → bundle tanpa client/endpoint/zod.
 
 #### Dependencies
 
@@ -426,6 +426,10 @@ RB-Std.
 #### Risks
 
 * Abstraksi berlebih. Mitigasi: hanya wrap fetch + envelope, tanpa magic.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-005--packagesapi-client).
 
 
 ### PR-006 - API Bootstrap — core/config + core/logger
@@ -467,11 +471,11 @@ Bisnis: kegagalan konfigurasi ketahuan saat deploy, bukan saat user memakai. Tek
 
 **Testing Checklist:**
 
-* [ ] Unit Test (config parse, redaction)
-* [ ] Integration Test (boot + shutdown)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (boot dengan env rusak)
+* [x] Unit Test (config parse, redaction — 21 test: fail-fast per variabel, default, coerce PORT, 10 field redaction + nested + non-sensitif tak ter-redact)
+* [x] Integration Test (boot + shutdown — 5 test: HTTP nyata port ephemeral, requestId per baris, redaction end-to-end header nyata, SIGTERM/SIGINT via emit, stop idempotent)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (boot env kosong → exit 1 + pesan menyebut DATABASE_URL/REDIS_URL; boot env valid → "API siap menerima koneksi" bootMs=8)
 
 **Deliverables:**
 
@@ -487,11 +491,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Env wajib kosong → exit code ≠ 0 dengan pesan variabel mana yang hilang.
-* [ ] Log JSON memuat requestId di setiap baris request-scoped.
-* [ ] Redaction test: nilai secret tidak muncul di output.
-* [ ] Graceful shutdown (SIGTERM) menutup server bersih.
-* [ ] Boot < 3 detik di dev.
+* [x] Env wajib kosong → exit code ≠ 0 dengan pesan variabel mana yang hilang — `EnvError` mendaftar `[variabel, alasan]`; entry point cetak + exit 1 (diverifikasi manual: exit 1, pesan menyebut DATABASE_URL & REDIS_URL + rujukan .env.example).
+* [x] Log JSON memuat requestId di setiap baris request-scoped — pino-http `genReqId` uuid v4; test integration: 2 request → 2 requestId berbeda, semua baris request-scoped ber-requestId.
+* [x] Redaction test: nilai secret tidak muncul di output — deny list 10 kunci (authorization, cookie, otp, password, token, accessToken, refreshToken, fieldKey, apiKey, secret) level atas + bersarang + header req; diuji unit & end-to-end (header Authorization request nyata tidak menyentuh log).
+* [x] Graceful shutdown (SIGTERM) menutup server bersih — `registerShutdownHooks` (SIGTERM/SIGINT, anti-double-stop, exit 0/1); diuji via `process.emit`. Catatan: kill di Windows dev = hard-terminate (sinyal POSIX tidak sampai — keterbatasan OS, bukan kode); efektif di Linux/Docker target deploy.
+* [x] Boot < 3 detik di dev — diukur di test integration (< 3000ms); boot manual nyata: bootMs=8.
 
 #### Dependencies
 
@@ -501,6 +505,10 @@ RB-Std.
 #### Risks
 
 * Redaction list tidak lengkap. Mitigasi: deny-by-default untuk kunci baru bermuatan credential + review PR-013/014.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-006--api-bootstrap--coreconfig--corelogger).
 
 
 ### PR-007 - core/http — Envelope, asyncHandler, Helmet, Rate Limit Global
@@ -542,11 +550,11 @@ Bisnis: pesan error ramah pengguna disabilitas (dibaca screen reader). Teknis: e
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapper error)
-* [ ] Integration Test (throw async → envelope; 429)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A — pesan diuji di FE)
-* [ ] Manual Verification (curl error paths)
+* [x] Unit Test (mapper error — katalog lolos errorCodeSchema, status/message/hint terisi, inline snapshot, AppError override, asyncHandler → next)
+* [x] Integration Test (throw async → envelope 500 tanpa bocor + proses hidup; 429 + Retry-After; validate body/query; JSON rusak → 400; 404; helmet snapshot; CORS whitelist vs asing; requestId di baris error)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — pesan diuji di FE)
+* [x] Manual Verification (curl: 404, JSON rusak, 429 ber-Retry-After, headers helmet — semua envelope katalog)
 
 **Deliverables:**
 
@@ -562,11 +570,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Error async tertangkap → envelope (tidak crash proses).
-* [ ] `message` semua error teruji berbahasa Indonesia sederhana (katalog kode error).
-* [ ] 429 dikembalikan dengan `Retry-After`.
-* [ ] Stack trace hanya ke logger, tidak ke klien.
-* [ ] Security headers dasar terpasang (helmet snapshot).
+* [x] Error async tertangkap → envelope (tidak crash proses) — `asyncHandler` → error handler global; test: setelah 500, request berikutnya tetap dilayani.
+* [x] `message` semua error teruji berbahasa Indonesia sederhana (katalog kode error) — `ERROR_CATALOG` terpusat 7 kode (+`TIDAK_TERAUTENTIKASI` 401, `TIDAK_BERHAK` 403 sesuai review); test: format kode via `errorCodeSchema`, message+hint wajib terisi, inline snapshot agar perubahan pesan selalu ke-review.
+* [x] 429 dikembalikan dengan `Retry-After` — handler kustom express-rate-limit → envelope + header; diuji integration & curl.
+* [x] Stack trace hanya ke logger, tidak ke klien — test: response 500 tidak memuat pesan internal, baris log error memuatnya + ber-requestId.
+* [x] Security headers dasar terpasang (helmet snapshot) — inline snapshot: nosniff, frame DENY, referrer-policy, CORP, tanpa x-powered-by. CSP ketat & HSTS sengaja off (PR-105 / urusan edge).
 
 #### Dependencies
 
@@ -575,6 +583,10 @@ RB-Std.
 #### Risks
 
 * Katalog kode error tidak disiplin. Mitigasi: enum kode terpusat, lint penggunaan string literal.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-007--corehttp--envelope-asynchandler-helmet-rate-limit-global).
 
 
 ### PR-008 - Docker Compose Dev + Health Endpoints
@@ -617,11 +629,11 @@ Bisnis: onboarding engineer < 1 jam. Teknis: compose dev + init pgvector + dua k
 
 **Testing Checklist:**
 
-* [ ] Unit Test (health handler)
-* [ ] Integration Test (readyz vs dependensi mati)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (compose up dari nol)
+* [x] Unit Test (health handler — liveness tanpa dependensi; readiness siap hanya bila semua ok; detail per dependensi; ping menggantung → timeout 2s)
+* [x] Integration Test (readyz vs dependensi mati — endpoint nyata dengan DB/Redis menunjuk port mati → 503 `BELUM_SIAP`; /healthz tetap 200)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (compose up dari nol: `down -v` → `up --build` → 4 container healthy; readyz 503 saat redis-cache di-stop lalu pulih 200; hot-reload; `docker stop` graceful)
 
 **Deliverables:**
 
@@ -637,11 +649,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] `docker compose up` → API sehat dalam satu perintah di mesin bersih.
-* [ ] `/readyz` gagal bila Redis/DB mati (diuji).
-* [ ] DB cache Redis ber-`maxmemory allkeys-lru`; DB queue tanpa eviction (assert config).
-* [ ] Hot-reload API bekerja di dev.
-* [ ] pgvector tersedia (`SELECT '[]'::vector` sukses).
+* [x] `docker compose up` → API sehat dalam satu perintah di mesin bersih — diverifikasi dari nol (`down -v`): postgres+redis-cache+redis-queue+api semua healthy; API menunggu dependensi via `depends_on: service_healthy`.
+* [x] `/readyz` gagal bila Redis/DB mati (diuji) — integration test (dependensi port mati → 503 `BELUM_SIAP`) + manual (`docker stop redis-cache` → 503; start lagi → 200).
+* [x] DB cache Redis ber-`maxmemory allkeys-lru`; DB queue tanpa eviction (assert config) — `config get` di kedua container: cache `allkeys-lru` + maxmemory 200mb; queue `noeviction` + AOF. **Catatan: dua service Redis, bukan dua DB index — ADR-004 direvisi atas persetujuan owner (kebijakan eviction Redis per instance, BullMQ wajib noeviction).**
+* [x] Hot-reload API bekerja di dev — `CHOKIDAR_USEPOLLING` (bind mount NTFS tidak meneruskan inotify); edit file → restart otomatis terverifikasi di log.
+* [x] pgvector tersedia — `SELECT '[1,2,3]'::vector` sukses; ekstensi `vector` + `pg_trgm` terpasang via pg-init.sql. (Catatan: `'[]'::vector` literal AC ditolak pgvector by design — vektor minimal 1 dimensi; penolakan ini justru bukti ekstensi aktif.)
 
 #### Dependencies
 
@@ -651,6 +663,10 @@ RB-Std.
 #### Risks
 
 * Perbedaan versi image dev vs prod. Mitigasi: pin versi image sama dengan target prod.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-008--docker-compose-dev--health-endpoints).
 
 
 ### PR-009 - Migrasi Inti Identitas
@@ -693,11 +709,11 @@ Bisnis: fondasi akun & jejak audit sejak hari pertama (UU PDP). Teknis: Prisma i
 
 **Testing Checklist:**
 
-* [ ] Unit Test (helper uuid v7)
-* [ ] Integration Test (migrate up/down, constraint)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql inspeksi skema)
+* [x] Unit Test (helper uuid v7 — format RFC 9562, 1000 unik, sortable antar-ms, encoding timestamp)
+* [x] Integration Test (migrate up/down, constraint — unique parsial aktif+reuse setelah soft-delete, enum menolak nilai liar, timestamptz via information_schema, indeks BRIN/parsial ada, FK CASCADE refresh_tokens, seed idempotent; skip otomatis bila DB tidak terjangkau)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql `\d users`: unique parsial + FK CASCADE + timestamptz terlihat; enum_range Role = seeker,admin,employer; down.sql diuji up→down→up nyata)
 
 **Deliverables:**
 
@@ -713,11 +729,11 @@ Migrasi down teruji; RB-Std untuk kode.
 
 #### Acceptance Criteria
 
-* [ ] `prisma migrate reset` + seed hijau di CI (Postgres service).
-* [ ] Enum role = `seeker|admin|employer` (employer reserved).
-* [ ] Semua timestamp `timestamptz`; PK uuid v7 (sortable).
-* [ ] Constraint unique diuji (duplikat ditolak).
-* [ ] Migrasi memiliki down yang teruji.
+* [x] `prisma migrate reset` + seed hijau di CI (Postgres service) — pr.yml + service `pgvector/pgvector:pg18` (image sama compose dev) + step `migrate reset --force` (menjalankan migrasi dari nol + seed) sebelum unit test.
+* [x] Enum role = `seeker|admin|employer` (employer reserved) — enum native; test menolak nilai di luar enum; psql `enum_range` terverifikasi.
+* [x] Semua timestamp `timestamptz`; PK uuid v7 (sortable) — `@db.Timestamptz(6)` seluruh kolom `*_at` (diuji via information_schema); uuid v7 di-generate aplikasi (`core/ids`, RFC 9562, sortable teruji).
+* [x] Constraint unique diuji (duplikat ditolak) — duplikat phone aktif → P2002; phone sama setelah soft-delete → boleh (unique parsial, dikonfirmasi owner).
+* [x] Migrasi memiliki down yang teruji — `down.sql` manual per folder migrasi (konvensi didokumentasikan di prisma/README.md); diuji nyata up→down (4 tabel hilang)→up (pulih).
 
 #### Dependencies
 
@@ -726,6 +742,10 @@ Migrasi down teruji; RB-Std untuk kode.
 #### Risks
 
 * Salah desain enum/kolom awal → migrasi berantai. Mitigasi: ikuti SDD §6 verbatim.
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-009--migrasi-inti-identitas).
 
 
 ### PR-010 - Migrasi Domain Seeker
@@ -766,11 +786,11 @@ Bisnis: menampung profil pencari kerja termasuk data disabilitas secara aman. Te
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (migrate, vector roundtrip, EXPLAIN)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql)
+* [x] Unit Test (N/A — logika murni DB, diuji integration)
+* [x] Integration Test (migrate, bytea introspeksi, vector roundtrip 768-dim, EXPLAIN HNSW via $transaction, FK CASCADE 5 tabel, enum DisclosureDefault; skip anggun tanpa DB)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql: `\d seeker_profiles` — tipe bytea, vector(768), index HNSW terlihat)
 
 **Deliverables:**
 
@@ -786,11 +806,11 @@ Migrasi down; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Kolom sensitif bertipe bytea (introspeksi otomatis di test).
-* [ ] Insert/select vector via raw SQL ber-parameter sukses.
-* [ ] EXPLAIN query cosine memakai HNSW.
-* [ ] FK CASCADE dari users terverifikasi.
-* [ ] Migrasi down teruji.
+* [x] Kolom sensitif bertipe bytea (introspeksi otomatis di test) — `disability_types`/`accommodation_needs` = `bytea` diuji via information_schema; assert negatif: tidak ada kolom nama-sensitif bertipe text/jsonb.
+* [x] Insert/select vector via raw SQL ber-parameter sukses — embedding 768-dim (0.1 semua), cosine self-distance < 1e-6.
+* [x] EXPLAIN query cosine memakai HNSW — `SET LOCAL enable_seqscan=off` + EXPLAIN dalam `$transaction` (single statement per prepared statement); plan memuat "hnsw|index".
+* [x] FK CASCADE dari users terverifikasi — delete user → seeker_profile + experience + skill + resume hilang semua.
+* [x] Migrasi down teruji — up→down (5 tabel + 2 enum hilang)→up (pulih), nyata terhadap Postgres compose.
 
 #### Dependencies
 
@@ -799,6 +819,10 @@ Migrasi down; RB-Std.
 #### Risks
 
 * Prisma vs vector friction. Mitigasi: seluruh akses vector via repo matching (raw SQL terkurung).
+
+#### Log Implementasi
+
+* 2026-07-18 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-010--migrasi-domain-seeker).
 
 
 ### PR-011 - Migrasi Domain Marketplace
@@ -839,11 +863,11 @@ Bisnis: menampung katalog lowongan, lamaran, dan kamus BISINDO. Teknis: sisa ske
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (indeks, constraint, race)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql \d+)
+* [x] Unit Test (N/A — murni DB, diuji integration)
+* [x] Integration Test (EXPLAIN 3 indeks, race unique paralel, RESTRICT vs Cascade kontras, enum snapshot, partial index unread)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (psql: FK applications RESTRICT/CASCADE/NO ACTION terlihat; 6 indeks jobs)
 
 **Deliverables:**
 
@@ -859,11 +883,11 @@ Migrasi down; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] EXPLAIN FTS & trigram & vector memakai indeks masing-masing (bukti di PR).
-* [ ] Unique apply ditegakkan pada insert paralel (test race).
-* [ ] Delete jobs dengan lamaran → ditolak (RESTRICT).
-* [ ] Seluruh enum sesuai SDD (snapshot skema).
-* [ ] Migrasi down teruji.
+* [x] EXPLAIN FTS & trigram & vector memakai indeks masing-masing (bukti di PR) — `jobs_fts_gin` (plainto_tsquery indonesian), `jobs_title_trgm` (operator `%`), `jobs_embedding_hnsw` (`<=>` LIMIT) — ketiganya via `$transaction` + seqscan off.
+* [x] Unique apply ditegakkan pada insert paralel (test race) — 2× create `Promise.allSettled` → tepat 1 sukses + 1 P2002.
+* [x] Delete jobs dengan lamaran → ditolak (RESTRICT) — diuji + kontras: delete USER → application ikut Cascade (hak hapus PDP). Catatan: pelanggaran RESTRICT = SQLSTATE 23001 (Prisma tidak memetakan ke P2003 — assert perilaku ditolak & baris utuh).
+* [x] Seluruh enum sesuai SDD (snapshot skema) — 8 enum via pg_enum → inline snapshot.
+* [x] Migrasi down teruji — up→down (7 tabel + 8 enum hilang)→up (pulih) + full `migrate reset` 01→02→03+seed hijau.
 
 #### Dependencies
 
@@ -871,7 +895,11 @@ Migrasi down; RB-Std.
 
 #### Risks
 
-* Konfigurasi FTS bahasa Indonesia terbatas. Mitigasi: config 'indonesian' + trigram sebagai penyelamat typo (ADR-018).
+* Konfigurasi FTS bahasa Indonesia terbatas. Mitigasi: config 'indonesian' + trigram sebagai penyelamat typo (ADR-018). (Verifikasi PR-011: config `indonesian` TERSEDIA di image pgvector/pg18 — risiko tidak terwujud.)
+
+#### Log Implementasi
+
+* 2026-07-19 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-011--migrasi-domain-marketplace).
 
 
 ### PR-012 - Seed Data Dev & Fixture E2E
@@ -911,11 +939,11 @@ Bisnis: demo & E2E memakai data yang mencerminkan persona PRD §4. Teknis: seed 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (idempotensi)
-* [ ] E2E Test (fixture dipakai smoke)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi data)
+* [x] Unit Test (N/A — guard produksi diuji tanpa DB di suite integration)
+* [x] Integration Test (idempotensi — seed 2× jumlah identik; variasi jobs; persona; kolom sensitif NULL; North Star)
+* [x] E2E Test (fixture siap dipakai smoke — E2E sendiri aktif PR-031; ID stabil terdokumentasi FIXTURES.md)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (db:reset penuh + inspeksi psql: 5 users, 20 jobs variasi, lamaran hired ber-hired_confirmed_at)
 
 **Deliverables:**
 
@@ -931,11 +959,11 @@ RB-Std (data dev saja).
 
 #### Acceptance Criteria
 
-* [ ] Seed 2× tidak menghasilkan duplikat.
-* [ ] 20 jobs mencakup variasi akomodasi/work_mode untuk test matching.
-* [ ] Persona selaras PRD §4 (Tuli/Netra/Daksa/Autisme).
-* [ ] Seed gagal di env production (guard).
-* [ ] ID fixture stabil terdokumentasi.
+* [x] Seed 2× tidak menghasilkan duplikat — upsert by fixture ID; test: jumlah baris identik setelah run kedua.
+* [x] 20 jobs mencakup variasi akomodasi/work_mode untuk test matching — 3 work_mode, 6 jenis akomodasi, draft+closed+published, welcomed_disability_types sebagian terisi; relevansi per persona (FIXTURES.md).
+* [x] Persona selaras PRD §4 (Tuli/Netra/Daksa/Autisme) — 4 persona (Rina/Bayu/Sari/Dimas) + accessibility_profile sesuai kebutuhan masing-masing (diuji). Catatan: Objective menulis "3 persona", AC menulis 4 — AC yang diikuti.
+* [x] Seed gagal di env production (guard) — `SeedProductionError` dilempar SEBELUM query DB apa pun (diuji dengan client palsu).
+* [x] ID fixture stabil terdokumentasi — `prisma/fixtures.ts` (konstanta) + `prisma/FIXTURES.md` (blok ID, aturan jangan-ubah, tabel persona/jobs/applications).
 
 #### Dependencies
 
@@ -943,7 +971,11 @@ RB-Std (data dev saja).
 
 #### Risks
 
-* Seed drift dari skema. Mitigasi: seed dijalankan di CI setiap PR migrasi.
+* Seed drift dari skema. Mitigasi: seed dijalankan di CI setiap PR migrasi. (Aktif sejak PR-009: `migrate reset` CI menjalankan seed setiap run.)
+
+#### Log Implementasi
+
+* 2026-07-19 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-012--seed-data-dev--fixture-e2e).
 
 
 ### PR-013 - core/crypto — AES-256-GCM Berversi
@@ -985,11 +1017,11 @@ Bisnis: data disabilitas (data spesifik UU PDP) aman meski DB/backup bocor (PRD 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (vectors, tamper, multi-versi)
-* [ ] Integration Test (boot validation)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (rotasi kunci di dev)
+* [x] Unit Test (vectors, tamper, multi-versi — `__tests__/crypto.test.ts`: test vector format biner beku, round-trip UTF-8/JSON, IV unik, rotasi V1→V2, tamper per segmen + truncation di semua panjang + append → selalu `DekripsiError`, `parseFieldKeys` validasi panjang/base64/versi)
+* [x] Integration Test (boot validation — `__tests__/crypto-boot.test.ts`: entry point nyata via child process; kunci hilang/salah panjang → exit ≠ 0 SEBELUM "API siap"; kunci valid → server listen; material kunci tak muncul di stdout/stderr; redaction `fieldKey`)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — dicatat)
+* [x] Manual Verification (rotasi kunci di dev via tsx: encrypt V1 → tambah V2 aktif → data V1 tetap terbaca, enkripsi baru = V2, retire V1 → `DekripsiError` terkontrol)
 
 **Deliverables:**
 
@@ -1005,11 +1037,11 @@ RB-Std; data terenkripsi versi lama tetap terbaca (multi-versi by design).
 
 #### Acceptance Criteria
 
-* [ ] Round-trip lintas versi kunci lulus test vector.
-* [ ] Ciphertext dimodifikasi → error autentikasi (bukan data korup).
-* [ ] Boot gagal bila kunci salah panjang/format.
-* [ ] Kunci tidak muncul di log (test redaction).
-* [ ] Runbook rotasi tersedia & direview.
+* [x] Round-trip lintas versi kunci lulus test vector — grup "rotasi multi-versi": data V1 tetap terbaca setelah V2 aktif; enkripsi baru pakai V2; format biner `[versi][iv][tag][data]` dikunci test (byte versi, panjang segmen).
+* [x] Ciphertext dimodifikasi → error autentikasi (bukan data korup) — tamper 1 bit per segmen (iv/tag/data), versi tak dikenal, **truncation di SEMUA panjang 0..len-1**, dan append byte → semuanya `DekripsiError`; tidak pernah mengembalikan plaintext korup.
+* [x] Boot gagal bila kunci salah panjang/format — `parseFieldKeys` fail-fast di `apps/api/src/index.ts` SEBELUM logger/DB/Redis/listener; diuji unit + integration child-process (exit ≠ 0, server tak start).
+* [x] Kunci tidak muncul di log (test redaction) — `core/crypto` tidak menyentuh logger (lapisan pertama); deny list `fieldKey` (PR-006) me-redaksi bila material kunci masuk objek log (diuji); boot test asсерt material kunci absen dari stdout/stderr.
+* [x] Runbook rotasi tersedia & direview — `docs/runbook-keys.md` (konsep, generate, rotasi, retire, kompromi, verifikasi, DR/ADR-015, troubleshooting).
 
 #### Dependencies
 
@@ -1018,6 +1050,10 @@ RB-Std; data terenkripsi versi lama tetap terbaca (multi-versi by design).
 #### Risks
 
 * Kunci bocor via env (T8). Mitigasi: ADR-015 (chmod 600, password manager, redaction).
+
+#### Log Implementasi
+
+* 2026-07-21 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-013--corecrypto--aes-256-gcm-berversi).
 
 
 ### PR-014 - core/audit — Audit Logging Helper
@@ -1059,11 +1095,11 @@ Bisnis: setiap akses data sensitif dapat dipertanggungjawabkan (SDD §8.3, PDP).
 
 **Testing Checklist:**
 
-* [ ] Unit Test (strip meta)
-* [ ] Integration Test (baris tertulis)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi baris)
+* [x] Unit Test (strip meta per action + writer failure + latency)
+* [x] Integration Test (baris tertulis ke PostgreSQL nyata)
+* [x] E2E Test (N/A — tidak ada endpoint/flow pengguna)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (inspeksi baris via integration test)
 
 **Deliverables:**
 
@@ -1073,17 +1109,19 @@ Bisnis: setiap akses data sensitif dapat dipertanggungjawabkan (SDD §8.3, PDP).
 
 * Pemetaan audit per modul (di PR modul); arsip 2 tahun (PR-024 hook).
 
+> Status: seluruh acceptance criteria PR-014 terpenuhi. Verifikasi stripping PII dilakukan per action pada unit test dan dicatat di log implementasi.
+
 **Rollback Strategy:**
 
 RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Meta dengan PII → di-strip (test per skema action).
-* [ ] Penulisan async tidak memblokir request (latency test).
-* [ ] Kegagalan tulis audit ter-log + metrik (tidak senyap).
-* [ ] Enum action terdokumentasi.
-* [ ] Baris audit memuat actor, entity, entityId, requestId.
+* [x] Meta dengan PII → di-strip (test per skema action).
+* [x] Penulisan async tidak memblokir request (latency test).
+* [x] Kegagalan tulis audit ter-log + metrik (tidak senyap).
+* [x] Enum action terdokumentasi.
+* [x] Baris audit memuat actor, entity, entityId, requestId.
 
 #### Dependencies
 
@@ -1092,6 +1130,10 @@ RB-Std.
 #### Risks
 
 * Audit terlalu bising. Mitigasi: katalog action ditinjau; baca massal via job bukan per-row.
+
+#### Log Implementasi
+
+* 2026-07-24 — Selesai. Lihat [log/implementation_log_phase01.md](log/implementation_log_phase01.md#pr-014--coreaudit--audit-logging-helper).
 
 
 ### PR-015 - core/queue + Worker Bootstrap + DLQ
@@ -1132,11 +1174,11 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 
 **Testing Checklist:**
 
-* [ ] Unit Test (enqueue helper)
-* [ ] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kill worker saat job jalan)
+* [x] Unit Test (enqueue helper — 25 test `queue.test.ts` PR-015a; 17 test worker/DLQ `queue-worker.test.ts` + 11 test endpoint `internal-queues.test.ts` PR-015b)
+* [x] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI; `queue-redis.test.ts`, 5 test, service `redis-queue` ditambahkan ke `pr.yml`)
+* [x] E2E Test (N/A — dicatat)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (kill worker saat job jalan) — dilakukan 2026-08-01 pada compose dev nyata. Job 20 detik, `docker stop` dikirim di detik 5: worker menerima SIGTERM, job lanjut sampai detik 20 dan selesai utuh, lalu "Worker berhenti bersih" (exit 0, tanpa force-kill); Redis: `active=0`, `finishedOn` terisi. **Menemukan 2 bug container yang tidak terlihat integration test** — lihat log implementasi (tsx watch force-kill 5 detik & volume `node_modules` per-workspace); keduanya diperbaiki di PR follow-up `fix-worker-dev-container`.
 
 **Deliverables:**
 
@@ -1145,18 +1187,23 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 **Out of Scope:**
 
 * Processor fitur (PR terkait); alert DLQ (PR-103).
+* Redis store `express-rate-limit` — utang PR-008 yang catatannya menunjuk "PR-010" (penomoran basi; wiring BullMQ sebenarnya PR-015). **Diputuskan owner 2026-08-01: dikerjakan di PR-105** ([phase-17](phase-17-security-pdp-hardening.md#pr-105---csp-final--security-headers--rate-limit-per-endpoint)) — utang ini tidak lagi menggantung tanpa pemilik.
 
 **Rollback Strategy:**
 
 RB-Std; antrean in-flight aman karena idempotensi.
 
+> **Dipecah jadi dua PR (persetujuan owner 2026-07-27):** scope utuh ~800–900 LOC, jauh di atas target <500.
+> **PR-015a** — `core/queue` (definisi + config env + enqueue helper) — *selesai*.
+> **PR-015b** — `apps/worker` bootstrap + drain, DLQ handler, `GET /internal/queues`, Redis di CI, integration test — *selesai*.
+
 #### Acceptance Criteria
 
-* [ ] Job dengan job-id sama tidak diproses dua kali.
-* [ ] Job gagal-final masuk DLQ & terlihat di endpoint.
-* [ ] removeOnComplete/Fail sesuai SDD §16.
-* [ ] Shutdown drain job aktif (tidak terpotong).
-* [ ] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode.
+* [x] Job dengan job-id sama tidak diproses dua kali — `buildJobId()` deterministik + `jobId` sebagai kunci anti-duplikat BullMQ. Dibuktikan integration test dengan Redis & worker nyata: 3× enqueue jobId sama → processor hanya menerima job pertama.
+* [x] Job gagal-final masuk DLQ & terlihat di endpoint — `createDlqHandler` hanya menulis saat `attemptsMade >= attempts` (job yang masih punya sisa retry diabaikan); catatan masuk `<queue>:dlq` dan muncul sebagai `dlqDepth`/`dlqTotal` di `GET /internal/queues`. Diuji unit + integration (retry berjalan 2×, DLQ menerima tepat 1 catatan).
+* [x] removeOnComplete/Fail sesuai SDD §16 — `QUEUE_RETENTION` (100/1000) melekat pada seluruh 8 queue via `jobOptionsFor()`; diuji per queue (unit) dan diverifikasi terpasang nyata di Redis (integration).
+* [x] Shutdown drain job aktif (tidak terpotong) — `runtime.drain()` memanggil `worker.close()` tanpa argumen (graceful; `close(true)` yang memotong paksa sengaja tidak dipakai). Integration test: job 1,5 detik masih berjalan saat drain dimulai, dan sudah selesai setelah `drain()` resolve.
+* [x] Config queue (concurrency/retry/timeout) dari env/config, bukan hardcode — default = tabel SDD §16, setiap field bisa ditimpa `QUEUE_<NAMA>_<FIELD>`; override tidak valid → `EnvError` fail-fast (diuji: default, override parsial, non-angka, di luar rentang, multi-error). Worker mengambil concurrency & timeout dari config yang sama (diverifikasi dengan BullMQ nyata).
 
 #### Dependencies
 

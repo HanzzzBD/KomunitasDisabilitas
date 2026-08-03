@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Pencarian lowongan Incasif menggunakan **PostgreSQL Full-Text Search** (GIN index atas `to_tsvector` pada title + description) dikombinasikan **pg_trgm** (GIN trigram pada title) untuk toleransi typo, plus filter faceted melalui indeks btree/GIN yang ada (SDD §6.3). Pencarian adalah jalur non-AI kelas satu: berfungsi identik saat kuota AI habis. **Meilisearch** adalah jalur upgrade dengan pemicu terukur: katalog > 10.000 lowongan atau latensi FTS melampaui ambang (SDD §19); sinkronisasinya kelak memakai event `job.published` yang sudah ada.
+Pencarian lowongan Nawasena menggunakan **PostgreSQL Full-Text Search** (GIN index atas `to_tsvector` pada title + description) dikombinasikan **pg_trgm** (GIN trigram pada title) untuk toleransi typo, plus filter faceted melalui indeks btree/GIN yang ada (SDD §6.3). Pencarian adalah jalur non-AI kelas satu: berfungsi identik saat kuota AI habis. **Meilisearch** adalah jalur upgrade dengan pemicu terukur: katalog > 10.000 lowongan atau latensi FTS melampaui ambang (SDD §19); sinkronisasinya kelak memakai event `job.published` yang sudah ada.
 
 ## Consequences
 

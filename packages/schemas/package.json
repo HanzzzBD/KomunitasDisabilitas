@@ -1,5 +1,5 @@
 {
-  "name": "@incasif/schemas",
+  "name": "@nawasena/schemas",
   "version": "0.0.0",
   "private": true,
   "description": "Kontrak zod tunggal FE+BE+mobile; OpenAPI di-generate dari zod (SDD §11).",
@@ -21,7 +21,7 @@
     "zod-openapi": "4.2.4"
   },
   "devDependencies": {
-    "@incasif/config": "workspace:*",
+    "@nawasena/config": "workspace:*",
     "@types/node": "22.10.2",
     "eslint": "8.57.1",
     "tsx": "4.19.2",

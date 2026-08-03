@@ -1,0 +1,152 @@
+# Docker Compose DEV (PR-008, ADR-004/006). Prod/staging = PR-097.
+# Satu perintah: docker compose -f docker-compose.dev.yml up
+# Kredensial di file ini DEV-ONLY (localhost) — nilai produksi via env (ADR-015).
+
+name: nawasena-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18 # pin mayor = target prod (SDD: PostgreSQL 18)
+    environment:
+      POSTGRES_USER: nawasena
+      POSTGRES_PASSWORD: nawasena # dev-only
+      POSTGRES_DB: nawasena
+    ports:
+      # Host 5433: hindari bentrok dengan PostgreSQL lokal (mis. Laragon)
+      # yang umum menempati 5432. Dalam network compose tetap 5432.
+      - "5433:5432"
+    volumes:
+      # Catatan image pg18+: mount di /var/lib/postgresql (bukan .../data).
+      - pgdata:/var/lib/postgresql
+      - ./infra/pg-init.sql:/docker-entrypoint-initdb.d/pg-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nawasena -d nawasena"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ADR-004 (revisi): dua service Redis — kebijakan eviction tidak bisa per DB index.
+  redis-cache:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-queue:
+    image: redis:7.4-alpine
+    # noeviction (wajib BullMQ) + AOF: job tidak hilang saat restart.
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisqueue:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://nawasena:nawasena@postgres:5432/nawasena
+      REDIS_URL: redis://redis-cache:6379
+      REDIS_QUEUE_URL: redis://redis-queue:6379
+      # Kunci enkripsi field sensitif (PR-013, ADR-007). DEV-ONLY dummy — jangan
+      # dipakai di staging/prod (kunci prod via env vars, bukan compose).
+      FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
+      # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "800"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    volumes:
+      # Hot-reload: source di-mount; node_modules milik container (binary Linux).
+      #
+      # SETIAP folder node_modules workspace WAJIB ditutup named volume.
+      # Sebabnya: pnpm di Windows membuat symlink ABSOLUT ke
+      # /mnt/host/c/... — path itu tidak ada di dalam container, jadi
+      # node_modules host yang ikut terbawa bind mount seluruhnya rusak.
+      # Gejalanya menyesatkan: ERR_MODULE_NOT_FOUND untuk paket yang jelas
+      # ada di package.json dan lockfile.
+      # Menambah workspace baru yang dipakai runtime = tambahkan volumenya.
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+
+  # Konsumen BullMQ (PR-015b). Image sama dengan api, entry berbeda (ADR-004:
+  # beban AI/PDF tidak boleh menyentuh latensi request API).
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    # `start` (tsx biasa), BUKAN `dev` (tsx watch) — disengaja.
+    # `tsx watch` membunuh paksa proses anaknya 5 detik setelah SIGTERM
+    # ("Process didn't exit in 5s. Force killing"), sehingga drain job aktif
+    # terpotong dan `stop_grace_period` di bawah tidak ada gunanya.
+    # Terbukti pada manual verification PR-015: dengan `dev`, job 20 detik
+    # terputus di detik 10 dan tertinggal di state `active`; dengan `start`,
+    # job selesai utuh lalu worker keluar bersih (exit 0).
+    # Konsekuensi: worker tidak hot-reload — restart manual setelah mengubah
+    # processor (`docker compose restart worker`).
+    command: ["pnpm", "--filter", "@nawasena/worker", "start"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://nawasena:nawasena@postgres:5432/nawasena
+      REDIS_URL: redis://redis-cache:6379
+      REDIS_QUEUE_URL: redis://redis-queue:6379
+      FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "800"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    volumes:
+      # Lihat catatan node_modules pada service api — berlaku sama di sini.
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+      - worker_app_node_modules:/workspace/apps/worker/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
+    # SIGTERM → drain job aktif. Beri waktu lebih dari default 10s karena
+    # job terpanjang (maintenance-backup) berdurasi menit.
+    stop_grace_period: 60s
+
+volumes:
+  pgdata:
+  redisqueue:
+  api_node_modules:
+  api_app_node_modules:
+  worker_app_node_modules:
+  schemas_node_modules:
+  config_node_modules:

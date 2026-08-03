@@ -1,14 +1,14 @@
 # CLAUDE.md — Project Context & Development Guide
 
 > **Last Updated:** 2026-07-17  
-> **Project:** Incasif (Inclusive Career Ecosystem for People with Disabilities)  
+> **Project:** Nawasena (Inclusive Career Ecosystem for People with Disabilities)  
 > **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, PR-PLAN v3.0
 
 ---
 
 ## 1. Project Overview
 
-**Incasif** adalah platform pencarian kerja berbasis AI yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda).
+**Nawasena** adalah platform pencarian kerja berbasis AI yang dirancang **khusus dan sepenuhnya aksesibel** bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda).
 
 ### North Star Metrics
 - **Primary:** Jumlah penempatan kerja (pengguna diterima bekerja melalui platform)
@@ -232,7 +232,7 @@ const name = req.body.name;
 
 // ✅ DO: Validasi via zod dari packages/schemas
 import { z } from "zod";
-import { createUserSchema } from "@incasif/schemas";
+import { createUserSchema } from "@nawasena/schemas";
 
 const parsed = createUserSchema.parse(req.body);
 const { name } = parsed;
@@ -253,7 +253,7 @@ res.status(400).json({
 **Error Handling Async (Express):**
 ```typescript
 // ✅ DO: Wrap async handlers
-import { asyncHandler } from "@incasif/core/http";
+import { asyncHandler } from "@nawasena/core/http";
 
 router.get("/:id", asyncHandler(async (req, res) => {
   const profile = await profileService.getById(req.params.id);
@@ -348,8 +348,8 @@ describe("matching service", () => {
 
 **Development (local):**
 ```bash
-# .env.local (NEVER commit)
-DATABASE_URL="postgresql://user:pass@localhost/incasif"
+# apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
+DATABASE_URL="postgresql://nawasena:nawasena@localhost:5433/nawasena"
 REDIS_URL="redis://localhost:6379"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
@@ -374,6 +374,23 @@ git revert <commit-hash>
 # Database: Migrations backward-compatible one version
 # (DB NOT rolled back with image; ensures no data loss)
 ```
+
+### 5.8 Alur Pengiriman PR (Wajib — Setelah Task PR Selesai)
+
+Setelah sebuah task PR-XXX **selesai** (implementasi + test + `pnpm lint`/`typecheck`/`test` hijau + log implementasi ditulis), agent LANGSUNG menjalankan alur berikut **tanpa menunggu perintah tambahan**:
+
+1. **Branch:** kerja di `pr-XXX-<slug>` yang dibuat dari tip branch phase aktif (`phase-XX-<nama>`). Jangan pernah bekerja langsung di branch phase atau `main`.
+2. **Commit:** satu commit bermakna, pesan `PR-XXX: <ringkasan singkat>`. Jangan commit file di luar scope PR (mis. file modified yang bukan hasil kerja task ini — biarkan).
+3. **Push:** `git push -u origin pr-XXX-<slug>`.
+4. **Buat PR** ke branch phase (BUKAN `main`):
+   `gh pr create --base phase-XX-<nama> --head pr-XXX-<slug>` dengan body what/why/AC terpenuhi/hasil verifikasi.
+   - Push langsung ke branch phase DITOLAK (protected, required check `lint-typecheck-test`) — PR adalah satu-satunya jalur masuk.
+5. **Tunggu CI:** `gh pr checks <nomor> --watch --interval 15`. Merge HANYA bila `lint-typecheck-test` pass.
+   - CI merah → STOP merge, perbaiki di branch PR, push lagi, tunggu ulang. Jangan pernah bypass check.
+6. **Merge manual setelah hijau:** `gh pr merge <nomor> --merge`.
+   - Auto-merge repo DINONAKTIFKAN (by design) — jangan pakai `--auto`; agent yang menunggu CI lalu merge.
+7. **Sinkron lokal:** `git fetch origin --prune && git checkout phase-XX-<nama> && git pull --ff-only`, lalu kembali/berhenti.
+8. **Larangan keras:** JANGAN pernah membuat PR atau merge apa pun ke `main`. `phase-XX → main` hanya terjadi setelah SELURUH PR phase selesai (Exit Criteria terpenuhi) **dan** atas perintah eksplisit owner.
 
 ---
 
@@ -401,7 +418,7 @@ ProjectKomunitasDisabilitas/
 │   └── README.md         (ADR index)
 ├── .github/
 │   └── workflows/        (GitHub Actions: pr.yml, deploy.yml)
-├── .env.example          (template only; NEVER commit actual .env)
+├── apps/api/.env.example (template per app — TIDAK ada .env.example di root)
 ├── docker-compose.yml    (local dev, staging, production overlays)
 ├── Dockerfile            (single multi-stage for API + worker)
 ├──     .md             (product design, personas, flows)
@@ -430,7 +447,7 @@ ProjectKomunitasDisabilitas/
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
 | [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
 | [docs/adr/README.md](./docs/adr/README.md) | ADR index & navigation |
-| `.env.example` | Template for environment variables (NEVER commit actual `.env`) |
+| `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.yml` | Multi-container setup (PostgreSQL, Redis, API, worker, web) |
 
 ---
@@ -442,14 +459,14 @@ ProjectKomunitasDisabilitas/
 pnpm install
 
 # 2. Setup environment
-cp .env.example .env.local
-# Edit .env.local with local values (db, redis, api keys)
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env bila perlu (default sudah cocok dengan compose dev)
 
 # 3. Start PostgreSQL + Redis locally (or Docker Compose)
 docker-compose up -d postgres redis
 
 # 4. Run migrations
-pnpm --filter @incasif/api exec prisma migrate dev
+pnpm --filter @nawasena/api exec prisma migrate dev
 
 # 5. Run dev servers (all workspaces)
 pnpm dev
@@ -461,7 +478,7 @@ pnpm typecheck && pnpm lint
 pnpm test
 
 # 8. Check accessibility (web only, slot PR-031)
-# pnpm --filter @incasif/web test:a11y
+# pnpm --filter @nawasena/web test:a11y
 ```
 
 ---
@@ -509,19 +526,19 @@ pnpm test:cov
 ### Database
 ```bash
 # Create migration
-pnpm --filter @incasif/api exec prisma migrate dev --name feature_name
+pnpm --filter @nawasena/api exec prisma migrate dev --name feature_name
 
 # Open Prisma Studio
-pnpm --filter @incasif/api exec prisma studio
+pnpm --filter @nawasena/api exec prisma studio
 
 # Reset DB (dev only, destructive)
-pnpm --filter @incasif/api exec prisma migrate reset
+pnpm --filter @nawasena/api exec prisma migrate reset
 ```
 
 ### Docker & Deployment
 ```bash
 # Build Docker image locally
-docker build -t incasif:latest .
+docker build -t nawasena:latest .
 
 # Start full stack (local dev)
 docker-compose up
@@ -536,13 +553,13 @@ git push origin main  # triggers GitHub Actions
 ### Monorepo
 ```bash
 # Run script in specific workspace
-pnpm --filter @incasif/api <script>
+pnpm --filter @nawasena/api <script>
 
 # List all workspaces
 pnpm ls -r
 
 # Update Turborepo cache
-pnpm turbo prune --scope=@incasif/api
+pnpm turbo prune --scope=@nawasena/api
 ```
 
 ---

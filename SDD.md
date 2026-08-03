@@ -1,11 +1,11 @@
 # Software Design Document (SDD)
 
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Inclusive Career Ecosystem for People with Disabilities
 
 | | |
 |---|---|
 | **Versi** | 1.1 |
-| **Nama produk** | **Incasif** (resmi & final — menggantikan "Inklusia AI" pada versi 1.0) |
+| **Nama produk** | **Nawasena** (resmi & final — menggantikan "Inklusia AI" pada versi 1.0) |
 | **Tanggal** | 15 Juli 2026 |
 | **Status** | Baseline untuk implementasi MVP (Fase 1) |
 | **Sumber kebenaran** | PRD.md v1.0 + Deskripsi.txt + hasil architecture discovery |
@@ -15,7 +15,7 @@
 
 ## 1. Executive Summary
 
-Dokumen ini mendefinisikan desain teknis **Incasif** — platform kerja inklusif berbasis AI untuk penyandang disabilitas Indonesia (Tuli, Netra, Daksa, Autisme, ganda), sesuai PRD v1.0.
+Dokumen ini mendefinisikan desain teknis **Nawasena** — platform kerja inklusif berbasis AI untuk penyandang disabilitas Indonesia (Tuli, Netra, Daksa, Autisme, ganda), sesuai PRD v1.0.
 
 **Bentuk arsitektur:** monolith modular **Express + Prisma** di atas **PostgreSQL 18 + pgvector** dan **Redis + BullMQ**, berjalan dalam **Docker Compose di satu VPS** (prod + staging terpisah per compose project). Klien: **React (Vite) SPA** untuk web dan **React Native (Expo)** untuk Android (iOS di Fase 2), berbagi kode melalui **monorepo Turborepo**. Seluruh fitur AI berjalan melalui satu **AI Gateway** internal (Gemini free tier utama, Groq fallback) dengan kuota per pengguna dan degradasi anggun ke jalur non-AI.
 
@@ -53,7 +53,7 @@ Dokumen ini mendefinisikan desain teknis **Incasif** — platform kerja inklusif
                                             │ HTTPS
                                             ▼
    ┌───────────────────────────────────────────────────────────────────┐
-   │                      SISTEM INCASIF (1 VPS)                       │
+   │                      SISTEM NAWASENA (1 VPS)                       │
    │   API monolith modular + worker + PostgreSQL + Redis + Nginx      │
    └───┬───────────┬────────────┬────────────┬────────────┬────────────┘
        │           │            │            │            │
@@ -397,7 +397,7 @@ Modul fitur ──► aiGateway.chat()/embed()/stt()/rerank()
 
 **v2 (Fase 3, kontrak dirancang sekarang — implementasi riset):**
 ```
-POST /sign/translate-session  (rev future)   Incasif API ──► SignBridge Service
+POST /sign/translate-session  (rev future)   Nawasena API ──► SignBridge Service
   WS/WebRTC: klien → frame video → SignBridge → teks parsial (isyarat→teks)
              klien ← urutan pose/klip     ← teks (teks→isyarat)
 ```
@@ -478,7 +478,7 @@ Implementasi: middleware `requireRole()` + `requireSelf()` di router; **kolom se
 | uptime-kuma + dozzle | 256 MB | — |
 | **Total** | ~5.4 GB | ~1.5 GB → sisa ~1 GB headroom OS |
 
-Staging memakai kuota AI & kredensial terpisah (API key Gemini berbeda) dan basis data berbeda; subdomain `staging.incasif.id` dilindungi basic-auth.
+Staging memakai kuota AI & kredensial terpisah (API key Gemini berbeda) dan basis data berbeda; subdomain `staging.nawasena.id` dilindungi basic-auth.
 
 ### 9.3 CI/CD (GitHub Actions)
 
@@ -506,12 +506,12 @@ Rollback: `deploy.sh --rollback` → compose kembali ke digest sebelumnya
 ## 10. Deployment Architecture
 
 ```
-Repo GitHub ──CI──► GHCR: ghcr.io/incasif/{api,worker}@sha256:…
+Repo GitHub ──CI──► GHCR: ghcr.io/nawasena/{api,worker}@sha256:…
                           web build → artifact statis → rsync ke VPS
 
-VPS /srv/incasif/
-  prod/     docker-compose.yml  .env  web-dist/   (project: incasif-prod)
-  staging/  docker-compose.yml  .env  web-dist/   (project: incasif-stg)
+VPS /srv/nawasena/
+  prod/     docker-compose.yml  .env  web-dist/   (project: nawasena-prod)
+  staging/  docker-compose.yml  .env  web-dist/   (project: nawasena-stg)
   shared/   nginx/ certbot/ uptime-kuma/ dozzle/  backups/
 
 Urutan deploy (zero/near-zero downtime utk skala ini):
@@ -652,17 +652,21 @@ Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
 
 ## 16. Queue Design (BullMQ / Redis)
 
+> **Koreksi 2026-08-01 (PR-015):** separator nama queue dan job id semula ditulis `:`. **BullMQ melarang karakter `:` pada nama queue MAUPUN custom job id** (dipakai untuk namespacing key Redis) — `new Queue("ai:embed")` melempar `Queue name cannot contain :`. Kesalahan ini baru ketahuan saat integration test berjalan terhadap Redis nyata di CI. Seluruh nama di bawah karena itu memakai `-`; domain dan pekerjaan tetap terbaca.
+
 | Queue | Producer → Processor | Concurrency | Retry/Backoff | Timeout | Catatan |
 |---|---|---|---|---|---|
-| `ai:extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
-| `ai:rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
-| `ai:embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
-| `pdf:render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
-| `notify:push` / `notify:email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
-| `maintenance:pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
-| `maintenance:backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
+| `ai-extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
+| `ai-rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
+| `ai-embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
+| `pdf-render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
+| `notify-push` / `notify-email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
+| `maintenance-pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
+| `maintenance-backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
 
-Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract:{sessionId}`) untuk anti-duplikat; Redis untuk queue memakai DB index terpisah dari cache (cache boleh LRU-evict, queue tidak boleh).
+Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue (queue pendamping `<queue>-dlq`) → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract-{sessionId}`, dibangun lewat `buildJobId()` di `core/queue`) untuk anti-duplikat; queue dan cache memakai **dua service Redis terpisah** — cache boleh LRU-evict, queue wajib `noeviction` (ADR-004 revisi PR-008; rumusan lama "dua DB index" tidak dapat memenuhi kebutuhan eviction yang berbeda karena `maxmemory-policy` berlaku per instance).
+
+Kolom **Retry** di tabel ini berarti jumlah RETRY, sedangkan opsi `attempts` BullMQ menghitung percobaan pertama — pemetaan `attempts = retry + 1` dilakukan sekali di `QUEUE_DEFAULTS` (`apps/api/src/core/queue/definitions.ts`). Kolom **Timeout** ditegakkan worker, bukan opsi job: BullMQ v5 tidak lagi punya `timeout` per job.
 
 ---
 
@@ -729,7 +733,7 @@ Anti-goal yang disengaja: microservices hari pertama, Kubernetes hari pertama, v
 
 ## 21. Architecture Decision Records (ADR)
 
-ADR resmi Incasif berada di **`docs/adr/`** (satu file per keputusan, format lengkap Context → Decision → Consequences → Mitigasi, append-only). Bagian ini adalah **indeks rujukan** — bukan sumber kebenaran ADR. Penomoran ringkas ADR-1..12 pada SDD v1.0/v1.1 digantikan penomoran resmi di bawah (pemetaan lengkap di `docs/adr/README.md`).
+ADR resmi Nawasena berada di **`docs/adr/`** (satu file per keputusan, format lengkap Context → Decision → Consequences → Mitigasi, append-only). Bagian ini adalah **indeks rujukan** — bukan sumber kebenaran ADR. Penomoran ringkas ADR-1..12 pada SDD v1.0/v1.1 digantikan penomoran resmi di bawah (pemetaan lengkap di `docs/adr/README.md`).
 
 | ADR | Judul | Status |
 |---|---|---|

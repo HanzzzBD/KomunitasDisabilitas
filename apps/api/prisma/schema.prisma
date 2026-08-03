@@ -1,0 +1,472 @@
+// Prisma schema Nawasena — sumber kebenaran struktur DB (CLAUDE.md §12).
+// Migrasi 01 (PR-009): inti identitas — users, refresh_tokens,
+// accessibility_profiles, audit_logs (SDD §6, §14; PRD §10).
+//
+// Ketetapan SDD §14:
+// - Semua PK uuid v7 — DI-GENERATE APLIKASI via core/ids (bukan default DB;
+//   gen_random_uuid() = v4, tidak sortable).
+// - Semua timestamp timestamptz.
+// - Enum PostgreSQL native.
+// - FK ON DELETE eksplisit per relasi.
+// Fitur di luar dukungan Prisma (unique parsial, BRIN) = raw SQL di file
+// migrasi (SDD §6.2) — lihat prisma/README.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Role akun. `employer` reserved — belum dipakai sampai fase employer portal.
+enum Role {
+  seeker
+  admin
+  employer
+}
+
+model User {
+  id           String    @id @db.Uuid
+  /// Nullable: signup bisa via Google (tanpa phone) atau OTP (tanpa google).
+  /// Unique PARSIAL (WHERE deleted_at IS NULL) via raw SQL — nomor boleh
+  /// dipakai ulang setelah akun soft-delete (hak hapus UU PDP + purge §6.4).
+  phone        String?
+  googleId     String?   @map("google_id")
+  email        String?
+  fullName     String    @map("full_name")
+  role         Role      @default(seeker)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(6)
+  /// Soft delete (fondasi hak hapus UU PDP); purge/anonimisasi ≤30 hari (job worker).
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  refreshTokens        RefreshToken[]
+  accessibilityProfile AccessibilityProfile?
+  seekerProfile        SeekerProfile?
+  experiences          Experience[]
+  educations           Education[]
+  skills               Skill[]
+  resumes              Resume[]
+  applications         Application[]
+  matchScores          MatchScore[]
+  aiUsage              AiUsage[]
+  notifications        Notification[]
+  verifiedCompanies    Company[]             @relation("CompanyVerifier")
+  createdJobs          Job[]                 @relation("JobCreator")
+  createdSignVideos    SignVideo[]           @relation("SignVideoCreator")
+
+  @@map("users")
+}
+
+/// Refresh token ROTATING (SDD §8.1): hanya hash yang disimpan; familyId
+/// mendeteksi reuse — token lama dipakai ulang → cabut seluruh keluarga.
+model RefreshToken {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// SHA-256 token — token mentah tidak pernah menyentuh DB/log.
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Preferensi UI aksesibilitas (ADR-008) — BUKAN data medis/sensitif;
+/// data disabilitas terenkripsi ada di seeker_profiles (PR-010).
+model AccessibilityProfile {
+  userId              String   @id @map("user_id") @db.Uuid
+  /// Skala teks dalam persen (100 = normal).
+  textScale           Int      @default(100) @map("text_scale")
+  highContrast        Boolean  @default(false) @map("high_contrast")
+  reduceMotion        Boolean  @default(false) @map("reduce_motion")
+  simpleLanguage      Boolean  @default(false) @map("simple_language")
+  prefersSignLanguage Boolean  @default(false) @map("prefers_sign_language")
+  largeTouchTargets   Boolean  @default(false) @map("large_touch_targets")
+  screenReaderHint    Boolean  @default(false) @map("screen_reader_hint")
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accessibility_profiles")
+}
+
+/// Append-only (SDD §6.3): SENGAJA tanpa relasi FK ke users — jejak audit
+/// harus tahan penghapusan akun (actorId menunjuk id historis). Enforcement
+/// no-UPDATE/DELETE via grant DB role aplikasi = PR-097.
+model AuditLog {
+  id        String   @id @db.Uuid
+  /// NULL = aksi sistem (job, migrasi); selain itu id user historis.
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Dideklarasikan di schema (bukan raw SQL) sejak PR-010: Prisma 5 mendukung
+  // BRIN — kalau hanya raw SQL, setiap migrasi berikutnya menganggapnya drift
+  // dan men-generate DROP INDEX. `map` menjaga nama index migrasi 01.
+  @@index([createdAt], map: "audit_logs_created_at_brin", type: Brin)
+  @@map("audit_logs")
+}
+
+// ===== Migrasi 02 (PR-010): domain seeker (SDD §6.2, PRD §10) =====
+
+/// Kontrol disclosure data disabilitas per lamaran (default profil).
+enum DisclosureDefault {
+  never
+  ask_each_time
+  always
+}
+
+enum ResumeCreatedVia {
+  ai_chat
+  manual
+}
+
+/// Profil pencari kerja. Kolom sensitif (disability_types,
+/// accommodation_needs) = bytea CIPHERTEXT AES-256-GCM `iv‖tag‖data` dengan
+/// prefix versi kunci (SDD §6.2/§6.5; util enkripsi = PR-013). Konsekuensi
+/// sadar: TIDAK bisa di-query SQL — dekripsi hanya di service layer;
+/// matching membaca kebutuhan akomodasi di memori pada kandidat top-N.
+model SeekerProfile {
+  userId       String  @id @map("user_id") @db.Uuid
+  headline     String?
+  summary      String?
+  city         String?
+  province     String?
+  openToRemote Boolean @default(false) @map("open_to_remote")
+
+  /// CIPHERTEXT (bytea) — data pribadi spesifik UU PDP. JANGAN log/serialisasi.
+  disabilityTypes    Bytes? @map("disability_types")
+  /// CIPHERTEXT (bytea) — sda.
+  accommodationNeeds Bytes? @map("accommodation_needs")
+
+  disclosureDefault DisclosureDefault @default(ask_each_time) @map("disclosure_default")
+  /// Bukti consent EKSPLISIT terpisah untuk data sensitif (UU PDP 27/2022).
+  consentSensitiveAt DateTime? @map("consent_sensitive_at") @db.Timestamptz(6)
+
+  /// pgvector — akses HANYA via repo matching dengan $queryRaw ber-parameter
+  /// (Prisma tidak mendukung tipe vector; indeks HNSW dibuat raw SQL di
+  /// file migrasi). Jangan select kolom ini lewat Prisma Client biasa.
+  profileEmbedding Unsupported("vector(768)")? @map("profile_embedding")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seeker_profiles")
+}
+
+model Experience {
+  id          String    @id @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  title       String
+  company     String?
+  /// Tanggal tanpa jam/zona — riwayat kerja tidak butuh presisi waktu.
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("experiences")
+}
+
+model Education {
+  id          String  @id @db.Uuid
+  userId      String  @map("user_id") @db.Uuid
+  institution String
+  degree      String?
+  field       String?
+  year        Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("educations")
+}
+
+model Skill {
+  id     String  @id @db.Uuid
+  userId String  @map("user_id") @db.Uuid
+  name   String
+  /// Leveling belum diputuskan produk — teks bebas dulu; persempit nanti
+  /// via expand→contract (prisma/README.md).
+  level  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("skills")
+}
+
+/// CV terstruktur (content jsonb); render PDF async oleh worker (Fase PDF).
+model Resume {
+  id         String           @id @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  title      String
+  content    Json             @default("{}")
+  pdfUrl     String?          @map("pdf_url")
+  createdVia ResumeCreatedVia @default(manual) @map("created_via")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+// ===== Migrasi 03 (PR-011): domain marketplace (SDD §6.2–6.3, PRD §10) =====
+
+enum InclusivityStatus {
+  unverified
+  self_claimed
+  verified
+}
+
+/// PRD menulis "enum" tanpa rincian — nilai standar pasar kerja; enum
+/// PostgreSQL bisa ADD VALUE tanpa rewrite bila perlu.
+enum EmploymentType {
+  full_time
+  part_time
+  contract
+  internship
+  freelance
+}
+
+enum WorkMode {
+  onsite
+  hybrid
+  remote
+}
+
+enum JobSource {
+  admin_curated
+  employer
+  aggregated
+}
+
+enum JobStatus {
+  draft
+  published
+  closed
+}
+
+enum ApplicationStatus {
+  submitted
+  viewed
+  in_review
+  interview
+  offered
+  hired
+  rejected
+  withdrawn
+}
+
+/// Fitur AI ber-kuota (SDD §7.2) — dipakai ai_usage untuk kuota harian.
+enum AiFeature {
+  cv_chat
+  cv_finalize
+  cv_check
+  simplify_text
+  interview_sim
+  rerank
+  embed
+}
+
+enum SignVideoStatus {
+  draft
+  published
+}
+
+model Company {
+  id          String  @id @db.Uuid
+  name        String
+  description String?
+  website     String?
+  city        String?
+
+  inclusivityStatus InclusivityStatus @default(unverified) @map("inclusivity_status")
+  /// Taksonomi akomodasi tersedia (tidak sensitif — data fasilitas perusahaan).
+  accommodationsAvailable Json @default("[]") @map("accommodations_available")
+
+  /// Verifikator dihapus ≠ status verifikasi hilang → SetNull.
+  verifiedBy String?   @map("verified_by") @db.Uuid
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  verifier User? @relation("CompanyVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  jobs     Job[]
+
+  @@map("companies")
+}
+
+model Job {
+  id String @id @db.Uuid
+  /// Company dengan lowongan tidak boleh terhapus (Restrict) — tutup lowongan
+  /// dulu (soft-close), riwayat aplikasi tetap utuh.
+  companyId String @map("company_id") @db.Uuid
+
+  title        String
+  description  String
+  requirements String?
+
+  employmentType EmploymentType @map("employment_type")
+  workMode       WorkMode       @map("work_mode")
+  city           String?
+  province       String?
+
+  salaryMin     Int?    @map("salary_min")
+  salaryMax     Int?    @map("salary_max")
+  salaryVisible Boolean @default(true) @map("salary_visible")
+
+  /// Akomodasi untuk posisi ini (taksonomi sama dengan companies) — GIN
+  /// jsonb_path_ops untuk filter feed.
+  accommodations Json @default("[]")
+  /// Opsional eksplisit menyambut jenis disabilitas — data LOWONGAN (publik),
+  /// bukan data pribadi pencari kerja; boleh plaintext.
+  welcomedDisabilityTypes String[] @map("welcomed_disability_types")
+
+  source JobSource @default(admin_curated)
+  status JobStatus @default(draft)
+
+  /// pgvector — akses hanya via $queryRaw repo matching (pola PR-010).
+  jobEmbedding Unsupported("vector(768)")? @map("job_embedding")
+
+  /// Kurator/employer pembuat; penghapusan akun tidak menghapus lowongan.
+  createdBy String? @map("created_by") @db.Uuid
+
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  creator      User?         @relation("JobCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  applications Application[]
+  matchScores  MatchScore[]
+
+  @@map("jobs")
+}
+
+model Application {
+  id String @id @db.Uuid
+  /// Hapus akun → lamaran ikut terhapus (hak hapus PDP).
+  userId String @map("user_id") @db.Uuid
+  /// RIWAYAT TAK HILANG: jobs dengan lamaran tidak boleh di-delete (Restrict)
+  /// — soft-close lowongan alih-alih hapus (SDD §14).
+  jobId String @map("job_id") @db.Uuid
+  /// CV yang dipakai melamar tidak boleh hilang selama lamaran ada.
+  resumeId String? @map("resume_id") @db.Uuid
+
+  /// Kontrol disclosure disabilitas PER LAMARAN (PRD FR-6.2).
+  discloseDisability Boolean @default(false) @map("disclose_disability")
+
+  status ApplicationStatus @default(submitted)
+  /// Append-only {from,to,by,at} (SDD §6.2) — promosi ke tabel bila perlu
+  /// analitik SQL.
+  statusHistory Json @default("[]") @map("status_history")
+
+  appliedAt DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// North Star Metric: konfirmasi diterima kerja.
+  hiredConfirmedAt DateTime? @map("hired_confirmed_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  /// NoAction (bukan Restrict): dicek di AKHIR statement — hapus akun (cascade
+  /// users→applications+resumes satu statement) tetap bersih, tapi DELETE
+  /// resume langsung yang masih dipakai lamaran ditolak.
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: NoAction)
+
+  /// Idempotensi apply (SDD §5.3) — duplikat/race ditolak DB.
+  @@unique([userId, jobId])
+  @@map("applications")
+}
+
+/// Cache materialisasi skor matching — boleh dihapus kapan pun, selalu bisa
+/// dihitung ulang (SDD §6.2). Retensi 7 hari (job purge harian).
+model MatchScore {
+  userId      String  @map("user_id") @db.Uuid
+  jobId       String  @map("job_id") @db.Uuid
+  score       Decimal @db.Decimal(5, 4)
+  explanation String?
+
+  computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@id([userId, jobId])
+  @@index([computedAt])
+  @@map("match_scores")
+}
+
+/// Penegakan kuota + audit pemakaian AI (SDD §7.2); retensi 90 hari.
+model AiUsage {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  feature   AiFeature
+  provider  String
+  tokensIn  Int       @default(0) @map("tokens_in")
+  tokensOut Int       @default(0) @map("tokens_out")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Kuota harian per fitur (SDD §6.3).
+  @@index([userId, feature, createdAt])
+  @@map("ai_usage")
+}
+
+model Notification {
+  id      String  @id @db.Uuid
+  userId  String  @map("user_id") @db.Uuid
+  type    String
+  payload Json    @default("{}")
+  /// NULL = belum dibaca; partial index unread via raw SQL.
+  readAt  DateTime? @map("read_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+/// SignBridge v1: kamus video BISINDO (SDD §6.2 poin 5) — CRUD admin +
+/// list publik; FTS phrase via raw SQL.
+model SignVideo {
+  id           String          @id @db.Uuid
+  phrase       String
+  category     String?
+  videoUrl     String          @map("video_url")
+  thumbnailUrl String?         @map("thumbnail_url")
+  durationS    Int?            @map("duration_s")
+  status       SignVideoStatus @default(draft)
+
+  /// Admin pembuat; akun dihapus → konten tetap.
+  createdBy String? @map("created_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator User? @relation("SignVideoCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("sign_videos")
+}

@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Incasif menargetkan web + mobile (PRD §7: Android 8+, iOS 14+). Tim 2–5 orang memakai React di web; aplikasi mobile harus mendukung TalkBack (WCAG 2.2 AA sebagai gate rilis) dan berbagi logika dengan web melalui monorepo Turborepo.
+Nawasena menargetkan web + mobile (PRD §7: Android 8+, iOS 14+). Tim 2–5 orang memakai React di web; aplikasi mobile harus mendukung TalkBack (WCAG 2.2 AA sebagai gate rilis) dan berbagi logika dengan web melalui monorepo Turborepo.
 
 Constraint: timeline MVP 3–4 bulan; pengujian aksesibilitas manual per platform adalah beban terbesar; mayoritas pengguna target memakai Android.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Aplikasi mobile Incasif dibangun dengan **React Native + Expo (managed workflow)**. UI ditulis native React Native (bukan react-native-web) demi kontrol penuh atas perilaku TalkBack/VoiceOver; logika dibagikan dari monorepo (`packages/schemas`, `packages/api-client`, `packages/a11y`). Setiap komponen interaktif WAJIB memiliki `accessibilityLabel` dan `accessibilityRole`; pengujian TalkBack masuk definition-of-done. Distribusi MVP: **Android via EAS Build → Google Play**; iOS menyusul pada Fase 2. Push notification melalui expo-notifications + FCM.
+Aplikasi mobile Nawasena dibangun dengan **React Native + Expo (managed workflow)**. UI ditulis native React Native (bukan react-native-web) demi kontrol penuh atas perilaku TalkBack/VoiceOver; logika dibagikan dari monorepo (`packages/schemas`, `packages/api-client`, `packages/a11y`). Setiap komponen interaktif WAJIB memiliki `accessibilityLabel` dan `accessibilityRole`; pengujian TalkBack masuk definition-of-done. Distribusi MVP: **Android via EAS Build → Google Play**; iOS menyusul pada Fase 2. Push notification melalui expo-notifications + FCM.
 
 ## Consequences
 

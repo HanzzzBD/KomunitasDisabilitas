@@ -1,11 +1,11 @@
-# Incasif – Inclusive Career Ecosystem for People with Disabilities
+# Nawasena – Inclusive Career Ecosystem for People with Disabilities
 
-Incasif adalah platform digital berbasis kecerdasan buatan (AI) yang dirancang untuk meningkatkan akses penyandang disabilitas terhadap dunia kerja dan pengembangan karier. Platform ini tidak hanya berfungsi sebagai portal lowongan kerja, tetapi juga sebagai ekosistem inklusif yang menghubungkan pencari kerja disabilitas, perusahaan, mentor, komunitas, dan penyedia pelatihan dalam satu sistem terintegrasi.
+Nawasena adalah platform digital berbasis kecerdasan buatan (AI) yang dirancang untuk meningkatkan akses penyandang disabilitas terhadap dunia kerja dan pengembangan karier. Platform ini tidak hanya berfungsi sebagai portal lowongan kerja, tetapi juga sebagai ekosistem inklusif yang menghubungkan pencari kerja disabilitas, perusahaan, mentor, komunitas, dan penyedia pelatihan dalam satu sistem terintegrasi.
 
 Melalui fitur Smart Job Matching, sistem secara otomatis mencocokkan profil pengguna dengan lowongan dan perusahaan yang sesuai berdasarkan keterampilan, pengalaman, kebutuhan aksesibilitas, serta preferensi kerja. Selain itu, setiap perusahaan memiliki Profil Aksesibilitas yang menampilkan informasi fasilitas dan tingkat inklusivitas sehingga pengguna dapat mengambil keputusan yang lebih tepat sebelum melamar.
 
 Untuk mendukung pengembangan karier, platform menyediakan forum komunitas, program mentoring, pelatihan, webinar, serta fitur AI Career Recommendation, AI CV Checker, dan AI Interview Simulator yang membantu pengguna meningkatkan kesiapan kerja mereka.
 
-Sebagai inovasi utama, Incasif menghadirkan SignBridge Indonesia, sebuah teknologi penerjemah Bahasa Isyarat Indonesia (BISINDO/SIBI) dan Bahasa Indonesia secara dua arah menggunakan computer vision dan AI. Fitur ini membantu mengurangi hambatan komunikasi antara penyandang Tuli, perusahaan, dan masyarakat umum.
+Sebagai inovasi utama, Nawasena menghadirkan SignBridge Indonesia, sebuah teknologi penerjemah Bahasa Isyarat Indonesia (BISINDO/SIBI) dan Bahasa Indonesia secara dua arah menggunakan computer vision dan AI. Fitur ini membantu mengurangi hambatan komunikasi antara penyandang Tuli, perusahaan, dan masyarakat umum.
 
-Dengan memanfaatkan teknologi AI dan prinsip desain inklusif, Incasif bertujuan menciptakan kesempatan kerja yang lebih setara, meningkatkan kemandirian ekonomi penyandang disabilitas, serta mendorong terbentuknya lingkungan kerja yang lebih inklusif di Indonesia.
+Dengan memanfaatkan teknologi AI dan prinsip desain inklusif, Nawasena bertujuan menciptakan kesempatan kerja yang lebih setara, meningkatkan kemandirian ekonomi penyandang disabilitas, serta mendorong terbentuknya lingkungan kerja yang lebih inklusif di Indonesia.

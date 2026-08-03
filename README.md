@@ -1,4 +1,4 @@
-# Incasif — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Inclusive Career Ecosystem for People with Disabilities
 
 Platform pencarian kerja berbasis AI yang dirancang khusus dan sepenuhnya aksesibel bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda). Standar aksesibilitas: **WCAG 2.2 Level AA** (end-to-end).
 
@@ -61,16 +61,24 @@ Semua perintah di atas dijalankan lewat Turborepo (`turbo run <task>`) sehingga 
 Berlaku untuk semua PR (detail di [CLAUDE.md](./CLAUDE.md) dan [docs/implementation/README.md](./docs/implementation/README.md)):
 
 - **Lint boundaries** — batas modul ditegakkan `eslint-plugin-boundaries` (mulai PR-002); no cross-module repo import, no direct AI SDK import di luar `core/ai`.
-- **Validasi input** — selalu via zod dari `@incasif/schemas`.
+- **Validasi input** — selalu via zod dari `@nawasena/schemas`.
 - **Error envelope** — `{code, message, hint}` dalam Bahasa Indonesia sederhana.
 - **A11y gate** — perubahan frontend wajib lolos axe-core + jsx-a11y + Lighthouse (WCAG 2.2 AA).
 - **AI via gateway** — panggilan LLM hanya lewat `core/ai`, hormati kuota per-user.
 - **No PII/secret** — tidak ada PII atau secret di log maupun kode; `.env*` tidak pernah di-commit (lihat `.gitignore`).
 - **Ukuran PR** — target < 500 LOC.
 
+## Alur Branch (Phase → Main)
+
+- **`main`** — hanya menerima merge **satu phase utuh** (mis. seluruh Phase 01 selesai + exit criteria terpenuhi).
+- **`phase-XX-<nama>`** (mis. `phase-01-foundation`) — branch integrasi per phase; **PR per-fitur (PR-00N) menargetkan branch ini**, bukan `main`.
+- Branch kerja per PR: `pr-00N-<slug>` → PR ke branch phase → squash-merge setelah check hijau.
+
+Kedua jenis branch (`main` & branch phase aktif) diproteksi sama: wajib PR + check `lint-typecheck-test` hijau, `enforce_admins` aktif.
+
 ## CI — Status Check per PR
 
-Setiap PR ke `main` menjalankan workflow [`.github/workflows/pr.yml`](./.github/workflows/pr.yml) (GitHub Actions, ADR-016). Check **wajib hijau sebelum merge** (branch protection):
+Setiap PR ke `main` atau branch `phase-*` menjalankan workflow [`.github/workflows/pr.yml`](./.github/workflows/pr.yml) (GitHub Actions, ADR-016). Check **wajib hijau sebelum merge** (branch protection):
 
 | Status check                    | Isi                                                                                                                       | Blocking?       |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------- |
@@ -107,7 +115,7 @@ gh api -X PUT repos/{owner}/{repo}/branches/main/protection \
 
 ## Secrets & Environment
 
-- Development: salin `.env.example` → `.env.local`, isi nilai lokal. File `.env*` di-ignore git (ADR-015).
+- **`.env.example` hidup per app** (di folder app yang membacanya) — TIDAK ada di root. Backend: `cp apps/api/.env.example apps/api/.env` (Prisma & API hanya membaca dari `apps/api/`). File `.env*` di-ignore git (ADR-015).
 - CI/Production: env vars via GitHub Secrets — tidak ada file `.env` di repo.
 
 ## Rollback (RB-Std)

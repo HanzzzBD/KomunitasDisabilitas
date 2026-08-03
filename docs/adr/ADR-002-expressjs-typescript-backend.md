@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-Backend Incasif membutuhkan framework HTTP untuk monolith modular (ADR-001) yang mendukung REST + SSE, middleware auth/RBAC, dan dapat dikembangkan cepat oleh tim 2–5 orang dengan bantuan AI engineering tools.
+Backend Nawasena membutuhkan framework HTTP untuk monolith modular (ADR-001) yang mendukung REST + SSE, middleware auth/RBAC, dan dapat dikembangkan cepat oleh tim 2–5 orang dengan bantuan AI engineering tools.
 
 Constraint: framework harus matang, berdokumentasi luas, dan kompatibel dengan ekosistem Node.js/TypeScript yang dipakai monorepo (Turborepo, zod, Prisma).
 
@@ -17,14 +17,14 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-Backend Incasif menggunakan **Express.js + TypeScript** dengan **Prisma** sebagai ORM. Karena Express tidak memaksakan struktur, seluruh kode backend WAJIB mengikuti konvensi modul SDD §5.1: lapisan `router → controller → service → repo` satu arah, satu folder per modul, dependency injection manual via factory function, dan aturan import ditegakkan `eslint-plugin-boundaries` sebagai gate CI.
+Backend Nawasena menggunakan **Express.js + TypeScript** dengan **Prisma** sebagai ORM. Karena Express tidak memaksakan struktur, seluruh kode backend WAJIB mengikuti konvensi modul SDD §5.1: lapisan `router → controller → service → repo` satu arah, satu folder per modul, dependency injection manual via factory function, dan aturan import ditegakkan `eslint-plugin-boundaries` sebagai gate CI.
 
 ## Consequences
 
 ### Positif
 
 * Ekosistem dan dokumentasi terluas di Node.js → onboarding cepat, AI coding tools sangat terlatih pada Express.
-* Kontrol penuh atas struktur — konvensi Incasif tidak berbenturan dengan opini framework.
+* Kontrol penuh atas struktur — konvensi Nawasena tidak berbenturan dengan opini framework.
 * Middleware matang tersedia untuk kebutuhan keamanan (helmet, rate limit).
 
 ### Negatif

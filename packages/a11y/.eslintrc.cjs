@@ -1,1 +1,1 @@
-module.exports = require("@incasif/config/eslint");
+module.exports = require("@nawasena/config/eslint");

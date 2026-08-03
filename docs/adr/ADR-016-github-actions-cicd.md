@@ -6,7 +6,7 @@ Tanggal: 2026-07-15
 
 ## Context
 
-WCAG 2.2 AA adalah gate rilis Incasif (PRD §7) dan klaim aksesibilitas yang tidak terbukti adalah risiko produk tertinggi (R3 PRD §17). Kualitas ini tidak dapat dijaga hanya lewat audit manual — harus ditegakkan otomatis pada setiap perubahan kode. Deploy menuju VPS (ADR-006) harus dapat diulang dan dapat di-rollback.
+WCAG 2.2 AA adalah gate rilis Nawasena (PRD §7) dan klaim aksesibilitas yang tidak terbukti adalah risiko produk tertinggi (R3 PRD §17). Kualitas ini tidak dapat dijaga hanya lewat audit manual — harus ditegakkan otomatis pada setiap perubahan kode. Deploy menuju VPS (ADR-006) harus dapat diulang dan dapat di-rollback.
 
 Constraint: gratis untuk tim kecil; mendukung monorepo Turborepo; build Android via EAS.
 
@@ -17,7 +17,7 @@ Alternatif yang dipertimbangkan:
 
 ## Decision
 
-CI/CD Incasif menggunakan **GitHub Actions**. Setiap PR menjalankan: lint (eslint + boundaries) → typecheck → unit (Vitest) → API test (Supertest + Postgres service) → e2e ringkas (Playwright) → **a11y gate (axe-core — kegagalan = build merah)** → Lighthouse CI (aksesibilitas = 100, performa ≥ 80). Merge ke main: build image → push GHCR (pin digest) → deploy staging otomatis → smoke test. Tag `v*`: deploy produksi dengan manual approval (GitHub Environment). Rollback via `deploy.sh --rollback` ke digest sebelumnya; migrasi DB wajib backward-compatible satu versi. Build Android dipicu manual per rilis via EAS.
+CI/CD Nawasena menggunakan **GitHub Actions**. Setiap PR menjalankan: lint (eslint + boundaries) → typecheck → unit (Vitest) → API test (Supertest + Postgres service) → e2e ringkas (Playwright) → **a11y gate (axe-core — kegagalan = build merah)** → Lighthouse CI (aksesibilitas = 100, performa ≥ 80). Merge ke main: build image → push GHCR (pin digest) → deploy staging otomatis → smoke test. Tag `v*`: deploy produksi dengan manual approval (GitHub Environment). Rollback via `deploy.sh --rollback` ke digest sebelumnya; migrasi DB wajib backward-compatible satu versi. Build Android dipicu manual per rilis via EAS.
 
 ## Consequences
 

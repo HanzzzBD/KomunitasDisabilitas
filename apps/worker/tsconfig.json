@@ -1,5 +1,5 @@
 {
-  "extends": "@incasif/config/tsconfig/node",
+  "extends": "@nawasena/config/tsconfig/node",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",

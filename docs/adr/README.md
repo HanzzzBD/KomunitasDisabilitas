@@ -1,6 +1,6 @@
-# Architecture Decision Records — Incasif
+# Architecture Decision Records — Nawasena
 
-Direktori ini adalah **sumber kebenaran resmi ADR** proyek Incasif. SDD §21 merujuk ke sini. Aturan: satu file per keputusan; ADR bersifat append-only — perubahan keputusan dilakukan dengan ADR baru berstatus menggantikan (Superseded) ADR lama, bukan dengan mengedit isi lama.
+Direktori ini adalah **sumber kebenaran resmi ADR** proyek Nawasena. SDD §21 merujuk ke sini. Aturan: satu file per keputusan; ADR bersifat append-only — perubahan keputusan dilakukan dengan ADR baru berstatus menggantikan (Superseded) ADR lama, bukan dengan mengedit isi lama.
 
 Sumber kebenaran hulu: PRD (kebutuhan bisnis) dan SDD (keputusan teknis).
 

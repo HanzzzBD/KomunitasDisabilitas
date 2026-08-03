@@ -8,7 +8,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "phase-*"]
 
 permissions:
   contents: read
@@ -23,6 +23,38 @@ jobs:
     name: lint-typecheck-test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Postgres service (PR-009): migrate reset + seed + integration test DB.
+    # Image sama dengan compose dev — hindari drift versi.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: nawasena
+          POSTGRES_PASSWORD: nawasena
+          POSTGRES_DB: nawasena
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U nawasena -d nawasena"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      # Redis queue (PR-015b): integration test retry/backoff/DLQ/drain.
+      # Image & port sama dengan compose dev. Tanpa --maxmemory, default Redis
+      # adalah noeviction — syarat BullMQ (ADR-004) terpenuhi tanpa flag
+      # tambahan (service container GitHub tidak menerima argumen command).
+      redis-queue:
+        image: redis:7.4-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://nawasena:nawasena@localhost:5433/nawasena
+      REDIS_QUEUE_URL: redis://localhost:6380
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +83,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Prisma client harus ter-generate sebelum typecheck/test — tanpa ini
+      # tipe @prisma/client hanyalah stub kosong (TS2347/TS2339).
+      - name: Prisma generate
+        run: pnpm --filter @nawasena/api exec prisma generate
+
       # Lint mencakup eslint-plugin-boundaries — pelanggaran arsitektur = CI merah.
       - name: Lint
         run: pnpm lint
@@ -58,12 +95,17 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # AC PR-009: migrate reset + seed hijau di CI (Postgres service).
+      # Menjalankan seluruh migrasi dari nol + seed admin idempotent.
+      - name: Prisma migrate reset + seed
+        run: pnpm --filter @nawasena/api exec prisma migrate reset --force
+
       - name: Unit test
         run: pnpm test
 
       # Drift kontrak: openapi.json wajib sinkron dengan skema zod (PR-004).
       - name: OpenAPI drift check
-        run: pnpm --filter @incasif/schemas check:openapi
+        run: pnpm --filter @nawasena/schemas check:openapi
 
   # ---- Slot non-blocking (diaktifkan PR-031) ----
   # `if: false` = job tidak pernah jalan, tapi struktur & nama check sudah dipesan

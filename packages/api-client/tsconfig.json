@@ -1,10 +1,9 @@
 {
-  "extends": "@incasif/config/tsconfig/node",
+  "extends": "@nawasena/config/tsconfig/node",
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "noEmit": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
