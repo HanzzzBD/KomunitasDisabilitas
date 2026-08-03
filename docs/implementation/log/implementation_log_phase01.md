@@ -798,3 +798,12 @@ Tetapi untuk sampai ke sana, verifikasi ini menyingkap **dua bug yang seluruh 17
 Catatan proses yang layak diingat: PR-015b lolos CI dengan 173 test hijau — termasuk integration test drain terhadap Redis nyata — dan tetap menyimpan bug yang membuat drain tidak berfungsi di container. Integration test membuktikan `runtime.drain()` menunggu job; ia tidak bisa tahu bahwa pembungkus prosesnya membunuh worker duluan. Untuk komponen yang perilakunya ditentukan lingkungan (sinyal, mount, proses), menjalankannya sungguhan tidak tergantikan oleh test.
 
 Perbaikannya ada di PR `fix-worker-dev-container` (terpisah dari PR-015b yang sudah merged).
+
+### Penutup follow-up Phase 01 (2026-08-01)
+
+Empat item terbuka dari PR-015 diputuskan owner dan ditindaklanjuti:
+
+1. **SDD §16 dikoreksi** — tiga hal usang/tidak eksekutabel: (a) nama queue `<domain>:<pekerjaan>` diganti separator `-` karena BullMQ melarang `:` pada nama queue MAUPUN job id; (b) contoh job id `extract:{sessionId}` → `extract-{sessionId}` via `buildJobId()`; (c) kalimat "Redis untuk queue memakai DB index terpisah" diganti "dua service Redis" sesuai ADR-004 revisi PR-008. Ditambah catatan pemetaan `attempts = retry + 1` dan bahwa kolom Timeout ditegakkan worker (bukan opsi job BullMQ v5). Semuanya koreksi fakta agar SDD cocok dengan kode yang sudah merged — tidak ada keputusan arsitektur yang berubah.
+2. **Utang rate limit ditempatkan di PR-105** (phase-17). Dicatat sekalian dampaknya bila tetap memory store: hitungan tidak dibagi antar-replika (2 replika = 2× jatah) dan hilang saat restart.
+3. **PR-099 diberi catatan larangan `tsx watch`** langsung di file phase-16, lengkap dengan bukti dari manual verification — agar terbaca saat PR itu dikerjakan, bukan terkubur di log Phase 01.
+4. **Branch `wip-rename-nawasena-docs` di-push ke origin** sebagai cadangan (tanpa PR). Isinya revisi PRD/SDD v1.2 + Community Phase 19; dibuat sebelum rename & PR-014/015 sehingga konflik dengan kondisi `phase-01-foundation` sekarang — perlu rebase bila kelak dijadikan PR.

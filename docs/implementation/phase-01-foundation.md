@@ -1187,7 +1187,7 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 **Out of Scope:**
 
 * Processor fitur (PR terkait); alert DLQ (PR-103).
-* Redis store `express-rate-limit` — utang PR-008 yang catatannya menunjuk "PR-010" (penomoran basi; wiring BullMQ sebenarnya PR-015). Tidak ada di Scope PR-015, jadi tetap ditunda dan dicatat sebagai follow-up.
+* Redis store `express-rate-limit` — utang PR-008 yang catatannya menunjuk "PR-010" (penomoran basi; wiring BullMQ sebenarnya PR-015). **Diputuskan owner 2026-08-01: dikerjakan di PR-105** ([phase-17](phase-17-security-pdp-hardening.md#pr-105---csp-final--security-headers--rate-limit-per-endpoint)) — utang ini tidak lagi menggantung tanpa pemilik.
 
 **Rollback Strategy:**
 
