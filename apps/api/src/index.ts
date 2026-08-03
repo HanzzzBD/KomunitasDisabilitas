@@ -8,7 +8,7 @@ import { createRedisClients } from "./core/redis/index.js";
 import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
 import { createHealthModule } from "./modules/health/index.js";
 import { createInternalModule } from "./modules/internal/index.js";
-import { createAuthModule } from "./modules/auth/index.js";
+import { createAuthModule, createOtpSenderFromEnv } from "./modules/auth/index.js";
 import { createQueueRegistry, createRawQueuePool, loadQueueConfigs } from "./core/queue/index.js";
 import { createServer, registerShutdownHooks } from "./server.js";
 
@@ -82,6 +82,8 @@ const api = createServer(env, logger, {
         prisma,
         redis: redis.cache,
         otpHashSecret: env.OTP_HASH_SECRET,
+        // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
+        sender: createOtpSenderFromEnv(env, logger),
         auditLog,
         logger,
       }),

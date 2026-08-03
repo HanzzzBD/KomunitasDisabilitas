@@ -57,10 +57,57 @@ const envSchema = z.object({
     .string()
     .min(32, { message: "minimal 32 karakter (mis. hasil `openssl rand -base64 32`)" })
     .optional(),
+  // --- Provider pengiriman OTP (PR-016b) ---
+  // Semua OPSIONAL: tanpa satu pun provider, endpoint OTP tetap ada tetapi
+  // menjawab 503 (deny-by-default). Kredensial yang setengah terisi ditolak
+  // saat boot — lihat superRefine di bawah.
+  FONNTE_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  FONNTE_BASE_URL: z
+    .string()
+    .url({ message: "harus URL valid" })
+    .default("https://api.fonnte.com"),
+  TWILIO_ACCOUNT_SID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  TWILIO_AUTH_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /** Nomor/sender ID pengirim SMS terdaftar di Twilio. */
+  TWILIO_FROM: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  TWILIO_BASE_URL: z
+    .string()
+    .url({ message: "harus URL valid" })
+    .default("https://api.twilio.com"),
+  /** Batas tunggu satu panggilan provider; habis waktu = coba provider berikutnya. */
+  OTP_SEND_TIMEOUT_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .max(30_000, { message: "maksimal 30000 (30 detik)" })
+    .default(10_000),
   // --- Endpoint internal (PR-015b) ---
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.
   INTERNAL_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+});
+
+/**
+ * Kredensial Twilio hanya berguna lengkap (PR-016b). Setengah terisi hampir
+ * selalu berarti salin-tempel yang terpotong — lebih baik boot GAGAL dengan
+ * nama variabel yang hilang daripada fallback SMS diam-diam mati saat Fonnte
+ * bermasalah (justru saat paling dibutuhkan).
+ */
+const TWILIO_VARS = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"] as const;
+
+const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
+  const terisi = TWILIO_VARS.filter((nama) => env[nama] !== undefined);
+  if (terisi.length === 0 || terisi.length === TWILIO_VARS.length) return;
+
+  for (const nama of TWILIO_VARS) {
+    if (env[nama] === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [nama],
+        message: `wajib diisi bila ${terisi.join(" / ")} di-set (kredensial Twilio harus lengkap)`,
+      });
+    }
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -82,7 +129,7 @@ export class EnvError extends Error {
 
 /** Parse env; lempar EnvError berisi variabel mana yang hilang/salah. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = envSchema.safeParse(source);
+  const parsed = envSchemaLengkap.safeParse(source);
   if (!parsed.success) {
     throw new EnvError(
       parsed.error.issues.map(
