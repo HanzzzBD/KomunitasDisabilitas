@@ -115,7 +115,8 @@ gh api -X PUT repos/{owner}/{repo}/branches/main/protection \
 
 ## Secrets & Environment
 
-- **`.env.example` hidup per app** (di folder app yang membacanya) — TIDAK ada di root. Backend: `cp apps/api/.env.example apps/api/.env` (Prisma & API hanya membaca dari `apps/api/`). File `.env*` di-ignore git (ADR-015).
+- **`.env.example` hidup per app** (di folder app yang membacanya) — TIDAK ada di root. Backend: `cp apps/api/.env.example apps/api/.env` (dibaca hanya dari `apps/api/`). File `.env*` di-ignore git (ADR-015).
+- **Yang memuat `.env` itu perintah peluncur, bukan kode aplikasi:** Prisma CLI (otomatis) dan script `dev` (`tsx watch --env-file-if-exists=.env`). Script `start`/kontainer **tidak** memuatnya. Env var yang sudah ada selalu menang atas isi file, dan gerbang fail-fast tetap berjalan sesudahnya — `.env` tanpa `FIELD_KEY_V1` tetap membuat boot gagal.
 - CI/Production: env vars via GitHub Secrets — tidak ada file `.env` di repo.
 
 ## Rollback (RB-Std)

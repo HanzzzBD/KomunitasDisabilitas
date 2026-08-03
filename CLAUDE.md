@@ -355,6 +355,14 @@ GEMINI_API_KEY="..."
 NODE_ENV="development"
 ```
 
+**Siapa yang memuat `.env` (eksplisit — bukan efek samping):**
+- Prisma CLI (`prisma migrate`, `prisma studio`) — otomatis.
+- Script `dev`: `tsx watch --env-file-if-exists=.env src/index.ts`.
+- Script `start` (produksi/kontainer): **tidak** memuat `.env`; env var datang dari compose/CI.
+- Env var yang sudah ada **selalu menang** atas isi `.env` (file hanya mengisi yang kosong).
+- Gerbang fail-fast (`loadEnv` → `parseFieldKeys` → `loadQueueConfigs`) berjalan **setelah** pemuatan itu, jadi `.env` yang kurang `FIELD_KEY_V1` tetap membuat boot gagal.
+- `apps/api/src/index.ts` hanya berisi gerbang; seluruh wiring ada di `src/boot.ts` yang di-import dinamis. **Jangan menambah import statis yang menyentuh `@prisma/client` di `index.ts`** — Prisma memuat `.env` saat di-import dan akan melangkahi gerbang (diuji di `crypto-boot.test.ts`).
+
 **CI/Production:**
 - Env vars set in GitHub Secrets, passed to runner at build time
 - No `.env` files in repo

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { spawn } from "node:child_process";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -33,11 +33,22 @@ interface BootResult {
  * (kasus fail-fast). `expectExit`=false: boot diharapkan sukses → kita tunggu
  * baris "API siap" lalu bunuh proses (proses server hidup terus).
  */
-function bootApi(env: NodeJS.ProcessEnv, expectExit: boolean): Promise<BootResult> {
+function bootApi(
+  env: NodeJS.ProcessEnv,
+  expectExit: boolean,
+  /** Nama file env yang dimuat eksplisit — meniru script "dev" (PR-016 fix). */
+  envFile?: string,
+): Promise<BootResult> {
   return new Promise((resolvePromise, rejectPromise) => {
     // node --import tsx: jalankan TS langsung tanpa bergantung pada .bin shim
     // (lintas OS; hindari masalah resolusi .cmd di Windows).
-    const child = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], {
+    const args = [
+      ...(envFile === undefined ? [] : [`--env-file-if-exists=${envFile}`]),
+      "--import",
+      "tsx",
+      "src/index.ts",
+    ];
+    const child = spawn(process.execPath, args, {
       cwd: apiDir,
       // Env BERSIH: hanya yang kita berikan (jangan wariskan FIELD_KEY_* host).
       env: { PATH: process.env.PATH, ...env },
@@ -117,6 +128,66 @@ describe("fail-fast kunci enkripsi saat boot (AC PR-013)", () => {
     // Material kunci TIDAK muncul di output apa pun (stdout/stderr).
     expect(r.stdout).not.toContain(key);
     expect(r.stderr).not.toContain(key);
+  }, 25_000);
+});
+
+// Jalur dev (script "dev": tsx watch --env-file-if-exists=.env). Pemuatan .env
+// adalah properti PERINTAH PELUNCUR, bukan kode aplikasi — sehingga dev nyaman
+// tanpa membuat produksi diam-diam membaca file. File uji sengaja BUKAN ".env"
+// agar test ini selalu berjalan (tidak pernah bersinggungan dengan .env milik
+// developer) dan tidak perlu skip.
+describe("pemuatan .env eksplisit lewat --env-file (jalur dev)", () => {
+  const envFileUji = ".env.uji-boot";
+  const envFilePath = resolve(apiDir, envFileUji);
+  const KUNCI_VALID = Buffer.alloc(32, 4).toString("base64");
+  /** Isi file env lengkap seperti .env developer sungguhan. */
+  const ISI_LENGKAP = [
+    `DATABASE_URL=${BASE_ENV.DATABASE_URL}`,
+    `REDIS_URL=${BASE_ENV.REDIS_URL}`,
+    `REDIS_QUEUE_URL=${BASE_ENV.REDIS_QUEUE_URL}`,
+    "HOST=127.0.0.1",
+    "PORT=0",
+    `FIELD_KEY_V1=${KUNCI_VALID}`,
+  ].join("\n");
+
+  afterEach(() => {
+    rmSync(envFilePath, { force: true });
+  });
+
+  it("env var dari file dipakai: boot berhasil walau shell hanya berisi PATH", async () => {
+    writeFileSync(envFilePath, `${ISI_LENGKAP}\n`, "utf8");
+    const r = await bootApi({ NODE_ENV: "test" }, false, envFileUji);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain(KUNCI_VALID); // kunci tidak bocor ke log
+  }, 25_000);
+
+  it("file env tanpa FIELD_KEY_V1 → boot TETAP mati (fail-fast tidak dilemahkan)", async () => {
+    const tanpaKunci = ISI_LENGKAP.split("\n")
+      .filter((baris) => !baris.startsWith("FIELD_KEY_V1"))
+      .join("\n");
+    writeFileSync(envFilePath, `${tanpaKunci}\n`, "utf8");
+    const r = await bootApi({ NODE_ENV: "test" }, true, envFileUji);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("FIELD_KEY_V1");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("env var shell MENANG atas isi file (deploy tidak bisa ditimpa .env basi)", async () => {
+    // File menunjuk port DB yang salah; shell menunjuk yang benar. Bila file
+    // menang, PORT=65000 dari file akan terlihat pada baris "API siap".
+    writeFileSync(envFilePath, `${ISI_LENGKAP}\nPORT=65000\n`, "utf8");
+    const r = await bootApi(
+      { NODE_ENV: "test", PORT: "0", FIELD_KEY_V1: KUNCI_VALID },
+      false,
+      envFileUji,
+    );
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain('"port":65000');
+  }, 25_000);
+
+  it("file env tidak ada → tidak error, boot jalan dari env var saja", async () => {
+    const r = await bootApi({ ...BASE_ENV, FIELD_KEY_V1: KUNCI_VALID }, false, envFileUji);
+    expect(r.stdout).toContain("API siap menerima koneksi");
   }, 25_000);
 });
 
