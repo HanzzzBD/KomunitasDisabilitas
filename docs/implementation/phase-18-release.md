@@ -289,6 +289,7 @@ Bisnis: MVP live untuk pilot 1–2 komunitas disabilitas (menuju North Star ≥5
 * Eksekusi rilis + rollout Play bertahap (20%→100%)
 * Monitoring intensif + go/no-go pilot
 * Pengumuman ke komunitas pilot (materi aksesibel)
+* **Lisensi proyek/API ditetapkan** — prasyarat rilis publik, keputusan owner yang masih terbuka sejak PR-004 (2026-07-18). Saat ini tidak ada file `LICENSE` di root dan `info.license` kosong di `openapi.json` (`redocly lint` memberi warning `info-license`). Rilis v1.0.0 ke publik tanpa lisensi eksplisit membuat status hak cipta dan hak pakai tidak jelas bagi pengguna maupun calon kontributor. Setelah diputuskan: tambah `LICENSE` di root + isi `info.license` pada generator OpenAPI (`packages/schemas`), lalu regenerate `openapi.json`.
 
 #### Technical Notes
 
