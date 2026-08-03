@@ -46,6 +46,22 @@ export const ERROR_CATALOG = {
     message: "Terlalu banyak permintaan",
     hint: "Tunggu sebentar, lalu coba lagi",
   },
+  // --- Alur OTP (PR-016) ---
+  KODE_OTP_SALAH: {
+    status: 401,
+    message: "Kode yang Anda masukkan salah",
+    hint: "Periksa kembali kode dari WhatsApp atau SMS",
+  },
+  KODE_OTP_HANGUS: {
+    status: 410,
+    message: "Kode sudah tidak berlaku",
+    hint: "Minta kode baru, lalu masukkan dalam 5 menit",
+  },
+  TERLALU_BANYAK_PERCOBAAN: {
+    status: 429,
+    message: "Terlalu banyak percobaan kode",
+    hint: "Tunggu sesuai waktu yang diberitahukan, lalu minta kode baru",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",
@@ -60,19 +76,30 @@ export const ERROR_CATALOG = {
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;
 
+/** Override opsional saat membuat error: pesan/hint kontekstual + Retry-After. */
+export interface AppErrorOverrides extends Partial<Pick<CatalogEntry, "message" | "hint">> {
+  /**
+   * Detik yang harus ditunggu klien; error handler global menuliskannya sebagai
+   * header `Retry-After` (SDD §11 — 429 selalu memberi tahu kapan boleh coba lagi).
+   */
+  retryAfterSeconds?: number;
+}
+
 /** Error aplikasi ber-kode katalog; dilempar dari layer mana pun. */
 export class AppError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
   readonly hint?: string;
+  readonly retryAfterSeconds?: number;
 
-  constructor(code: ErrorCode, overrides?: Partial<Pick<CatalogEntry, "message" | "hint">>) {
+  constructor(code: ErrorCode, overrides?: AppErrorOverrides) {
     const entry: CatalogEntry = ERROR_CATALOG[code];
     super(overrides?.message ?? entry.message);
     this.name = "AppError";
     this.code = code;
     this.status = entry.status;
     this.hint = overrides?.hint ?? entry.hint;
+    this.retryAfterSeconds = overrides?.retryAfterSeconds;
   }
 
   get envelope(): ErrorEnvelope {
@@ -81,9 +108,6 @@ export class AppError extends Error {
 }
 
 /** Cara baku membuat error: appError("TIDAK_BERHAK") / dengan override hint. */
-export function appError(
-  code: ErrorCode,
-  overrides?: Partial<Pick<CatalogEntry, "message" | "hint">>,
-): AppError {
+export function appError(code: ErrorCode, overrides?: AppErrorOverrides): AppError {
   return new AppError(code, overrides);
 }

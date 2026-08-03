@@ -49,6 +49,14 @@ const envSchema = z.object({
     .int({ message: "harus bilangan bulat" })
     .min(1000, { message: "minimal 1000 (1 detik)" })
     .default(60_000),
+  // --- OTP (PR-016) ---
+  // Pepper HMAC untuk hash OTP di Redis. OPSIONAL secara skema (deny-by-default
+  // seperti INTERNAL_TOKEN): bila tidak di-set, endpoint OTP menjawab 503 —
+  // TIDAK PERNAH berjalan dengan hash tanpa kunci. .env lama tetap valid.
+  OTP_HASH_SECRET: z
+    .string()
+    .min(32, { message: "minimal 32 karakter (mis. hasil `openssl rand -base64 32`)" })
+    .optional(),
   // --- Endpoint internal (PR-015b) ---
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.

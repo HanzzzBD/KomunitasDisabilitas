@@ -73,11 +73,11 @@ Bisnis: login tanpa password — hambatan terbesar bagi banyak pengguna disabili
 
 **Testing Checklist:**
 
-* [ ] Unit Test (limiter, hashing)
-* [ ] Integration Test (alur penuh + lockout, sender mock)
+* [x] Unit Test (limiter, hashing) — 14 test `auth-otp.test.ts` (PR-016a): generator kode, hash tanpa plaintext, kuota kirim, tangga lockout, kegagalan sender.
+* [x] Integration Test (alur penuh + lockout, sender mock) — 9 test HTTP `auth-otp-http.test.ts` (server Express nyata), 4 test Redis nyata `auth-otp-redis.test.ts`, 4 test PostgreSQL nyata `auth-user-db.test.ts` (PR-016a). Fallback dua provider menyusul di PR-016b.
 * [ ] E2E Test (di PR-030)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kirim OTP nyata ke nomor uji di staging)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [ ] Manual Verification (kirim OTP nyata ke nomor uji di staging) — menunggu adapter nyata (PR-016b).
 
 **Deliverables:**
 
@@ -86,18 +86,24 @@ Bisnis: login tanpa password — hambatan terbesar bagi banyak pengguna disabili
 **Out of Scope:**
 
 * Penerbitan JWT (PR-018); UI login (PR-030).
+* Rate limit OTP per-IP di lapisan HTTP (limiter di sini per-NOMOR) — PR-105 bersama Redis store `express-rate-limit`.
+* Endpoint OTP di `packages/api-client` (dipakai pertama kali oleh UI login, PR-030).
 
 **Rollback Strategy:**
 
 RB-Std.
 
+> **Dipecah jadi dua PR (persetujuan owner 2026-08-03):** scope utuh ~600–700 LOC, di atas target <500.
+> **PR-016a** — kontrak zod verify, kode error OTP + `Retry-After` di error handler, repository Redis (hash + limiter + lockout), service request/verify, find-or-create user, endpoint `/auth/otp/*` — *selesai*.
+> **PR-016b** — adapter Fonnte + Twilio di balik `OtpSender`, fallback otomatis, env kredensial provider, manual verification staging — *belum*.
+
 #### Acceptance Criteria
 
-* [ ] OTP tidak pernah tersimpan/ter-log plaintext (test).
-* [ ] Kirim ke-4 dalam 1 jam → 429 dengan Retry-After.
-* [ ] Percobaan ke-6 → OTP hangus + audit.
-* [ ] Fonnte gagal → fallback Twilio otomatis (mock).
-* [ ] Verify sukses membuat user baru bila belum ada (find-or-create).
+* [x] OTP tidak pernah tersimpan/ter-log plaintext (test). — Redis hanya menyimpan HMAC-SHA256 ber-pepper (`OTP_HASH_SECRET`), dan kunci Redis memakai sidik HMAC nomor sehingga daftar key bukan daftar nomor. Diuji: seluruh isi Redis diperiksa tidak memuat kode/nomor; log server nyata diperiksa tidak memuat kode/nomor.
+* [x] Kirim ke-4 dalam 1 jam → 429 dengan Retry-After. — Pencacah kirim per nomor (3/jam, SDD §8.1); `AppError` kini membawa `retryAfterSeconds` dan error handler global menuliskannya sebagai header. Diuji unit + HTTP (header `Retry-After: 3600`).
+* [x] Percobaan ke-6 → OTP hangus + audit. — Percobaan ke-6 menghapus kode, menaikkan strike, dan mengunci progresif (5m → 15m → 60m); audit `AUTH_LOGIN_FAILED` dengan `reason: accountLocked`. Diuji: kode BENAR pun ditolak setelahnya.
+* [ ] Fonnte gagal → fallback Twilio otomatis (mock). — **PR-016b.** Fondasinya ada: interface `OtpSender` + `OtpSenderError`; sender "belum dikonfigurasi" (deny-by-default) menghasilkan 503 dan menghanguskan kode yang tidak terkirim.
+* [x] Verify sukses membuat user baru bila belum ada (find-or-create). — `findOrCreateByPhone` menghormati unique index PARSIAL PR-009 (`deleted_at IS NULL`) dan menangani balapan lewat P2002. Diuji terhadap PostgreSQL nyata: buat-lalu-pakai-ulang, akun soft-delete diabaikan, dua verifikasi bersamaan → satu akun.
 
 #### Dependencies
 
@@ -107,6 +113,10 @@ RB-Std.
 #### Risks
 
 * Ketergantungan Fonnte (layanan kecil). Mitigasi: interface sender + fallback teruji.
+
+#### Log Implementasi
+
+* 2026-08-03 — PR-016a selesai (store OTP Redis, limiter & lockout, endpoint request/verify, find-or-create). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-016a--otp-core-store-redis-limiter-lockout-endpoint-requestverify).
 
 
 ### PR-017 - Auth Google OAuth (PKCE)

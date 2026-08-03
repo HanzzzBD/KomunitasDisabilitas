@@ -1,7 +1,11 @@
-// core/db — koneksi PostgreSQL placeholder (PR-008).
-// Pakai klien `pg` ringan hanya untuk readiness ping; PR-010 mengganti isi
-// pingDatabase() dengan prisma.$queryRaw tanpa mengubah pemakainya.
+// core/db — koneksi PostgreSQL.
+//
+// Dua klien hidup berdampingan (utang terdaftar, pemiliknya PR-097):
+//   - `pg` ringan  → HANYA readiness ping (PR-008)
+//   - Prisma       → klien aplikasi untuk repository modul (mulai PR-016)
+// PR-097 menyatukan keduanya; sampai saat itu jangan menambah pemakai `pg`.
 import pg from "pg";
+import { PrismaClient } from "@prisma/client";
 import type { Env } from "../config/index.js";
 
 export interface DbClient {
@@ -33,4 +37,14 @@ export function createDbClient(env: Pick<Env, "DATABASE_URL">): DbClient {
       await pool.end();
     },
   };
+}
+
+/**
+ * Klien Prisma aplikasi. Dibuat sekali di entry point lalu di-inject ke
+ * repository modul (repository TIDAK boleh membuat koneksinya sendiri).
+ * Koneksi Prisma bersifat malas — boot API tidak menunggu database.
+ */
+export function createPrismaClient(): PrismaClient {
+  // Query log sengaja mati: parameter query bisa memuat PII (nomor HP, dsb.).
+  return new PrismaClient({ log: ["warn", "error"] });
 }
