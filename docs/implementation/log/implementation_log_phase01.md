@@ -354,12 +354,12 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 * ✅ `infra/pg-init.sql` — selesai (+`pg_trgm`, kebutuhan pasti ADR-018; dicatat).
 * ✅ Redis dua service + klien terpisah — selesai (bentuk direvisi dari "dua DB index", lihat ADR-004).
 * ✅ Endpoint health & ready — selesai.
-* Ditunda dengan persetujuan owner: Redis store express-rate-limit → bersama wiring BullMQ (PR-010).
+* Ditunda dengan persetujuan owner: Redis store express-rate-limit → bersama wiring BullMQ (PR-010). *[Koreksi 2026-08-01: nomor "PR-010" keliru — PR-010 ternyata migrasi domain seeker, dan wiring BullMQ jadi PR-015. Utang Redis store rate limit kini ditempatkan di **PR-105** (Phase 17).]*
 
 ### Keputusan teknis
 
 1. **Dua service Redis (revisi ADR-004)** — satu-satunya cara memenuhi dua kebijakan eviction; total RAM tetap (SDD §15); queue diberi AOF (job tahan restart) sekaligus memperbaiki konsekuensi negatif lama "RDB bukan AOF".
-2. **Klien `pg` (bukan Prisma) untuk ping DB** — Prisma init = scope PR-009/010; PR-010 tinggal mengganti isi `pingDatabase()` tanpa menyentuh modul health.
+2. **Klien `pg` (bukan Prisma) untuk ping DB** — Prisma init = scope PR-009/010; PR-010 tinggal mengganti isi `pingDatabase()` tanpa menyentuh modul health. *[Koreksi 2026-08-01: penggantian ini TIDAK pernah dilakukan. PR-010 merged sebagai migrasi domain seeker tanpa menyentuh `core/db`, sehingga API sampai kini membawa dua klien DB (`pg` khusus readiness ping + Prisma). Utang ini ditempatkan di **PR-097** (Phase 16) atas keputusan owner 2026-08-01.]*
 3. **Health di root path** — `/healthz` `/readyz` bukan bagian kontrak klien `/api/v1`; konsumen adalah compose/Uptime Kuma (SDD §17).
 4. **`BELUM_SIAP` (503) masuk katalog** — konsisten envelope; detail per-dependensi tidak dibocorkan ke response (fingerprinting infra), hanya ke log.
 5. **Hot-reload via `CHOKIDAR_USEPOLLING=true`** — bind mount NTFS→container tidak meneruskan inotify (keterbatasan Docker Desktop); polling interval 800ms cukup responsif (restart <12s) tanpa membebani CPU berarti.
@@ -376,10 +376,10 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 ### Next steps
 
 * PR-009: Prisma init + migrasi identitas — jalankan terhadap postgres compose ini.
-* PR-010: BullMQ wiring (klien queue sudah tersedia) + Redis store express-rate-limit + ganti ping DB ke Prisma.
+* PR-010: BullMQ wiring (klien queue sudah tersedia) + Redis store express-rate-limit + ganti ping DB ke Prisma. *[Koreksi 2026-08-01: nomornya keliru — BullMQ wiring dikerjakan di **PR-015**, Redis store rate limit ditempatkan di **PR-105**. PR-010 sendiri adalah migrasi domain seeker.]*
 * PR-097: compose prod/staging (image pin sama, env-based secrets, tanpa bind mount).
 
-**Out of Scope (dicatat):** compose prod/staging (PR-097); Prisma init (PR-009); BullMQ queues + Redis store rate limit (PR-010).
+**Out of Scope (dicatat):** compose prod/staging (PR-097); Prisma init (PR-009); BullMQ queues + Redis store rate limit (PR-010). *[Koreksi 2026-08-01: baca "PR-015" untuk BullMQ queues dan "PR-105" untuk Redis store rate limit.]*
 
 ---
 
@@ -425,7 +425,7 @@ Tidak ada. Catatan verifikasi: "clone bersih" diverifikasi sebagai fresh install
 
 ### Next steps
 
-* PR-010: migrasi 02 domain seeker (vector(768) + HNSW raw SQL — konvensi sudah siap); ganti ping `core/db` ke Prisma; BullMQ wiring.
+* PR-010: migrasi 02 domain seeker (vector(768) + HNSW raw SQL — konvensi sudah siap); ganti ping `core/db` ke Prisma; BullMQ wiring. *[Koreksi 2026-08-01: hanya migrasi seeker yang benar-benar dikerjakan PR-010. BullMQ wiring jadi PR-015; penggantian ping `core/db` ke Prisma tidak pernah dilakukan dan masih terbuka.]*
 * PR-016/018: modul auth memakai `refresh_tokens` (hash + family) — ikuti jebakan `findFirst deletedAt: null`.
 * PR-097: grant DB role aplikasi tanpa UPDATE/DELETE pada audit_logs.
 
@@ -695,7 +695,7 @@ Tidak selesai (dipindah ke PR-015b, dengan alasan): `apps/worker` bootstrap + gr
 ### Risiko yang ditemukan
 
 * **Contoh job-id di SDD §16 tidak dapat dieksekusi** (karakter `:`). Sudah dimitigasi `buildJobId()`, tetapi SDD sebaiknya dikoreksi agar PR fitur berikutnya tidak menyalin pola yang salah.
-* **Utang PR-008 menunjuk PR nomor basi.** Log PR-008 menunda Redis store `express-rate-limit` "bersama wiring BullMQ (PR-010)"; PR-010 ternyata migrasi seeker dan wiring BullMQ sebenarnya PR-015. Utang ini tidak ada di Scope PR-015 sehingga tetap ditunda — perlu keputusan owner untuk menempatkannya di PR mana.
+* **Utang PR-008 menunjuk PR nomor basi.** Log PR-008 menunda Redis store `express-rate-limit` "bersama wiring BullMQ (PR-010)"; PR-010 ternyata migrasi seeker dan wiring BullMQ sebenarnya PR-015. Utang ini tidak ada di Scope PR-015 sehingga tetap ditunda — perlu keputusan owner untuk menempatkannya di PR mana. *[Terselesaikan 2026-08-01: owner menempatkannya di **PR-105** (Phase 17).]*
 * **Angka default belum pernah diuji beban.** Nilai SDD §16 adalah estimasi desain; concurrency/timeout nyata baru terukur setelah processor asli ada. Override env sudah tersedia sebagai katup penyesuaian tanpa deploy ulang kode.
 * **Mengubah nama queue = migrasi antrean.** Nama adalah key Redis; job lama pada nama lama tidak akan terbaca worker baru. Tercatat di komentar `queue.ts`.
 

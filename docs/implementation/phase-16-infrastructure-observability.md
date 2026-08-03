@@ -119,6 +119,7 @@ Bisnis: staging yang menyerupai produksi tanpa biaya host tambahan (ADR-006). Te
 * `infra/compose/{prod,staging,shared}.yml`
 * `.env.example` per env + dokumentasi secrets
 * Postgres role aplikasi tanpa UPDATE pada audit_logs
+* **Satukan klien database: ganti `pg` di `core/db` dengan `prisma.$queryRaw`** — utang dari PR-008 yang tidak pernah lunas. Komentar di `apps/api/src/core/db/index.ts` sejak PR-008 menjanjikan "PR-010 mengganti isi `pingDatabase()`", tetapi PR-010 merged sebagai migrasi domain seeker tanpa menyentuhnya. Akibatnya API membawa **dua klien DB**: `pg` (pool max 2, hanya untuk readiness ping `/readyz`) + Prisma untuk selebihnya — dependensi dan permukaan konfigurasi ekstra di image produksi. Ditempatkan di sini atas keputusan owner 2026-08-01 karena PR ini menggarap compose prod/staging beserta healthcheck dan role database. Pemakainya (`modules/health`) tidak perlu berubah — hanya isi `pingDatabase()`. Jangan lupa buang dependensi `pg` + `@types/pg` dan perbarui komentar yang menyesatkan itu.
 
 #### Technical Notes
 
