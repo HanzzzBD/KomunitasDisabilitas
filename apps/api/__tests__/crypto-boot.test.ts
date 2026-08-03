@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { spawn } from "node:child_process";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Writable } from "node:stream";
@@ -82,6 +83,31 @@ describe("fail-fast kunci enkripsi saat boot (AC PR-013)", () => {
     expect(r.code).not.toBe(0);
     expect(r.stderr).toContain("FIELD_KEY_V1");
     expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  // Regresi PR-016: `@prisma/client` memuat apps/api/.env ke process.env saat
+  // di-import. Ketika modul yang menyentuh Prisma ikut ter-import di index.ts,
+  // .env menambal FIELD_KEY_V1 yang hilang SEBELUM gerbang berjalan dan boot
+  // yang seharusnya mati justru lanjut. Test ini menjaga urutannya: gerbang
+  // dulu, wiring (dan Prisma) belakangan lewat import dinamis ./boot.ts.
+  it(".env yang memuat FIELD_KEY_V1 TIDAK menyelamatkan boot dengan env bersih", async (ctx) => {
+    const envFile = resolve(apiDir, ".env");
+    if (existsSync(envFile)) {
+      // Jangan pernah menimpa .env developer. CI tidak punya .env → di sanalah
+      // penjagaan ini benar-benar berjalan.
+      // eslint-disable-next-line no-console -- info skip untuk developer lokal
+      console.warn("apps/api/.env sudah ada — test penjagaan urutan boot dilewati.");
+      return ctx.skip();
+    }
+
+    writeFileSync(envFile, `FIELD_KEY_V1=${Buffer.alloc(32, 9).toString("base64")}\n`, "utf8");
+    try {
+      const r = await bootApi({ ...BASE_ENV }, true);
+      expect(r.code).not.toBe(0);
+      expect(r.stdout).not.toContain("API siap menerima koneksi");
+    } finally {
+      rmSync(envFile, { force: true });
+    }
   }, 25_000);
 
   it("FIELD_KEY_V1 valid → boot berhasil (server listen)", async () => {
