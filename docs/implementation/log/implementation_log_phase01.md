@@ -807,3 +807,11 @@ Empat item terbuka dari PR-015 diputuskan owner dan ditindaklanjuti:
 2. **Utang rate limit ditempatkan di PR-105** (phase-17). Dicatat sekalian dampaknya bila tetap memory store: hitungan tidak dibagi antar-replika (2 replika = 2× jatah) dan hilang saat restart.
 3. **PR-099 diberi catatan larangan `tsx watch`** langsung di file phase-16, lengkap dengan bukti dari manual verification — agar terbaca saat PR itu dikerjakan, bukan terkubur di log Phase 01.
 4. **Branch `wip-rename-nawasena-docs` di-push ke origin** sebagai cadangan (tanpa PR). Isinya revisi PRD/SDD v1.2 + Community Phase 19; dibuat sebelum rename & PR-014/015 sehingga konflik dengan kondisi `phase-01-foundation` sekarang — perlu rebase bila kelak dijadikan PR.
+
+### Keputusan terbuka sejak PR-004: lisensi (ditutup penempatannya 2026-08-01)
+
+Audit menemukan satu keputusan owner yang menggantung sejak PR-004 dan tidak pernah diangkat lagi: **lisensi proyek/API belum ditentukan**. Buktinya masih terlihat sampai sekarang — tidak ada file `LICENSE` di root, `info.license` kosong di `openapi.json`, dan `redocly lint` memberi warning `info-license`.
+
+Owner memutuskan (2026-08-01) untuk **tetap menunda keputusan lisensinya**, tetapi penempatannya tidak lagi dibiarkan menggantung: dicatat sebagai bagian Scope **PR-112 (v1.0.0 Production Launch, Phase 18)** karena lisensi adalah prasyarat rilis publik — merilis tanpa lisensi eksplisit membuat status hak cipta dan hak pakai tidak jelas bagi pengguna maupun calon kontributor.
+
+Pola yang sama dipakai untuk utang rate limit (→ PR-105): keputusan boleh ditunda, tetapi harus punya pemilik dan tenggat yang jelas dalam rencana, bukan sekadar catatan di log.
