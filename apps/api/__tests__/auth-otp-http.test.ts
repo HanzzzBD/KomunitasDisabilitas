@@ -8,9 +8,10 @@ import type { PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
-import { createAuthModule } from "../src/modules/auth/index.js";
+import { createAuthModule, createOtpSenderFromEnv } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
+import type { FetchLike } from "../src/modules/auth/services/fonnte.sender.js";
 
 const PHONE = "+6281234567890";
 const SECRET = "rahasia-uji-otp-minimal-32-karakter!!";
@@ -81,6 +82,8 @@ afterEach(async () => {
 
 interface BootOptions {
   otpHashSecret?: string | undefined;
+  /** Ganti sender mock bawaan (mis. rantai Fonnte→Twilio dengan fetch palsu). */
+  sender?: OtpSender;
 }
 
 async function boot(options: BootOptions = {}) {
@@ -109,7 +112,7 @@ async function boot(options: BootOptions = {}) {
           prisma: fakePrisma(),
           redis: fakeRedis(),
           otpHashSecret: "otpHashSecret" in options ? options.otpHashSecret : SECRET,
-          sender,
+          sender: options.sender ?? sender,
           auditLog: () => {},
           logger,
         }),
@@ -202,6 +205,71 @@ describe("POST /api/v1/auth/otp/verify", () => {
     const { base } = await boot();
     const res = await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: "12ab" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("alur penuh dengan rantai provider (PR-016b)", () => {
+  /** fetch palsu: Fonnte membalas 500, Twilio membalas 201. */
+  function fetchFonnteMati() {
+    const dipanggil: string[] = [];
+    let pesanTwilio = "";
+    const impl: FetchLike = (url, init) => {
+      dipanggil.push(url);
+      if (url.includes("fonnte")) return Promise.resolve(new Response("{}", { status: 500 }));
+      pesanTwilio = new URLSearchParams(String(init.body)).get("Body") ?? "";
+      return Promise.resolve(new Response("{}", { status: 201 }));
+    };
+    return { impl, dipanggil, pesanTwilio: () => pesanTwilio };
+  }
+
+  it("Fonnte gagal → OTP tetap terkirim lewat Twilio dan verify berhasil (AC)", async () => {
+    const palsu = fetchFonnteMati();
+    const env = loadEnv({
+      DATABASE_URL: "postgresql://user:pass@127.0.0.1:9",
+      REDIS_URL: "redis://127.0.0.1:9",
+      REDIS_QUEUE_URL: "redis://127.0.0.1:9",
+      NODE_ENV: "test",
+      FONNTE_TOKEN: "token-uji",
+      FONNTE_BASE_URL: "https://fonnte.uji",
+      TWILIO_ACCOUNT_SID: "ACuji0000000000000000000000000000",
+      TWILIO_AUTH_TOKEN: "token-twilio-uji",
+      TWILIO_FROM: "+15550000000",
+      TWILIO_BASE_URL: "https://twilio.uji",
+    });
+    const { base } = await boot({
+      sender: createOtpSenderFromEnv(env, { warn: () => {} }, palsu.impl),
+    });
+
+    const res = await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
+    expect(res.status).toBe(202);
+    expect(palsu.dipanggil.some((url) => url.includes("fonnte"))).toBe(true);
+    expect(palsu.dipanggil.some((url) => url.includes("twilio"))).toBe(true);
+
+    // Kode yang benar-benar dikirim Twilio harus diterima endpoint verify.
+    const code = /(\d{6})/.exec(palsu.pesanTwilio())?.[1] ?? "";
+    const verify = await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code });
+    expect(verify.status).toBe(200);
+  });
+
+  it("kedua provider mati → 503 dan kode dihanguskan", async () => {
+    const impl: FetchLike = () => Promise.resolve(new Response("{}", { status: 500 }));
+    const env = loadEnv({
+      DATABASE_URL: "postgresql://user:pass@127.0.0.1:9",
+      REDIS_URL: "redis://127.0.0.1:9",
+      REDIS_QUEUE_URL: "redis://127.0.0.1:9",
+      NODE_ENV: "test",
+      FONNTE_TOKEN: "token-uji",
+      TWILIO_ACCOUNT_SID: "ACuji0000000000000000000000000000",
+      TWILIO_AUTH_TOKEN: "token-twilio-uji",
+      TWILIO_FROM: "+15550000000",
+    });
+    const { base } = await boot({
+      sender: createOtpSenderFromEnv(env, { warn: () => {} }, impl),
+    });
+
+    const res = await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
+    expect(res.status).toBe(503);
+    expect((await res.json()) as { code: string }).toMatchObject({ code: "BELUM_SIAP" });
   });
 });
 

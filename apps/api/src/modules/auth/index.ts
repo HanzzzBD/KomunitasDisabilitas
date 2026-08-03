@@ -63,8 +63,13 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
 
 export { createOtpService, OTP_POLICY, type OtpService } from "./services/otp.service.js";
 export {
+  buildOtpMessage,
+  createFallbackOtpSender,
+  createOtpSenderFromEnv,
   createUnavailableOtpSender,
   OtpSenderError,
   type OtpMessage,
   type OtpSender,
 } from "./services/otp-sender.js";
+export { createFonnteSender, FONNTE_PROVIDER, type FetchLike } from "./services/fonnte.sender.js";
+export { createTwilioSender, TWILIO_PROVIDER } from "./services/twilio.sender.js";
