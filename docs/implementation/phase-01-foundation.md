@@ -1178,7 +1178,7 @@ Bisnis: semua kerja berat (AI, PDF, notif) tidak mengganggu responsivitas API. T
 * [x] Integration Test (retry, backoff, DLQ, drain — Redis nyata di CI; `queue-redis.test.ts`, 5 test, service `redis-queue` ditambahkan ke `pr.yml`)
 * [x] E2E Test (N/A — dicatat)
 * [x] Accessibility Test (N/A — tidak ada perubahan frontend)
-* [ ] Manual Verification (kill worker saat job jalan) — **belum**: Docker Desktop tidak berjalan di mesin dev saat PR-015b dikerjakan. Perilaku drain terbukti lewat integration test (job aktif diselesaikan sebelum `drain()` resolve), tetapi `docker stop` pada worker nyata belum dicoba.
+* [x] Manual Verification (kill worker saat job jalan) — dilakukan 2026-08-01 pada compose dev nyata. Job 20 detik, `docker stop` dikirim di detik 5: worker menerima SIGTERM, job lanjut sampai detik 20 dan selesai utuh, lalu "Worker berhenti bersih" (exit 0, tanpa force-kill); Redis: `active=0`, `finishedOn` terisi. **Menemukan 2 bug container yang tidak terlihat integration test** — lihat log implementasi (tsx watch force-kill 5 detik & volume `node_modules` per-workspace); keduanya diperbaiki di PR follow-up `fix-worker-dev-container`.
 
 **Deliverables:**
 

@@ -41,6 +41,49 @@ describe("createLogger — JSON terstruktur", () => {
   });
 });
 
+describe("nama service pada baris log", () => {
+  it("default 'api'", () => {
+    const { logger, lines } = captureLogger();
+    logger.info("halo");
+    expect(lines[0]?.service).toBe("api");
+  });
+
+  it("dapat diganti lewat opsi — dipakai apps/worker", () => {
+    const lines: Array<Record<string, unknown>> = [];
+    const destination = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        for (const line of chunk.toString("utf8").split("\n")) {
+          if (line.trim() !== "") lines.push(JSON.parse(line) as Record<string, unknown>);
+        }
+        cb();
+      },
+    });
+    const logger = createLogger({ LOG_LEVEL: "info" }, { destination, service: "worker" });
+    logger.info("halo");
+    expect(lines[0]?.service).toBe("worker");
+  });
+
+  it("baris JSON hanya memuat SATU kunci service (regresi PR-015)", () => {
+    // Bug asli: worker memakai createLogger(env).child({ service: "worker" }).
+    // `child` tidak menimpa `base`, jadi baris mentahnya berisi
+    // {"service":"api","service":"worker"} — JSON dengan kunci ganda.
+    const baris: string[] = [];
+    const destination = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        for (const line of chunk.toString("utf8").split("\n")) {
+          if (line.trim() !== "") baris.push(line);
+        }
+        cb();
+      },
+    });
+    const logger = createLogger({ LOG_LEVEL: "info" }, { destination, service: "worker" });
+    logger.info("halo");
+
+    const jumlahKunciService = (baris[0]?.match(/"service":/g) ?? []).length;
+    expect(jumlahKunciService).toBe(1);
+  });
+});
+
 describe("redaction — nilai secret tidak pernah menyentuh output (AC PR-006)", () => {
   it.each([
     "otp",
