@@ -175,6 +175,61 @@ PR-016a menambahkan `createPrismaClient()` di `core/db` dan `Prisma` di `auth/re
 
 ### Next steps
 
-* **Owner:** putuskan apakah proses API dev boleh memuat `apps/api/.env` secara eksplisit lewat script `dev` (`--env-file`). Bila ya, `.env.example` dan CLAUDE.md §5.6 perlu disamakan bunyinya.
+* ~~**Owner:** putuskan apakah proses API dev boleh memuat `apps/api/.env` secara eksplisit lewat script `dev` (`--env-file`).~~ **Diputuskan owner 2026-08-03: ya.** Dikerjakan di [Tambahan PR-016 — Pemuatan .env dev yang eksplisit](#tambahan-pr-016--pemuatan-env-dev-yang-eksplisit-env-file).
 * **PR-105 / PR-097:** pertimbangkan lint rule atau test arsitektur yang melarang import `@prisma/client` di graf statis `index.ts`, agar penjagaannya tidak bergantung komentar.
 * Perhatikan `apps/api/.env.example` di working tree owner: ada perubahan indentasi yang belum di-commit dan bukan bagian PR ini.
+
+---
+## Tambahan PR-016 — Pemuatan .env Dev yang Eksplisit (--env-file)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-016---auth-otp-whatsapp-fonnte--fallback-twilio)
+> **Tanggal:** 2026-08-03
+> **Status:** Selesai
+> **Pemicu:** keputusan owner — dev tetap boleh membaca `apps/api/.env`, asalkan lewat mekanisme yang jelas dan fail-fast `FIELD_KEY_V*` tetap terjadi.
+
+### Ringkasan
+
+Pemuatan `.env` dipindahkan dari **efek samping import Prisma** menjadi **properti perintah peluncur**:
+
+```
+dev   → tsx watch --env-file-if-exists=.env src/index.ts
+start → tsx src/index.ts            (produksi/kontainer: tanpa .env)
+```
+
+Dengan begitu ketiga sifat yang diminta terpenuhi sekaligus: dev nyaman (cukup `apps/api/.env`), gerbang fail-fast tetap berjalan atas hasil gabungan env, dan produksi tidak pernah diam-diam membaca file.
+
+### Scope selesai
+
+* `apps/api/package.json` — script `dev` memakai `--env-file-if-exists=.env`; `start` sengaja dibiarkan bersih.
+* Komentar kepala `src/index.ts` diperbarui: menjelaskan bahwa membaca `.env` bukan dilarang — yang dilarang adalah membacanya diam-diam.
+* Dokumentasi disamakan bunyinya: `apps/api/.env.example` (siapa yang memuat, aturan presedensi), `CLAUDE.md` §5.6, `README.md` §Secrets & Environment. Kalimat lama "proses API membaca .env" memang tidak pernah benar sebelum ini.
+* 4 test boot baru di `crypto-boot.test.ts` (jalur dev).
+
+### Keputusan teknis
+
+1. **`--env-file-if-exists`, bukan `--env-file`.** Varian tanpa `-if-exists` membuat proses mati bila file tidak ada — itu akan memaksa setiap developer (dan kontainer dev, yang `.env`-nya memang tidak pernah ikut karena `.dockerignore`) menyediakan file kosong. Didukung Node 20.18+/22; runner CI memakai Node 20 terbaru.
+2. **Hanya script `dev`.** `start` dipakai kontainer/produksi, tempat env var datang dari compose/CI (ADR-015). Memuat `.env` di sana akan mengulang persis masalah yang baru diperbaiki, hanya dengan wajah yang lebih sopan.
+3. **Presedensi diverifikasi, bukan diasumsikan:** env var yang sudah ada TIDAK ditimpa isi file (diuji: `PORT` shell menang atas `PORT` file). Artinya `.env` basi tidak akan pernah membajak konfigurasi deploy — ia hanya mengisi yang kosong.
+4. **File uji memakai nama `.env.uji-boot`, bukan `.env`.** Test jalur dev jadi selalu berjalan di mesin mana pun tanpa pernah bersinggungan (apalagi menimpa) `.env` milik developer. Hanya test penjaga "jangan baca `.env` diam-diam" yang tetap butuh nama `.env` asli, dan ia tetap skip-anggun.
+5. **`apps/worker` tidak diubah.** Worker tidak punya `.env.example` sendiri dan env-nya datang dari compose; menambahkan flag ke sana hanya akan menunjuk file yang tidak pernah ada. Bila nanti worker perlu env lokal, cerminkan pola yang sama.
+
+### Bukti verifikasi
+
+* `pnpm --filter @nawasena/api dev` dijalankan nyata: boot dari `.env` developer → `"msg":"API siap menerima koneksi"`.
+* 4 test boot baru, semuanya lulus:
+  * env var dari file dipakai (shell hanya berisi `PATH`) → boot berhasil, kunci tidak bocor ke log;
+  * file env tanpa `FIELD_KEY_V1` → boot TETAP mati dengan pesan menyebut `FIELD_KEY_V1` (fail-fast tidak dilemahkan);
+  * env var shell menang atas isi file;
+  * file env tidak ada → tidak error, boot jalan dari env var saja.
+* Suite penuh apps/api: 24 file, 231 test lulus (1 skip = penjaga `.env` implisit, karena mesin ini punya `.env`).
+
+### Risiko yang ditemukan
+
+* **Dua jalur konfigurasi berarti dua perilaku.** Bug "hanya muncul di dev" kini mungkin lagi (mis. variabel ada di `.env` tetapi lupa didaftarkan di compose produksi). Mitigasi yang sudah ada: gerbang fail-fast menolak boot produksi yang kekurangan variabel — gagal keras, bukan diam-diam.
+* **`--env-file-if-exists` menuntut Node ≥ 20.18.** Developer dengan Node 20 lama akan melihat error flag tidak dikenal. `.nvmrc`/dokumen versi belum diperiksa dalam PR ini; kalau ada mesin tim yang tertinggal, naikkan pin versinya.
+* **`.env` tetap file rahasia di disk** (ADR-015): chmod 600 dan jangan disalin antar-environment. Sekarang lebih mudah dipakai, jadi lebih mudah pula tersebar tanpa sadar.
+
+### Next steps
+
+* Pertimbangkan `.nvmrc`/`engines` untuk mengunci Node ≥ 20.18 agar flag ini selalu tersedia.
+* Bila `apps/worker` kelak butuh env lokal, tambahkan `apps/worker/.env.example` + flag yang sama pada script `dev`-nya.

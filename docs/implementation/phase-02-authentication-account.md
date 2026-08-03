@@ -119,6 +119,7 @@ RB-Std.
 * 2026-08-03 — PR-016a selesai (store OTP Redis, limiter & lockout, endpoint request/verify, find-or-create). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-016a--otp-core-store-redis-limiter-lockout-endpoint-requestverify).
 * 2026-08-03 — PR-016b selesai (adapter Fonnte + Twilio, rantai fallback otomatis, env provider). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-016b--adapter-fonnte--twilio-di-balik-otpsender--fallback-otomatis).
 * 2026-08-03 — Perbaikan dua kegagalan test yang lolos dari CI: gerbang fail-fast boot dilangkahi dotenv milik Prisma (regresi keamanan) + `db-seed` terkontaminasi test paralel. Lihat [Tambahan PR-016](log/implementation_log_phase02.md#tambahan-pr-016--dua-kegagalan-test-yang-lolos-dari-ci).
+* 2026-08-03 — Pemuatan `.env` dev dibuat eksplisit lewat `--env-file-if-exists` pada script `dev` (keputusan owner); fail-fast `FIELD_KEY_V*` tetap berjalan, `start`/produksi tidak memuat `.env`. Lihat [Tambahan PR-016 — Pemuatan .env dev](log/implementation_log_phase02.md#tambahan-pr-016--pemuatan-env-dev-yang-eksplisit-env-file).
 
 
 ### PR-017 - Auth Google OAuth (PKCE)
