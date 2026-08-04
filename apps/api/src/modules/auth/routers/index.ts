@@ -7,16 +7,24 @@
 // 503 memberitahu bahwa fiturnya sedang tidak tersedia dan menyarankan jalan
 // masuk yang lain.
 import { Router } from "express";
-import { googleAuthSchema, requestOtpSchema, verifyOtpSchema } from "@nawasena/schemas";
+import {
+  googleAuthSchema,
+  refreshSessionSchema,
+  requestOtpSchema,
+  verifyOtpSchema,
+} from "@nawasena/schemas";
 import { appError, asyncHandler, validate } from "../../../core/http/index.js";
 import type { OtpController } from "../controllers/otp.controller.js";
 import type { GoogleController } from "../controllers/google.controller.js";
+import type { SessionController } from "../controllers/session.controller.js";
 
 export interface AuthControllers {
-  /** null = OTP_HASH_SECRET belum di-set. */
+  /** null = OTP_HASH_SECRET belum di-set (atau kunci sesi belum ada). */
   otp: OtpController | null;
-  /** null = kredensial Google OAuth belum di-set. */
+  /** null = kredensial Google OAuth belum di-set (atau kunci sesi belum ada). */
   google: GoogleController | null;
+  /** null = kunci sesi RS256 belum di-set → sesi tidak bisa diterbitkan. */
+  session: SessionController | null;
 }
 
 /** Handler "fitur ini belum tersedia" dengan saran metode masuk pengganti. */
@@ -28,7 +36,19 @@ function tertutup(pesan: string, saran: string) {
 
 export function createAuthRouter(controllers: AuthControllers): Router {
   const router = Router();
-  const { otp, google } = controllers;
+  const { otp, google, session } = controllers;
+
+  // Perpanjangan sesi (PR-018b). Tanpa kunci RS256 endpoint ini menjawab 503 —
+  // sama seperti kedua metode masuk, yang juga ikut tertutup karena login yang
+  // tidak bisa menerbitkan sesi bukan login.
+  if (session === null) {
+    router.all(
+      "/auth/refresh",
+      tertutup("Perpanjangan sesi belum tersedia", "Coba lagi nanti, atau masuk ulang"),
+    );
+  } else {
+    router.post("/auth/refresh", validate({ body: refreshSessionSchema }), asyncHandler(session.refresh));
+  }
 
   if (otp === null) {
     router.all("/auth/otp/*", tertutup("Masuk dengan kode OTP belum tersedia", "Coba lagi nanti, atau masuk dengan Google"));

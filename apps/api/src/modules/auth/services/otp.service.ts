@@ -11,6 +11,7 @@ import type { Logger } from "../../../core/logger/index.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import { OtpSenderError, type OtpSender } from "./otp-sender.js";
+import type { SessionService, SessionTokens } from "./session.service.js";
 
 /**
  * Angka kebijakan SDD §8.1 — satu tempat, dipakai service DAN test.
@@ -32,6 +33,8 @@ export interface OtpServiceDeps {
   otpRepository: OtpRepository;
   userRepository: AuthUserRepository;
   sender: OtpSender;
+  /** Penerbit pasangan token (PR-018b) — verify berakhir dengan sesi, bukan userId telanjang. */
+  sessionService: Pick<SessionService, "issue">;
   auditLog: AuditLog;
   logger: Pick<Logger, "error" | "warn">;
 }
@@ -53,7 +56,7 @@ function lockoutSecondsFor(strike: number): number {
 }
 
 export function createOtpService(deps: OtpServiceDeps) {
-  const { otpRepository, userRepository, sender, auditLog, logger } = deps;
+  const { otpRepository, userRepository, sender, sessionService, auditLog, logger } = deps;
 
   const auditGagal = (actor: OtpActor, reason: "otpInvalid" | "rateLimited" | "accountLocked") => {
     auditLog({ actorId: null, requestId: actor.requestId }, AUDIT_ACTION.AUTH_LOGIN_FAILED, AUDIT_ENTITY, null, { reason });
@@ -108,8 +111,13 @@ export function createOtpService(deps: OtpServiceDeps) {
       };
     },
 
-    /** POST /auth/otp/verify — cocokkan kode lalu find-or-create user. */
-    async verify(input: VerifyOtp, actor: OtpActor): Promise<{ userId: string; isNewUser: boolean }> {
+    /** POST /auth/otp/verify — cocokkan kode, find-or-create user, terbitkan sesi. */
+    async verify(
+      // `client` sengaja TIDAK ikut: di mana token diserahkan (cookie vs body)
+      // adalah urusan transport, bukan logika masuk.
+      input: Pick<VerifyOtp, "phone" | "code">,
+      actor: OtpActor,
+    ): Promise<{ userId: string; isNewUser: boolean; tokens: SessionTokens }> {
       const { phone, code } = input;
       await tolakBilaTerkunci(phone, actor);
 
@@ -143,7 +151,20 @@ export function createOtpService(deps: OtpServiceDeps) {
 
       await otpRepository.clearAfterSuccess(phone);
       const user = await userRepository.findOrCreateByPhone(phone);
-      return { userId: user.id, isNewUser: user.isNew };
+
+      // Sesi diterbitkan SETELAH kode dihanguskan: bila penerbitan gagal,
+      // kode yang sudah dipakai tidak boleh hidup lagi untuk dicoba ulang.
+      const tokens = await sessionService.issue(user.id);
+
+      auditLog(
+        { actorId: user.id, requestId: actor.requestId },
+        AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED,
+        AUDIT_ENTITY,
+        user.id,
+        { method: "otp", isNewUser: user.isNew },
+      );
+
+      return { userId: user.id, isNewUser: user.isNew, tokens };
     },
   };
 }

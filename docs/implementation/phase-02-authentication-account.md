@@ -256,7 +256,7 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 * [x] Integration Test (reuse family revoke) — PR-018a (PostgreSQL nyata)
 * [ ] E2E Test (login→refresh di PR-030)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi cookie di browser) — menunggu PR-018b
+* [ ] Manual Verification (inspeksi cookie di browser) — PR-018b siap diuji; butuh browser + staging
 
 **Deliverables:**
 
@@ -275,8 +275,8 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 * [x] Reuse refresh token lama → seluruh family dicabut + audit (test). — PR-018a
 * [x] Access kedaluwarsa 15 menit; refresh 30 hari (assert klaim). — PR-018a
 * [x] `ver` bump menolak semua access lama. — PR-018a
-* [ ] Cookie web ber-flag lengkap (snapshot header). — PR-018b
-* [ ] api-client 401→refresh→retry bekerja end-to-end (mock). — PR-018b
+* [x] Cookie web ber-flag lengkap (snapshot header). — PR-018b
+* [x] api-client 401→refresh→retry bekerja end-to-end (mock). — PR-018b
 
 #### Dependencies
 
@@ -289,13 +289,15 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 
 > **Dipecah jadi dua PR (persetujuan owner 2026-08-04):** scope utuh ~880 LOC produksi + ~700 LOC test, jauh di atas target <500 — pola yang sama dengan PR-016 dan PR-017. Batas pemecahan sengaja ditaruh di **kulit HTTP**, bukan per fitur, supaya SELURUH logika keamanan (rotasi + reuse detection + `ver`) berada dalam satu PR yang bisa direview keamanan sekaligus — itu mitigasi yang diminta bagian Risks di atas.
 > **PR-018a** — migrasi `token_version`, env + gerbang fail-fast kunci RS256, `core/auth/{keys,tokens}`, repository refresh token, `session.service` (issue/rotate/reuse/revokeAll) — *selesai* (AC 1–3).
-> **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client, **plus logout/logout-all + kolom `revoked_reason`** (ditambahkan 2026-08-04) — *belum* (AC 4–5). Dengan tambahan itu estimasinya ~610 LOC produksi; bila saat implementasi terbukti melewati batas, logout dipisah ke **PR-018c** dan itu dilaporkan sebelum menulis kode.
+> **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client — *selesai* (AC 4–5). **Seluruh AC PR-018 kini terpenuhi.**
+> **PR-018c** — `POST /auth/logout`, `POST /auth/logout-all`, kolom `revoked_reason` — *belum*. Dipisah karena 018b utuh terukur ~665 LOC produksi (dilaporkan sebelum menulis kode, sesuai rencana cadangan); 018b tanpa logout ≈ 435 LOC. Logout bukan bagian dari AC PR-018 mana pun, tetapi WAJIB untuk menutup FR-1.3 — jangan tandai phase selesai sebelum 018c mendarat.
 >
 > **Koreksi "Database Changes: Tidak ada":** tabel `refresh_tokens` memang cukup, tetapi kolom `ver` yang diminta Objective **tidak ada** di `users` — terlewat di migrasi PR-009, padahal SDD §8.1 menempatkannya di sana. Migrasi 04 menambahkannya secara aditif (`NOT NULL DEFAULT 0`, backward-compatible satu versi). Menyimpannya di Redis ditolak: `ver` adalah kill-switch sesi yang justru dipakai saat insiden, jadi ia tidak boleh ikut hilang saat cache di-evict.
 
 #### Log Implementasi
 
 * 2026-08-04 — PR-018a selesai (token service RS256, rotasi + reuse detection, `ver` bump, migrasi `token_version`, gerbang boot kunci sesi). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018a--token-service-rs256-rotasi--reuse-detection).
+* 2026-08-04 — PR-018b selesai (endpoint `POST /auth/refresh`, cookie web ber-flag lengkap, integrasi OTP/Google → pasangan JWT, hook refresh api-client single-flight). **Seluruh AC PR-018 terpenuhi.** Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018b--endpoint-refresh-cookie-web--integrasi-login).
 
 
 ### PR-019 - RBAC Middleware + Route Registry

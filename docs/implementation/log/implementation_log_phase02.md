@@ -456,4 +456,74 @@ Risiko "job pembersih `refresh_tokens` bisa membutakan reuse detection" ditutup 
 * Kebijakan berjenjang menurut sebab pencabutan (90 / 180 / 730 hari) ditulis ke **[SDD §6.4](../../../SDD.md)** — tabel itu semula tidak memuat `refresh_tokens` sama sekali — dan ke spesifikasi **PR-024** yang memilikinya, lengkap dengan indeks BRIN, DELETE berbatch, metrik, dan **AC test penjaga**: baris tercabut yang lebih tua dari ambang *expired* tetapi lebih muda dari ambang *revoked* harus selamat.
 * Angka 180 hari dicatat sebagai **jendela deteksi reuse**, bukan setelan kebersihan — supaya siapa pun yang kelak "mengoptimalkan" angkanya tahu apa yang sedang ia perpendek.
 
-Sekaligus ditemukan **celah yang lebih besar**: matriks traceability menugaskan FR-1.3 "logout semua perangkat" kepada PR-018, tetapi `API Changes` PR-018 tidak pernah mendefinisikan endpoint logout apa pun — dan tidak ada PR lain yang akan mengambilnya. `revokeAllSessions` dari PR-018a karenanya belum bisa dijangkau siapa pun. Ditambal ke scope **PR-018b**: `POST /auth/logout` + `POST /auth/logout-all`, keduanya diautentikasi refresh token (bukan `requireAuth`, yang baru lahir di PR-019), plus kolom **`revoked_reason`** supaya logout tidak menyalakan alarm reuse palsu.
+Sekaligus ditemukan **celah yang lebih besar**: matriks traceability menugaskan FR-1.3 "logout semua perangkat" kepada PR-018, tetapi `API Changes` PR-018 tidak pernah mendefinisikan endpoint logout apa pun — dan tidak ada PR lain yang akan mengambilnya. `revokeAllSessions` dari PR-018a karenanya belum bisa dijangkau siapa pun. Ditambal ke scope **PR-018b**: `POST /auth/logout` + `POST /auth/logout-all`, keduanya diautentikasi refresh token (bukan `requireAuth`, yang baru lahir di PR-019), plus kolom **`revoked_reason`** supaya logout tidak menyalakan alarm reuse palsu. *(Saat implementasi, ketiganya dipindahkan lagi ke PR-018c karena ukuran — lihat entri PR-018b.)*
+
+---
+## PR-018b — Endpoint Refresh, Cookie Web & Integrasi Login
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-018---jwt-rs256--rotating-refresh--reuse-detection)
+> **Tanggal:** 2026-08-04
+> **Status:** Selesai — **seluruh AC PR-018 terpenuhi** (kecuali Manual Verification browser & E2E PR-030)
+> **Branch:** `pr-018b-refresh-endpoint-cookie` → `phase-02-authentication-account`
+
+### Ringkasan
+
+Kulit HTTP untuk mesin sesi PR-018a: endpoint perpanjangan, cookie web
+ber-flag lengkap, kedua metode masuk kini berakhir dengan pasangan token, dan
+api-client menyegarkan sesi sendiri saat 401.
+
+### Scope yang selesai
+
+* `session-cookie.ts` — cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, pembacaan header manual (tanpa dependensi baru).
+* `session.controller.ts` — `POST /auth/refresh` + `serahkan()`, satu-satunya tempat pilihan cookie-vs-body dibuat.
+* Router: rute `/auth/refresh` + gerbang 503 saat kunci sesi kosong.
+* `otp.service` & `google.service` — menerbitkan sesi setelah akun ditemukan/dibuat.
+* Wiring `modules/auth/index.ts` + `boot.ts` (`cookieSecure` dari `NODE_ENV`).
+* `packages/schemas` — `sessionClientSchema`, `sessionTokensSchema`, `refreshSession*`; kedua envelope login bertambah token secara **additive**.
+* `packages/api-client` — `verifyOtp`, `refreshSession`, dan `createSessionRefresher` (single-flight); `skipAuthRefresh` di `RequestOptions`.
+* OpenAPI `/auth/refresh`; `openapi.json` di-regenerate.
+* Test: 13 HTTP sesi, 8 api-client, plus penyesuaian test OTP/Google lama. **Total 379 test api + 24 api-client lulus.**
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **`POST /auth/logout`, `POST /auth/logout-all`, kolom `revoked_reason`** — dipindah ke **PR-018c**. Saat estimasi rinci dibuat, 018b utuh terukur ~665 LOC produksi; dilaporkan ke owner sebelum menulis kode, sesuai rencana cadangan yang sudah disepakati. Tanpa logout, 018b ≈ 435 LOC. Keduanya bukan bagian AC PR-018 mana pun, tetapi tetap wajib untuk menutup FR-1.3.
+* **Manual Verification (inspeksi cookie di browser)** — butuh browser + staging; bentuk header sudah dikunci test snapshot.
+* **E2E login→refresh** — PR-030, sesuai rencana phase.
+
+### Keputusan teknis
+
+1. **Klien menyatakan dirinya (`client: "web" | "mobile"`), server tidak menebak dari User-Agent.** Tebakan yang meleset berarti klien web menerima refresh token di body — bisa dibaca JavaScript, membatalkan seluruh guna `HttpOnly`. Default `"web"`, jadi klien lama tidak berubah perilaku.
+2. **`/auth/refresh` TIDAK punya field `client`.** Sumber tokennya sudah menjawab: body = mobile, cookie = web. Menambah field di situ hanya membuka peluang klien salah menyebut dirinya.
+3. **`Path=/api/v1/auth`, bukan `/`.** Cookie hanya ikut pada endpoint auth, bukan pada setiap permintaan API. Mengurangi paparan tanpa biaya. Konsekuensinya `clearCookie` harus memakai atribut yang sama persis — kalau tidak, cookie yang "dihapus" tetap hidup. Ada test yang menjaga itu.
+4. **`Secure` hanya dilepas di `NODE_ENV=development`.** Test berjalan dengan nilai produksi supaya snapshot menguji bentuk yang benar-benar dikirim ke pengguna, bukan bentuk yang dilonggarkan untuk test.
+5. **Tanpa token sama sekali → 401 `SESI_TIDAK_VALID`, bukan 400.** Bagi pengguna keduanya berarti "masuk lagi"; membedakannya hanya memberi tahu penyerang bentuk permintaan yang benar.
+6. **Refresh ditolak → cookie basi ikut dihapus** (hanya pada jalur web), supaya browser tidak mengirimkannya lagi pada percobaan berikutnya.
+7. **Service login tidak menerima `client`.** `otp.service.verify` memakai `Pick<VerifyOtp, "phone" | "code">`, `google.service.login` memakai `Omit<GoogleAuth, "client">`. Di mana token diserahkan adalah urusan transport; membiarkannya masuk service akan mencampur lapisan — dan sebagai bonus, test lama tidak perlu diubah.
+8. **Tanpa kunci sesi, kedua metode masuk ikut 503 — bukan hanya `/auth/refresh`.** Login yang tidak bisa menerbitkan sesi bukan login; mengembalikan `userId` telanjang akan membuat klien mengira dirinya sudah masuk. Ini penerapan keputusan deny-by-default yang disetujui di PR-018a.
+9. **`createSessionRefresher` men-single-flight panggilan refresh.** Bukan optimasi: refresh token dirotasi tiap pemakaian, jadi tiga permintaan 401 bersamaan yang masing-masing memanggil `/auth/refresh` akan mengirim dua token yang sudah dicabut — **persis bentuk yang dibaca server sebagai reuse**, sehingga klien menghancurkan sesinya sendiri justru di jaringan lambat saat permintaan menumpuk. Ada test tiga permintaan paralel → satu panggilan refresh.
+10. **`skipAuthRefresh` ditambahkan ke `RequestOptions`.** Ditemukan oleh test, bukan oleh review: permintaan `/auth/refresh` yang dijawab 401 ikut memicu hook refresh, dan karena hook-nya single-flight ia menunggu panggilan yang sedang berjalan — **dirinya sendiri**. Deadlock (tanpa single-flight: rekursi tak berujung). Test-nya timeout 5 detik dan itulah yang membongkarnya.
+11. **`AUTH_LOGIN_SUCCEEDED` dipasang pada jalur OTP** — utang PR-016 yang terbuka sejak PR-017. Sengaja diambil di sini meski di luar scope: baris yang diubah persis tail `verify()` yang sedang direstrukturisasi, dan membiarkannya berarti statistik login sukses tetap hanya mencerminkan separuh pengguna.
+12. **Sesi diterbitkan SETELAH kode OTP dihanguskan.** Bila penerbitan gagal, kode yang sudah dipakai tidak boleh hidup lagi untuk dicoba ulang.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 workspace hijau (termasuk lint boundaries).
+* `pnpm typecheck` — 9/9 workspace hijau.
+* `pnpm test` — 9/9 workspace hijau. `@nawasena/api`: **379 test lulus, 1 skip**; `@nawasena/api-client`: **24 lulus**.
+* `check:openapi` — `openapi.json` sinkron dengan skema zod.
+
+### Risiko yang ditemukan
+
+* **`/auth/refresh` belum ber-rate-limit** (limiter global masih memory-store). Ruang tebakan refresh token 256 bit, jadi ini bukan jalan masuk — tetapi endpoint ini melakukan tulis DB pada setiap panggilan. Perlu ikut disebut di **PR-105** bersama `/auth/google`.
+* **Klien selain api-client kita bisa merotasi paralel.** Single-flight melindungi pemakai `createSessionRefresher`; integrasi pihak ketiga (atau kode kita sendiri yang memanggil `refreshSession` langsung) tetap bisa memicu reuse pada dirinya sendiri. Sudah diperingatkan di docstring, tetapi ia peringatan, bukan penjagaan.
+* **Logout belum ada** sampai PR-018c: pengguna di komputer bersama belum punya cara mengakhiri sesinya, dan `revokeAllSessions` masih tak terjangkau.
+* **Cookie `Path=/api/v1/auth` mengikat kontrak URL.** Bila prefiks API berubah, cookie lama tidak akan terkirim dan seluruh sesi web mati diam-diam. Perlu diingat saat memindah versi API.
+* **Klien web yang salah mengirim `client: "mobile"`** akan menerima refresh token di body dan kehilangan proteksi `HttpOnly`. Server tidak bisa mencegahnya; hanya review kode FE yang bisa.
+
+### Next steps
+
+* **PR-018c** — `POST /auth/logout` + `/auth/logout-all` + kolom `revoked_reason`, lalu FR-1.3 tertutup penuh.
+* **PR-019** — `requireAuth`/RBAC memakai `verifyAccessToken(token, { version })`; putuskan strategi baca `token_version` per permintaan.
+* **PR-024** — kebijakan retensi `refresh_tokens` (sudah tertulis, menunggu `revoked_reason` dari 018c).
+* **PR-030** — E2E login→refresh; sekalian Manual Verification cookie di browser.
+* **PR-105** — rate limit per-IP untuk `/auth/refresh` dan `/auth/google`.

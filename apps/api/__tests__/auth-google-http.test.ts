@@ -19,6 +19,7 @@ import { createAuthModule } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import type { AuditAction } from "@nawasena/schemas";
 import { GOOGLE_ISSUERS } from "../src/modules/auth/services/google-id-token.js";
+import { SESSION_KEYS, fakeRefreshTokenStore } from "./helpers/session.js";
 
 const CLIENT_ID = "123-uji.apps.googleusercontent.com";
 const CLIENT_SECRET = "rahasia-client-uji";
@@ -157,17 +158,21 @@ interface BarisUser {
 /** Prisma palsu: satu tabel users in-memory, cukup untuk find-or-create/link. */
 function fakePrisma(awal: BarisUser[] = []) {
   const users = [...awal];
+  const refreshStore = fakeRefreshTokenStore();
   const client = {
     user: {
-      findFirst: ({ where }: { where: Partial<BarisUser> }) =>
-        Promise.resolve(
-          users.find(
-            (u) =>
-              u.deletedAt === null &&
-              (where.googleId === undefined || u.googleId === where.googleId) &&
-              (where.email === undefined || u.email === where.email),
-          ) ?? null,
-        ),
+      findFirst: ({ where }: { where: Partial<BarisUser> & { id?: string } }) => {
+        const found = users.find(
+          (u) =>
+            u.deletedAt === null &&
+            (where.googleId === undefined || u.googleId === where.googleId) &&
+            (where.email === undefined || u.email === where.email) &&
+            // findActiveSessionUser (PR-018b) mencari lewat id.
+            (where.id === undefined || u.id === where.id),
+        );
+        if (found === undefined) return Promise.resolve(null);
+        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0 });
+      },
       create: ({ data }: { data: BarisUser }) => {
         users.push({ ...data, deletedAt: null });
         return Promise.resolve({ id: data.id });
@@ -178,8 +183,9 @@ function fakePrisma(awal: BarisUser[] = []) {
         return Promise.resolve(baris);
       },
     },
+    ...refreshStore.prismaPart,
   };
-  return { prisma: client as unknown as PrismaClient, users };
+  return { prisma: client as unknown as PrismaClient, users, refreshRows: refreshStore.rows };
 }
 
 let active: ApiServer | null = null;
@@ -216,6 +222,7 @@ async function boot(options: BootOptions = {}) {
           prisma,
           redis: fakeRedis(),
           otpHashSecret: undefined, // jalur OTP tidak diuji di file ini
+          sessionKeys: SESSION_KEYS, // sejak PR-018b login menerbitkan sesi
           google:
             options.googleAktif === false
               ? undefined
@@ -400,13 +407,22 @@ describe("POST /api/v1/auth/google — jalur ditolak", () => {
 });
 
 describe("kerahasiaan (AC: tidak ada token Google tersimpan permanen)", () => {
-  it("response sukses hanya memuat userId & isNewUser — tanpa token Google apa pun", async () => {
+  it("response sukses hanya memuat identitas + sesi KITA — tanpa token Google apa pun", async () => {
     balasanToken = await balasanSukses();
     const { base } = await boot();
 
     const teks = await (await masuk(base)).text();
+    // Sejak PR-018b response ikut membawa sesi kita sendiri. Kunci-kunci di
+    // bawah di-assert EKSPLISIT (bukan objectContaining) supaya field baru
+    // apa pun yang kelak menyelinap ke envelope ini terlihat di test.
     expect(JSON.parse(teks)).toEqual({
-      data: { userId: expect.any(String), isNewUser: true },
+      data: {
+        userId: expect.any(String),
+        isNewUser: true,
+        accessToken: expect.any(String),
+        expiresIn: 900,
+        // refreshToken TIDAK ada: klien web menerimanya sebagai cookie.
+      },
     });
     expect(teks).not.toContain(ACCESS_TOKEN);
     expect(teks).not.toContain(REFRESH_TOKEN);

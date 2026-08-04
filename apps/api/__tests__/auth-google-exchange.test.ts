@@ -97,6 +97,16 @@ describe("createGoogleService — apa yang diaudit", () => {
       },
       verifier: { verify: () => Promise.resolve(IDENTITAS) },
       userRepository: repoPalsu(),
+      // Penerbitan sesi (PR-018b) dipalsukan — yang diuji di sini audit Google.
+      sessionService: {
+        issue: () =>
+          Promise.resolve({
+            accessToken: "access-uji",
+            refreshToken: "refresh-uji",
+            expiresIn: 900,
+            refreshExpiresAt: new Date("2026-09-03T10:00:00.000Z"),
+          }),
+      },
       auditLog,
     });
     return { service, auditLog };

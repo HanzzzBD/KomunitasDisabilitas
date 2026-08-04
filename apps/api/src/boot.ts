@@ -41,11 +41,6 @@ export interface BootOptions {
 export async function startApi(options: BootOptions): Promise<void> {
   const { env, fieldKeys, sessionKeys, queueConfigs } = options;
   void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
-  // Kunci sesi (PR-018a) sengaja SUDAH divalidasi di boot meski pemakainya —
-  // endpoint /auth/refresh dan penerbitan pasangan token pada login — baru
-  // dirakit di PR-018b. Pasangan kunci yang salah harus mematikan boot, bukan
-  // baru ketahuan saat pengguna pertama mencoba masuk. Pola sama dengan fieldKeys.
-  void sessionKeys;
 
   const logger = createLogger(env);
   const db = createDbClient(env);
@@ -87,6 +82,11 @@ export async function startApi(options: BootOptions): Promise<void> {
           prisma,
           redis: redis.cache,
           otpHashSecret: env.OTP_HASH_SECRET,
+          // undefined bila JWT_PRIVATE_KEY/PUBLIC_KEY kosong → /auth/refresh
+          // dan kedua metode masuk menjawab 503 (PR-018b).
+          sessionKeys,
+          // `Secure` dilepas HANYA di dev, tempat API berjalan di http localhost.
+          cookieSecure: env.NODE_ENV !== "development",
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
           sender: createOtpSenderFromEnv(env, logger),
           // undefined bila kredensial Google kosong → /auth/google jawab 503.

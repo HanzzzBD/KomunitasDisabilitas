@@ -119,14 +119,34 @@ function setup(options: { sender?: OtpSender; userId?: string | null } = {}) {
   const auditLog = vi.fn();
   const logger = { error: vi.fn(), warn: vi.fn() };
   const otpRepository = createOtpRepository({ redis, secret: SECRET });
+  const sessionIssue = vi.fn(() =>
+    Promise.resolve({
+      accessToken: "access-uji",
+      refreshToken: "refresh-uji",
+      expiresIn: 900,
+      refreshExpiresAt: new Date("2026-09-03T10:00:00.000Z"),
+    }),
+  );
   const service = createOtpService({
     otpRepository,
     userRepository: createFakeUserRepository(options.userId ?? null),
     sender: options.sender ?? penangkap.sender,
+    // Penerbitan sesi (PR-018b) dipalsukan: alur OTP di sini yang diuji,
+    // bukan penandatanganan token — itu punya test sendiri.
+    sessionService: { issue: sessionIssue },
     auditLog,
     logger,
   });
-  return { service, otpRepository, redis, nilai, auditLog, logger, terkirim: penangkap.terkirim };
+  return {
+    service,
+    otpRepository,
+    redis,
+    nilai,
+    auditLog,
+    logger,
+    sessionIssue,
+    terkirim: penangkap.terkirim,
+  };
 }
 
 /** Ambil AppError yang dilempar (vitest rejects tidak memberi objeknya). */
@@ -213,7 +233,29 @@ describe("verify", () => {
     );
     expect(hasil.isNewUser).toBe(true);
     expect(hasil.userId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(ctx.auditLog).not.toHaveBeenCalled();
+    // Sejak PR-018b jalur OTP MENCATAT sukses (sebelumnya hanya Google yang
+    // mencatat — utang PR-016 yang membuat statistik login timpang).
+    expect(ctx.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: hasil.userId }),
+      AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED,
+      "auth.otp",
+      hasil.userId,
+      { method: "otp", isNewUser: true },
+    );
+  });
+
+  it("verify menerbitkan pasangan token (PR-018b)", async () => {
+    await ctx.service.request({ phone: PHONE }, ACTOR);
+    const hasil = await ctx.service.verify({ phone: PHONE, code: ctx.terkirim[0]!.code }, ACTOR);
+
+    expect(ctx.sessionIssue).toHaveBeenCalledWith(hasil.userId);
+    expect(hasil.tokens.accessToken).toBe("access-uji");
+  });
+
+  it("sesi TIDAK diterbitkan bila kode salah", async () => {
+    await ctx.service.request({ phone: PHONE }, ACTOR);
+    await tangkap(() => ctx.service.verify({ phone: PHONE, code: "000000" }, ACTOR));
+    expect(ctx.sessionIssue).not.toHaveBeenCalled();
   });
 
   it("kode benar untuk nomor yang sudah punya akun → isNewUser false", async () => {
@@ -223,7 +265,10 @@ describe("verify", () => {
       { phone: PHONE, code: lain.terkirim[0]!.code },
       ACTOR,
     );
-    expect(hasil).toEqual({ userId: "01912345-89ab-7def-8123-0000000000aa", isNewUser: false });
+    expect(hasil).toMatchObject({
+      userId: "01912345-89ab-7def-8123-0000000000aa",
+      isNewUser: false,
+    });
   });
 
   it("tanpa kode aktif → 410 hangus + audit", async () => {

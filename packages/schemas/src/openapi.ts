@@ -14,6 +14,8 @@ import {
   verifyOtpResponseSchema,
   googleAuthSchema,
   googleAuthResponseSchema,
+  refreshSessionSchema,
+  refreshSessionResponseSchema,
 } from "./auth.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
@@ -111,6 +113,35 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "401": errorResponse("Code/verifier ditolak Google, atau id_token tidak sah"),
             "403": errorResponse("Email Google belum terverifikasi"),
             "503": errorResponse("Login Google belum dikonfigurasi atau Google tidak terjangkau"),
+          },
+        },
+      },
+      // Perpanjangan sesi (PR-018b): refresh ROTATING — token lama dicabut pada
+      // setiap pemakaian. Memakai token yang sudah dicabut mencabut seluruh
+      // keluarga sesi (reuse detection, SDD §8.1).
+      "/auth/refresh": {
+        post: {
+          operationId: "refreshSession",
+          tags: ["auth"],
+          summary: "Perpanjang sesi",
+          security: [], // kredensialnya adalah refresh token itu sendiri
+          description:
+            "Menukar refresh token dengan pasangan token baru. Klien web tidak mengirim " +
+            "body: tokennya ada di cookie HttpOnly yang dilampirkan browser, dan token " +
+            "barunya dikembalikan sebagai cookie pula. Klien mobile mengirim dan menerima " +
+            "refresh token di body untuk disimpan di SecureStore.",
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: refreshSessionSchema } },
+          },
+          responses: {
+            "200": {
+              description: "Sesi diperpanjang",
+              content: { "application/json": { schema: refreshSessionResponseSchema } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "401": errorResponse("Refresh token tidak dikenal, kedaluwarsa, atau sudah dicabut"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
           },
         },
       },

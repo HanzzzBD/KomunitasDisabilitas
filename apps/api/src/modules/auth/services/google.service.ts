@@ -13,6 +13,7 @@ import type { ErrorCode } from "../../../core/http/index.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import type { GoogleIdTokenVerifier } from "./google-id-token.js";
 import type { GoogleCodeExchange } from "./google-token.js";
+import type { SessionService, SessionTokens } from "./session.service.js";
 
 /** Entitas audit modul ini (tanpa PII — email/nama tidak pernah ikut). */
 const AUDIT_ENTITY = "auth.google";
@@ -24,6 +25,8 @@ export interface GoogleServiceDeps {
   exchange: GoogleCodeExchange;
   verifier: GoogleIdTokenVerifier;
   userRepository: AuthUserRepository;
+  /** Penerbit pasangan token (PR-018b). */
+  sessionService: Pick<SessionService, "issue">;
   auditLog: AuditLog;
 }
 
@@ -47,11 +50,15 @@ const ALASAN_AUDIT: Partial<Record<ErrorCode, "googleExchangeFailed" | "googleTo
   };
 
 export function createGoogleService(deps: GoogleServiceDeps) {
-  const { exchange, verifier, userRepository, auditLog } = deps;
+  const { exchange, verifier, userRepository, sessionService, auditLog } = deps;
 
   return {
-    /** POST /auth/google — tukar code, verifikasi, lalu find-or-create/link. */
-    async login(input: GoogleAuth, actor: GoogleActor): Promise<{ userId: string; isNewUser: boolean }> {
+    /** POST /auth/google — tukar code, verifikasi, find-or-create/link, terbitkan sesi. */
+    async login(
+      // `client` sengaja TIDAK ikut — urusan transport, bukan logika masuk.
+      input: Omit<GoogleAuth, "client">,
+      actor: GoogleActor,
+    ): Promise<{ userId: string; isNewUser: boolean; tokens: SessionTokens }> {
       let identitas;
       try {
         const idToken = await exchange.exchange(input);
@@ -71,6 +78,7 @@ export function createGoogleService(deps: GoogleServiceDeps) {
       }
 
       const user = await userRepository.findOrCreateByGoogle(identitas);
+      const tokens = await sessionService.issue(user.id);
 
       auditLog(
         { actorId: user.id, requestId: actor.requestId },
@@ -80,7 +88,7 @@ export function createGoogleService(deps: GoogleServiceDeps) {
         { method: METODE, isNewUser: user.isNew },
       );
 
-      return { userId: user.id, isNewUser: user.isNew };
+      return { userId: user.id, isNewUser: user.isNew, tokens };
     },
   };
 }
