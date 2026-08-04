@@ -65,6 +65,27 @@ model User {
   @@map("users")
 }
 
+/// Sebab pencabutan refresh token (PR-018c). Dua kegunaan:
+///
+/// 1. Membedakan REUSE sungguhan dari klien basi. Tanpa ini, logout mencabut
+///    keluarga token, lalu klien basi yang mencoba refresh menyalakan alarm
+///    `AUTH_REFRESH_REUSED` palsu — tepat pada sinyal keamanan yang paling
+///    tidak boleh berisik. Hanya baris ber-`rotated` yang layak dicurigai.
+/// 2. Retensi berjenjang (PR-024, SDD §6.4): baris `reuse` adalah bukti
+///    insiden dan disimpan 2 tahun, jauh lebih lama daripada rotasi biasa.
+enum RefreshRevokedReason {
+  /// Dicabut karena dipakai dan digantikan penerusnya (alur normal).
+  rotated
+  /// Pengguna keluar dari perangkat ini.
+  logout
+  /// Pengguna keluar dari SEMUA perangkat (disertai bump users.token_version).
+  logout_all
+  /// Token yang sudah dicabut dipakai lagi → seluruh keluarga dibakar.
+  reuse
+  /// Akun dihapus (PR-021).
+  account_deleted
+}
+
 /// Refresh token ROTATING (SDD §8.1): hanya hash yang disimpan; familyId
 /// mendeteksi reuse — token lama dipakai ulang → cabut seluruh keluarga.
 model RefreshToken {
@@ -75,6 +96,9 @@ model RefreshToken {
   familyId  String    @map("family_id") @db.Uuid
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// NULL selama baris masih aktif; terisi bersamaan dengan revokedAt.
+  /// Nullable juga demi baris lama (PR-018a) yang dicabut sebelum kolom ada.
+  revokedReason RefreshRevokedReason? @map("revoked_reason")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

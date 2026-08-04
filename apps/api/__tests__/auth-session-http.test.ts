@@ -27,18 +27,28 @@ const fakeRedis = (): OtpRedisLike => ({}) as OtpRedisLike;
 
 function fakePrisma(deleted = false) {
   const store = fakeRefreshTokenStore();
+  let tokenVersion = 0;
   const client = {
     user: {
       findFirst: ({ where }: { where: { id?: string } }) =>
         Promise.resolve(
-          deleted || where.id !== USER_ID
-            ? null
-            : { id: USER_ID, role: "seeker", tokenVersion: 0 },
+          deleted || where.id !== USER_ID ? null : { id: USER_ID, role: "seeker", tokenVersion },
         ),
+      // bumpTokenVersion (logout-all, PR-018c).
+      update: ({ where }: { where: { id: string } }) => {
+        if (deleted || where.id !== USER_ID) return Promise.reject(bukanDitemukan());
+        tokenVersion += 1;
+        return Promise.resolve({ tokenVersion });
+      },
     },
     ...store.prismaPart,
   };
   return { prisma: client as unknown as PrismaClient, rows: store.rows };
+}
+
+/** Meniru P2025 Prisma (baris tidak ditemukan) tanpa meng-import kelasnya. */
+function bukanDitemukan(): Error {
+  return Object.assign(new Error("P2025"), { code: "P2025" });
 }
 
 let active: ApiServer | null = null;
@@ -236,14 +246,106 @@ describe("POST /auth/refresh — klien mobile (body)", () => {
   });
 });
 
-describe("tanpa kunci sesi", () => {
-  it("/auth/refresh menjawab 503, bukan 404", async () => {
-    const { base } = await boot({ sessionKeys: undefined });
-    const res = await refreshMobile(base, "apa saja");
-
-    expect(res.status).toBe(503);
-    expect((await res.json()) as { code: string }).toMatchObject({ code: "BELUM_SIAP" });
+const keluar = (base: string, jalur: string, init: { cookie?: string; token?: string }) =>
+  fetch(`${base}${jalur}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(init.cookie === undefined ? {} : { cookie: init.cookie }),
+    },
+    body: JSON.stringify(init.token === undefined ? {} : { refreshToken: init.token }),
   });
+
+describe("POST /auth/logout (PR-018c)", () => {
+  it("cookie sah → 204, cookie dihapus, sesi tidak bisa diperpanjang lagi", async () => {
+    const { base, prisma } = await boot();
+    const awal = await sesiAwal(prisma);
+    const cookie = `nawasena_refresh=${awal.refreshToken}`;
+
+    const res = await keluar(base, "/auth/logout", { cookie });
+
+    expect(res.status).toBe(204);
+    expect(res.headers.get("set-cookie") ?? "").toContain("nawasena_refresh=;");
+    expect((await refreshWeb(base, cookie)).status).toBe(401);
+  });
+
+  it("mobile: token di body → 204", async () => {
+    const { base, prisma } = await boot();
+    const awal = await sesiAwal(prisma);
+
+    expect((await keluar(base, "/auth/logout", { token: awal.refreshToken })).status).toBe(204);
+    expect((await refreshMobile(base, awal.refreshToken)).status).toBe(401);
+  });
+
+  it("IDEMPOTEN: tanpa token, token karangan, dan logout kedua kali → tetap 204", async () => {
+    const { base, prisma } = await boot();
+    const awal = await sesiAwal(prisma);
+
+    // Pengguna yang menekan "keluar" tidak boleh melihat kegagalan — dan
+    // jawaban yang berbeda akan menjadikan endpoint ini alat penebak token.
+    expect((await keluar(base, "/auth/logout", {})).status).toBe(204);
+    expect((await keluar(base, "/auth/logout", { token: "karangan" })).status).toBe(204);
+    expect((await keluar(base, "/auth/logout", { token: awal.refreshToken })).status).toBe(204);
+    expect((await keluar(base, "/auth/logout", { token: awal.refreshToken })).status).toBe(204);
+  });
+
+  it("menandai baris dengan sebab `logout`, bukan `reuse`", async () => {
+    const { base, prisma, rows } = await boot();
+    const awal = await sesiAwal(prisma);
+    await keluar(base, "/auth/logout", { token: awal.refreshToken });
+
+    expect(rows[0]?.revokedReason).toBe("logout");
+  });
+});
+
+describe("POST /auth/logout-all (PR-018c)", () => {
+  it("mencabut SELURUH sesi pengguna, bukan hanya perangkat ini", async () => {
+    const { base, prisma } = await boot();
+    const hp = await sesiAwal(prisma);
+    const laptop = await sesiAwal(prisma);
+
+    const res = await keluar(base, "/auth/logout-all", { token: hp.refreshToken });
+
+    expect(res.status).toBe(204);
+    expect((await refreshMobile(base, hp.refreshToken)).status).toBe(401);
+    expect((await refreshMobile(base, laptop.refreshToken)).status).toBe(401);
+  });
+
+  it("logout biasa TIDAK menjatuhkan perangkat lain (pembanding)", async () => {
+    const { base, prisma } = await boot();
+    const hp = await sesiAwal(prisma);
+    const laptop = await sesiAwal(prisma);
+
+    await keluar(base, "/auth/logout", { token: hp.refreshToken });
+
+    expect((await refreshMobile(base, laptop.refreshToken)).status).toBe(200);
+  });
+
+  it("idempoten: token karangan → tetap 204", async () => {
+    const { base } = await boot();
+    expect((await keluar(base, "/auth/logout-all", { token: "karangan" })).status).toBe(204);
+  });
+
+  it("logout-all kedua kali → tetap 204 (bukan 401 karena sesi sudah habis)", async () => {
+    const { base, prisma } = await boot();
+    const awal = await sesiAwal(prisma);
+
+    expect((await keluar(base, "/auth/logout-all", { token: awal.refreshToken })).status).toBe(204);
+    expect((await keluar(base, "/auth/logout-all", { token: awal.refreshToken })).status).toBe(204);
+  });
+});
+
+describe("tanpa kunci sesi", () => {
+  it.each(["/auth/refresh", "/auth/logout", "/auth/logout-all"])(
+    "%s menjawab 503, bukan 404",
+    async (jalur) => {
+      const { base } = await boot({ sessionKeys: undefined });
+      const res = await keluar(base, jalur, { token: "apa saja" });
+
+      expect(res.status).toBe(503);
+      expect((await res.json()) as { code: string }).toMatchObject({ code: "BELUM_SIAP" });
+    },
+  );
 });
 
 describe("kerahasiaan", () => {

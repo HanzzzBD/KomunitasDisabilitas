@@ -20,6 +20,7 @@ export interface BarisRefresh {
   familyId: string;
   expiresAt: Date;
   revokedAt: Date | null;
+  revokedReason: string | null;
 }
 
 /**
@@ -33,8 +34,8 @@ export function fakeRefreshTokenStore() {
   const rows: BarisRefresh[] = [];
 
   const refreshToken = {
-    create: ({ data }: { data: Omit<BarisRefresh, "revokedAt"> }) => {
-      rows.push({ ...data, revokedAt: null });
+    create: ({ data }: { data: Omit<BarisRefresh, "revokedAt" | "revokedReason"> }) => {
+      rows.push({ ...data, revokedAt: null, revokedReason: null });
       return Promise.resolve({ id: data.id });
     },
     findUnique: ({ where }: { where: { tokenHash: string } }) =>
@@ -44,7 +45,9 @@ export function fakeRefreshTokenStore() {
       data,
     }: {
       where: { id?: string; familyId?: string; userId?: string; revokedAt?: null };
-      data: { revokedAt: Date };
+      // markReuse (PR-018c) mengirim revokedReason SAJA — field yang tidak
+      // dikirim tidak boleh ikut ditimpa jadi undefined.
+      data: { revokedAt?: Date; revokedReason?: string };
     }) => {
       const target = rows.filter(
         (r) =>
@@ -53,7 +56,10 @@ export function fakeRefreshTokenStore() {
           (where.userId === undefined || r.userId === where.userId) &&
           (where.revokedAt !== null || r.revokedAt === null),
       );
-      for (const r of target) r.revokedAt = data.revokedAt;
+      for (const r of target) {
+        if (data.revokedAt !== undefined) r.revokedAt = data.revokedAt;
+        if (data.revokedReason !== undefined) r.revokedReason = data.revokedReason;
+      }
       return Promise.resolve({ count: target.length });
     },
     count: ({ where }: { where: { familyId?: string; revokedAt?: null } }) =>

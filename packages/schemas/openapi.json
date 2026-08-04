@@ -282,6 +282,98 @@
           }
         }
       }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Keluar dari perangkat ini",
+        "security": [],
+        "description": "Mencabut seluruh rantai sesi perangkat ini (satu keluarga token). Perangkat lain tidak tersentuh. Cookie refresh dihapus. Selalu 204, termasuk bila token tidak dikirim atau tidak dikenal.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Sesi perangkat ini diakhiri"
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "operationId": "logoutAll",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Keluar dari semua perangkat",
+        "security": [],
+        "description": "Menaikkan token version pengguna (seluruh access token yang beredar langsung ditolak) dan mencabut semua refresh token miliknya. Cookie refresh dihapus. Selalu 204, termasuk bila token tidak dikirim atau tidak dikenal.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Semua sesi pengguna diakhiri"
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

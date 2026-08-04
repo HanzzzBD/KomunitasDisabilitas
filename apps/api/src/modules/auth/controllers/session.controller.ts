@@ -79,6 +79,43 @@ export function createSessionController(deps: {
 
       res.status(200).json({ data: serahkan(res, tokens, dariBody === undefined ? "web" : "mobile") });
     },
+
+    /**
+     * POST /auth/logout → 204, keluar dari perangkat ini.
+     *
+     * SELALU 204, bahkan tanpa token atau dengan token karangan. Dua alasan:
+     * pengguna yang menekan "keluar" tidak boleh dihadapkan pada kegagalan
+     * (hasil akhirnya sama — ia tidak punya sesi), dan jawaban yang berbeda
+     * antara token sah dan token karangan akan menjadikan endpoint ini alat
+     * penebak. Cookie tetap dihapus apa pun hasilnya.
+     */
+    async logout(req: Request, res: Response): Promise<void> {
+      const token = (req.body as RefreshSession).refreshToken ?? cookie.read(req);
+      if (token !== null && token !== undefined) await service.logout(token);
+      cookie.clear(res);
+      res.status(204).end();
+    },
+
+    /**
+     * POST /auth/logout-all → 204, keluar dari SEMUA perangkat.
+     *
+     * Kredensialnya adalah refresh token, bukan access token: middleware
+     * `requireAuth` baru lahir di PR-019, dan menunggunya berarti pengguna
+     * tidak punya cara mencabut sesi sama sekali sampai saat itu. Konsekuensi
+     * yang diterima sadar: pemegang refresh token curian bisa memaksa logout
+     * semua perangkat — sebuah gangguan, bukan pengambilalihan, dan penyerang
+     * itu sendiri ikut kehilangan aksesnya.
+     */
+    async logoutAll(req: Request, res: Response): Promise<void> {
+      const token = (req.body as RefreshSession).refreshToken ?? cookie.read(req);
+      if (token !== null && token !== undefined) {
+        const userId = await service.userIdOf(token);
+        // Token tak dikenal → tidak ada yang bisa dicabut; tetap 204 (idempoten).
+        if (userId !== null) await service.logoutAll(userId);
+      }
+      cookie.clear(res);
+      res.status(204).end();
+    },
   };
 }
 

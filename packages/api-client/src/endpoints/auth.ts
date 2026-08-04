@@ -77,3 +77,24 @@ export async function refreshSession(
     skipAuthRefresh: true,
   });
 }
+
+/**
+ * POST /auth/logout — keluar dari perangkat ini (PR-018c).
+ * Idempoten: tidak pernah melempar karena token tidak dikenal. Setelah ini,
+ * buang access & refresh token yang tersimpan di klien.
+ */
+export async function logout(client: ApiClient, input: RefreshSession = {}): Promise<void> {
+  const body = refreshSessionSchema.parse(input);
+  // 401 pada logout tidak boleh memicu refresh: sesi memang sedang diakhiri.
+  await client.request("/auth/logout", { method: "POST", body, skipAuthRefresh: true });
+}
+
+/**
+ * POST /auth/logout-all — keluar dari SEMUA perangkat (PR-018c).
+ * Menaikkan token version, sehingga access token yang beredar di perangkat
+ * lain langsung ditolak — tidak perlu menunggu 15 menit.
+ */
+export async function logoutAll(client: ApiClient, input: RefreshSession = {}): Promise<void> {
+  const body = refreshSessionSchema.parse(input);
+  await client.request("/auth/logout-all", { method: "POST", body, skipAuthRefresh: true });
+}
