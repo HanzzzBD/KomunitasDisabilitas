@@ -8,6 +8,10 @@ export const AUDIT_ACTION = {
   /** PR-017: login berhasil. Pasangan wajib AUTH_LOGIN_FAILED — tanpa jejak
    *  sukses, lonjakan kegagalan tidak punya pembanding saat investigasi. */
   AUTH_LOGIN_SUCCEEDED: "AUTH_LOGIN_SUCCEEDED",
+  /** PR-018: refresh token yang SUDAH dicabut dipakai lagi — indikasi token
+   *  dicuri. Aksi tersendiri, bukan AUTH_LOGIN_FAILED: ini bukan percobaan
+   *  masuk yang salah kode, melainkan sinyal keamanan yang layak dialarmkan. */
+  AUTH_REFRESH_REUSED: "AUTH_REFRESH_REUSED",
   PROFILE_SENSITIVE_READ: "PROFILE_SENSITIVE_READ",
   PROFILE_SENSITIVE_UPDATED: "PROFILE_SENSITIVE_UPDATED",
   APPLICATION_STATUS_CHANGED: "APPLICATION_STATUS_CHANGED",
@@ -20,6 +24,7 @@ export const AUDIT_ACTION = {
 export const auditActionSchema = z.enum([
   AUDIT_ACTION.AUTH_LOGIN_FAILED,
   AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED,
+  AUDIT_ACTION.AUTH_REFRESH_REUSED,
   AUDIT_ACTION.PROFILE_SENSITIVE_READ,
   AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED,
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
@@ -67,6 +72,12 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: z.object({
     method: loginMethodSchema,
     isNewUser: z.boolean(),
+  }),
+  // Tanpa PII dan tanpa potongan token: yang berguna saat investigasi adalah
+  // BERAPA sesi ikut tercabut, bukan nilai token yang memicunya.
+  [AUDIT_ACTION.AUTH_REFRESH_REUSED]: z.object({
+    /** Jumlah refresh token aktif yang ikut dicabut dalam keluarga itu. */
+    revokedCount: z.number().int().min(0),
   }),
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: z.object({
     purpose: z.enum(["selfService", "support", "matching", "disclosure"]),

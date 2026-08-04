@@ -366,3 +366,84 @@ find-or-create/link akun — plus audit sukses dan gagal.
 * **Follow-up PR-016** — pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts`.
 * **PR-105** — sertakan `/auth/google` dalam rate limit per-IP ber-Redis.
 * **Owner:** (1) buat OAuth 2.0 Client ID di Google Cloud Console + isi env staging, lalu jalankan Manual Verification dan centang butir terakhir PR-017; (2) putuskan apakah `CONTRACT_VERSION` perlu dinaikkan saat path baru ditambahkan.
+
+---
+## PR-018a — Token Service RS256, Rotasi & Reuse Detection
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-018---jwt-rs256--rotating-refresh--reuse-detection)
+> **Tanggal:** 2026-08-04
+> **Status:** Selesai — separuh pertama PR-018 (AC 1–3 dari 5)
+> **Branch:** `pr-018a-token-rotasi-reuse` → `phase-02-authentication-account`
+
+### Ringkasan
+
+Separuh pertama PR-018: seluruh mesin sesi, tanpa kulit HTTP-nya. Token
+ditandatangani dan diverifikasi, refresh dirotasi, reuse terdeteksi dan
+membakar seluruh keluarga token, dan `ver` bisa menghanguskan semua access
+token yang beredar. Belum ada endpoint yang memanggilnya — itu PR-018b.
+
+Pembagiannya sengaja di kulit HTTP, bukan per fitur: bagian Risks file phase
+meminta "review keamanan khusus", dan review itu hanya bermakna kalau rotasi,
+reuse detection, dan `ver` bisa dibaca sebagai satu kesatuan dalam satu diff.
+
+### Scope yang selesai
+
+* `apps/api/prisma/migrations/20260804090000_04_token_version_users/` — kolom `users.token_version` (aditif, `NOT NULL DEFAULT 0`).
+* `apps/api/src/core/auth/keys.ts` — pemuatan pasangan kunci RS256 dari base64 PEM + validasi bentuk/panjang/kecocokan pasangan; `SessionKeyError`.
+* `apps/api/src/core/auth/tokens.ts` — tanda tangan & verifikasi access (RS256, klaim `sub/role/ver`, 15 menit), penerbitan & hashing refresh (32 byte acak, SHA-256, 30 hari).
+* `apps/api/src/modules/auth/repositories/refresh-token.repository.ts` — insert, findByHash, `rotate` transaksional, `revokeFamily`, `revokeAllForUser`.
+* `apps/api/src/modules/auth/repositories/user.repository.ts` — `findActiveSessionUser`, `bumpTokenVersion` (increment di DB).
+* `apps/api/src/modules/auth/services/session.service.ts` — `issue`, `refresh` (rotasi + reuse detection), `revokeAllSessions`.
+* `apps/api/src/core/config/env.ts` + `index.ts` + `.env.example` — grup `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY` dan gerbang fail-fast di entry point.
+* `packages/schemas` — `userRoleSchema`, aksi audit `AUTH_REFRESH_REUSED` + skema meta-nya.
+* `apps/api/src/core/http/errors.ts` — kode `SESI_TIDAK_VALID`.
+* Test: 12 kunci sesi, 19 token, 17 service sesi (fake), 12 integrasi PostgreSQL nyata, 5 gerbang boot, 3 env. **68 test baru.**
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google, OpenAPI, hook api-client** — PR-018b, sesuai pemecahan yang disetujui owner. AC 4 (flag cookie) dan AC 5 (401→refresh→retry) belum bisa dicentang.
+* **E2E** — PR-030 (UI login), sesuai rencana phase.
+* **Manual Verification (inspeksi cookie di browser)** — baru mungkin setelah PR-018b.
+
+### Keputusan teknis
+
+1. **Migrasi menyimpang dari "Database Changes: Tidak ada" di file phase.** Kolom `ver` yang diminta Objective tidak ada di `users` — terlewat di PR-009, padahal SDD §8.1 eksplisit menempatkannya di sana. Alternatif tanpa migrasi (menyimpan `ver` di Redis) ditolak: `ver` adalah kill-switch sesi yang justru dipakai saat insiden, dan menaruhnya di cache berarti kehilangannya saat evict/restart. Disetujui owner sebelum implementasi.
+2. **Kunci disimpan base64 dari PEM, bukan PEM apa adanya.** PEM multi-baris tidak selamat melewati `.env`/compose tanpa lolos-kutip yang rapuh. Konsekuensinya ada round-trip guard: base64 yang terpotong tetap "berhasil" di-decode Node menjadi sampah, jadi hasilnya dibandingkan balik.
+3. **Pasangan kunci yang tidak cocok = boot GAGAL.** Tanpa pemeriksaan ini, setiap access token akan terbit lalu ditolak verifikasinya sendiri — kegagalan yang baru terlihat saat pengguna pertama mencoba masuk, dan terbaca seperti bug login alih-alih salah konfigurasi. Diuji dengan menjalankan entry point nyata di child process.
+4. **Kunci sesi kosong ≠ boot gagal.** Mengikuti pola OTP/Google: nol variabel = fitur mati (503 di PR-018b), setengah terisi = boot gagal. `.env` lama tetap valid, dan dev tanpa kunci tetap bisa menjalankan API.
+5. **Gerbang kunci sesi hidup di `index.ts`, bukan `boot.ts`.** Ini pelajaran PR-013/PR-016 yang diterapkan sejak awal: `core/auth` sengaja tidak menyentuh Prisma sama sekali supaya boleh di-import statis sebelum gerbang. `boot.ts` menerimanya lalu `void sessionKeys` — persis pola `void fieldKeys` yang sudah ada. Validasi sekarang, pemakaian di PR-018b.
+6. **`verifyAccessToken` mengembalikan `null` untuk SEMUA penolakan.** Tanda tangan salah, kedaluwarsa, issuer/audience keliru, `alg` bukan RS256, klaim cacat, `ver` usang — satu jawaban. Membedakannya kepada klien hanya berguna bagi penebak. `algorithms: ["RS256"]` dikunci eksplisit; ada test untuk `alg: none`.
+7. **Refresh token BUKAN JWT.** 32 byte acak yang opaque. Klien tidak perlu membaca isinya, dan JWT hanya akan menambah permukaan serangan (klaim yang bisa disalahtafsirkan) tanpa manfaat — sifat yang kita butuhkan justru "tidak bermakna tanpa baris DB-nya".
+8. **Hash refresh memakai SHA-256 polos, tanpa pepper/bcrypt.** Nilainya 256 bit dari CSPRNG, bukan kata sandi pilihan manusia; tidak ada ruang tebakan yang bisa dipersempit brute force, jadi biaya kerja tambahan hanya memperlambat verifikasi tanpa menambah keamanan. (Berbeda dari OTP 6 angka di PR-016, yang justru butuh pepper karena ruangnya kecil.)
+9. **Reuse diperiksa SEBELUM kedaluwarsa.** Token curian yang sudah lewat 30 hari tetap bukti bahwa keluarganya bocor, dan tetap harus memicu pencabutan.
+10. **Setiap login memulai keluarga baru.** Kalau semua perangkat berbagi satu keluarga, reuse di satu perangkat akan menjatuhkan seluruh perangkat lain — hukuman yang tidak proporsional untuk sinyal yang kadang berasal dari jaringan yang buruk. Ada test yang membuktikan sesi "laptop" selamat saat "hp" mengalami reuse.
+11. **`revokeAllSessions` melakukan DUA hal.** `ver` bump saja tidak cukup: refresh token yang tersisa akan segera menukar dirinya dengan access token ber-`ver` baru, sehingga bump-nya tidak ada artinya. Karena itu refresh-nya ikut dicabut.
+12. **`rotate` menaruh `revokedAt: null` di klausa WHERE, bukan hanya memeriksanya lebih dulu.** Dua permintaan dengan refresh yang sama dan tiba bersamaan akan sama-sama lolos pemeriksaan di service; yang menentukan pemenangnya adalah `updateMany` itu. Yang kalah mendapat count 0 → ditolak, bukan sepasang token kembar yang sah. Dibuktikan test balapan terhadap PostgreSQL nyata.
+13. **Yang kalah balapan TIDAK menerima access token.** Access sudah terlanjur ditandatangani sebelum rotate; menyerahkannya akan membuat klien memegang access token tanpa refresh yang mendampinginya.
+14. **`AUTH_REFRESH_REUSED` jadi aksi audit tersendiri**, bukan `AUTH_LOGIN_FAILED`. Ini bukan percobaan masuk yang salah kode, melainkan sinyal keamanan yang layak dialarmkan terpisah. Meta-nya hanya `revokedCount` — tanpa PII, tanpa potongan token.
+15. **`bumpTokenVersion` memakai `increment` di DB**, bukan baca-lalu-tulis di aplikasi. Ada test dua bump bersamaan: baca-lalu-tulis akan berhenti di 1, increment DB sampai 2.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 workspace hijau (termasuk lint boundaries).
+* `pnpm typecheck` — 9/9 workspace hijau.
+* `pnpm test` — 9/9 workspace hijau. `@nawasena/api`: **32 file, 360 test lulus, 1 skip** (penjaga `.env` implisit, skip-anggun karena `.env` lokal ada).
+* `pnpm --filter @nawasena/schemas check:openapi` — `openapi.json` sinkron.
+* Migrasi 04 di-apply ke PostgreSQL lokal; seluruh test DB berjalan nyata, bukan dilewati.
+* Snapshot inline `ERROR_CATALOG` dan tabel `META_AMAN` diperbarui — kedua gerbang itu memang ada supaya kode error dan aksi audit baru tidak masuk tanpa terlihat di review.
+
+### Risiko yang ditemukan
+
+* **Belum ada job pembersih `refresh_tokens`.** Baris yang dicabut/kedaluwarsa tidak pernah dihapus, jadi tabel ini tumbuh selamanya (30 hari × frekuensi refresh × pengguna). Belum berbahaya di skala MVP, tetapi perlu job retensi — dan retensi yang terlalu agresif akan **membutakan reuse detection**: baris yang sudah dihapus membuat token curian terbaca sebagai "tidak dikenal", bukan sebagai reuse yang memicu pencabutan keluarga. Job itu harus menyimpan baris tercabut lebih lama daripada baris kedaluwarsa.
+* **Reuse detection menghukum korban dan penyerang sekaligus.** Kalau penyerang menukar refresh curian lebih dulu, korbanlah yang memicu reuse — dan keduanya kehilangan sesi. Ini perilaku yang benar (fail-safe), tetapi berarti pengguna sah bisa terlempar keluar tanpa penjelasan. Hint error sudah mengarahkan untuk masuk lagi.
+* **`/auth/refresh` akan mewarisi celah rate limit yang sama dengan `/auth/google`** (limiter global masih memory-store). Endpoint ini akan jadi sasaran menarik untuk menebak refresh token secara buta — walau ruang tebakannya 256 bit. Perlu ikut disebut di **PR-105**.
+* **Rotasi kunci RS256 menuntut restart** dan menghanguskan seluruh access token yang beredar (refresh selamat, karena bukan JWT). Perlu masuk runbook rotasi kunci bersama `client_secret` Google.
+* **`ver` belum ditegakkan di jalur permintaan mana pun.** Fungsinya ada dan teruji, tetapi pemeriksaan `expectedVersion` baru bermakna setelah middleware RBAC (**PR-019**) memanggilnya. Sampai saat itu, `ver` bump hanya efektif lewat pencabutan refresh. Ini juga membawa pertanyaan biaya untuk PR-019: memeriksa `ver` pada setiap permintaan berarti satu baca DB per permintaan.
+
+### Next steps
+
+* **PR-018b** — endpoint `POST /api/v1/auth/refresh` + cookie HttpOnly/Secure/SameSite=Strict, integrasi OTP/Google → pasangan JWT (additive pada kedua envelope), OpenAPI, hook refresh api-client; lalu centang AC 4 dan 5.
+* **PR-019** — pakai `verifyAccessToken(token, { version })` di middleware, dan putuskan strategi pembacaan `token_version` per permintaan.
+* **PR-105** — sertakan `/auth/refresh` dalam rate limit per-IP ber-Redis.
+* **Follow-up PR-016** — pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts` (masih terbuka sejak PR-017).
+* **Owner:** (1) generate pasangan kunci RS256 untuk staging/produksi dan simpan di GitHub Secrets (perintah `openssl` ada di `.env.example`); (2) putuskan penjadwalan job retensi `refresh_tokens`.

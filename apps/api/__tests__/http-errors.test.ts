@@ -60,6 +60,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Halaman atau data tidak ditemukan",
           "status": 404,
         },
+        "SESI_TIDAK_VALID": {
+          "hint": "Silakan masuk lagi untuk melanjutkan",
+          "message": "Sesi Anda sudah berakhir",
+          "status": 401,
+        },
         "TERJADI_KESALAHAN": {
           "hint": "Coba lagi beberapa saat; laporkan bila terus terjadi",
           "message": "Terjadi kesalahan pada server",

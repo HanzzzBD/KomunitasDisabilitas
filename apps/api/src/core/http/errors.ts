@@ -80,6 +80,17 @@ export const ERROR_CATALOG = {
     message: "Email Google Anda belum terverifikasi",
     hint: "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
   },
+  // --- Sesi JWT (PR-018) ---
+  // Dipisah dari TIDAK_TERAUTENTIKASI ("Anda belum masuk"): pengguna yang
+  // sesinya berakhir SUDAH pernah masuk, dan pesan yang menyangkal itu
+  // membingungkan. Satu kode untuk SEMUA penolakan refresh — kedaluwarsa,
+  // tidak dikenal, sudah dicabut, atau reuse — sebab membedakannya kepada
+  // klien hanya berguna bagi penebak.
+  SESI_TIDAK_VALID: {
+    status: 401,
+    message: "Sesi Anda sudah berakhir",
+    hint: "Silakan masuk lagi untuk melanjutkan",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

@@ -1,0 +1,11 @@
+-- Migrasi 04 (PR-018a): kolom `ver` sesi pada users (SDD §8.1).
+--
+-- Klaim access token adalah (sub, role, ver). `ver` HARUS persisten: ia adalah
+-- kill-switch sesi (logout semua perangkat, pencabutan saat ganti role) dan
+-- justru dipakai saat insiden — menaruhnya di cache berarti kehilangannya saat
+-- Redis di-evict atau restart. Kolom ini terlewat di migrasi 01 (PR-009).
+--
+-- ADITIF & backward-compatible satu versi: NOT NULL DEFAULT 0, jadi baris lama
+-- terisi sendiri dan kode versi sebelumnya (yang tidak tahu kolom ini) tetap
+-- bisa menulis baris users. Rollback = DROP COLUMN, tanpa kehilangan data lain.
+ALTER TABLE "users" ADD COLUMN "token_version" INTEGER NOT NULL DEFAULT 0;

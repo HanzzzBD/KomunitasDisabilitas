@@ -9,6 +9,7 @@
 // Simpan semua import yang menyentuh Prisma di sini, jangan di index.ts.
 import type { Env } from "./core/config/index.js";
 import type { FieldKeys } from "./core/crypto/index.js";
+import type { SessionKeys } from "./core/auth/index.js";
 import { createLogger } from "./core/logger/index.js";
 import { createDbClient, createPrismaClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
@@ -31,13 +32,20 @@ export interface BootOptions {
   env: Env;
   /** Sudah tervalidasi di index.ts; dipakai modul profiles (PR-037). */
   fieldKeys: FieldKeys;
+  /** Sudah tervalidasi di index.ts; undefined = fitur sesi mati (503). */
+  sessionKeys: SessionKeys | undefined;
   queueConfigs: QueueConfigs;
 }
 
 /** Rakit seluruh dependensi lalu mulai listen. Melempar bila gagal start. */
 export async function startApi(options: BootOptions): Promise<void> {
-  const { env, fieldKeys, queueConfigs } = options;
+  const { env, fieldKeys, sessionKeys, queueConfigs } = options;
   void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
+  // Kunci sesi (PR-018a) sengaja SUDAH divalidasi di boot meski pemakainya —
+  // endpoint /auth/refresh dan penerbitan pasangan token pada login — baru
+  // dirakit di PR-018b. Pasangan kunci yang salah harus mematikan boot, bukan
+  // baru ketahuan saat pengguna pertama mencoba masuk. Pola sama dengan fieldKeys.
+  void sessionKeys;
 
   const logger = createLogger(env);
   const db = createDbClient(env);

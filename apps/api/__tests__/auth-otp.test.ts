@@ -89,6 +89,15 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
     findOrCreateByGoogle() {
       throw new Error("Alur OTP tidak boleh menyentuh jalur Google");
     },
+    // Jalur sesi (PR-018a) juga belum tersambung ke verify OTP — penerbitan
+    // pasangan token menyusul di PR-018b. Sama seperti di atas: meledak,
+    // supaya pemakaian tak sengaja terlihat.
+    findActiveSessionUser() {
+      throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
+    },
+    bumpTokenVersion() {
+      throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
+    },
   };
 }
 

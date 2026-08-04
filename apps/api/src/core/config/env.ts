@@ -104,6 +104,13 @@ const envSchema = z.object({
     .min(1000, { message: "minimal 1000 (1 detik)" })
     .max(30_000, { message: "maksimal 30000 (30 detik)" })
     .default(10_000),
+  // --- Sesi JWT RS256 (PR-018) ---
+  // PEM di-encode base64 SATU BARIS: PEM asli multi-baris tidak bisa ditulis
+  // apa adanya di .env/compose tanpa lolos-kutip yang rapuh. Bentuk/panjang
+  // kunci TIDAK divalidasi di sini — itu milik core/auth (pola FIELD_KEY_V*).
+  // Opsional sebagai GRUP: tanpa keduanya, penerbitan sesi mati (503).
+  JWT_PRIVATE_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  JWT_PUBLIC_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   // --- Endpoint internal (PR-015b) ---
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.
@@ -114,8 +121,10 @@ const envSchema = z.object({
  * Kredensial yang hanya berguna LENGKAP. Setengah terisi hampir selalu berarti
  * salin-tempel yang terpotong — lebih baik boot GAGAL dengan nama variabel yang
  * hilang daripada:
- * - fallback SMS Twilio (PR-016b) diam-diam mati saat Fonnte bermasalah, atau
- * - login Google (PR-017) berjalan tanpa client_secret untuk menukar code.
+ * - fallback SMS Twilio (PR-016b) diam-diam mati saat Fonnte bermasalah,
+ * - login Google (PR-017) berjalan tanpa client_secret untuk menukar code, atau
+ * - sesi (PR-018) menandatangani access token dengan kunci privat yang tidak
+ *   punya pasangan publik untuk memverifikasinya.
  *
  * Semuanya opsional sebagai GRUP: nol variabel terisi = fitur dimatikan (503),
  * itu keadaan sah untuk dev tanpa kredensial.
@@ -128,6 +137,10 @@ const GRUP_KREDENSIAL = [
   {
     label: "kredensial Google OAuth",
     vars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+  },
+  {
+    label: "pasangan kunci sesi RS256",
+    vars: ["JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY"],
   },
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
