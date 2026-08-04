@@ -128,6 +128,22 @@ function rakit(options: { user?: ReturnType<typeof userRepoPalsu>; clock?: () =>
   return { service, refreshTokenRepository, userRepository, catatan };
 }
 
+/**
+ * Menangkap AppError yang DIHARAPKAN terjadi.
+ * Berbeda dari `.catch(() => undefined)`: bila panggilan justru BERHASIL, test
+ * gagal alih-alih diam-diam lolos — penting untuk jalur reuse, di mana yang
+ * diuji adalah penolakannya sendiri.
+ */
+async function tangkap(jalan: () => Promise<unknown>): Promise<AppError> {
+  try {
+    await jalan();
+  } catch (err) {
+    if (err instanceof AppError) return err;
+    throw err;
+  }
+  throw new Error("Diharapkan AppError, tetapi panggilan berhasil");
+}
+
 const tokenService = createTokenService({ privateKey, publicKey, clock: () => T0 });
 
 describe("issue — sesi baru", () => {
@@ -298,23 +314,64 @@ describe("reuse detection (AC: reuse → seluruh family dicabut + audit)", () =>
     await expect(service.refresh(laptop.refreshToken, actor)).resolves.toBeDefined();
   });
 
-  it("reuse berulang tetap ditolak, tetapi diaudit SEKALI per keluarga", async () => {
+  /**
+   * KONTRAK (keputusan owner 2026-08-04, mengubah perilaku PR-018a):
+   *
+   *   audit  → PALING BANYAK SEKALI per keluarga token
+   *   tolak  → SETIAP KALI, tanpa kecuali
+   *
+   * Dua hal itu sengaja dipisah. Alarm pertama sudah memicu pencabutan seluruh
+   * keluarga, jadi alarm kedua dan seterusnya tidak menambah tindakan apa pun
+   * yang bisa diambil — sementara penyerang yang menggedor token mati bisa
+   * menulis baris audit tanpa batas (retensi 2 tahun, dan `/auth/refresh` belum
+   * ber-rate-limit; lihat risiko PR-018b dan PR-105). Yang diredam adalah
+   * KEBISINGAN CATATAN, bukan penegakannya.
+   *
+   * Mekanismenya: `markReuse` menandai token pemicu sebagai `reuse`, sehingga
+   * percobaan berikutnya tidak lagi terbaca sebagai `rotated` dan tidak masuk
+   * cabang alarm — tetapi tetap jatuh ke penolakan.
+   *
+   * Kalau kelak dibutuhkan visibilitas atas percobaan berulang, tempatnya
+   * metrik/rate limit (PR-105), BUKAN melonggarkan batas audit ini.
+   */
+  it("reuse berulang: ditolak SETIAP kali, diaudit PALING BANYAK sekali per keluarga", async () => {
     const { service, catatan } = rakit();
     const awal = await service.issue(USER_ID);
-    await service.refresh(awal.refreshToken, actor);
-    await service.refresh(awal.refreshToken, actor).catch(() => undefined);
-    await service.refresh(awal.refreshToken, actor).catch(() => undefined);
+    await service.refresh(awal.refreshToken, actor); // rotasi sah
 
-    // PERUBAHAN SADAR dari PR-018a (yang mengaudit tiap percobaan). Sejak
-    // PR-018c token pemicu ditandai `reuse`, sehingga percobaan berikutnya
-    // tidak lagi terbaca sebagai rotasi dan tidak menyalakan alarm ulang.
-    //
-    // Ini disengaja: keluarganya sudah habis dicabut, jadi alarm kedua dan
-    // seterusnya tidak menambah apa pun yang bisa ditindaklanjuti — sementara
-    // penyerang yang menggedor token mati bisa menulis baris audit tanpa batas
-    // (retensi 2 tahun, dan /auth/refresh belum ber-rate-limit). Penolakannya
-    // sendiri tetap terjadi setiap kali.
+    // Tiga percobaan reuse berturut-turut atas token yang sama.
+    const percobaan: AppError[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      percobaan.push(await tangkap(() => service.refresh(awal.refreshToken, actor)));
+    }
+
+    // Separuh pertama kontrak: penegakan TIDAK melemah setelah alarm pertama.
+    // Inilah yang harus gagal bila kelak ada yang "mengoptimalkan" jalur reuse
+    // dengan cara yang tanpa sengaja meloloskan percobaan kedua.
+    expect(percobaan).toHaveLength(3);
+    for (const err of percobaan) {
+      expect(err).toBeInstanceOf(AppError);
+      expect(err.code).toBe("SESI_TIDAK_VALID");
+    }
+
+    // Separuh kedua: satu baris audit untuk seluruh rentetan itu.
     expect(catatan).toHaveLength(1);
+    expect(catatan[0]?.action).toBe(AUDIT_ACTION.AUTH_REFRESH_REUSED);
+  });
+
+  it("batas sekali itu PER KELUARGA, bukan per pengguna", async () => {
+    // Kalau batasnya per pengguna, insiden di perangkat kedua akan tertelan
+    // oleh insiden di perangkat pertama dan tidak pernah terlihat.
+    const { service, catatan } = rakit();
+    const hp = await service.issue(USER_ID);
+    const laptop = await service.issue(USER_ID);
+
+    for (const sesi of [hp, laptop]) {
+      await service.refresh(sesi.refreshToken, actor);
+      await tangkap(() => service.refresh(sesi.refreshToken, actor));
+    }
+
+    expect(catatan).toHaveLength(2);
   });
 });
 

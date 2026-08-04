@@ -420,7 +420,7 @@ reuse detection, dan `ver` bisa dibaca sebagai satu kesatuan dalam satu diff.
 11. **`revokeAllSessions` melakukan DUA hal.** `ver` bump saja tidak cukup: refresh token yang tersisa akan segera menukar dirinya dengan access token ber-`ver` baru, sehingga bump-nya tidak ada artinya. Karena itu refresh-nya ikut dicabut.
 12. **`rotate` menaruh `revokedAt: null` di klausa WHERE, bukan hanya memeriksanya lebih dulu.** Dua permintaan dengan refresh yang sama dan tiba bersamaan akan sama-sama lolos pemeriksaan di service; yang menentukan pemenangnya adalah `updateMany` itu. Yang kalah mendapat count 0 → ditolak, bukan sepasang token kembar yang sah. Dibuktikan test balapan terhadap PostgreSQL nyata.
 13. **Yang kalah balapan TIDAK menerima access token.** Access sudah terlanjur ditandatangani sebelum rotate; menyerahkannya akan membuat klien memegang access token tanpa refresh yang mendampinginya.
-14. **`AUTH_REFRESH_REUSED` jadi aksi audit tersendiri**, bukan `AUTH_LOGIN_FAILED`. Ini bukan percobaan masuk yang salah kode, melainkan sinyal keamanan yang layak dialarmkan terpisah. Meta-nya hanya `revokedCount` — tanpa PII, tanpa potongan token.
+14. **`AUTH_REFRESH_REUSED` jadi aksi audit tersendiri**, bukan `AUTH_LOGIN_FAILED`. Ini bukan percobaan masuk yang salah kode, melainkan sinyal keamanan yang layak dialarmkan terpisah. Meta-nya hanya `revokedCount` — tanpa PII, tanpa potongan token. *(Diamandemen 2026-08-04: alarm ini kini dibatasi **paling banyak sekali per keluarga token**, sementara penolakannya tetap terjadi setiap kali — lihat "Amandemen perilaku audit reuse" di bawah.)*
 15. **`bumpTokenVersion` memakai `increment` di DB**, bukan baca-lalu-tulis di aplikasi. Ada test dua bump bersamaan: baca-lalu-tulis akan berhenti di 1, increment DB sampai 2.
 
 ### Bukti verifikasi
@@ -457,6 +457,56 @@ Risiko "job pembersih `refresh_tokens` bisa membutakan reuse detection" ditutup 
 * Angka 180 hari dicatat sebagai **jendela deteksi reuse**, bukan setelan kebersihan — supaya siapa pun yang kelak "mengoptimalkan" angkanya tahu apa yang sedang ia perpendek.
 
 Sekaligus ditemukan **celah yang lebih besar**: matriks traceability menugaskan FR-1.3 "logout semua perangkat" kepada PR-018, tetapi `API Changes` PR-018 tidak pernah mendefinisikan endpoint logout apa pun — dan tidak ada PR lain yang akan mengambilnya. `revokeAllSessions` dari PR-018a karenanya belum bisa dijangkau siapa pun. Ditambal ke scope **PR-018b**: `POST /auth/logout` + `POST /auth/logout-all`, keduanya diautentikasi refresh token (bukan `requireAuth`, yang baru lahir di PR-019), plus kolom **`revoked_reason`** supaya logout tidak menyalakan alarm reuse palsu. *(Saat implementasi, ketiganya dipindahkan lagi ke PR-018c karena ukuran — lihat entri PR-018b.)*
+
+### Amandemen perilaku audit reuse — diputuskan 2026-08-04
+
+> Mengubah perilaku yang dikirim PR-018a. Dibaca bersama keputusan 14 di atas.
+> Pemicunya `markReuse` (keputusan 6 di entri **PR-018c**); yang berikut ini
+> adalah kontraknya, bukan efek sampingnya.
+
+**Kontrak:**
+
+| Aspek | Perilaku | Batas |
+|---|---|---|
+| **Penolakan** | `SESI_TIDAK_VALID` | **SETIAP kali**, tanpa kecuali |
+| **Baris audit `AUTH_REFRESH_REUSED`** | ditulis sekali | **PALING BANYAK SEKALI per keluarga token** |
+
+Kedua baris tabel itu sengaja punya batas yang berbeda. Yang diredam adalah
+**kebisingan catatan**, bukan penegakannya — percobaan reuse ke-2, ke-7, dan
+ke-500 sama-sama ditolak seperti yang pertama.
+
+**Mengapa audit dibatasi.** Alarm pertama sudah mencabut seluruh keluarga. Alarm
+berikutnya tidak melaporkan fakta baru dan tidak membuka tindakan baru yang bisa
+diambil responder — sementara penyerang yang menggedor token mati bisa menulis
+baris audit tanpa batas. Dua hal membuat itu nyata, bukan teoretis: `/auth/refresh`
+**belum ber-rate-limit** (risiko terbuka di atas, dijadwalkan **PR-105**), dan
+baris reuse **disimpan 2 tahun** oleh kebijakan retensi yang baru saja diputuskan
+di bagian sebelumnya. Tanpa batas ini, satu insiden bisa menenggelamkan audit
+trail yang justru dibutuhkan untuk menyelidikinya.
+
+**Mengapa penolakan TIDAK dibatasi.** Batas audit adalah soal pencatatan. Kalau
+ia sampai merembes ke penegakan, percobaan reuse kedua akan lolos — yaitu
+kebalikan persis dari tujuan fitur ini. Pemisahan itu dikunci test, bukan
+sekadar dicatat.
+
+**Mekanisme.** `markReuse` menandai baris pemicu sebagai `reuse`; cabang alarm
+hanya dimasuki baris yang tercabut karena `rotated` (atau NULL, lihat keputusan 5
+di PR-018c). Percobaan berikutnya karenanya melewati cabang alarm — lalu tetap
+jatuh ke penolakan yang sama.
+
+**Batasnya PER KELUARGA, bukan per pengguna.** Insiden di perangkat kedua tetap
+menghasilkan alarmnya sendiri; kalau batasnya per pengguna, insiden kedua akan
+tertelan oleh yang pertama dan tidak pernah terlihat.
+
+**Penjaga di `apps/api/__tests__/auth-session.test.ts`** (ketiganya harus dibaca
+sebagai satu paket):
+
+* *"reuse berulang: ditolak SETIAP kali, diaudit PALING BANYAK sekali per keluarga"* — tiga percobaan berturut-turut, memeriksa **ketiga** `AppError`-nya **dan** tepat satu baris audit. Helper `tangkap()` dipakai alih-alih `.catch(() => undefined)` supaya panggilan yang justru berhasil menggagalkan test, bukan lolos diam-diam.
+* *"batas sekali itu PER KELUARGA, bukan per pengguna"* — dua perangkat, dua alarm.
+* *"seluruh keluarga mati"* — memastikan penegakan tetap utuh setelah alarm.
+
+**Kalau kelak butuh visibilitas atas percobaan berulang**, tempatnya metrik atau
+rate limit di **PR-105** — **bukan** melonggarkan batas audit ini.
 
 ---
 ## PR-018b — Endpoint Refresh, Cookie Web & Integrasi Login
