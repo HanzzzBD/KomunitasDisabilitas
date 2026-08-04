@@ -146,6 +146,79 @@
           }
         }
       }
+    },
+    "/auth/google": {
+      "post": {
+        "operationId": "loginWithGoogle",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Masuk dengan Google",
+        "security": [],
+        "description": "Menukar authorization code Google (dengan PKCE code_verifier) menjadi sesi. id_token diverifikasi terhadap kunci publik Google (audience, issuer, kedaluwarsa). Akun dicari berdasarkan google_id, lalu email terverifikasi, dan dibuat bila belum ada (find-or-create).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuth"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Masuk berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Code/verifier ditolak Google, atau id_token tidak sah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email Google belum terverifikasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Login Google belum dikonfigurasi atau Google tidak terjangkau",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -236,6 +309,61 @@
         "description": "Verifikasi kode OTP yang diterima pengguna"
       },
       "VerifyOtpResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID",
+                "example": "01912345-89ab-7def-8123-456789abcdef"
+              },
+              "isNewUser": {
+                "type": "boolean",
+                "example": false
+              }
+            },
+            "required": [
+              "userId",
+              "isNewUser"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GoogleAuth": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Authorization code sekali pakai dari Google"
+          },
+          "codeVerifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9\\-._~]{43,128}$",
+            "description": "PKCE code_verifier (RFC 7636), 43–128 karakter"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "http://localhost:5173/masuk/google"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier",
+          "redirectUri"
+        ],
+        "description": "Tukar authorization code Google (PKCE) jadi sesi"
+      },
+      "GoogleAuthResponse": {
         "type": "object",
         "properties": {
           "data": {
