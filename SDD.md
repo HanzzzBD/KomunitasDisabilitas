@@ -318,11 +318,16 @@ Kebijakan: mulai dengan indeks di atas saja; tambahan wajib lewat bukti `pg_stat
 | Akun dihapus (soft delete) | purge/anonimisasi ≤ 30 hari | job `pdp-purge` harian (worker) |
 | `ai_usage` | 90 hari (agregat bulanan dipertahankan) | job harian |
 | `match_scores` | 7 hari sejak `computed_at` | job harian |
+| `refresh_tokens` kedaluwarsa (tak pernah dicabut) | 90 hari sejak `expires_at` | job harian |
+| `refresh_tokens` dicabut (rotasi/logout/hapus akun) | 180 hari sejak `revoked_at` | job harian |
+| `refresh_tokens` dicabut karena **reuse terdeteksi** | 2 tahun sejak `revoked_at` | job harian |
 | `audit_logs` | 2 tahun | arsip ke R2 lalu hapus |
 | Transkrip sesi cv-chat | 30 hari setelah finalize | job harian |
 | Backup | 30 hari | lifecycle rule R2 |
 
 Anonimisasi mempertahankan agregat North Star (hired count) tanpa PII.
+
+**`refresh_tokens` sengaja TIDAK diperlakukan seragam** (keputusan owner 2026-08-04). Baris yang **dicabut** adalah satu-satunya cara reuse detection (§8.1) membedakan token curian dari token yang tidak dikenal: begitu barisnya hilang, replay terbaca sebagai "tidak dikenal" dan keluarga token tidak pernah dicabut. Karena itu angka 180 hari di atas **bukan** setelan kebersihan — ia adalah **jendela deteksi reuse**. Baris yang dicabut karena reuse disamakan dengan `audit_logs` (2 tahun) sebab baris DB dan baris auditnya adalah dua paruh bukti yang sama. Retensi ini tidak menahan hak hapus UU PDP: akun terhapus membawa serta `refresh_tokens`-nya lewat `ON DELETE CASCADE`.
 
 ### 6.5 Enkripsi
 

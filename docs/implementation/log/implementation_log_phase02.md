@@ -447,3 +447,13 @@ reuse detection, dan `ver` bisa dibaca sebagai satu kesatuan dalam satu diff.
 * **PR-105** — sertakan `/auth/refresh` dalam rate limit per-IP ber-Redis.
 * **Follow-up PR-016** — pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts` (masih terbuka sejak PR-017).
 * **Owner:** (1) generate pasangan kunci RS256 untuk staging/produksi dan simpan di GitHub Secrets (perintah `openssl` ada di `.env.example`); (2) putuskan penjadwalan job retensi `refresh_tokens`.
+
+### Tindak lanjut risiko retensi — diputuskan 2026-08-04
+
+Risiko "job pembersih `refresh_tokens` bisa membutakan reuse detection" ditutup dengan kebijakan konkret, bukan sekadar catatan. Keputusan owner:
+
+* **Retensi agresif ditolak eksplisit** — reuse detection lebih penting daripada penghematan storage.
+* Kebijakan berjenjang menurut sebab pencabutan (90 / 180 / 730 hari) ditulis ke **[SDD §6.4](../../../SDD.md)** — tabel itu semula tidak memuat `refresh_tokens` sama sekali — dan ke spesifikasi **PR-024** yang memilikinya, lengkap dengan indeks BRIN, DELETE berbatch, metrik, dan **AC test penjaga**: baris tercabut yang lebih tua dari ambang *expired* tetapi lebih muda dari ambang *revoked* harus selamat.
+* Angka 180 hari dicatat sebagai **jendela deteksi reuse**, bukan setelan kebersihan — supaya siapa pun yang kelak "mengoptimalkan" angkanya tahu apa yang sedang ia perpendek.
+
+Sekaligus ditemukan **celah yang lebih besar**: matriks traceability menugaskan FR-1.3 "logout semua perangkat" kepada PR-018, tetapi `API Changes` PR-018 tidak pernah mendefinisikan endpoint logout apa pun — dan tidak ada PR lain yang akan mengambilnya. `revokeAllSessions` dari PR-018a karenanya belum bisa dijangkau siapa pun. Ditambal ke scope **PR-018b**: `POST /auth/logout` + `POST /auth/logout-all`, keduanya diautentikasi refresh token (bukan `requireAuth`, yang baru lahir di PR-019), plus kolom **`revoked_reason`** supaya logout tidak menyalakan alarm reuse palsu.

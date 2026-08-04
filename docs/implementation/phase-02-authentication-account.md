@@ -238,10 +238,17 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 **API Changes:**
 
 * POST /api/v1/auth/refresh
+* POST /api/v1/auth/logout *(ditambahkan 2026-08-04 — lihat catatan di bawah)*
+* POST /api/v1/auth/logout-all *(ditambahkan 2026-08-04)*
+
+> **Celah yang ditambal (keputusan owner 2026-08-04):** matriks traceability ([README §FR](README.md)) menugaskan **FR-1.3 "Sesi aman (JWT, logout semua perangkat)" kepada PR-018 dan hanya PR-018**, tetapi `API Changes` semula tidak pernah mendefinisikan endpoint logout mana pun — tidak logout-all, tidak pula logout satu perangkat. Tidak ada PR lain yang akan mengambilnya (PR-021 mem-bump `ver`, tetapi itu hapus akun). Tanpa penambahan ini FR-1.3 ship dalam keadaan tidak lengkap dan tidak ada yang menyadarinya.
+>
+> Keduanya diautentikasi oleh **refresh token itu sendiri**, bukan access token + `requireAuth` — middleware itu baru lahir di PR-019, dan bergantung padanya akan membuat PR-018b menunggu guard yang belum ada. Konsekuensi yang diterima sadar: refresh token curian bisa memaksa logout-all (denial of service, bukan pengambilalihan) — penyerangnya pun ikut kehilangan akses, yang memang tujuannya.
 
 **Security Considerations:**
 
 * Refresh rotation + reuse detection; cookie flags (HttpOnly/Secure/SameSite=Strict); private key RS256 di env (ADR-015); audit reuse terdeteksi.
+* **`revoked_reason`** (`rotated | logout | logout_all | reuse | account_deleted`, migrasi aditif nullable di PR-018b). Tanpa kolom ini, logout mencabut keluarga token dan klien basi yang kemudian mencoba refresh akan menyalakan `AUTH_REFRESH_REUSED` — **alarm palsu pada sinyal keamanan**. Kolom ini juga yang membuat retensi PR-024 bisa membedakan bukti insiden dari rotasi biasa.
 
 **Testing Checklist:**
 
@@ -282,7 +289,7 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 
 > **Dipecah jadi dua PR (persetujuan owner 2026-08-04):** scope utuh ~880 LOC produksi + ~700 LOC test, jauh di atas target <500 — pola yang sama dengan PR-016 dan PR-017. Batas pemecahan sengaja ditaruh di **kulit HTTP**, bukan per fitur, supaya SELURUH logika keamanan (rotasi + reuse detection + `ver`) berada dalam satu PR yang bisa direview keamanan sekaligus — itu mitigasi yang diminta bagian Risks di atas.
 > **PR-018a** — migrasi `token_version`, env + gerbang fail-fast kunci RS256, `core/auth/{keys,tokens}`, repository refresh token, `session.service` (issue/rotate/reuse/revokeAll) — *selesai* (AC 1–3).
-> **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client — *belum* (AC 4–5).
+> **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client, **plus logout/logout-all + kolom `revoked_reason`** (ditambahkan 2026-08-04) — *belum* (AC 4–5). Dengan tambahan itu estimasinya ~610 LOC produksi; bila saat implementasi terbukti melewati batas, logout dipisah ke **PR-018c** dan itu dilaporkan sebelum menulis kode.
 >
 > **Koreksi "Database Changes: Tidak ada":** tabel `refresh_tokens` memang cukup, tetapi kolom `ver` yang diminta Objective **tidak ada** di `users` — terlewat di migrasi PR-009, padahal SDD §8.1 menempatkannya di sana. Migrasi 04 menambahkannya secara aditif (`NOT NULL DEFAULT 0`, backward-compatible satu versi). Menyimpannya di Redis ditolak: `ver` adalah kill-switch sesi yang justru dipakai saat insiden, jadi ia tidak boleh ikut hilang saat cache di-evict.
 
@@ -653,18 +660,38 @@ Restore dari backup harian (PR-104); job dapat di-pause via config.
 * Purge keliru menghapus data aktif. Mitigasi: dry-run + test agregat + backup harian (PR-104).
 
 
-### PR-024 - Retention Jobs (match_scores/ai_usage/transkrip/job-expiry)
+### PR-024 - Retention Jobs (match_scores/ai_usage/transkrip/job-expiry/refresh_tokens)
 
 #### Objective
 
 **Kebijakan retensi SDD §6.4 otomatis (Gap G3).**
 
-Bisnis: minimisasi data (PDP) + kebersihan operasional. Teknis: `maintenance:retention` harian — match_scores 7d, ai_usage 90d (agregat bulanan dipertahankan), transkrip chat 30d pasca-finalize, jobs melewati `expires_at` → auto-close + event.
+Bisnis: minimisasi data (PDP) + kebersihan operasional. Teknis: `maintenance:retention` harian — match_scores 7d, ai_usage 90d (agregat bulanan dipertahankan), transkrip chat 30d pasca-finalize, jobs melewati `expires_at` → auto-close + event, `refresh_tokens` berjenjang menurut sebab pencabutan.
 
 #### Scope
 
 * Processor retention config-driven
 * Agregasi bulanan ai_usage sebelum hapus
+* Kebijakan berjenjang `refresh_tokens` + indeks BRIN pendukung
+
+##### Kebijakan `refresh_tokens` (keputusan owner 2026-08-04)
+
+Ditambahkan setelah PR-018a: tabel ini tidak punya kebijakan retensi sama sekali (celah di SDD §6.4, kini ditambal). **Retensi agresif di sini ditolak secara eksplisit** — reuse detection lebih penting daripada penghematan storage.
+
+| Kategori | Predikat | Retensi | Env |
+|---|---|---|---|
+| Kedaluwarsa, tak pernah dicabut | `revoked_at IS NULL AND expires_at < now() - Xd` | 90 hari | `RETENTION_REFRESH_EXPIRED_DAYS=90` |
+| Dicabut: rotasi/logout/logout-all/hapus akun | `revoked_at < now() - Xd` | 180 hari | `RETENTION_REFRESH_REVOKED_DAYS=180` |
+| Dicabut karena **reuse terdeteksi** | `revoked_reason = 'reuse'` | 2 tahun | `RETENTION_REFRESH_REUSE_DAYS=730` |
+
+**Kenapa berjenjang, bukan satu angka:** baris yang dicabut adalah satu-satunya cara membedakan token curian dari token tidak dikenal. Angka 180 hari **adalah jendela deteksi reuse**, bukan setelan kebersihan. Baris ber-`reuse` disamakan dengan `audit_logs` (2 tahun) karena baris DB dan baris auditnya dua paruh bukti yang sama. Biaya 180 hari di skala MVP (~500 DAU) ≈ 900rb baris ≈ ~270 MB — murah untuk menggandakan jendela deteksi.
+
+Syarat yang menyertainya:
+
+* **Indeks BRIN** pada `revoked_at`/`expires_at` (migrasi kecil). Tanpa itu purge harian men-seq-scan tabel yang terus tumbuh; kolomnya append-mostly dan berkorelasi waktu — kasus pemakaian BRIN (SDD §6.2).
+* **DELETE berbatch** (`LIMIT` + loop) supaya tidak mengunci lama / menggelembungkan WAL.
+* **Metrik**: baris terhapus per kategori **dan baris tersisa**, supaya pertumbuhan liar terlihat.
+* Bergantung pada kolom `revoked_reason` yang lahir di **PR-018b**.
 
 #### Technical Notes
 
@@ -715,15 +742,20 @@ Restore backup; pause via config.
 * [ ] Agregat bulanan ai_usage terbentuk sebelum purge.
 * [ ] Config durasi via env (bukan hardcode).
 * [ ] Run ter-audit.
+* [ ] **Penjaga reuse detection:** baris `refresh_tokens` yang dicabut, lebih tua dari ambang *expired* tetapi lebih muda dari ambang *revoked*, **tetap selamat** (test eksplisit). Ini persis bug yang akan membutakan reuse detection tanpa menimbulkan gejala apa pun.
+* [ ] Baris ber-`revoked_reason = 'reuse'` bertahan melewati ambang 180 hari.
+* [ ] Indeks BRIN terpasang; purge harian tidak men-seq-scan `refresh_tokens` (EXPLAIN di test/manual).
 
 #### Dependencies
 
 * PR-015
 * PR-011
+* PR-018b (kolom `revoked_reason`)
 
 #### Risks
 
 * Salah durasi menghapus data dibutuhkan. Mitigasi: dry-run default on di staging + backup.
+* **Retensi `refresh_tokens` yang terlalu agresif membutakan reuse detection tanpa gejala** — tabelnya rapi, jobnya hijau, dan token curian diam-diam terbaca sebagai "tidak dikenal" sehingga keluarganya tidak pernah dicabut. Mitigasi: kebijakan berjenjang di atas + test penjaga di AC (bukan hanya review).
 
 
 ## Exit Criteria
