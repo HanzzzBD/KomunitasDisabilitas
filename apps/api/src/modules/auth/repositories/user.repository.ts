@@ -6,7 +6,7 @@
 // SEMUA query login WAJIB menyaring `deletedAt: null`: unique index nomor dan
 // google_id bersifat PARSIAL (PR-009), jadi baris terhapus boleh menyimpan
 // nilai yang sama dan akan menjadi kembar bila ikut terbaca.
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient, type Role } from "@prisma/client";
 import { uuidV7 } from "../../../core/ids/index.js";
 
 export interface AuthUserResult {
@@ -17,6 +17,8 @@ export interface AuthUserResult {
 
 /** Kode Prisma untuk pelanggaran unique constraint. */
 const UNIQUE_VIOLATION = "P2002";
+/** Kode Prisma saat update/delete tidak menemukan baris yang cocok. */
+const RECORD_NOT_FOUND = "P2025";
 
 export function createAuthUserRepository(prisma: PrismaClient) {
   /**
@@ -35,6 +37,47 @@ export function createAuthUserRepository(prisma: PrismaClient) {
   return {
     findActiveByPhone,
     findActiveByGoogleId,
+
+    /**
+     * Data yang dibutuhkan untuk menerbitkan/memperbarui sesi (PR-018a).
+     * `deletedAt: null` WAJIB di sini juga: refresh token milik akun yang sudah
+     * dihapus tidak boleh menghidupkan sesi baru.
+     */
+    async findActiveSessionUser(
+      id: string,
+    ): Promise<{ id: string; role: Role; tokenVersion: number } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, role: true, tokenVersion: true },
+      });
+    },
+
+    /**
+     * Naikkan `ver` satu langkah — kill-switch sesi (SDD §8.1). Setelah ini
+     * SETIAP access token lama ditolak verifikasinya, tanpa perlu menunggu
+     * 15 menit dan tanpa daftar token yang harus disisir.
+     *
+     * Increment dilakukan di DB (`increment`), bukan baca-lalu-tulis di
+     * aplikasi: dua pencabutan bersamaan tidak boleh saling menimpa sehingga
+     * salah satunya diam-diam tidak berlaku.
+     */
+    async bumpTokenVersion(id: string): Promise<number | null> {
+      try {
+        const row = await prisma.user.update({
+          // Filter non-unique di samping PK = extendedWhereUnique (GA Prisma 5).
+          where: { id, deletedAt: null },
+          data: { tokenVersion: { increment: 1 } },
+          select: { tokenVersion: true },
+        });
+        return row.tokenVersion;
+      } catch (err) {
+        // P2025 = tidak ada baris aktif dengan id itu; bukan kondisi error.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
+          return null;
+        }
+        throw err;
+      }
+    },
 
     /**
      * Cari akun aktif; buat bila belum ada. Dua verifikasi bersamaan untuk

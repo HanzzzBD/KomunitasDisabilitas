@@ -37,6 +37,11 @@ model User {
   email        String?
   fullName     String    @map("full_name")
   role         Role      @default(seeker)
+  /// `ver` pada klaim access token (SDD §8.1). Menaikkannya satu langkah
+  /// membuat SELURUH access token lama ditolak — logout semua perangkat dan
+  /// pencabutan saat ganti role. Sengaja di tabel ini (bukan cache): kill-switch
+  /// sesi tidak boleh ikut hilang saat Redis di-evict atau restart.
+  tokenVersion Int       @default(0) @map("token_version")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(6)
   /// Soft delete (fondasi hak hapus UU PDP); purge/anonimisasi ≤30 hari (job worker).

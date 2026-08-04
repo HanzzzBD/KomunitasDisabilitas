@@ -245,11 +245,11 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (rotasi, klaim)
-* [ ] Integration Test (reuse family revoke)
+* [x] Unit Test (rotasi, klaim) — PR-018a
+* [x] Integration Test (reuse family revoke) — PR-018a (PostgreSQL nyata)
 * [ ] E2E Test (login→refresh di PR-030)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi cookie di browser)
+* [ ] Manual Verification (inspeksi cookie di browser) — menunggu PR-018b
 
 **Deliverables:**
 
@@ -265,11 +265,11 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 
 #### Acceptance Criteria
 
-* [ ] Reuse refresh token lama → seluruh family dicabut + audit (test).
-* [ ] Access kedaluwarsa 15 menit; refresh 30 hari (assert klaim).
-* [ ] `ver` bump menolak semua access lama.
-* [ ] Cookie web ber-flag lengkap (snapshot header).
-* [ ] api-client 401→refresh→retry bekerja end-to-end (mock).
+* [x] Reuse refresh token lama → seluruh family dicabut + audit (test). — PR-018a
+* [x] Access kedaluwarsa 15 menit; refresh 30 hari (assert klaim). — PR-018a
+* [x] `ver` bump menolak semua access lama. — PR-018a
+* [ ] Cookie web ber-flag lengkap (snapshot header). — PR-018b
+* [ ] api-client 401→refresh→retry bekerja end-to-end (mock). — PR-018b
 
 #### Dependencies
 
@@ -279,6 +279,16 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 #### Risks
 
 * Kesalahan implementasi rotation = lubang keamanan. Mitigasi: test reuse eksplisit + review keamanan khusus.
+
+> **Dipecah jadi dua PR (persetujuan owner 2026-08-04):** scope utuh ~880 LOC produksi + ~700 LOC test, jauh di atas target <500 — pola yang sama dengan PR-016 dan PR-017. Batas pemecahan sengaja ditaruh di **kulit HTTP**, bukan per fitur, supaya SELURUH logika keamanan (rotasi + reuse detection + `ver`) berada dalam satu PR yang bisa direview keamanan sekaligus — itu mitigasi yang diminta bagian Risks di atas.
+> **PR-018a** — migrasi `token_version`, env + gerbang fail-fast kunci RS256, `core/auth/{keys,tokens}`, repository refresh token, `session.service` (issue/rotate/reuse/revokeAll) — *selesai* (AC 1–3).
+> **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client — *belum* (AC 4–5).
+>
+> **Koreksi "Database Changes: Tidak ada":** tabel `refresh_tokens` memang cukup, tetapi kolom `ver` yang diminta Objective **tidak ada** di `users` — terlewat di migrasi PR-009, padahal SDD §8.1 menempatkannya di sana. Migrasi 04 menambahkannya secara aditif (`NOT NULL DEFAULT 0`, backward-compatible satu versi). Menyimpannya di Redis ditolak: `ver` adalah kill-switch sesi yang justru dipakai saat insiden, jadi ia tidak boleh ikut hilang saat cache di-evict.
+
+#### Log Implementasi
+
+* 2026-08-04 — PR-018a selesai (token service RS256, rotasi + reuse detection, `ver` bump, migrasi `token_version`, gerbang boot kunci sesi). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018a--token-service-rs256-rotasi--reuse-detection).
 
 
 ### PR-019 - RBAC Middleware + Route Registry

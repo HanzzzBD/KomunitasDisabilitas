@@ -9,6 +9,17 @@ import "zod-openapi/extend";
 import { z } from "zod";
 import { idSchema } from "./common.js";
 
+/**
+ * Peran pengguna — nilainya SAMA PERSIS dengan enum `Role` di skema Prisma
+ * (PR-009). Ditaruh di sini supaya klaim JWT (`role`) dan RBAC (PR-019) punya
+ * satu sumber tipe tanpa perlu meng-import `@prisma/client` ke paket bersama.
+ */
+export const userRoleSchema = z
+  .enum(["seeker", "admin", "employer"])
+  .openapi({ description: "Peran pengguna", example: "seeker" });
+
+export type UserRole = z.infer<typeof userRoleSchema>;
+
 /** Nomor HP Indonesia format E.164 (+62…). */
 export const phoneNumberSchema = z
   .string()

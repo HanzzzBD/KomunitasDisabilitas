@@ -112,3 +112,34 @@ describe("kredensial Google OAuth (PR-017)", () => {
     expect(env.GOOGLE_HTTP_TIMEOUT_MS).toBe(10_000);
   });
 });
+
+// core/config hanya menegakkan KELENGKAPAN pasangan; bentuk kuncinya (base64
+// PEM, RSA ≥ 2048, benar-benar berpasangan) milik core/auth — lihat
+// auth-session-keys.test.ts. Pembagian yang sama seperti FIELD_KEY_V*.
+describe("kunci sesi JWT RS256 (PR-018)", () => {
+  const JWT = { JWT_PRIVATE_KEY: "cHJpdmF0ZS11ammk", JWT_PUBLIC_KEY: "cHVibGljLXVqaQ==" };
+
+  it("tanpa kunci → boot tetap jalan (sesi dimatikan, bukan boot gagal)", () => {
+    const env = loadEnv({ ...VALID });
+    expect(env.JWT_PRIVATE_KEY).toBeUndefined();
+    expect(env.JWT_PUBLIC_KEY).toBeUndefined();
+  });
+
+  it("pasangan lengkap → diterima (isinya divalidasi core/auth)", () => {
+    expect(loadEnv({ ...VALID, ...JWT })).toMatchObject(JWT);
+  });
+
+  it.each([
+    ["JWT_PRIVATE_KEY saja", { JWT_PRIVATE_KEY: JWT.JWT_PRIVATE_KEY }, "JWT_PUBLIC_KEY"],
+    ["JWT_PUBLIC_KEY saja", { JWT_PUBLIC_KEY: JWT.JWT_PUBLIC_KEY }, "JWT_PRIVATE_KEY"],
+  ])("%s → boot GAGAL menyebut variabel yang hilang", (_nama, separuh, hilang) => {
+    let caught: unknown;
+    try {
+      loadEnv({ ...VALID, ...separuh });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EnvError);
+    expect((caught as EnvError).issues.map(([nama]) => nama)).toContain(hilang);
+  });
+});

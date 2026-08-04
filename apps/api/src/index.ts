@@ -20,6 +20,7 @@
 /* eslint-disable no-console -- sebelum logger siap, satu-satunya saluran adalah console */
 import { loadEnv, EnvError } from "./core/config/index.js";
 import { parseFieldKeys, FieldKeyError, type FieldKeys } from "./core/crypto/index.js";
+import { parseSessionKeys, SessionKeyError, type SessionKeys } from "./core/auth/index.js";
 import { loadQueueConfigs } from "./core/queue/index.js";
 
 let env;
@@ -43,6 +44,19 @@ try {
   process.exit(1);
 }
 
+// Fail-fast kunci sesi RS256 (PR-018): pasangan kunci yang salah bentuk atau
+// tidak berpasangan berarti setiap access token terbit lalu ditolak
+// verifikasinya sendiri — kegagalan yang baru terlihat saat pengguna mencoba
+// masuk. `undefined` (kedua variabel kosong) BUKAN error: fitur sesi mati dan
+// endpoint login menjawab 503, sama seperti OTP/Google tanpa kredensial.
+let sessionKeys: SessionKeys | undefined;
+try {
+  sessionKeys = parseSessionKeys();
+} catch (err) {
+  console.error(err instanceof SessionKeyError ? err.message : err);
+  process.exit(1);
+}
+
 // Konfigurasi antrean juga fail-fast (PR-015a): override env yang salah
 // ketahuan saat boot, bukan saat job pertama dikirim.
 let queueConfigs;
@@ -55,4 +69,4 @@ try {
 
 // Semua gerbang lolos → baru rakit aplikasi (import dinamis, lihat catatan di atas).
 const { startApi } = await import("./boot.js");
-await startApi({ env, fieldKeys, queueConfigs });
+await startApi({ env, fieldKeys, sessionKeys, queueConfigs });

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -128,6 +129,65 @@ describe("fail-fast kunci enkripsi saat boot (AC PR-013)", () => {
     // Material kunci TIDAK muncul di output apa pun (stdout/stderr).
     expect(r.stdout).not.toContain(key);
     expect(r.stderr).not.toContain(key);
+  }, 25_000);
+});
+
+// Gerbang kedua di entry point yang sama (PR-018a). Memakai helper spawn di
+// atas dengan sengaja: yang diuji bukan "kunci sesi valid" — itu urusan
+// auth-session-keys.test.ts — melainkan bahwa gerbangnya benar-benar berjalan
+// di index.ts SEBELUM server listen, persis seperti gerbang kunci enkripsi.
+describe("fail-fast kunci sesi RS256 saat boot (AC PR-018)", () => {
+  const FIELD_KEY = Buffer.alloc(32, 3).toString("base64");
+  const ENV_SIAP = { ...BASE_ENV, FIELD_KEY_V1: FIELD_KEY };
+  const b64 = (pem: string) => Buffer.from(pem, "utf8").toString("base64");
+
+  function pasanganRsa() {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    return {
+      priv: b64(privateKey.export({ type: "pkcs8", format: "pem" }).toString()),
+      pub: b64(publicKey.export({ type: "spki", format: "pem" }).toString()),
+    };
+  }
+
+  it("tanpa kunci sesi → boot TETAP BERHASIL (fitur sesi mati, bukan boot gagal)", async () => {
+    const r = await bootApi(ENV_SIAP, false);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("hanya JWT_PRIVATE_KEY → exit ≠ 0, pesan menyebut JWT_PUBLIC_KEY", async () => {
+    const { priv } = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: priv }, true);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("JWT_PUBLIC_KEY");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("kunci publik BUKAN pasangan privat → exit ≠ 0 sebelum server start", async () => {
+    const a = pasanganRsa();
+    const b = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: a.priv, JWT_PUBLIC_KEY: b.pub }, true);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("bukan pasangan");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("JWT_PRIVATE_KEY salah bentuk → exit ≠ 0", async () => {
+    const { pub } = pasanganRsa();
+    const r = await bootApi(
+      { ...ENV_SIAP, JWT_PRIVATE_KEY: b64("bukan kunci"), JWT_PUBLIC_KEY: pub },
+      true,
+    );
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("JWT_PRIVATE_KEY");
+  }, 25_000);
+
+  it("pasangan valid → boot berhasil, kunci privat TIDAK muncul di output", async () => {
+    const { priv, pub } = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: priv, JWT_PUBLIC_KEY: pub }, false);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain(priv);
+    expect(r.stderr).not.toContain(priv);
+    expect(r.stdout).not.toContain("BEGIN PRIVATE KEY");
   }, 25_000);
 });
 
