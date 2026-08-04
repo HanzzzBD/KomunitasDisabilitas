@@ -1,4 +1,4 @@
-// Unit service sesi (PR-018a) — rotasi, reuse detection, revokeAllSessions.
+// Unit service sesi (PR-018a/c) — rotasi, reuse detection, logout.
 // Repository dipalsukan; semantik transaksi & unique index dibuktikan terpisah
 // di auth-session-db.test.ts terhadap PostgreSQL NYATA. Jangan perlakukan test
 // ini sebagai penggantinya.
@@ -24,6 +24,7 @@ interface BarisPalsu {
   tokenHash: string;
   expiresAt: Date;
   revokedAt: Date | null;
+  revokedReason: string | null;
 }
 
 /** Repository refresh in-memory dengan semantik yang sama seperti Prisma. */
@@ -33,7 +34,7 @@ function refreshRepoPalsu() {
     rows,
     async insert(input: { userId: string; tokenHash: string; familyId: string; expiresAt: Date }) {
       const id = uuidV7();
-      rows.push({ id, revokedAt: null, ...input });
+      rows.push({ id, revokedAt: null, revokedReason: null, ...input });
       return id;
     },
     async findByHash(tokenHash: string) {
@@ -50,6 +51,7 @@ function refreshRepoPalsu() {
       const current = rows.find((r) => r.id === input.currentId && r.revokedAt === null);
       if (current === undefined) return null; // kalah balapan
       current.revokedAt = input.now;
+      current.revokedReason = "rotated";
       const id = uuidV7();
       rows.push({
         id,
@@ -58,17 +60,28 @@ function refreshRepoPalsu() {
         tokenHash: input.nextTokenHash,
         expiresAt: input.nextExpiresAt,
         revokedAt: null,
+        revokedReason: null,
       });
       return id;
     },
-    async revokeFamily(familyId: string, now: Date) {
+    async markReuse(id: string) {
+      const baris = rows.find((r) => r.id === id);
+      if (baris !== undefined) baris.revokedReason = "reuse";
+    },
+    async revokeFamily(familyId: string, now: Date, reason: string) {
       const target = rows.filter((r) => r.familyId === familyId && r.revokedAt === null);
-      for (const r of target) r.revokedAt = now;
+      for (const r of target) {
+        r.revokedAt = now;
+        r.revokedReason = reason;
+      }
       return target.length;
     },
-    async revokeAllForUser(userId: string, now: Date) {
+    async revokeAllForUser(userId: string, now: Date, reason: string) {
       const target = rows.filter((r) => r.userId === userId && r.revokedAt === null);
-      for (const r of target) r.revokedAt = now;
+      for (const r of target) {
+        r.revokedAt = now;
+        r.revokedReason = reason;
+      }
       return target.length;
     },
   };
@@ -201,6 +214,7 @@ describe("refresh — rotasi", () => {
       tokenHash: tokenService.hashRefreshToken(awal.refreshToken),
       expiresAt: new Date(T0.getTime() + 30 * 24 * 60 * 60 * 1000),
       revokedAt: null,
+      revokedReason: null,
     });
     await expect(nanti.refresh(awal.refreshToken, actor)).rejects.toMatchObject({
       code: "SESI_TIDAK_VALID",
@@ -284,26 +298,123 @@ describe("reuse detection (AC: reuse → seluruh family dicabut + audit)", () =>
     await expect(service.refresh(laptop.refreshToken, actor)).resolves.toBeDefined();
   });
 
-  it("reuse kedua kali tetap ditolak dan tetap teraudit", async () => {
+  it("reuse berulang tetap ditolak, tetapi diaudit SEKALI per keluarga", async () => {
     const { service, catatan } = rakit();
     const awal = await service.issue(USER_ID);
     await service.refresh(awal.refreshToken, actor);
     await service.refresh(awal.refreshToken, actor).catch(() => undefined);
     await service.refresh(awal.refreshToken, actor).catch(() => undefined);
 
-    expect(catatan).toHaveLength(2);
-    expect(catatan[1]).toMatchObject({ meta: { revokedCount: 0 } }); // sudah habis dicabut
+    // PERUBAHAN SADAR dari PR-018a (yang mengaudit tiap percobaan). Sejak
+    // PR-018c token pemicu ditandai `reuse`, sehingga percobaan berikutnya
+    // tidak lagi terbaca sebagai rotasi dan tidak menyalakan alarm ulang.
+    //
+    // Ini disengaja: keluarganya sudah habis dicabut, jadi alarm kedua dan
+    // seterusnya tidak menambah apa pun yang bisa ditindaklanjuti — sementara
+    // penyerang yang menggedor token mati bisa menulis baris audit tanpa batas
+    // (retensi 2 tahun, dan /auth/refresh belum ber-rate-limit). Penolakannya
+    // sendiri tetap terjadi setiap kali.
+    expect(catatan).toHaveLength(1);
   });
 });
 
-describe("revokeAllSessions — logout semua perangkat", () => {
+describe("logout — keluar dari perangkat ini (PR-018c)", () => {
+  it("mencabut seluruh keluarga perangkat itu dengan sebab `logout`", async () => {
+    const { service, refreshTokenRepository } = rakit();
+    const awal = await service.issue(USER_ID);
+    const kedua = await service.refresh(awal.refreshToken, actor);
+
+    await service.logout(kedua.refreshToken);
+
+    expect(refreshTokenRepository.rows.every((r) => r.revokedAt !== null)).toBe(true);
+    expect(refreshTokenRepository.rows.at(-1)?.revokedReason).toBe("logout");
+    await expect(service.refresh(kedua.refreshToken, actor)).rejects.toMatchObject({
+      code: "SESI_TIDAK_VALID",
+    });
+  });
+
+  it("perangkat LAIN tidak ikut keluar", async () => {
+    const { service } = rakit();
+    const hp = await service.issue(USER_ID);
+    const laptop = await service.issue(USER_ID);
+
+    await service.logout(hp.refreshToken);
+
+    await expect(service.refresh(laptop.refreshToken, actor)).resolves.toBeDefined();
+  });
+
+  it("idempoten: token tak dikenal / sudah dicabut tidak melempar", async () => {
+    const { service } = rakit();
+    const awal = await service.issue(USER_ID);
+
+    await expect(service.logout("token-karangan")).resolves.toBeUndefined();
+    await service.logout(awal.refreshToken);
+    await expect(service.logout(awal.refreshToken)).resolves.toBeUndefined();
+  });
+});
+
+describe("logout TIDAK boleh menyalakan alarm reuse (PR-018c)", () => {
+  it("klien basi yang refresh setelah logout ditolak TANPA audit reuse", async () => {
+    const { service, refreshTokenRepository, catatan } = rakit();
+    const awal = await service.issue(USER_ID);
+    await service.logout(awal.refreshToken);
+
+    // Tab lain yang belum tahu pengguna sudah keluar mencoba memperpanjang.
+    await expect(service.refresh(awal.refreshToken, actor)).rejects.toMatchObject({
+      code: "SESI_TIDAK_VALID",
+    });
+
+    // Inilah inti PR-018c: perilaku normal tidak boleh mengotori sinyal keamanan.
+    expect(catatan).toHaveLength(0);
+    // Sebabnya juga tidak boleh ditimpa menjadi 'reuse'.
+    expect(refreshTokenRepository.rows[0]?.revokedReason).toBe("logout");
+  });
+
+  it("setelah logout-all pun tidak ada alarm reuse", async () => {
+    const { service, catatan } = rakit();
+    const awal = await service.issue(USER_ID);
+    await service.logoutAll(USER_ID);
+
+    await expect(service.refresh(awal.refreshToken, actor)).rejects.toBeInstanceOf(AppError);
+    expect(catatan).toHaveLength(0);
+  });
+
+  it("token yang dicabut karena ROTASI tetap memicu alarm (regresi PR-018a)", async () => {
+    const { service, refreshTokenRepository, catatan } = rakit();
+    const awal = await service.issue(USER_ID);
+    await service.refresh(awal.refreshToken, actor); // awal → 'rotated'
+
+    await expect(service.refresh(awal.refreshToken, actor)).rejects.toBeInstanceOf(AppError);
+
+    expect(catatan).toHaveLength(1);
+    expect(catatan[0]?.action).toBe(AUDIT_ACTION.AUTH_REFRESH_REUSED);
+    expect(refreshTokenRepository.rows[0]?.revokedReason).toBe("reuse");
+  });
+
+  it("baris lama tanpa revokedReason (NULL) diperlakukan sebagai rotasi", async () => {
+    // Baris yang dicabut SEBELUM migrasi 05 ada. Memperlakukannya sebagai
+    // "bukan reuse" akan diam-diam melemahkan deteksi untuk data lama.
+    const { service, refreshTokenRepository, catatan } = rakit();
+    const awal = await service.issue(USER_ID);
+    const baris = refreshTokenRepository.rows[0];
+    if (baris !== undefined) {
+      baris.revokedAt = T0;
+      baris.revokedReason = null;
+    }
+
+    await expect(service.refresh(awal.refreshToken, actor)).rejects.toBeInstanceOf(AppError);
+    expect(catatan).toHaveLength(1);
+  });
+});
+
+describe("logoutAll — logout semua perangkat", () => {
   it("menaikkan ver DAN mencabut semua refresh milik pengguna", async () => {
     const user = userRepoPalsu();
     const { service, refreshTokenRepository } = rakit({ user });
     const hp = await service.issue(USER_ID);
     await service.issue(USER_ID);
 
-    const hasil = await service.revokeAllSessions(USER_ID);
+    const hasil = await service.logoutAll(USER_ID);
 
     expect(hasil).toEqual({ tokenVersion: 1, revokedCount: 2 });
     expect(refreshTokenRepository.rows.every((r) => r.revokedAt !== null)).toBe(true);
@@ -319,7 +430,7 @@ describe("revokeAllSessions — logout semua perangkat", () => {
     const user = userRepoPalsu();
     const { service } = rakit({ user });
     await service.issue(USER_ID);
-    await service.revokeAllSessions(USER_ID);
+    await service.logoutAll(USER_ID);
 
     const baru = await service.issue(USER_ID);
     expect(await tokenService.verifyAccessToken(baru.accessToken, { version: 1 })).toMatchObject({
@@ -331,7 +442,7 @@ describe("revokeAllSessions — logout semua perangkat", () => {
     const user = userRepoPalsu();
     user.hapus();
     const { service } = rakit({ user });
-    await expect(service.revokeAllSessions(USER_ID)).rejects.toMatchObject({
+    await expect(service.logoutAll(USER_ID)).rejects.toMatchObject({
       code: "SESI_TIDAK_VALID",
     });
   });

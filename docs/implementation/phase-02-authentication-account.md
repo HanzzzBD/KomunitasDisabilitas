@@ -238,8 +238,8 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 **API Changes:**
 
 * POST /api/v1/auth/refresh
-* POST /api/v1/auth/logout *(ditambahkan 2026-08-04 — lihat catatan di bawah)*
-* POST /api/v1/auth/logout-all *(ditambahkan 2026-08-04)*
+* POST /api/v1/auth/logout *(ditambahkan 2026-08-04 — lihat catatan di bawah; selesai di PR-018c)*
+* POST /api/v1/auth/logout-all *(ditambahkan 2026-08-04; selesai di PR-018c)*
 
 > **Celah yang ditambal (keputusan owner 2026-08-04):** matriks traceability ([README §FR](README.md)) menugaskan **FR-1.3 "Sesi aman (JWT, logout semua perangkat)" kepada PR-018 dan hanya PR-018**, tetapi `API Changes` semula tidak pernah mendefinisikan endpoint logout mana pun — tidak logout-all, tidak pula logout satu perangkat. Tidak ada PR lain yang akan mengambilnya (PR-021 mem-bump `ver`, tetapi itu hapus akun). Tanpa penambahan ini FR-1.3 ship dalam keadaan tidak lengkap dan tidak ada yang menyadarinya.
 >
@@ -290,7 +290,7 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 > **Dipecah jadi dua PR (persetujuan owner 2026-08-04):** scope utuh ~880 LOC produksi + ~700 LOC test, jauh di atas target <500 — pola yang sama dengan PR-016 dan PR-017. Batas pemecahan sengaja ditaruh di **kulit HTTP**, bukan per fitur, supaya SELURUH logika keamanan (rotasi + reuse detection + `ver`) berada dalam satu PR yang bisa direview keamanan sekaligus — itu mitigasi yang diminta bagian Risks di atas.
 > **PR-018a** — migrasi `token_version`, env + gerbang fail-fast kunci RS256, `core/auth/{keys,tokens}`, repository refresh token, `session.service` (issue/rotate/reuse/revokeAll) — *selesai* (AC 1–3).
 > **PR-018b** — endpoint `POST /api/v1/auth/refresh`, cookie web, integrasi OTP/Google → pasangan JWT, OpenAPI, hook refresh api-client — *selesai* (AC 4–5). **Seluruh AC PR-018 kini terpenuhi.**
-> **PR-018c** — `POST /auth/logout`, `POST /auth/logout-all`, kolom `revoked_reason` — *belum*. Dipisah karena 018b utuh terukur ~665 LOC produksi (dilaporkan sebelum menulis kode, sesuai rencana cadangan); 018b tanpa logout ≈ 435 LOC. Logout bukan bagian dari AC PR-018 mana pun, tetapi WAJIB untuk menutup FR-1.3 — jangan tandai phase selesai sebelum 018c mendarat.
+> **PR-018c** — `POST /auth/logout`, `POST /auth/logout-all`, kolom `revoked_reason` — *selesai*. Dipisah karena 018b utuh terukur ~665 LOC produksi (dilaporkan sebelum menulis kode, sesuai rencana cadangan); 018b tanpa logout ≈ 435 LOC. **FR-1.3 kini tertutup penuh.**
 >
 > **Koreksi "Database Changes: Tidak ada":** tabel `refresh_tokens` memang cukup, tetapi kolom `ver` yang diminta Objective **tidak ada** di `users` — terlewat di migrasi PR-009, padahal SDD §8.1 menempatkannya di sana. Migrasi 04 menambahkannya secara aditif (`NOT NULL DEFAULT 0`, backward-compatible satu versi). Menyimpannya di Redis ditolak: `ver` adalah kill-switch sesi yang justru dipakai saat insiden, jadi ia tidak boleh ikut hilang saat cache di-evict.
 
@@ -298,6 +298,7 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 
 * 2026-08-04 — PR-018a selesai (token service RS256, rotasi + reuse detection, `ver` bump, migrasi `token_version`, gerbang boot kunci sesi). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018a--token-service-rs256-rotasi--reuse-detection).
 * 2026-08-04 — PR-018b selesai (endpoint `POST /auth/refresh`, cookie web ber-flag lengkap, integrasi OTP/Google → pasangan JWT, hook refresh api-client single-flight). **Seluruh AC PR-018 terpenuhi.** Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018b--endpoint-refresh-cookie-web--integrasi-login).
+* 2026-08-04 — PR-018c selesai (`POST /auth/logout` + `/auth/logout-all`, migrasi `revoked_reason`, reuse detection kini membedakan logout dari rotasi). **FR-1.3 tertutup penuh.** Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018c--logout-logout-all--revoked_reason).
 
 
 ### PR-019 - RBAC Middleware + Route Registry
@@ -693,7 +694,7 @@ Syarat yang menyertainya:
 * **Indeks BRIN** pada `revoked_at`/`expires_at` (migrasi kecil). Tanpa itu purge harian men-seq-scan tabel yang terus tumbuh; kolomnya append-mostly dan berkorelasi waktu — kasus pemakaian BRIN (SDD §6.2).
 * **DELETE berbatch** (`LIMIT` + loop) supaya tidak mengunci lama / menggelembungkan WAL.
 * **Metrik**: baris terhapus per kategori **dan baris tersisa**, supaya pertumbuhan liar terlihat.
-* Bergantung pada kolom `revoked_reason` yang lahir di **PR-018b**.
+* Bergantung pada kolom `revoked_reason` — **sudah ada sejak PR-018c** (migrasi 05). Nilai `rotated | logout | logout_all | reuse | account_deleted`; baris lama bernilai NULL dan diperlakukan sebagai `rotated`.
 
 #### Technical Notes
 
@@ -752,7 +753,7 @@ Restore backup; pause via config.
 
 * PR-015
 * PR-011
-* PR-018b (kolom `revoked_reason`)
+* PR-018c (kolom `revoked_reason`) — terpenuhi
 
 #### Risks
 

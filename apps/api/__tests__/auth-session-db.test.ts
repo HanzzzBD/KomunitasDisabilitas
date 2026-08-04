@@ -121,7 +121,7 @@ describe("rotate — atomik & anti-balapan", () => {
       familyId,
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await repo.revokeFamily(familyId, new Date());
+    await repo.revokeFamily(familyId, new Date(), "logout");
 
     const hasil = await repo.rotate({
       currentId,
@@ -182,9 +182,9 @@ describe("revokeFamily & revokeAllForUser", () => {
     await repo.insert({ userId, tokenHash: hashUji("e2"), familyId: keluargaA, expiresAt });
     await repo.insert({ userId, tokenHash: hashUji("e3"), familyId: keluargaB, expiresAt });
 
-    expect(await repo.revokeFamily(keluargaA, new Date())).toBe(2);
+    expect(await repo.revokeFamily(keluargaA, new Date(), "logout")).toBe(2);
     // Idempoten: pemanggilan kedua tidak menghitung ulang yang sudah dicabut.
-    expect(await repo.revokeFamily(keluargaA, new Date())).toBe(0);
+    expect(await repo.revokeFamily(keluargaA, new Date(), "logout")).toBe(0);
     expect((await repo.findByHash(hashUji("e3")))?.revokedAt).toBeNull();
   });
 
@@ -199,8 +199,86 @@ describe("revokeFamily & revokeAllForUser", () => {
     await repo.insert({ userId: userA, tokenHash: hashUji("f2"), familyId: uuidV7(), expiresAt });
     await repo.insert({ userId: userB, tokenHash: hashUji("f3"), familyId: uuidV7(), expiresAt });
 
-    expect(await repo.revokeAllForUser(userA, new Date())).toBe(2);
+    expect(await repo.revokeAllForUser(userA, new Date(), "logout_all")).toBe(2);
     expect((await repo.findByHash(hashUji("f3")))?.revokedAt).toBeNull();
+  });
+});
+
+describe("migrasi 05 — revoked_reason (PR-018c)", () => {
+  it("baris aktif punya revokedReason NULL", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const repo = createRefreshTokenRepository(prisma);
+    const userId = await buatUser("00014");
+    await repo.insert({
+      userId,
+      tokenHash: hashUji("g1"),
+      familyId: uuidV7(),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect((await repo.findByHash(hashUji("g1")))?.revokedReason).toBeNull();
+  });
+
+  it("rotate menandai baris lama sebagai `rotated`", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const repo = createRefreshTokenRepository(prisma);
+    const userId = await buatUser("00015");
+    const familyId = uuidV7();
+    const currentId = await repo.insert({
+      userId,
+      tokenHash: hashUji("g2"),
+      familyId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await repo.rotate({
+      currentId,
+      nextTokenHash: hashUji("g3"),
+      nextExpiresAt: new Date(Date.now() + 120_000),
+      userId,
+      familyId,
+      now: new Date(),
+    });
+
+    expect((await repo.findByHash(hashUji("g2")))?.revokedReason).toBe("rotated");
+    expect((await repo.findByHash(hashUji("g3")))?.revokedReason).toBeNull();
+  });
+
+  it("revokeFamily/revokeAllForUser menuliskan sebab yang diminta", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const repo = createRefreshTokenRepository(prisma);
+    const userId = await buatUser("00016");
+    const familyId = uuidV7();
+    const expiresAt = new Date(Date.now() + 60_000);
+
+    await repo.insert({ userId, tokenHash: hashUji("g4"), familyId, expiresAt });
+    await repo.revokeFamily(familyId, new Date(), "logout");
+    expect((await repo.findByHash(hashUji("g4")))?.revokedReason).toBe("logout");
+
+    await repo.insert({ userId, tokenHash: hashUji("g5"), familyId: uuidV7(), expiresAt });
+    await repo.revokeAllForUser(userId, new Date(), "logout_all");
+    expect((await repo.findByHash(hashUji("g5")))?.revokedReason).toBe("logout_all");
+  });
+
+  it("markReuse menandai baris yang SUDAH tercabut tanpa mengubah revokedAt", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // Baris pemicu adalah bukti insiden; retensi PR-024 menyimpannya 2 tahun
+    // berdasarkan kolom ini, jadi ia harus benar-benar berubah jadi `reuse`.
+    const repo = createRefreshTokenRepository(prisma);
+    const userId = await buatUser("00017");
+    const familyId = uuidV7();
+    const id = await repo.insert({
+      userId,
+      tokenHash: hashUji("g6"),
+      familyId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await repo.revokeFamily(familyId, new Date(), "rotated");
+    const sebelum = await repo.findByHash(hashUji("g6"));
+
+    await repo.markReuse(id);
+    const sesudah = await repo.findByHash(hashUji("g6"));
+
+    expect(sesudah?.revokedReason).toBe("reuse");
+    expect(sesudah?.revokedAt).toEqual(sebelum?.revokedAt);
   });
 });
 

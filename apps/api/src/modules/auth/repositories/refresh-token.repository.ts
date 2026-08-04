@@ -6,16 +6,25 @@
 //
 // Token mentah TIDAK PERNAH menyentuh file ini — hanya SHA-256-nya (kolom
 // token_hash, unique). Bocornya isi tabel tidak memberi token yang bisa dipakai.
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, RefreshRevokedReason } from "@prisma/client";
 import { uuidV7 } from "../../../core/ids/index.js";
+
+export type { RefreshRevokedReason };
 
 export interface RefreshTokenRow {
   id: string;
   userId: string;
   familyId: string;
   expiresAt: Date;
-  /** non-null = sudah dicabut; dipakai ulang berarti REUSE. */
+  /** non-null = sudah dicabut. Sebabnya menentukan apakah ini reuse. */
   revokedAt: Date | null;
+  /**
+   * NULL untuk baris aktif — dan juga untuk baris yang dicabut SEBELUM kolom
+   * ini ada (PR-018a). Pemanggil memperlakukan NULL pada baris tercabut
+   * sebagai `rotated`: itulah satu-satunya sebab pencabutan yang mungkin
+   * sebelum logout ada.
+   */
+  revokedReason: RefreshRevokedReason | null;
 }
 
 export interface RefreshTokenInsert {
@@ -39,7 +48,14 @@ export function createRefreshTokenRepository(prisma: PrismaClient) {
     async findByHash(tokenHash: string): Promise<RefreshTokenRow | null> {
       return prisma.refreshToken.findUnique({
         where: { tokenHash },
-        select: { id: true, userId: true, familyId: true, expiresAt: true, revokedAt: true },
+        select: {
+          id: true,
+          userId: true,
+          familyId: true,
+          expiresAt: true,
+          revokedAt: true,
+          revokedReason: true,
+        },
       });
     },
 
@@ -69,7 +85,9 @@ export function createRefreshTokenRepository(prisma: PrismaClient) {
       return prisma.$transaction(async (tx) => {
         const dicabut = await tx.refreshToken.updateMany({
           where: { id: input.currentId, revokedAt: null },
-          data: { revokedAt: input.now },
+          // 'rotated' = alur normal. Inilah SATU-SATUNYA sebab yang membuat
+          // pemakaian ulang berikutnya dibaca sebagai reuse.
+          data: { revokedAt: input.now, revokedReason: "rotated" },
         });
         if (dicabut.count === 0) return null;
 
@@ -93,19 +111,42 @@ export function createRefreshTokenRepository(prisma: PrismaClient) {
      * kita tidak tahu cabang mana yang miliknya, jadi seluruh cabang dimatikan
      * dan pengguna diminta masuk lagi.
      */
-    async revokeFamily(familyId: string, now: Date): Promise<number> {
+    /**
+     * Tandai baris PEMICU reuse sebagai bukti insiden. `revokedAt` asli
+     * dipertahankan — ia memang dicabut saat rotasi; yang berubah hanyalah apa
+     * yang kemudian kita ketahui tentangnya.
+     *
+     * Perlu terpisah dari revokeFamily karena baris ini SUDAH tercabut,
+     * sedangkan revokeFamily (benar) hanya menyentuh yang masih hidup. Tanpa
+     * ini, justru token yang diputar ulang — bukti paling langsung dari
+     * insiden — akan dibuang job retensi 180 hari (PR-024) sementara
+     * saudara-saudaranya bertahan 2 tahun.
+     */
+    async markReuse(id: string): Promise<void> {
+      await prisma.refreshToken.updateMany({ where: { id }, data: { revokedReason: "reuse" } });
+    },
+
+    async revokeFamily(
+      familyId: string,
+      now: Date,
+      reason: RefreshRevokedReason,
+    ): Promise<number> {
       const hasil = await prisma.refreshToken.updateMany({
         where: { familyId, revokedAt: null },
-        data: { revokedAt: now },
+        data: { revokedAt: now, revokedReason: reason },
       });
       return hasil.count;
     },
 
     /** Cabut semua sesi milik satu pengguna (logout semua perangkat). */
-    async revokeAllForUser(userId: string, now: Date): Promise<number> {
+    async revokeAllForUser(
+      userId: string,
+      now: Date,
+      reason: RefreshRevokedReason,
+    ): Promise<number> {
       const hasil = await prisma.refreshToken.updateMany({
         where: { userId, revokedAt: null },
-        data: { revokedAt: now },
+        data: { revokedAt: now, revokedReason: reason },
       });
       return hasil.count;
     },

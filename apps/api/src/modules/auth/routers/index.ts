@@ -43,11 +43,17 @@ export function createAuthRouter(controllers: AuthControllers): Router {
   // tidak bisa menerbitkan sesi bukan login.
   if (session === null) {
     router.all(
-      "/auth/refresh",
+      ["/auth/refresh", "/auth/logout", "/auth/logout-all"],
       tertutup("Perpanjangan sesi belum tersedia", "Coba lagi nanti, atau masuk ulang"),
     );
   } else {
-    router.post("/auth/refresh", validate({ body: refreshSessionSchema }), asyncHandler(session.refresh));
+    const bodySesi = validate({ body: refreshSessionSchema });
+    router.post("/auth/refresh", bodySesi, asyncHandler(session.refresh));
+    // Keluar (PR-018c). Kredensialnya refresh token itu sendiri — `requireAuth`
+    // baru lahir di PR-019, dan menunggunya berarti pengguna tidak punya cara
+    // mengakhiri sesinya sama sekali sampai saat itu.
+    router.post("/auth/logout", bodySesi, asyncHandler(session.logout));
+    router.post("/auth/logout-all", bodySesi, asyncHandler(session.logoutAll));
   }
 
   if (otp === null) {

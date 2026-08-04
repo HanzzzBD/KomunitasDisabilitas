@@ -116,7 +116,28 @@ export function createSessionService(deps: SessionServiceDeps) {
       if (row === null) throw appError("SESI_TIDAK_VALID");
 
       if (row.revokedAt !== null) {
-        const revokedCount = await refreshTokenRepository.revokeFamily(row.familyId, saatIni);
+        // Sebab pencabutan menentukan apakah ini insiden atau sekadar klien
+        // basi. Hanya token yang dicabut karena ROTASI yang mencurigakan: ia
+        // seharusnya sudah dibuang klien saat penggantinya diterima, jadi
+        // kemunculannya kembali berarti ada salinan di tempat lain.
+        //
+        // Token yang dicabut karena logout/hapus akun TIDAK memicu alarm:
+        // keluarganya memang sengaja dimatikan, tidak ada lagi yang perlu
+        // dilindungi, dan mengalarmkannya hanya akan membuat sinyal keamanan
+        // berisik oleh perilaku yang normal (tab lain yang belum tahu bahwa
+        // pengguna sudah keluar). NULL diperlakukan sebagai rotasi — itulah
+        // satu-satunya sebab yang mungkin sebelum kolom ini ada (PR-018a).
+        const karenaRotasi = row.revokedReason === null || row.revokedReason === "rotated";
+        if (!karenaRotasi) throw appError("SESI_TIDAK_VALID");
+
+        // Baris pemicu ditandai juga: ia bukti paling langsung dari insiden,
+        // dan retensi (PR-024) memakai `reuse` untuk menyimpannya 2 tahun.
+        await refreshTokenRepository.markReuse(row.id);
+        const revokedCount = await refreshTokenRepository.revokeFamily(
+          row.familyId,
+          saatIni,
+          "reuse",
+        );
         auditLog(
           { actorId: row.userId, requestId: actor.requestId },
           AUDIT_ACTION.AUTH_REFRESH_REUSED,
@@ -152,17 +173,61 @@ export function createSessionService(deps: SessionServiceDeps) {
     },
 
     /**
-     * Logout semua perangkat (SDD §8.1). Dua langkah yang saling melengkapi:
-     * `ver` bump mematikan access token yang sedang beredar seketika, dan
-     * pencabutan seluruh refresh mencegah sesi mana pun menerbitkan yang baru.
-     * Tanpa langkah kedua, refresh yang tersisa akan segera memberi access
-     * token ber-`ver` baru — bump-nya jadi tidak ada artinya.
+     * POST /auth/logout — keluar dari PERANGKAT INI.
+     *
+     * Mencabut satu keluarga, bukan satu baris: keluarga adalah rantai rotasi
+     * milik satu login, jadi mencabutnya berarti perangkat itu benar-benar
+     * kehilangan sesinya. Perangkat lain punya keluarga sendiri dan tidak
+     * tersentuh.
+     *
+     * IDEMPOTEN dan tidak pernah gagal karena token: token tak dikenal atau
+     * sudah dicabut tetap dianggap selesai. Pengguna yang menekan "keluar"
+     * TIDAK boleh melihat pesan kesalahan — apa pun jawabannya, ia memang
+     * sudah tidak punya sesi. Membedakannya juga akan menjadikan endpoint ini
+     * alat penebak token yang sah.
      */
-    async revokeAllSessions(userId: string): Promise<{ tokenVersion: number; revokedCount: number }> {
+    async logout(rawToken: string): Promise<void> {
+      const row = await refreshTokenRepository.findByHash(tokenService.hashRefreshToken(rawToken));
+      if (row === null || row.revokedAt !== null) return;
+      await refreshTokenRepository.revokeFamily(row.familyId, now(), "logout");
+    },
+
+    /**
+     * POST /auth/logout-all — keluar dari SEMUA perangkat (SDD §8.1).
+     *
+     * Dua langkah yang saling melengkapi: `ver` bump mematikan access token
+     * yang sedang beredar seketika, dan pencabutan seluruh refresh mencegah
+     * sesi mana pun menerbitkan yang baru. Tanpa langkah kedua, refresh yang
+     * tersisa akan segera memberi access token ber-`ver` baru — bump-nya jadi
+     * tidak ada artinya.
+     *
+     * Urutannya penting: bump DULU, baru cabut. Kebalikannya meninggalkan
+     * jendela saat refresh sudah tercabut tetapi access token lama masih sah.
+     */
+    async logoutAll(userId: string): Promise<{ tokenVersion: number; revokedCount: number }> {
       const tokenVersion = await userRepository.bumpTokenVersion(userId);
       if (tokenVersion === null) throw appError("SESI_TIDAK_VALID");
-      const revokedCount = await refreshTokenRepository.revokeAllForUser(userId, now());
+      const revokedCount = await refreshTokenRepository.revokeAllForUser(
+        userId,
+        now(),
+        "logout_all",
+      );
       return { tokenVersion, revokedCount };
+    },
+
+    /**
+     * Pemilik sesi dari refresh token; null bila token tidak dikenal, sudah
+     * dicabut, ATAU akunnya tidak aktif lagi.
+     *
+     * Pemeriksaan akun ada di sini supaya `logout-all` tetap memenuhi janji
+     * idempotennya: akun yang sudah dihapus tidak punya sesi untuk dicabut,
+     * jadi jawabannya 204 — bukan 401 karena `bumpTokenVersion` gagal.
+     */
+    async userIdOf(rawToken: string): Promise<string | null> {
+      const row = await refreshTokenRepository.findByHash(tokenService.hashRefreshToken(rawToken));
+      if (row === null || row.revokedAt !== null) return null;
+      const user = await userRepository.findActiveSessionUser(row.userId);
+      return user === null ? null : row.userId;
     },
   };
 }

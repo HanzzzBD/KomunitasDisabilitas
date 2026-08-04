@@ -527,3 +527,61 @@ api-client menyegarkan sesi sendiri saat 401.
 * **PR-024** — kebijakan retensi `refresh_tokens` (sudah tertulis, menunggu `revoked_reason` dari 018c).
 * **PR-030** — E2E login→refresh; sekalian Manual Verification cookie di browser.
 * **PR-105** — rate limit per-IP untuk `/auth/refresh` dan `/auth/google`.
+
+---
+## PR-018c — Logout, Logout-All & `revoked_reason`
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-018---jwt-rs256--rotating-refresh--reuse-detection)
+> **Tanggal:** 2026-08-04
+> **Status:** Selesai — **FR-1.3 tertutup penuh**
+> **Branch:** `pr-018c-logout-revoked-reason` → `phase-02-authentication-account`
+
+### Ringkasan
+
+Penutup PR-018. Pengguna akhirnya punya cara mengakhiri sesinya — dan reuse
+detection belajar membedakan insiden dari perilaku normal.
+
+### Scope yang selesai
+
+* Migrasi 05 — enum `RefreshRevokedReason` + kolom `refresh_tokens.revoked_reason` (nullable, aditif).
+* `POST /api/v1/auth/logout` — mencabut satu keluarga (perangkat ini).
+* `POST /api/v1/auth/logout-all` — `ver` bump + cabut semua refresh milik pengguna.
+* `session.service` — `logout`, `logoutAll`, `userIdOf`; `refresh` kini membedakan sebab pencabutan.
+* `refresh-token.repository` — `markReuse`, sebab pada `rotate`/`revokeFamily`/`revokeAllForUser`.
+* OpenAPI dua path baru; api-client `logout`/`logoutAll`.
+* Test: 8 unit sesi baru, 9 HTTP baru, 4 DB baru. **`@nawasena/api` 400 test lulus, 1 skip.**
+
+### Keputusan teknis
+
+1. **Kredensialnya refresh token, bukan access token.** `requireAuth` baru lahir di PR-019; menunggunya berarti pengguna tidak punya cara mencabut sesi sama sekali sampai saat itu. Konsekuensi yang diterima sadar: pemegang refresh curian bisa memaksa logout semua perangkat — gangguan, bukan pengambilalihan, dan penyerangnya ikut kehilangan akses. Saat PR-019 mendarat, varian ber-`requireAuth` boleh ditambahkan; endpoint ini tidak perlu dicabut.
+2. **Keduanya SELALU 204 — tanpa token, token karangan, atau logout kedua kali.** Dua alasan: pengguna yang menekan "keluar" tidak boleh dihadapkan pada kegagalan (hasil akhirnya sama — ia tidak punya sesi), dan jawaban yang berbeda antara token sah dan token karangan akan menjadikan endpoint ini alat penebak token.
+3. **`logout` mencabut KELUARGA, bukan satu baris.** Keluarga adalah rantai rotasi satu login; mencabut satu baris hanya akan menyisakan penerusnya tetap hidup.
+4. **Reuse detection kini melihat sebab.** Hanya `rotated` (dan NULL, untuk baris pra-migrasi) yang dicurigai. Token yang dicabut karena logout/hapus akun ditolak **tanpa** alarm: keluarganya memang sengaja dimatikan, tidak ada lagi yang perlu dilindungi, dan mengalarmkannya hanya membuat sinyal keamanan berisik oleh tab lain yang belum tahu pengguna sudah keluar. Inilah alasan utama kolom ini ada.
+5. **NULL diperlakukan sebagai `rotated`, bukan sebagai "bukan reuse".** Baris yang dicabut sebelum migrasi 05 hanya mungkin dicabut karena rotasi. Memilih default yang longgar akan diam-diam melemahkan deteksi untuk data lama — ada test khusus untuk ini.
+6. **Baris PEMICU ikut ditandai `reuse` lewat `markReuse`.** `revokeFamily` (benar) hanya menyentuh baris yang masih hidup, sedangkan pemicunya sudah tercabut. Tanpa langkah ini, justru token yang diputar ulang — bukti paling langsung dari insiden — akan dibuang retensi 180 hari (PR-024) sementara saudara-saudaranya bertahan 2 tahun. `revokedAt` asli dipertahankan; yang berubah hanya apa yang kemudian kita ketahui tentangnya.
+7. **PERUBAHAN SADAR dari PR-018a: reuse berulang kini diaudit SEKALI per keluarga.** Konsekuensi dari (6) — setelah pemicu ditandai `reuse`, percobaan berikutnya tidak lagi terbaca sebagai rotasi. Ini diterima, bukan disesali: keluarganya sudah habis dicabut sehingga alarm kedua tidak menambah apa pun yang bisa ditindaklanjuti, sementara penyerang yang menggedor token mati bisa menulis baris audit tanpa batas (retensi 2 tahun, dan `/auth/refresh` belum ber-rate-limit). Penolakannya sendiri tetap terjadi setiap kali. Test PR-018a yang mengunci perilaku lama diperbarui beserta alasannya.
+8. **`userIdOf` ikut memeriksa keaktifan akun.** Tanpa itu, akun terhapus yang tokennya masih hidup akan membuat `logout-all` menjawab 401 (karena `bumpTokenVersion` gagal) — melanggar janji idempoten di (2).
+9. **Urutan `logoutAll`: bump DULU, baru cabut.** Kebalikannya meninggalkan jendela saat refresh sudah tercabut tetapi access token lama masih sah.
+10. **`logout` di api-client memakai `skipAuthRefresh`.** 401 saat logout tidak boleh memicu refresh — sesinya memang sedang diakhiri.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 workspace hijau (termasuk lint boundaries).
+* `pnpm typecheck` — 9/9 workspace hijau.
+* `pnpm test` — 9/9 hijau. `@nawasena/api`: **400 test lulus, 1 skip**; `@nawasena/api-client`: 24 lulus.
+* `check:openapi` — `openapi.json` sinkron.
+* Migrasi 05 di-apply ke PostgreSQL lokal; test DB berjalan nyata.
+
+### Risiko yang ditemukan
+
+* **Refresh token curian bisa memaksa logout-all.** Diterima sadar (lihat keputusan 1) — denial of service yang juga mematikan akses penyerang. Layak ditinjau ulang saat PR-019 memberi opsi guard access token.
+* **Logout tidak diaudit.** Tidak ada aksi audit untuk keluar; investigasi tidak bisa membedakan "sesi hilang karena pengguna keluar" dari "sesi hilang karena reuse" tanpa membaca `revoked_reason` di DB. Kolomnya menyimpan jawabannya, tetapi audit trail-nya tidak. Kandidat penambahan kecil bila kelak dibutuhkan.
+* **`logout-all` belum punya UI.** Sampai PR-033, kill-switch ini hanya bisa dipanggil lewat API — berguna untuk dukungan pengguna, tetapi belum bisa ditemukan sendiri oleh pengguna.
+* **Alarm reuse kini sekali per keluarga** (keputusan 7): penyerang yang terus menggedor tidak lagi terlihat di audit setelah alarm pertama. Kalau kelak dibutuhkan visibilitas itu, tempatnya adalah metrik/rate limit (PR-105), bukan baris audit tanpa batas.
+
+### Next steps
+
+* **PR-019** — `requireAuth`/RBAC; pertimbangkan varian `logout-all` ber-guard access token.
+* **PR-024** — kebijakan retensi `refresh_tokens` kini **tidak terblokir**: `revoked_reason` sudah tersedia.
+* **PR-030/PR-033** — UI keluar + E2E; Manual Verification cookie di browser.
+* **PR-105** — rate limit per-IP untuk `/auth/refresh`, `/auth/logout*`, `/auth/google`.

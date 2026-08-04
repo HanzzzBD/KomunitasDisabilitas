@@ -145,6 +145,52 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      // Keluar (PR-018c). Keduanya IDEMPOTEN dan selalu 204: pengguna yang
+      // menekan "keluar" tidak boleh dihadapkan pada kegagalan, dan jawaban
+      // yang berbeda antara token sah dan token karangan akan menjadikan
+      // endpoint ini alat penebak token.
+      "/auth/logout": {
+        post: {
+          operationId: "logout",
+          tags: ["auth"],
+          summary: "Keluar dari perangkat ini",
+          security: [],
+          description:
+            "Mencabut seluruh rantai sesi perangkat ini (satu keluarga token). Perangkat " +
+            "lain tidak tersentuh. Cookie refresh dihapus. Selalu 204, termasuk bila token " +
+            "tidak dikirim atau tidak dikenal.",
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: refreshSessionSchema } },
+          },
+          responses: {
+            "204": { description: "Sesi perangkat ini diakhiri" },
+            "400": errorResponse("Input tidak valid"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
+      "/auth/logout-all": {
+        post: {
+          operationId: "logoutAll",
+          tags: ["auth"],
+          summary: "Keluar dari semua perangkat",
+          security: [],
+          description:
+            "Menaikkan token version pengguna (seluruh access token yang beredar langsung " +
+            "ditolak) dan mencabut semua refresh token miliknya. Cookie refresh dihapus. " +
+            "Selalu 204, termasuk bila token tidak dikirim atau tidak dikenal.",
+          requestBody: {
+            required: false,
+            content: { "application/json": { schema: refreshSessionSchema } },
+          },
+          responses: {
+            "204": { description: "Semua sesi pengguna diakhiri" },
+            "400": errorResponse("Input tidak valid"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
     },
   });
 }
