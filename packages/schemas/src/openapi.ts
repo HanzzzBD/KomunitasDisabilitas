@@ -12,6 +12,8 @@ import {
   requestOtpResponseSchema,
   verifyOtpSchema,
   verifyOtpResponseSchema,
+  googleAuthSchema,
+  googleAuthResponseSchema,
 } from "./auth.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
@@ -80,6 +82,35 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "401": errorResponse("Kode salah"),
             "410": errorResponse("Kode hangus atau kedaluwarsa — minta kode baru"),
             "429": errorResponse("Percobaan terkunci sementara — lihat header Retry-After"),
+          },
+        },
+      },
+      // Login Google (PR-017): authorization code + PKCE ditukar di server,
+      // sehingga client_secret tidak pernah ada di perangkat pengguna.
+      "/auth/google": {
+        post: {
+          operationId: "loginWithGoogle",
+          tags: ["auth"],
+          summary: "Masuk dengan Google",
+          security: [], // eksplisit publik: endpoint pre-auth
+          description:
+            "Menukar authorization code Google (dengan PKCE code_verifier) menjadi sesi. " +
+            "id_token diverifikasi terhadap kunci publik Google (audience, issuer, " +
+            "kedaluwarsa). Akun dicari berdasarkan google_id, lalu email terverifikasi, " +
+            "dan dibuat bila belum ada (find-or-create).",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: googleAuthSchema } },
+          },
+          responses: {
+            "200": {
+              description: "Masuk berhasil",
+              content: { "application/json": { schema: googleAuthResponseSchema } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "401": errorResponse("Code/verifier ditolak Google, atau id_token tidak sah"),
+            "403": errorResponse("Email Google belum terverifikasi"),
+            "503": errorResponse("Login Google belum dikonfigurasi atau Google tidak terjangkau"),
           },
         },
       },

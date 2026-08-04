@@ -301,3 +301,68 @@ penukaran authorization code + PKCE menyusul di PR-017b.
 * **PR-018** — pasangan JWT untuk kedua metode login; response `googleAuthResponse` bertambah field token (additive).
 * **Follow-up PR-016:** pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts` supaya kedua metode login punya jejak sukses yang setara.
 * **Owner:** siapkan OAuth 2.0 Client ID di Google Cloud Console + isi env staging untuk Manual Verification.
+
+---
+## PR-017b — Endpoint POST /api/v1/auth/google (Exchange + PKCE)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-017---auth-google-oauth-pkce)
+> **Tanggal:** 2026-08-04
+> **Status:** Selesai — **PR-017 utuh selesai** (kecuali Manual Verification staging)
+> **Branch:** `pr-017b-google-exchange-endpoint` → `phase-02-authentication-account`
+
+### Ringkasan
+
+Separuh kedua PR-017: endpoint yang menyambungkan gerbang kepercayaan dari
+PR-017a ke dunia luar. Tiga langkah yang urutannya adalah keamanannya —
+tukar authorization code + PKCE → verifikasi id_token lewat JWKS →
+find-or-create/link akun — plus audit sukses dan gagal.
+
+### Scope yang selesai
+
+* `apps/api/src/modules/auth/services/google-token.ts` — penukaran authorization code + `code_verifier` di token endpoint Google. Mengembalikan **hanya `id_token`**.
+* `apps/api/src/modules/auth/services/google.service.ts` — orkestrasi tiga langkah + pemetaan kegagalan ke `reason` audit.
+* `apps/api/src/modules/auth/controllers/google.controller.ts` — controller tipis, pola sama dengan OTP.
+* `apps/api/src/modules/auth/routers/index.ts` — **dirombak**: OTP dan Google kini fitur yang berdiri sendiri, masing-masing bisa mati sendiri.
+* `apps/api/src/modules/auth/index.ts` — wiring dua fitur, `createGoogleConfigFromEnv`.
+* `apps/api/src/boot.ts` — merakit konfigurasi Google dari env.
+* `packages/schemas/src/openapi.ts` + `openapi.json` — path `/auth/google` (operationId `loginWithGoogle`).
+* Test: 18 HTTP (`auth-google-http.test.ts`), 10 unit (`auth-google-exchange.test.ts`).
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Manual Verification staging** — butuh OAuth 2.0 Client ID nyata + staging. Prosedur ada di checklist file phase.
+* **E2E** — PR-030 (UI login), sesuai rencana phase.
+* **Pemasangan `AUTH_LOGIN_SUCCEEDED` pada alur OTP** — perubahan perilaku PR-016; tetap follow-up.
+
+### Keputusan teknis
+
+1. **Router dirombak: OTP dan Google jadi fitur yang berdiri sendiri.** Sebelumnya `createAuthModule` mengembalikan satu router tertutup bila `OTP_HASH_SECRET` kosong — artinya kredensial OTP yang hilang akan ikut mematikan login Google. Sekarang tiap fitur punya gerbang sendiri: yang kredensialnya kosong menjawab **503, bukan 404**. Bedanya penting bagi klien — 404 membuatnya mengira endpoint-nya salah; 503 memberitahu fiturnya sedang tidak tersedia, dan hint-nya menunjuk metode masuk yang lain.
+2. **Penukaran mengembalikan `string` (id_token), bukan objek balasan Google.** Ini bukan gaya, melainkan cara menegakkan AC "tidak ada token Google tersimpan permanen" **secara struktural**: `access_token`/`refresh_token` tidak punya jalan keluar dari fungsi itu, jadi tidak ada tempat lain yang bisa keliru menyimpannya. Test sengaja menyertakan keduanya di balasan tiruan lalu membuktikan mereka tidak muncul di response, baris `users`, maupun log.
+3. **Verifier PKCE salah dan code kedaluwarsa dijawab sama (`GOOGLE_EXCHANGE_GAGAL`).** Google sendiri menjawab `invalid_grant` untuk keduanya, dan membedakannya untuk pengguna hanya berguna bagi penebak.
+4. **`code_verifier` divalidasi bentuknya di zod sebelum menyentuh jaringan** (RFC 7636: 43–128 karakter unreserved). Google akan menolaknya juga, tetapi lebih lambat dan dengan satu panggilan jaringan sia-sia. Diuji: input cacat ditolak 400 **tanpa Google pernah dihubungi**.
+5. **Gangguan infrastruktur (503) TIDAK diaudit sebagai percobaan login gagal.** `ALASAN_AUDIT` hanya memetakan tiga kode penolakan nyata. Google tak terjangkau bukan percobaan masuk yang ditolak; mencatatnya sebagai kegagalan login akan mengotori sinyal keamanan justru saat sedang ada insiden. Ia tetap terekam sebagai log error biasa.
+6. **Log penolakan memuat kode error OAuth (`invalid_grant`) tetapi TIDAK `error_description`.** Kode error menggambarkan jenis kegagalan dan berguna untuk operasi; `error_description` kadang memuat potongan parameter permintaan. Ada test yang menaruh `code_verifier` di dalam `error_description` lalu membuktikan ia tidak sampai ke log.
+7. **`CONTRACT_VERSION` tidak dinaikkan.** Ia bernilai `0.1.0` sejak PR-004 dan tidak dinaikkan pula saat PR-016 menambah dua endpoint OTP. Penambahan path bersifat additive; menaikkannya di sini akan menyimpang dari praktik yang sudah berjalan tanpa diminta. Dicatat sebagai pertanyaan untuk owner.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 workspace hijau (termasuk lint boundaries).
+* `pnpm typecheck` — 9/9 workspace hijau.
+* `pnpm test` — 9/9 workspace hijau. `@nawasena/api`: **28 file, 294 test lulus, 1 skip** (penjaga `.env` implisit, skip-anggun).
+* `pnpm --filter @nawasena/schemas check:openapi` — `openapi.json` sinkron dengan skema zod.
+* Test DB dijalankan terhadap PostgreSQL nyata, bukan dilewati.
+
+### Risiko yang ditemukan
+
+* **Belum ada rate limit pada `/auth/google`.** Endpoint ini memanggil Google pada setiap permintaan, jadi banjir permintaan menjadi banjir panggilan keluar. Limiter global `express-rate-limit` (PR-007) masih memakai penyimpanan memori; limiter per-IP ber-Redis dijadwalkan di **PR-105** — endpoint ini perlu ikut disebut di sana.
+* **`AUTH_LOGIN_SUCCEEDED` baru dipasang pada jalur Google.** Sampai follow-up PR-016 dikerjakan, statistik login sukses hanya mencerminkan separuh pengguna — berbahaya bila ada yang membaca angkanya sebagai total.
+* **Balapan penautan email tidak punya wasit DB** (lanjutan risiko PR-017a): `users.email` tanpa unique index. Aman selama hanya jalur ini yang menulis `email`.
+* **Fake Prisma di test HTTP menyederhanakan semantik `findFirst`.** Ia cukup untuk membuktikan alur endpoint, tetapi semantik unique index parsial dan balapan tetap hanya terbukti di `auth-google-db.test.ts` (PostgreSQL nyata). Keduanya sengaja dipisah; jangan perlakukan test HTTP sebagai pengganti test DB.
+* **Rotasi `client_secret` menuntut restart.** Konfigurasi Google dirakit sekali saat boot (ADR-015, 12-factor). Ini pilihan sadar, bukan kelalaian — tetapi perlu masuk runbook rotasi kunci.
+
+### Next steps
+
+* **PR-018** — pasangan JWT untuk kedua metode login; `googleAuthResponse` bertambah field token (additive), dan `verifyOtpResponse` ikut.
+* **Follow-up PR-016** — pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts`.
+* **PR-105** — sertakan `/auth/google` dalam rate limit per-IP ber-Redis.
+* **Owner:** (1) buat OAuth 2.0 Client ID di Google Cloud Console + isi env staging, lalu jalankan Manual Verification dan centang butir terakhir PR-017; (2) putuskan apakah `CONTRACT_VERSION` perlu dinaikkan saat path baru ditambahkan.

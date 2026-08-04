@@ -15,7 +15,11 @@ import { createRedisClients } from "./core/redis/index.js";
 import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
 import { createHealthModule } from "./modules/health/index.js";
 import { createInternalModule } from "./modules/internal/index.js";
-import { createAuthModule, createOtpSenderFromEnv } from "./modules/auth/index.js";
+import {
+  createAuthModule,
+  createGoogleConfigFromEnv,
+  createOtpSenderFromEnv,
+} from "./modules/auth/index.js";
 import {
   createQueueRegistry,
   createRawQueuePool,
@@ -77,6 +81,8 @@ export async function startApi(options: BootOptions): Promise<void> {
           otpHashSecret: env.OTP_HASH_SECRET,
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
           sender: createOtpSenderFromEnv(env, logger),
+          // undefined bila kredensial Google kosong → /auth/google jawab 503.
+          google: createGoogleConfigFromEnv(env),
           auditLog,
           logger,
         }),
