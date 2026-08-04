@@ -17,6 +17,11 @@ import { createGoogleController } from "./controllers/google.controller.js";
 import { createGoogleIdTokenVerifier } from "./services/google-id-token.js";
 import { createGoogleCodeExchange } from "./services/google-token.js";
 import { createAuthRouter, type AuthControllers } from "./routers/index.js";
+import { createRefreshTokenRepository } from "./repositories/refresh-token.repository.js";
+import { createSessionService, type SessionService } from "./services/session.service.js";
+import { createSessionController } from "./controllers/session.controller.js";
+import { createSessionCookie } from "./controllers/session-cookie.js";
+import { createTokenService, type SessionKeys } from "../../core/auth/index.js";
 import { createUnavailableOtpSender, type OtpSender } from "./services/otp-sender.js";
 import type { FetchLike } from "./services/fonnte.sender.js";
 
@@ -41,25 +46,60 @@ export interface AuthModuleDeps {
   sender?: OtpSender;
   /** undefined = endpoint Google tertutup (503). */
   google?: GoogleAuthConfig;
+  /**
+   * Pasangan kunci RS256 (PR-018a); undefined = sesi tidak bisa diterbitkan,
+   * sehingga /auth/refresh DAN kedua metode masuk sama-sama menjawab 503.
+   */
+  sessionKeys?: SessionKeys;
+  /** `Secure` pada cookie refresh; dimatikan hanya untuk dev di http localhost. */
+  cookieSecure?: boolean;
   auditLog: AuditLog;
   logger: Pick<Logger, "error" | "warn">;
 }
 
 export function createAuthModule(deps: AuthModuleDeps): Router {
   const userRepository = createAuthUserRepository(deps.prisma);
-  const controllers: AuthControllers = { otp: null, google: null };
+  const controllers: AuthControllers = { otp: null, google: null, session: null };
+
+  // Sesi dirakit LEBIH DULU: kedua metode masuk bergantung padanya. Login yang
+  // tidak bisa menerbitkan sesi bukan login — jadi tanpa kunci, keduanya ikut
+  // tertutup, bukan berhasil lalu mengembalikan userId telanjang.
+  let sessionService: SessionService | undefined;
+  if (deps.sessionKeys === undefined) {
+    deps.logger.warn(
+      { modul: "auth" },
+      "Kunci sesi JWT belum di-set — /auth/refresh dan kedua metode masuk dimatikan (503)",
+    );
+  } else {
+    sessionService = createSessionService({
+      // Dirakit sekali: kunci diurai saat boot, bukan per permintaan.
+      tokenService: createTokenService(deps.sessionKeys),
+      userRepository,
+      refreshTokenRepository: createRefreshTokenRepository(deps.prisma),
+      auditLog: deps.auditLog,
+    });
+    controllers.session = createSessionController({
+      service: sessionService,
+      cookie: createSessionCookie({ secure: deps.cookieSecure ?? true }),
+    });
+  }
+
+  // Kedua metode masuk butuh DUA hal: kredensialnya sendiri, dan penerbit sesi.
+  const sesi = controllers.session;
 
   if (deps.otpHashSecret === undefined) {
     deps.logger.warn({ modul: "auth" }, "OTP_HASH_SECRET belum di-set — endpoint OTP dimatikan (503)");
-  } else {
+  } else if (sesi !== null && sessionService !== undefined) {
     controllers.otp = createOtpController(
       createOtpService({
         otpRepository: createOtpRepository({ redis: deps.redis, secret: deps.otpHashSecret }),
         userRepository,
         sender: deps.sender ?? createUnavailableOtpSender(),
+        sessionService,
         auditLog: deps.auditLog,
         logger: deps.logger,
       }),
+      sesi,
     );
   }
 
@@ -68,7 +108,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
       { modul: "auth" },
       "Kredensial Google OAuth belum di-set — endpoint /auth/google dimatikan (503)",
     );
-  } else {
+  } else if (sesi !== null && sessionService !== undefined) {
     const { clientId, clientSecret, jwksUrl, tokenUrl, timeoutMs, fetchImpl } = deps.google;
     controllers.google = createGoogleController(
       createGoogleService({
@@ -81,8 +121,10 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
           fetchImpl,
         ),
         userRepository,
+        sessionService,
         auditLog: deps.auditLog,
       }),
+      sesi,
     );
   }
 
@@ -141,5 +183,12 @@ export {
   type GoogleTokenExchangeConfig,
 } from "./services/google-token.js";
 export { createGoogleService, type GoogleService } from "./services/google.service.js";
+export {
+  createSessionService,
+  type SessionActor,
+  type SessionService,
+  type SessionTokens,
+} from "./services/session.service.js";
+export { createSessionCookie, REFRESH_COOKIE, type SessionCookie } from "./controllers/session-cookie.js";
 export { createFonnteSender, FONNTE_PROVIDER, type FetchLike } from "./services/fonnte.sender.js";
 export { createTwilioSender, TWILIO_PROVIDER } from "./services/twilio.sender.js";

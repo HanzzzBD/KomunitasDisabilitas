@@ -12,6 +12,9 @@ import { createAuthModule, createOtpSenderFromEnv } from "../src/modules/auth/in
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
 import type { FetchLike } from "../src/modules/auth/services/fonnte.sender.js";
+import { SESSION_KEYS, fakeRefreshTokenStore } from "./helpers/session.js";
+
+const refreshStore = fakeRefreshTokenStore();
 
 const PHONE = "+6281234567890";
 const SECRET = "rahasia-uji-otp-minimal-32-karakter!!";
@@ -62,15 +65,24 @@ function fakePrisma(): PrismaClient {
   const users: Array<{ id: string; phone: string | null; deletedAt: Date | null }> = [];
   return {
     user: {
-      findFirst: ({ where }: { where: { phone: string } }) =>
-        Promise.resolve(
-          users.find((u) => u.phone === where.phone && u.deletedAt === null) ?? null,
-        ),
+      // Dua pemanggil: find-or-create by phone (where.phone) dan
+      // findActiveSessionUser (where.id) — PR-018b.
+      findFirst: ({ where }: { where: { phone?: string; id?: string } }) => {
+        const found = users.find(
+          (u) =>
+            u.deletedAt === null &&
+            (where.phone === undefined || u.phone === where.phone) &&
+            (where.id === undefined || u.id === where.id),
+        );
+        if (found === undefined) return Promise.resolve(null);
+        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0 });
+      },
       create: ({ data }: { data: { id: string; phone: string } }) => {
         users.push({ id: data.id, phone: data.phone, deletedAt: null });
         return Promise.resolve({ id: data.id });
       },
     },
+    ...refreshStore.prismaPart,
   } as unknown as PrismaClient;
 }
 
@@ -84,6 +96,8 @@ interface BootOptions {
   otpHashSecret?: string | undefined;
   /** Ganti sender mock bawaan (mis. rantai Fonnte→Twilio dengan fetch palsu). */
   sender?: OtpSender;
+  /** undefined eksplisit = uji perilaku tanpa kunci sesi (503). */
+  sessionKeys?: typeof SESSION_KEYS | undefined;
 }
 
 async function boot(options: BootOptions = {}) {
@@ -113,6 +127,8 @@ async function boot(options: BootOptions = {}) {
           redis: fakeRedis(),
           otpHashSecret: "otpHashSecret" in options ? options.otpHashSecret : SECRET,
           sender: options.sender ?? sender,
+          // Sejak PR-018b login menerbitkan sesi; tanpa kunci semuanya 503.
+          sessionKeys: "sessionKeys" in options ? options.sessionKeys : SESSION_KEYS,
           auditLog: () => {},
           logger,
         }),

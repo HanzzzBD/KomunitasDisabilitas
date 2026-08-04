@@ -8,4 +8,5 @@ export {
 } from "./client.js";
 export { ApiError, JARINGAN_GAGAL, RESPONS_TIDAK_DIKENAL, toErrorEnvelope } from "./errors.js";
 export { queryKey, type QueryKey, type QueryParams } from "./query-keys.js";
-export { requestOtp, authKeys } from "./endpoints/auth.js";
+export { requestOtp, verifyOtp, refreshSession, authKeys } from "./endpoints/auth.js";
+export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

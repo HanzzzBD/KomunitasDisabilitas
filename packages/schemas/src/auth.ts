@@ -20,6 +20,45 @@ export const userRoleSchema = z
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 
+/**
+ * Jenis klien pemanggil (PR-018b). Menentukan DI MANA refresh token diserahkan:
+ *
+ * - `web`    → cookie `HttpOnly; Secure; SameSite=Strict`. Token TIDAK ikut di
+ *              body, sebab body bisa dibaca JavaScript dan itu persis yang
+ *              hendak dicegah HttpOnly.
+ * - `mobile` → di body, untuk disimpan aplikasi di Expo SecureStore. Tidak ada
+ *              cookie jar yang bisa diandalkan di React Native, dan tidak ada
+ *              risiko XSS-mencuri-cookie di sana.
+ *
+ * Klien menyatakan dirinya alih-alih server menebak dari User-Agent: tebakan
+ * yang meleset berarti web menerima refresh token yang bisa dibaca script.
+ */
+export const sessionClientSchema = z
+  .enum(["web", "mobile"])
+  .default("web")
+  .openapi({ description: "Jenis klien — menentukan cookie vs body", example: "web" });
+
+export type SessionClient = z.infer<typeof sessionClientSchema>;
+
+/**
+ * Pasangan token hasil login/refresh (PR-018b, SDD §8.1).
+ * `refreshToken` HANYA terisi untuk klien mobile — lihat sessionClientSchema.
+ */
+export const sessionTokensSchema = z
+  .object({
+    accessToken: z.string().min(1).openapi({ description: "JWT RS256, berlaku 15 menit" }),
+    /** Detik hingga accessToken kedaluwarsa — klien menjadwalkan refresh dari sini. */
+    expiresIn: z.number().int().positive().openapi({ example: 900 }),
+    refreshToken: z
+      .string()
+      .min(1)
+      .optional()
+      .openapi({ description: "Hanya untuk client=mobile; web menerimanya sebagai cookie" }),
+  })
+  .openapi({ ref: "SessionTokens" });
+
+export type SessionTokens = z.infer<typeof sessionTokensSchema>;
+
 /** Nomor HP Indonesia format E.164 (+62…). */
 export const phoneNumberSchema = z
   .string()
@@ -63,6 +102,7 @@ export const verifyOtpSchema = z
   .object({
     phone: phoneNumberSchema,
     code: otpCodeSchema,
+    client: sessionClientSchema,
   })
   .openapi({ ref: "VerifyOtp", description: "Verifikasi kode OTP yang diterima pengguna" });
 
@@ -70,16 +110,18 @@ export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
 
 /**
  * POST /api/v1/auth/otp/verify — response 200.
- * Sengaja BELUM memuat pasangan JWT: penerbitan token = PR-018, yang akan
- * menambah field token pada envelope ini (perubahan additive).
+ * Pasangan JWT ditambahkan PR-018b secara ADDITIVE: field lama (`userId`,
+ * `isNewUser`) tidak berubah bentuk maupun makna.
  */
 export const verifyOtpResponseSchema = z
   .object({
-    data: z.object({
-      userId: idSchema,
-      /** true bila akun baru dibuat pada verifikasi ini (find-or-create). */
-      isNewUser: z.boolean().openapi({ example: false }),
-    }),
+    data: z
+      .object({
+        userId: idSchema,
+        /** true bila akun baru dibuat pada verifikasi ini (find-or-create). */
+        isNewUser: z.boolean().openapi({ example: false }),
+      })
+      .extend(sessionTokensSchema.shape),
   })
   .openapi({ ref: "VerifyOtpResponse" });
 
@@ -128,6 +170,7 @@ export const googleAuthSchema = z
       .url({ message: "Alamat pengalihan tidak valid" })
       .max(2048, { message: "Alamat pengalihan terlalu panjang" })
       .openapi({ example: "http://localhost:5173/masuk/google" }),
+    client: sessionClientSchema,
   })
   .openapi({ ref: "GoogleAuth", description: "Tukar authorization code Google (PKCE) jadi sesi" });
 
@@ -141,12 +184,43 @@ export type GoogleAuth = z.infer<typeof googleAuthSchema>;
  */
 export const googleAuthResponseSchema = z
   .object({
-    data: z.object({
-      userId: idSchema,
-      /** true bila akun baru dibuat pada login ini (find-or-create). */
-      isNewUser: z.boolean().openapi({ example: false }),
-    }),
+    data: z
+      .object({
+        userId: idSchema,
+        /** true bila akun baru dibuat pada login ini (find-or-create). */
+        isNewUser: z.boolean().openapi({ example: false }),
+      })
+      .extend(sessionTokensSchema.shape),
   })
   .openapi({ ref: "GoogleAuthResponse" });
 
 export type GoogleAuthResponse = z.infer<typeof googleAuthResponseSchema>;
+
+/**
+ * POST /api/v1/auth/refresh — body.
+ *
+ * `refreshToken` OPSIONAL dengan sengaja: klien web tidak mengirimkannya sama
+ * sekali — tokennya ada di cookie HttpOnly yang tidak bisa dibaca JavaScript,
+ * dan browser melampirkannya sendiri. Yang mengisi field ini adalah mobile,
+ * yang menyimpan tokennya di SecureStore. Body kosong pada web bukan kelalaian
+ * validasi, melainkan bentuk yang benar.
+ */
+export const refreshSessionSchema = z
+  .object({
+    refreshToken: z
+      .string()
+      .min(1, { message: "Token perpanjangan tidak boleh kosong" })
+      .max(512, { message: "Token perpanjangan terlalu panjang" })
+      .optional()
+      .openapi({ description: "Hanya untuk client mobile; web memakai cookie" }),
+  })
+  .openapi({ ref: "RefreshSession", description: "Perpanjang sesi dengan refresh token" });
+
+export type RefreshSession = z.infer<typeof refreshSessionSchema>;
+
+/** POST /api/v1/auth/refresh — response 200. */
+export const refreshSessionResponseSchema = z
+  .object({ data: sessionTokensSchema })
+  .openapi({ ref: "RefreshSessionResponse" });
+
+export type RefreshSessionResponse = z.infer<typeof refreshSessionResponseSchema>;

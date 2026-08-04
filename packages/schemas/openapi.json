@@ -219,6 +219,69 @@
           }
         }
       }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "refreshSession",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Perpanjang sesi",
+        "security": [],
+        "description": "Menukar refresh token dengan pasangan token baru. Klien web tidak mengirim body: tokennya ada di cookie HttpOnly yang dilampirkan browser, dan token barunya dikembalikan sebagai cookie pula. Klien mobile mengirim dan menerima refresh token di body untuk disimpan di SecureStore.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesi diperpanjang",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token tidak dikenal, kedaluwarsa, atau sudah dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -300,6 +363,16 @@
             "pattern": "^\\d{6}$",
             "description": "Kode OTP 6 angka dari WhatsApp/SMS",
             "example": "482913"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "default": "web",
+            "description": "Jenis klien — menentukan cookie vs body",
+            "example": "web"
           }
         },
         "required": [
@@ -323,11 +396,28 @@
               "isNewUser": {
                 "type": "boolean",
                 "example": false
+              },
+              "accessToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "JWT RS256, berlaku 15 menit"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "example": 900
+              },
+              "refreshToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
               }
             },
             "required": [
               "userId",
-              "isNewUser"
+              "isNewUser",
+              "accessToken",
+              "expiresIn"
             ]
           }
         },
@@ -354,6 +444,16 @@
             "format": "uri",
             "maxLength": 2048,
             "example": "http://localhost:5173/masuk/google"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "default": "web",
+            "description": "Jenis klien — menentukan cookie vs body",
+            "example": "web"
           }
         },
         "required": [
@@ -378,16 +478,80 @@
               "isNewUser": {
                 "type": "boolean",
                 "example": false
+              },
+              "accessToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "JWT RS256, berlaku 15 menit"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "example": 900
+              },
+              "refreshToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
               }
             },
             "required": [
               "userId",
-              "isNewUser"
+              "isNewUser",
+              "accessToken",
+              "expiresIn"
             ]
           }
         },
         "required": [
           "data"
+        ]
+      },
+      "RefreshSession": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Hanya untuk client mobile; web memakai cookie"
+          }
+        },
+        "description": "Perpanjang sesi dengan refresh token"
+      },
+      "RefreshSessionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionTokens"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SessionTokens": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "JWT RS256, berlaku 15 menit"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "example": 900
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresIn"
         ]
       }
     }

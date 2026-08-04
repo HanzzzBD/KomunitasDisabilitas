@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import type { GoogleAuth } from "@nawasena/schemas";
 import type { GoogleActor, GoogleService } from "../services/google.service.js";
+import type { SessionController } from "./session.controller.js";
 
 /**
  * requestId dari pino-http (uuid v4) dipakai audit. Fallback dibuat bila
@@ -15,12 +16,18 @@ function actorOf(req: Request): GoogleActor {
   return { requestId: typeof req.id === "string" ? req.id : randomUUID() };
 }
 
-export function createGoogleController(service: GoogleService) {
+export function createGoogleController(
+  service: GoogleService,
+  sesi: Pick<SessionController, "serahkan">,
+) {
   return {
-    /** POST /auth/google → 200 dengan userId (JWT menyusul di PR-018). */
+    /** POST /auth/google → 200 dengan userId + pasangan token (PR-018b). */
     async login(req: Request, res: Response): Promise<void> {
-      const data = await service.login(req.body as GoogleAuth, actorOf(req));
-      res.status(200).json({ data });
+      const input = req.body as GoogleAuth;
+      const { userId, isNewUser, tokens } = await service.login(input, actorOf(req));
+      res.status(200).json({
+        data: { userId, isNewUser, ...sesi.serahkan(res, tokens, input.client) },
+      });
     },
   };
 }
