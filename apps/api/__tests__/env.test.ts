@@ -62,3 +62,53 @@ describe("loadEnv — fail-fast (AC PR-006)", () => {
     expect(() => loadEnv({ ...VALID, PATH: "/usr/bin", RANDOM_TOOL_VAR: "x" })).not.toThrow();
   });
 });
+
+describe("kredensial Google OAuth (PR-017)", () => {
+  const GOOGLE = {
+    GOOGLE_CLIENT_ID: "123-uji.apps.googleusercontent.com",
+    GOOGLE_CLIENT_SECRET: "rahasia-uji",
+  };
+
+  it("tanpa kredensial → boot tetap jalan (fitur dimatikan, bukan boot gagal)", () => {
+    const env = loadEnv({ ...VALID });
+    expect(env.GOOGLE_CLIENT_ID).toBeUndefined();
+    expect(env.GOOGLE_CLIENT_SECRET).toBeUndefined();
+  });
+
+  it("pasangan lengkap → diterima", () => {
+    expect(loadEnv({ ...VALID, ...GOOGLE })).toMatchObject(GOOGLE);
+  });
+
+  it.each([
+    ["GOOGLE_CLIENT_ID saja", { GOOGLE_CLIENT_ID: GOOGLE.GOOGLE_CLIENT_ID }, "GOOGLE_CLIENT_SECRET"],
+    [
+      "GOOGLE_CLIENT_SECRET saja",
+      { GOOGLE_CLIENT_SECRET: GOOGLE.GOOGLE_CLIENT_SECRET },
+      "GOOGLE_CLIENT_ID",
+    ],
+  ])("%s → boot GAGAL menyebut variabel yang hilang", (_nama, separuh, hilang) => {
+    let caught: unknown;
+    try {
+      loadEnv({ ...VALID, ...separuh });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(EnvError);
+    expect((caught as EnvError).issues.map(([nama]) => nama)).toContain(hilang);
+  });
+
+  it("kelengkapan Twilio tetap ditegakkan setelah aturan grup dipakai bersama", () => {
+    expect(() => loadEnv({ ...VALID, TWILIO_ACCOUNT_SID: "AC0" })).toThrow(EnvError);
+    // Grup lain yang kosong tidak ikut terseret jadi error.
+    expect(() => loadEnv({ ...VALID, ...GOOGLE, TWILIO_ACCOUNT_SID: "AC0" })).toThrow(
+      /TWILIO_AUTH_TOKEN/,
+    );
+  });
+
+  it("URL Google & timeout punya default yang masuk akal", () => {
+    const env = loadEnv({ ...VALID });
+    expect(env.GOOGLE_JWKS_URL).toBe("https://www.googleapis.com/oauth2/v3/certs");
+    expect(env.GOOGLE_TOKEN_URL).toBe("https://oauth2.googleapis.com/token");
+    expect(env.GOOGLE_HTTP_TIMEOUT_MS).toBe(10_000);
+  });
+});

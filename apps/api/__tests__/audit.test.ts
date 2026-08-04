@@ -20,6 +20,7 @@ const ENTITY_ID = "01912345-89ab-7def-8123-456789abcdeb";
 
 const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.AUTH_LOGIN_FAILED]: { reason: "otpInvalid" },
+  [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: { method: "google", isNewUser: true },
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: {
     purpose: "support",
     fields: ["disabilityTypes"],

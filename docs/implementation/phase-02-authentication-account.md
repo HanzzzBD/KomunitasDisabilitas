@@ -159,11 +159,11 @@ Bisnis: login satu ketuk (PRD FR-1.1). Teknis: authorization code + PKCE (mobile
 
 **Testing Checklist:**
 
-* [ ] Unit Test (validator klaim)
-* [ ] Integration Test (mock JWKS)
+* [x] Unit Test (validator klaim) — 21 test `auth-google-id-token.test.ts` (PR-017a): `parseGoogleIdentity` (normalisasi email, nama kosong, varian `email_verified`, klaim cacat, tanpa bocor PII di pesan error) + verifikasi penuh (audience/issuer/kedaluwarsa/kunci asing/`alg: none`/JWKS mati/cache kunci).
+* [x] Integration Test (mock JWKS) — JWKS dilayani server HTTP lokal berisi kunci RSA nyata; token ditandatangani RS256 sungguhan, jadi yang diuji adalah jalur verifikasi sebenarnya (bukan stub library). 7 test PostgreSQL nyata `auth-google-db.test.ts` untuk find-or-create/link.
 * [ ] E2E Test (di PR-030)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (akun Google uji di staging)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [ ] Manual Verification (akun Google uji di staging) — **butuh OAuth client nyata + staging; belum bisa dilakukan agent.** Prosedur: buat OAuth 2.0 Client ID di Google Cloud Console, isi `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` di env staging, jalankan alur consent dengan PKCE, lalu `POST /api/v1/auth/google` dengan `code` + `codeVerifier` hasilnya.
 
 **Deliverables:**
 
@@ -172,6 +172,8 @@ Bisnis: login satu ketuk (PRD FR-1.1). Teknis: authorization code + PKCE (mobile
 **Out of Scope:**
 
 * JWT session (PR-018).
+* Audit sukses untuk login OTP — aksi `AUTH_LOGIN_SUCCEEDED` lahir di sini, tetapi memasangnya pada alur OTP adalah perubahan pada PR-016 (dicatat sebagai follow-up).
+* Nonce OAuth (anti-replay tambahan di atas PKCE) dan penyegaran email saat berubah di Google — dicatat sebagai follow-up.
 
 **Rollback Strategy:**
 
@@ -179,11 +181,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] id_token audience salah → 401.
-* [ ] User baru dibuat dengan google_id; login ulang me-link user sama.
-* [ ] PKCE verifier salah → ditolak.
-* [ ] Tidak ada token Google tersimpan permanen.
-* [ ] Audit login sukses/gagal tercatat.
+* [ ] id_token audience salah → 401. — *PR-017a: verifier menolak token ber-audience lain dengan `TOKEN_GOOGLE_TIDAK_VALID` (401), diuji terhadap JWKS nyata. Menunggu endpoint (PR-017b) untuk pembuktian di tingkat HTTP.*
+* [ ] User baru dibuat dengan google_id; login ulang me-link user sama. — *PR-017a: `findOrCreateByGoogle` terbukti terhadap PostgreSQL nyata (akun baru, login ulang ke akun sama, `google_id` menang atas email, penautan akun OTP lewat email terverifikasi, balapan → satu akun). Menunggu endpoint (PR-017b).*
+* [ ] PKCE verifier salah → ditolak. — *PR-017b (penukaran code).*
+* [ ] Tidak ada token Google tersimpan permanen. — *PR-017b (penukaran code); PR-017a tidak menyimpan apa pun dari Google selain `google_id`/email/nama.*
+* [ ] Audit login sukses/gagal tercatat. — *PR-017a: kontrak audit `AUTH_LOGIN_SUCCEEDED` + `reason` khas Google ditambahkan. Pemanggilannya di PR-017b.*
 
 #### Dependencies
 
@@ -192,6 +194,16 @@ RB-Std.
 #### Risks
 
 * Perubahan perilaku Google OAuth. Mitigasi: library resmi + contract test JWKS.
+
+> **Dipecah jadi dua PR (persetujuan owner 2026-08-04):** scope utuh ~560 LOC produksi + ~590 LOC test, di atas target <500 — pola yang sama dengan PR-016.
+> **PR-017a** — kontrak zod `googleAuthSchema`, aksi audit `AUTH_LOGIN_SUCCEEDED`, env `GOOGLE_*`, kode error Google, verifikasi id_token via JWKS (`jose`), `findOrCreateByGoogle` — *selesai*.
+> **PR-017b** — penukaran authorization code + PKCE, service/controller/router/wiring, endpoint `POST /api/v1/auth/google`, OpenAPI — *belum*.
+>
+> **Keputusan library (menyimpang dari catatan Risks "library resmi"):** verifikasi id_token memakai **`jose`**, bukan `google-auth-library`. Alasannya justru untuk memenuhi checklist *Integration Test (mock JWKS)*: `jose` membiarkan URL JWKS disuntik sehingga test menjalankan jalur verifikasi yang SEBENARNYA terhadap token RS256 yang ditandatangani sungguhan. Men-stub library resmi akan membuat test lulus tanpa pernah menguji verifikasinya. Konsekuensinya `iss`/`aud`/`exp`/`alg` divalidasi eksplisit di kode kita — lihat log implementasi.
+
+#### Log Implementasi
+
+* 2026-08-04 — PR-017a selesai (verifikasi id_token JWKS, validator klaim, find-or-create/link `google_id`, kontrak audit & env). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-017a--verifikasi-id_token-google-jwks--linking-akun).
 
 
 ### PR-018 - JWT RS256 + Rotating Refresh + Reuse Detection

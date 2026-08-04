@@ -62,6 +62,24 @@ export const ERROR_CATALOG = {
     message: "Terlalu banyak percobaan kode",
     hint: "Tunggu sesuai waktu yang diberitahukan, lalu minta kode baru",
   },
+  // --- Login Google (PR-017) ---
+  // Dipisah dari kode OTP dengan sengaja: pengguna yang gagal masuk lewat
+  // Google butuh saran yang berbeda ("coba lagi dari awal") dibanding kode OTP.
+  GOOGLE_EXCHANGE_GAGAL: {
+    status: 401,
+    message: "Masuk dengan Google tidak berhasil",
+    hint: "Ulangi dari tombol Masuk dengan Google; tautan masuk hanya berlaku sekali",
+  },
+  TOKEN_GOOGLE_TIDAK_VALID: {
+    status: 401,
+    message: "Data masuk dari Google tidak sah",
+    hint: "Ulangi dari tombol Masuk dengan Google",
+  },
+  EMAIL_GOOGLE_BELUM_TERVERIFIKASI: {
+    status: 403,
+    message: "Email Google Anda belum terverifikasi",
+    hint: "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

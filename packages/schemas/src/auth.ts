@@ -1,5 +1,5 @@
-// Domain: auth — skema OTP (PR-004 request; PR-016 verify).
-// Skema Google sign-in & refresh menyusul di PR-017/018.
+// Domain: auth — skema OTP (PR-004 request; PR-016 verify) + Google (PR-017).
+// Skema refresh token menyusul di PR-018.
 //
 // Konvensi (lihat README):
 // - nama skema camelCase + suffix Schema: requestOtpSchema
@@ -73,3 +73,69 @@ export const verifyOtpResponseSchema = z
   .openapi({ ref: "VerifyOtpResponse" });
 
 export type VerifyOtpResponse = z.infer<typeof verifyOtpResponseSchema>;
+
+/**
+ * Authorization code dari Google (opaque). Panjangnya tidak dijamin Google,
+ * jadi batas atas di sini hanya penjaga ukuran body — bukan aturan format.
+ */
+export const authorizationCodeSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "Kode dari Google tidak boleh kosong" })
+  .max(2048, { message: "Kode dari Google terlalu panjang" })
+  .openapi({ description: "Authorization code sekali pakai dari Google" });
+
+/**
+ * PKCE code_verifier (RFC 7636 §4.1): 43–128 karakter unreserved.
+ * Divalidasi di sini supaya verifier yang salah bentuk ditolak sebelum
+ * menyentuh jaringan — Google akan menolaknya juga, tetapi lebih lambat.
+ */
+export const pkceCodeVerifierSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9\-._~]{43,128}$/, {
+    message: "Verifier PKCE harus 43–128 karakter (huruf, angka, - . _ ~)",
+  })
+  .openapi({ description: "PKCE code_verifier (RFC 7636), 43–128 karakter" });
+
+/**
+ * POST /api/v1/auth/google — body.
+ * Alur authorization code + PKCE (bukan implicit): klien publik (web/mobile)
+ * menukar `code` di server kita, sehingga client_secret tidak pernah ada di
+ * perangkat pengguna.
+ */
+export const googleAuthSchema = z
+  .object({
+    code: authorizationCodeSchema,
+    codeVerifier: pkceCodeVerifierSchema,
+    /**
+     * Harus sama persis dengan redirect_uri saat meminta `code` — Google
+     * menolak bila berbeda. Skema kustom mobile (mis. `com.nawasena:/oauth`)
+     * ikut valid.
+     */
+    redirectUri: z
+      .string()
+      .url({ message: "Alamat pengalihan tidak valid" })
+      .max(2048, { message: "Alamat pengalihan terlalu panjang" })
+      .openapi({ example: "http://localhost:5173/masuk/google" }),
+  })
+  .openapi({ ref: "GoogleAuth", description: "Tukar authorization code Google (PKCE) jadi sesi" });
+
+export type GoogleAuth = z.infer<typeof googleAuthSchema>;
+
+/**
+ * POST /api/v1/auth/google — response 200.
+ * Bentuknya sengaja SAMA dengan verifyOtpResponse: kedua metode login bermuara
+ * pada envelope yang sama, dan PR-018 menambah pasangan JWT ke keduanya
+ * sekaligus (perubahan additive).
+ */
+export const googleAuthResponseSchema = z
+  .object({
+    data: z.object({
+      userId: idSchema,
+      /** true bila akun baru dibuat pada login ini (find-or-create). */
+      isNewUser: z.boolean().openapi({ example: false }),
+    }),
+  })
+  .openapi({ ref: "GoogleAuthResponse" });
+
+export type GoogleAuthResponse = z.infer<typeof googleAuthResponseSchema>;
