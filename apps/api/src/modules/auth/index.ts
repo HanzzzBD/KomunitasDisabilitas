@@ -71,5 +71,14 @@ export {
   type OtpMessage,
   type OtpSender,
 } from "./services/otp-sender.js";
+export {
+  createGoogleIdTokenVerifier,
+  parseGoogleIdentity,
+  GOOGLE_CLOCK_TOLERANCE_SECONDS,
+  GOOGLE_ISSUERS,
+  type GoogleIdentity,
+  type GoogleIdTokenVerifier,
+  type GoogleIdTokenVerifierConfig,
+} from "./services/google-id-token.js";
 export { createFonnteSender, FONNTE_PROVIDER, type FetchLike } from "./services/fonnte.sender.js";
 export { createTwilioSender, TWILIO_PROVIDER } from "./services/twilio.sender.js";

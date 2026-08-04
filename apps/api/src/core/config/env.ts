@@ -81,6 +81,29 @@ const envSchema = z.object({
     .min(1000, { message: "minimal 1000 (1 detik)" })
     .max(30_000, { message: "maksimal 30000 (30 detik)" })
     .default(10_000),
+  // --- Login Google OAuth (PR-017) ---
+  // Pasangan client id + secret OPSIONAL (pola OTP): tanpa keduanya endpoint
+  // /auth/google menjawab 503, bukan berjalan tanpa memeriksa audience.
+  // Setengah terisi = boot GAGAL (superRefine di bawah).
+  GOOGLE_CLIENT_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /** Sumber kunci publik Google (JWKS). Diganti hanya untuk test/staging. */
+  GOOGLE_JWKS_URL: z
+    .string()
+    .url({ message: "harus URL valid" })
+    .default("https://www.googleapis.com/oauth2/v3/certs"),
+  /** Endpoint penukaran authorization code. Diganti hanya untuk test/staging. */
+  GOOGLE_TOKEN_URL: z
+    .string()
+    .url({ message: "harus URL valid" })
+    .default("https://oauth2.googleapis.com/token"),
+  /** Batas tunggu panggilan ke Google (token endpoint & JWKS). */
+  GOOGLE_HTTP_TIMEOUT_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .max(30_000, { message: "maksimal 30000 (30 detik)" })
+    .default(10_000),
   // --- Endpoint internal (PR-015b) ---
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.
@@ -88,23 +111,37 @@ const envSchema = z.object({
 });
 
 /**
- * Kredensial Twilio hanya berguna lengkap (PR-016b). Setengah terisi hampir
- * selalu berarti salin-tempel yang terpotong — lebih baik boot GAGAL dengan
- * nama variabel yang hilang daripada fallback SMS diam-diam mati saat Fonnte
- * bermasalah (justru saat paling dibutuhkan).
+ * Kredensial yang hanya berguna LENGKAP. Setengah terisi hampir selalu berarti
+ * salin-tempel yang terpotong — lebih baik boot GAGAL dengan nama variabel yang
+ * hilang daripada:
+ * - fallback SMS Twilio (PR-016b) diam-diam mati saat Fonnte bermasalah, atau
+ * - login Google (PR-017) berjalan tanpa client_secret untuk menukar code.
+ *
+ * Semuanya opsional sebagai GRUP: nol variabel terisi = fitur dimatikan (503),
+ * itu keadaan sah untuk dev tanpa kredensial.
  */
-const TWILIO_VARS = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"] as const;
+const GRUP_KREDENSIAL = [
+  {
+    label: "kredensial Twilio",
+    vars: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"],
+  },
+  {
+    label: "kredensial Google OAuth",
+    vars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+  },
+] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
 const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
-  const terisi = TWILIO_VARS.filter((nama) => env[nama] !== undefined);
-  if (terisi.length === 0 || terisi.length === TWILIO_VARS.length) return;
+  for (const { label, vars } of GRUP_KREDENSIAL) {
+    const terisi = vars.filter((nama) => env[nama] !== undefined);
+    if (terisi.length === 0 || terisi.length === vars.length) continue;
 
-  for (const nama of TWILIO_VARS) {
-    if (env[nama] === undefined) {
+    for (const nama of vars) {
+      if (env[nama] !== undefined) continue;
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: [nama],
-        message: `wajib diisi bila ${terisi.join(" / ")} di-set (kredensial Twilio harus lengkap)`,
+        message: `wajib diisi bila ${terisi.join(" / ")} di-set (${label} harus lengkap)`,
       });
     }
   }

@@ -30,6 +30,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Layanan sedang tidak siap",
           "status": 503,
         },
+        "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
+          "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
+          "message": "Email Google Anda belum terverifikasi",
+          "status": 403,
+        },
+        "GOOGLE_EXCHANGE_GAGAL": {
+          "hint": "Ulangi dari tombol Masuk dengan Google; tautan masuk hanya berlaku sekali",
+          "message": "Masuk dengan Google tidak berhasil",
+          "status": 401,
+        },
         "JSON_TIDAK_VALID": {
           "hint": "Coba ulangi; laporkan bila terus terjadi",
           "message": "Format data yang dikirim rusak",
@@ -73,6 +83,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
         "TIDAK_TERAUTENTIKASI": {
           "hint": "Silakan masuk terlebih dahulu",
           "message": "Anda belum masuk",
+          "status": 401,
+        },
+        "TOKEN_GOOGLE_TIDAK_VALID": {
+          "hint": "Ulangi dari tombol Masuk dengan Google",
+          "message": "Data masuk dari Google tidak sah",
           "status": 401,
         },
         "VALIDATION_ERROR": {

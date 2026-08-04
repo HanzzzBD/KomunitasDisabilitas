@@ -81,6 +81,14 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
       simpan = "01912345-89ab-7def-8123-000000000001";
       return { id: simpan, isNew: true };
     },
+    // Jalur Google (PR-017) tidak dipakai alur OTP; dibuat meledak supaya
+    // pemakaian tak sengaja terlihat sebagai kegagalan test, bukan diam-diam.
+    findActiveByGoogleId() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur Google");
+    },
+    findOrCreateByGoogle() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur Google");
+    },
   };
 }
 

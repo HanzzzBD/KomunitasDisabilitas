@@ -233,3 +233,71 @@ Dengan begitu ketiga sifat yang diminta terpenuhi sekaligus: dev nyaman (cukup `
 
 * Pertimbangkan `.nvmrc`/`engines` untuk mengunci Node ≥ 20.18 agar flag ini selalu tersedia.
 * Bila `apps/worker` kelak butuh env lokal, tambahkan `apps/worker/.env.example` + flag yang sama pada script `dev`-nya.
+
+---
+## PR-017a — Verifikasi id_token Google (JWKS) + Linking Akun
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-017---auth-google-oauth-pkce)
+> **Tanggal:** 2026-08-04
+> **Status:** Selesai
+> **Branch:** `pr-017a-google-id-token-jwks` → `phase-02-authentication-account`
+
+### Ringkasan
+
+Separuh pertama PR-017: **gerbang kepercayaan** login Google. Setelah lapisan ini
+mengembalikan identitas, sisa sistem memperlakukannya sebagai fakta — jadi seluruh
+pemeriksaan (tanda tangan lewat JWKS, issuer, audience, kedaluwarsa, algoritma,
+status verifikasi email) dilakukan eksplisit di satu tempat dan diuji terhadap
+token yang benar-benar ditandatangani. Endpoint `POST /api/v1/auth/google` beserta
+penukaran authorization code + PKCE menyusul di PR-017b.
+
+### Scope yang selesai
+
+* `packages/schemas/src/auth.ts` — `googleAuthSchema` (code + `codeVerifier` RFC 7636 + `redirectUri`), `googleAuthResponseSchema`. Bentuk response sengaja sama dengan `verifyOtpResponse` supaya PR-018 menambah pasangan JWT ke keduanya sekaligus.
+* `packages/schemas/src/audit.ts` — aksi `AUTH_LOGIN_SUCCEEDED` (`{method, isNewUser}`) + tiga `reason` gagal khas Google.
+* `apps/api/src/core/config/env.ts` — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (opsional sebagai pasangan), `GOOGLE_JWKS_URL`, `GOOGLE_TOKEN_URL`, `GOOGLE_HTTP_TIMEOUT_MS`. Aturan "kredensial harus lengkap" milik Twilio digeneralisasi jadi `GRUP_KREDENSIAL`.
+* `apps/api/src/core/http/errors.ts` — `GOOGLE_EXCHANGE_GAGAL` (401), `TOKEN_GOOGLE_TIDAK_VALID` (401), `EMAIL_GOOGLE_BELUM_TERVERIFIKASI` (403).
+* `apps/api/src/modules/auth/services/google-id-token.ts` — `parseGoogleIdentity` (validator klaim, fungsi murni) + `createGoogleIdTokenVerifier` (JWKS ber-cache).
+* `apps/api/src/modules/auth/repositories/user.repository.ts` — `findActiveByGoogleId`, `findOrCreateByGoogle`.
+* `apps/api/.env.example` — blok Google lengkap dengan alasan tiap variabel.
+* Test: 21 unit/contract (`auth-google-id-token.test.ts`), 7 PostgreSQL nyata (`auth-google-db.test.ts`), 6 env (`env.test.ts`).
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Endpoint `POST /api/v1/auth/google`, penukaran code + PKCE, OpenAPI** — PR-017b. Pemecahan disetujui owner 2026-08-04 karena scope utuh ~1150 LOC, jauh di atas target <500.
+* **Audit sukses untuk login OTP.** Aksi `AUTH_LOGIN_SUCCEEDED` lahir di sini tetapi belum dipasang di `otp.service.ts`: itu perubahan perilaku PR-016, bukan PR-017. Dicatat sebagai follow-up.
+* **Manual Verification staging** — butuh OAuth client Google nyata; prosedur ditulis di checklist file phase.
+
+### Keputusan teknis
+
+1. **`jose`, bukan `google-auth-library` — menyimpang dari catatan Risks di file phase ("library resmi").** Checklist menuntut *Integration Test (mock JWKS)*. `jose` membiarkan URL JWKS disuntik, sehingga test menjalankan jalur verifikasi yang sebenarnya terhadap token RS256 yang ditandatangani sungguhan oleh kunci uji. Dengan library resmi kita akan berakhir men-stub librarynya, dan test "audience salah → 401" hanya akan menguji stub. Konsekuensi yang diterima: `iss`/`aud`/`exp`/`alg` divalidasi eksplisit oleh kode kita, bukan diwarisi dari Google.
+2. **`algorithms: ["RS256"]` dikunci.** Tanpa itu, token ber-`alg: none` atau HMAC yang memakai kunci publik Google sebagai rahasia bisa lolos — serangan JWT klasik. Ada test khusus untuk `alg: none`.
+3. **Dua bentuk issuer diterima** (`https://accounts.google.com` dan `accounts.google.com`). Google memakai keduanya bergantian; menerima satu saja adalah bug yang muncul sporadis dan sulit dilacak.
+4. **JWKS tak terjangkau → 503, bukan 401.** Menjawab 401 saat Google tak terjangkau berbohong kepada pengguna ("data Anda tidak sah") padahal masalahnya di pihak kita. `JWKSTimeout` dan kegagalan non-JOSE (jaringan) dipisahkan dari kegagalan klaim.
+5. **`email_verified` menerima boolean DAN string `"true"`/`"false"`.** Beberapa jalur Google secara historis mengirimnya sebagai string. Memperlakukan string apa pun sebagai truthy akan menerima `"false"`; memperlakukan string sebagai "bukan boolean → tolak" akan menolak pengguna sah. Dipetakan eksplisit.
+6. **Urutan find-or-create: `google_id` → email → buat baru.** `google_id` menang supaya pengguna yang berganti email di Google tetap mendarat di akun yang sama. Penautan lewat email aman HANYA karena `email_verified !== true` sudah ditolak lebih dulu — tanpa syarat itu, langkah ini adalah jalan masuk account takeover (persis yang diminta Security Considerations file phase).
+7. **Nama kosong diisi dari Google, nama yang sudah ada tidak ditimpa.** Akun hasil login OTP lahir dengan `fullName: ""`; mengisinya menghemat pengetikan (relevan untuk pengguna dengan hambatan motorik). Nama yang dipilih sendiri oleh pengguna tidak pernah disentuh.
+8. **`reason` audit menyebut metodenya sendiri (`google*`), bukan menambah field `method` wajib.** Field wajib baru akan membuat seluruh audit `AUTH_LOGIN_FAILED` lama (PR-016, tanpa field itu) ditolak sanitizer dan hilang diam-diam. Menambah anggota enum bersifat additive.
+9. **Verifier dibuat sekali saat wiring, bukan per-permintaan.** `createRemoteJWKSet` menyimpan kunci di memori dan hanya mengambil ulang saat menemui `kid` baru (rotasi). Ada test yang membuktikan tiga verifikasi hanya memicu satu pengambilan JWKS.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 workspace hijau (termasuk lint boundaries).
+* `pnpm typecheck` — 9/9 workspace hijau.
+* `pnpm test` — 9/9 workspace hijau. `@nawasena/api`: **26 file, 266 test lulus, 1 skip** (penjaga `.env` implisit, skip-anggun karena mesin ini punya `.env`). Test DB dijalankan terhadap PostgreSQL nyata (`docker compose -f docker-compose.dev.yml up -d postgres redis-cache redis-queue`), bukan dilewati.
+* Snapshot inline `ERROR_CATALOG` diperbarui — gerbang itu memang ada supaya kode error baru tidak masuk tanpa terlihat di review.
+
+### Risiko yang ditemukan
+
+* **Penautan lewat email bergantung sepenuhnya pada `email_verified` Google.** Untuk domain Google Workspace, admin domain dapat membuat mailbox dengan alamat apa pun **di domainnya sendiri** dan alamat itu akan terverifikasi. Artinya admin domain bisa menautkan diri ke akun Nawasena milik karyawannya. Ini konsekuensi bawaan model kepercayaan OIDC dan sesuai instruksi file phase ("email verified saja"), tetapi perlu disadari — bukan lubang implementasi.
+* **`email` tidak punya unique index** (skema PR-009). Langkah penautan lewat email tidak punya wasit di tingkat DB. Tidak berbahaya di sini (dua login bersamaan dengan email terverifikasi sama pasti membawa `google_id` yang sama, jadi keduanya menulis nilai identik), tetapi asumsi itu akan runtuh bila kelak ada jalur lain yang menulis `email`.
+* **Email tidak disegarkan saat berubah di Google.** Akun tetap benar (`google_id` yang menentukan), tetapi kolom `email` bisa basi. Menyegarkannya berarti satu write per login — sengaja ditunda.
+* **Belum ada nonce OAuth.** PKCE sudah menutup penyadapan authorization code; nonce menutup replay id_token pada alur implicit yang tidak kita pakai. Dicatat, bukan dikerjakan.
+* **Kegagalan JWKS memberi 503 pada endpoint login** — bila Google tak terjangkau, login Google mati total tanpa fallback. Mitigasi produk sudah ada: hint error mengarahkan pengguna ke login OTP.
+
+### Next steps
+
+* **PR-017b** — penukaran authorization code + PKCE, service/controller/router/wiring, OpenAPI, test HTTP end-to-end; lalu centang seluruh AC PR-017.
+* **PR-018** — pasangan JWT untuk kedua metode login; response `googleAuthResponse` bertambah field token (additive).
+* **Follow-up PR-016:** pasang `AUTH_LOGIN_SUCCEEDED` pada `otp.service.ts` supaya kedua metode login punya jejak sukses yang setara.
+* **Owner:** siapkan OAuth 2.0 Client ID di Google Cloud Console + isi env staging untuk Manual Verification.

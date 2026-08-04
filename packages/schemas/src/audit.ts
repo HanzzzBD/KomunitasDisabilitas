@@ -5,6 +5,9 @@ import { idSchema } from "./common.js";
 
 export const AUDIT_ACTION = {
   AUTH_LOGIN_FAILED: "AUTH_LOGIN_FAILED",
+  /** PR-017: login berhasil. Pasangan wajib AUTH_LOGIN_FAILED — tanpa jejak
+   *  sukses, lonjakan kegagalan tidak punya pembanding saat investigasi. */
+  AUTH_LOGIN_SUCCEEDED: "AUTH_LOGIN_SUCCEEDED",
   PROFILE_SENSITIVE_READ: "PROFILE_SENSITIVE_READ",
   PROFILE_SENSITIVE_UPDATED: "PROFILE_SENSITIVE_UPDATED",
   APPLICATION_STATUS_CHANGED: "APPLICATION_STATUS_CHANGED",
@@ -16,6 +19,7 @@ export const AUDIT_ACTION = {
 
 export const auditActionSchema = z.enum([
   AUDIT_ACTION.AUTH_LOGIN_FAILED,
+  AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED,
   AUDIT_ACTION.PROFILE_SENSITIVE_READ,
   AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED,
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
@@ -26,6 +30,9 @@ export const auditActionSchema = z.enum([
 ]);
 
 export type AuditAction = z.infer<typeof auditActionSchema>;
+
+/** Metode masuk — dipakai audit sukses & gagal. Bukan PII. */
+const loginMethodSchema = z.enum(["otp", "google"]);
 
 const sensitiveFieldSchema = z.enum(["disabilityTypes", "accommodationNeeds"]);
 const applicationStatusSchema = z.enum([
@@ -40,8 +47,26 @@ const applicationStatusSchema = z.enum([
 ]);
 
 export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
+  // `reason` sengaja menyebut metodenya sendiri (prefiks `google*`) alih-alih
+  // menambah field `method` wajib: field baru yang wajib akan membuat SELURUH
+  // audit AUTH_LOGIN_FAILED lama (PR-016, tanpa field itu) ditolak sanitizer
+  // dan hilang diam-diam. Menambah anggota enum bersifat additive.
   [AUDIT_ACTION.AUTH_LOGIN_FAILED]: z.object({
-    reason: z.enum(["otpInvalid", "rateLimited", "accountLocked"]),
+    reason: z.enum([
+      "otpInvalid",
+      "rateLimited",
+      "accountLocked",
+      /** Google menolak penukaran code (verifier PKCE salah, code hangus/terpakai). */
+      "googleExchangeFailed",
+      /** id_token gagal verifikasi: audience/issuer/kedaluwarsa/tanda tangan. */
+      "googleTokenInvalid",
+      /** Email Google belum terverifikasi — linking ditolak (anti-takeover). */
+      "googleEmailNotVerified",
+    ]),
+  }),
+  [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: z.object({
+    method: loginMethodSchema,
+    isNewUser: z.boolean(),
   }),
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: z.object({
     purpose: z.enum(["selfService", "support", "matching", "disclosure"]),
