@@ -408,7 +408,7 @@ Bisnis: pengguna mengelola identitas dasarnya. Teknis: modul users skeleton sesu
 
 **Database Changes:**
 
-* Tidak ada.
+* ~~Tidak ada.~~ **Koreksi (PR-020):** migrasi 06 menambahkan unique index PARSIAL `users_email_aktif_key` — lihat catatan di bawah Acceptance Criteria.
 
 **API Changes:**
 
@@ -421,11 +421,11 @@ Bisnis: pengguna mengelola identitas dasarnya. Teknis: modul users skeleton sesu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service)
-* [ ] Integration Test (authz)
-* [ ] E2E Test (via settings PR-033)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (curl)
+* [x] Unit Test (service) — 13 test `users-me.test.ts`: pemetaan baris→kontrak, field internal tertahan meski repository membocorkannya, kapan audit email menyala/diam, dan bahwa alamat email tidak pernah masuk isi audit.
+* [x] Integration Test (authz) — 15 test HTTP `users-me-http.test.ts` (server Express nyata, token RS256 nyata, guard registrar PR-019) + 8 test PostgreSQL nyata `users-me-db.test.ts` (perilaku unique parsial migrasi 06, termasuk `EXPLAIN`-style pemeriksaan `pg_indexes`).
+* [ ] E2E Test (di PR-033)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (curl) — diotomatiskan: seluruh alur curl yang dimaksud (baca profil, ubah nama, ubah email, email bentrok, tanpa token) dijalankan sebagai permintaan HTTP nyata di `users-me-http.test.ts`, jadi tidak ada langkah tangan yang tersisa.
 
 **Deliverables:**
 
@@ -434,6 +434,9 @@ Bisnis: pengguna mengelola identitas dasarnya. Teknis: modul users skeleton sesu
 **Out of Scope:**
 
 * Seeker profile karier (PR-037).
+* Metode `getMe`/`updateMe` di `packages/api-client` — mengikuti preseden PR-016: klien ditambahkan bersama UI yang pertama memakainya (PR-033). Kontrak zod-nya sudah tersedia, jadi tidak ada duplikasi yang perlu ditebus nanti.
+* **Verifikasi kepemilikan email** (kirim tautan/kode ke alamat baru) — tidak ada di backlog manapun; dicatat sebagai risiko di bawah.
+* Perubahan nomor HP lewat profil — nomor adalah kredensial login OTP; mengubahnya adalah alur ganti-kredensial tersendiri, bukan edit profil.
 
 **Rollback Strategy:**
 
@@ -441,11 +444,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] User A tidak bisa baca/ubah user B (test).
-* [ ] Validasi email/nama dengan pesan sederhana.
-* [ ] Response tanpa field internal (role ver dsb. selektif).
-* [ ] Skema zod dipakai FE tanpa duplikasi.
-* [ ] Audit perubahan email.
+* [x] User A tidak bisa baca/ubah user B (test). — Dijamin oleh BENTUK endpoint, bukan oleh pemeriksaan yang bisa lupa dipasang: `userId` diambil dari `authOf(req)` dan service-nya bahkan tidak punya parameter untuk menyebut pengguna lain. Diuji lewat HTTP: dua token → dua profil berbeda; A yang menyelundupkan `id`/`userId` milik B di body tetap hanya mengubah barisnya sendiri, dan baris B tidak tersentuh.
+* [x] Validasi email/nama dengan pesan sederhana. — Pesan zod menyebut perbaikannya, bukan hanya menyatakan salah: "Nama minimal 2 huruf", "Format email belum benar, contoh: nama@contoh.com". Penting karena pesan ini dibacakan screen reader apa adanya. Diuji sampai ke isi `hint` pada envelope 400.
+* [x] Response tanpa field internal (role ver dsb. selektif). — Dua lapis: repository memilih kolom secara eksplisit, dan service memetakan baris→kontrak sehingga kolom baru yang kelak terbawa tetap tidak punya jalan keluar. `role` SENGAJA disertakan (FE memakainya memilih navigasi); yang dikecualikan `tokenVersion`, `googleId`, `deletedAt`, `lastActiveAt`. Diuji dengan baris yang sengaja membocorkan ketiganya.
+* [x] Skema zod dipakai FE tanpa duplikasi. — `packages/schemas/src/users.ts` (`fullNameSchema`, `emailSchema`, `meSchema`, `updateMeSchema`) adalah satu-satunya definisi; API memakainya lewat `validate({ body })` dan test HTTP memvalidasi response dengan `meSchema` yang sama. OpenAPI di-generate dari skema itu juga (`check:openapi` hijau), termasuk `securitySchemes.bearerAuth` yang baru.
+* [x] Audit perubahan email. — `ACCOUNT_EMAIL_CHANGED` menyala HANYA saat email benar-benar berubah (menyimpan nama, atau mengirim ulang email yang sama, tidak menulis audit). Meta `{ hadPreviousEmail, cleared }` — **alamatnya sendiri tidak pernah dicatat**: `audit_logs` bertahan 2 tahun, jauh melewati baris yang memilikinya.
 
 #### Dependencies
 
@@ -453,7 +456,14 @@ RB-Std.
 
 #### Risks
 
-* Minim.
+* ~~Minim.~~ **Ditemukan saat implementasi:** membuat `email` bisa diubah pengguna membuka jalur penautan akun yang sebelumnya tidak ada — lihat catatan di bawah.
+* **Email belum diverifikasi kepemilikannya.** Pengguna bisa menyetel alamat yang bukan miliknya. Unique index menutup penautan Google ke akun yang salah, tetapi tidak menutup pengguna yang mengklaim alamat orang lain yang BELUM punya akun Nawasena. Verifikasi email tidak ada di backlog manapun — kandidat PR baru sebelum email dipakai untuk notifikasi (Phase 07) atau pemulihan akun.
+
+> **Koreksi "Database Changes: Tidak ada" (keputusan owner 2026-08-06):** `PUT /me` membuat `email` bisa diubah pengguna, dan `findOrCreateByGoogle` (PR-017) menautkan identitas Google ke akun yang emailnya cocok. Yang diverifikasi di sana adalah `email_verified` **dari Google**, bukan email yang tersimpan di sisi kita — jadi penyerang yang menyetel email korban di akunnya sendiri akan menerima identitas Google korban saat korban login pertama kali. Migrasi 06 menambahkan `CREATE UNIQUE INDEX users_email_aktif_key ON users (email) WHERE deleted_at IS NULL` — aditif, backward-compatible satu versi, dan mengikuti pola dua index parsial migrasi 01. Pemeriksaan di lapisan aplikasi saja ditolak: ia baca-lalu-tulis, dan balapan dua permintaan bersamaan adalah persis bentuk eksploitnya.
+
+#### Log Implementasi
+
+* 2026-08-06 — PR-020 selesai (modul `users`, `GET/PUT /api/v1/me`, kontrak zod bersama, audit perubahan email, migrasi 06 unique parsial email). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020--users--getput-me).
 
 
 ### PR-021 - Hapus Akun (Soft Delete + Revoke)

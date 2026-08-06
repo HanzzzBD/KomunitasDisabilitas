@@ -31,6 +31,7 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },
   [AUDIT_ACTION.DATA_EXPORTED]: { format: "json" },
+  [AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED]: { hadPreviousEmail: true, cleared: false },
   [AUDIT_ACTION.ACCOUNT_DELETED]: { stage: "requested" },
 };
 

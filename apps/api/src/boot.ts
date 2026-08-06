@@ -22,6 +22,7 @@ import {
   createOtpSenderFromEnv,
   createSessionUserSource,
 } from "./modules/auth/index.js";
+import { createUsersModule } from "./modules/users/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -113,6 +114,13 @@ export async function startApi(options: BootOptions): Promise<void> {
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
           logger,
+        }),
+      );
+      app.use(
+        createUsersModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          auditLog,
         }),
       );
     },

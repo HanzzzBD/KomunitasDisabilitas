@@ -18,6 +18,11 @@ export const AUDIT_ACTION = {
   COMPANY_VERIFIED: "COMPANY_VERIFIED",
   ADMIN_RESOURCE_CHANGED: "ADMIN_RESOURCE_CHANGED",
   DATA_EXPORTED: "DATA_EXPORTED",
+  /** PR-020: email akun diubah pemiliknya. Diaudit karena email adalah jalur
+   *  penautan akun Google (PR-017) — perubahannya mengubah SIAPA yang kelak
+   *  bisa masuk ke akun ini, jadi ia jejak keamanan, bukan sekadar edit profil.
+   *  Alamat emailnya sendiri TIDAK pernah masuk meta (lihat auditMetaSchemas). */
+  ACCOUNT_EMAIL_CHANGED: "ACCOUNT_EMAIL_CHANGED",
   ACCOUNT_DELETED: "ACCOUNT_DELETED",
 } as const;
 
@@ -31,6 +36,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.COMPANY_VERIFIED,
   AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
   AUDIT_ACTION.DATA_EXPORTED,
+  AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED,
   AUDIT_ACTION.ACCOUNT_DELETED,
 ]);
 
@@ -99,6 +105,16 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   }),
   [AUDIT_ACTION.DATA_EXPORTED]: z.object({
     format: z.literal("json"),
+  }),
+  // ALAMAT EMAIL TIDAK PERNAH DICATAT — audit_logs bertahan 2 tahun (SDD §6.4)
+  // dan email adalah PII. Yang berguna saat investigasi adalah bahwa perubahan
+  // TERJADI dan kapan; alamatnya sendiri bisa dibaca dari baris users saat itu
+  // dibutuhkan, lewat jalur yang memang punya kontrol aksesnya sendiri.
+  [AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED]: z.object({
+    /** false = email diisi pertama kali; true = mengganti/mengosongkan yang lama. */
+    hadPreviousEmail: z.boolean(),
+    /** true bila perubahan ini MENGOSONGKAN email. */
+    cleared: z.boolean(),
   }),
   [AUDIT_ACTION.ACCOUNT_DELETED]: z.object({
     stage: z.enum(["requested", "completed"]),

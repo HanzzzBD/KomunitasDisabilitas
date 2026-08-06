@@ -91,6 +91,16 @@ export const ERROR_CATALOG = {
     message: "Sesi Anda sudah berakhir",
     hint: "Silakan masuk lagi untuk melanjutkan",
   },
+  // --- Profil akun (PR-020) ---
+  // 409, bukan 400: bentuk inputnya sah — yang bentrok adalah keadaan dunia.
+  // Pesannya sengaja TIDAK memastikan bahwa ada akun lain dengan email itu;
+  // kalimat "sudah terdaftar" akan menjadikan endpoint ini alat memeriksa siapa
+  // saja yang punya akun di Nawasena.
+  EMAIL_TIDAK_BISA_DIPAKAI: {
+    status: 409,
+    message: "Email ini tidak bisa dipakai",
+    hint: "Coba email lain, atau masuk dengan email tersebut bila itu milik Anda",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",
