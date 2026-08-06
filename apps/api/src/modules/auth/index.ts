@@ -21,7 +21,12 @@ import { createRefreshTokenRepository } from "./repositories/refresh-token.repos
 import { createSessionService, type SessionService } from "./services/session.service.js";
 import { createSessionController } from "./controllers/session.controller.js";
 import { createSessionCookie } from "./controllers/session-cookie.js";
-import { createTokenService, type SessionKeys } from "../../core/auth/index.js";
+import {
+  createTokenService,
+  type RouteRegistrar,
+  type SessionKeys,
+  type SessionUserLookup,
+} from "../../core/auth/index.js";
 import { createUnavailableOtpSender, type OtpSender } from "./services/otp-sender.js";
 import type { FetchLike } from "./services/fonnte.sender.js";
 
@@ -53,6 +58,8 @@ export interface AuthModuleDeps {
   sessionKeys?: SessionKeys;
   /** `Secure` pada cookie refresh; dimatikan hanya untuk dev di http localhost. */
   cookieSecure?: boolean;
+  /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
+  routes: RouteRegistrar;
   auditLog: AuditLog;
   logger: Pick<Logger, "error" | "warn">;
 }
@@ -128,7 +135,22 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
     );
   }
 
-  return createAuthRouter(controllers);
+  return createAuthRouter(controllers, deps.routes);
+}
+
+/**
+ * Sumber identitas untuk `requireAuth` (PR-019). Dipasang di composition root
+ * supaya core/auth tetap bebas Prisma — barrel-nya di-import STATIS oleh
+ * gerbang fail-fast di index.ts, dan import Prisma di sana akan memuat .env
+ * lebih dulu sehingga gerbangnya terlangkahi.
+ *
+ * Memakai `findActiveSessionUser` yang sama dengan penerbitan/perpanjangan
+ * sesi: satu definisi "user yang boleh berjalan", jadi akun terhapus tidak
+ * mungkin lolos di satu jalur tetapi tertahan di jalur lain.
+ */
+export function createSessionUserSource(prisma: PrismaClient): SessionUserLookup {
+  const repository = createAuthUserRepository(prisma);
+  return (userId) => repository.findActiveSessionUser(userId);
 }
 
 /**

@@ -1,4 +1,4 @@
-// core/auth — sesi & token (PR-018). RBAC + registry menyusul di PR-019.
+// core/auth — sesi & token (PR-018) + RBAC & route registry (PR-019).
 //
 // PENTING: barrel ini di-import STATIS dari index.ts (gerbang fail-fast kunci
 // sesi). Jangan pernah menambahkan export yang menyentuh `@prisma/client` di
@@ -12,3 +12,23 @@ export {
   type RefreshMaterial,
   type TokenService,
 } from "./tokens.js";
+export {
+  access,
+  assertRoutesDeclared,
+  createRouteRegistry,
+  RouteAccessError,
+  type GuardsFor,
+  type RouteAccess,
+  type RouteEntry,
+  type RouteMethod,
+  type RouteRegistrar,
+  type RouteRegistry,
+} from "./registry.js";
+export {
+  authOf,
+  createAccessGuards,
+  type AccessGuardDeps,
+  type AccessGuards,
+  type AuthContext,
+  type SessionUserLookup,
+} from "./rbac.js";

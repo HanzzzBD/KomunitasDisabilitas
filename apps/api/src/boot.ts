@@ -15,12 +15,19 @@ import { createDbClient, createPrismaClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
 import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
 import { createHealthModule } from "./modules/health/index.js";
-import { createInternalModule } from "./modules/internal/index.js";
+import { createInternalAuth, createInternalModule } from "./modules/internal/index.js";
 import {
   createAuthModule,
   createGoogleConfigFromEnv,
   createOtpSenderFromEnv,
+  createSessionUserSource,
 } from "./modules/auth/index.js";
+import {
+  assertRoutesDeclared,
+  createAccessGuards,
+  createRouteRegistry,
+  createTokenService,
+} from "./core/auth/index.js";
 import {
   createQueueRegistry,
   createRawQueuePool,
@@ -65,19 +72,31 @@ export async function startApi(options: BootOptions): Promise<void> {
   });
   const dlqQueues = createRawQueuePool({ url: env.REDIS_QUEUE_URL });
 
+  // RBAC (PR-019). Penjaga dirakit SEKALI di sini — inilah composition root
+  // tempat core/auth (bebas Prisma) bertemu repository modul auth.
+  const guards = createAccessGuards({
+    // undefined = kunci RS256 kosong → route ber-sesi menjawab 503, bukan 401.
+    tokenService: sessionKeys === undefined ? undefined : createTokenService(sessionKeys),
+    findSessionUser: createSessionUserSource(prisma),
+    internalGuard: createInternalAuth(env.INTERNAL_TOKEN),
+  });
+  const routeRegistry = createRouteRegistry({ guardsFor: guards.guardsFor });
+
   const api = createServer(env, logger, {
     routes: (app) => {
-      app.use(createHealthModule(db, redis)); // /healthz /readyz (root, non-versioned)
+      // Prefix ada di argumen forModule(), bukan di app.use(): registrar
+      // menuliskan path penuh ke Express DAN ke registry sekaligus, jadi
+      // keduanya tidak mungkin berbeda (lihat core/auth/registry.ts).
+      app.use(createHealthModule(db, redis, routeRegistry.forModule(""))); // root, non-versioned
       app.use(
         createInternalModule({
           registry: queues,
           dlqQueueOf: (dlqName) => dlqQueues.queueOf(dlqName),
-          internalToken: env.INTERNAL_TOKEN,
+          routes: routeRegistry.forModule(""),
         }),
       );
       // Endpoint klien selalu di bawah /api/v1 (SDD §11).
       app.use(
-        "/api/v1",
         createAuthModule({
           prisma,
           redis: redis.cache,
@@ -91,12 +110,19 @@ export async function startApi(options: BootOptions): Promise<void> {
           sender: createOtpSenderFromEnv(env, logger),
           // undefined bila kredensial Google kosong → /auth/google jawab 503.
           google: createGoogleConfigFromEnv(env),
+          routes: routeRegistry.forModule("/api/v1"),
           auditLog,
           logger,
         }),
       );
     },
   });
+
+  // Gerbang terakhir sebelum listen: rute tanpa deklarasi akses (atau router di
+  // luar registry) membuat boot GAGAL — bukan API yang menyala setengah
+  // terbuka. Melempar RouteAccessError yang ditangkap index.ts lewat startApi.
+  assertRoutesDeclared(api.app, routeRegistry);
+  logger.info({ rute: routeRegistry.list().length }, "Deklarasi akses route lengkap");
 
   registerShutdownHooks(api, logger, undefined, async () => {
     // Setelah server berhenti menerima koneksi: tutup koneksi infra.

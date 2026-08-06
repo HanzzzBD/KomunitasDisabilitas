@@ -8,6 +8,7 @@ import type { PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
+import { registrarUji } from "./helpers/routes.js";
 import { createAuthModule, createOtpSenderFromEnv } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
@@ -121,8 +122,8 @@ async function boot(options: BootOptions = {}) {
   const api = createServer(env, logger, {
     routes: (app) => {
       app.use(
-        "/api/v1",
         createAuthModule({
+          routes: registrarUji("/api/v1"),
           prisma: fakePrisma(),
           redis: fakeRedis(),
           otpHashSecret: "otpHashSecret" in options ? options.otpHashSecret : SECRET,
