@@ -78,7 +78,7 @@ describe("repository profil (integration)", () => {
 
     const row = await repository.updateProfile(id, { fullName: NAMA_BARU });
 
-    expect(row?.fullName).toBe("Nama Baru");
+    expect(row?.fullName).toBe(NAMA_BARU);
     expect(row?.email).toBe(`tetap${EMAIL_SUFFIX}`);
   });
 
