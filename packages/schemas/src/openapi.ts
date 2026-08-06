@@ -17,6 +17,7 @@ import {
   refreshSessionSchema,
   refreshSessionResponseSchema,
 } from "./auth.js";
+import { updateMeSchema, meResponseSchema } from "./users.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -37,6 +38,20 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
         "Jangan edit openapi.json manual; jalankan pnpm --filter @nawasena/schemas gen:openapi.",
     },
     servers: [{ url: "/api/v1" }],
+    // Skema keamanan baku seluruh API (PR-020): access token RS256 di header
+    // Authorization. Endpoint pre-auth menyatakan `security: []` secara
+    // eksplisit — deny-by-default juga di dokumen, bukan hanya di kode.
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "Access token dari /auth/otp/verify, /auth/google, atau /auth/refresh",
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
     paths: {
       // Alur OTP (PR-016): request → verify. Pengiriman JWT menyusul di PR-018.
       "/auth/otp/request": {
@@ -187,6 +202,49 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           responses: {
             "204": { description: "Semua sesi pengguna diakhiri" },
             "400": errorResponse("Input tidak valid"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
+      // Profil akun (PR-020). Tidak ada `:userId` dengan sengaja: identitas
+      // diambil dari access token, sehingga tidak ada saluran input untuk
+      // menyebut pengguna lain.
+      "/me": {
+        get: {
+          operationId: "getMe",
+          tags: ["users"],
+          summary: "Profil akun sendiri",
+          description:
+            "Mengembalikan profil pengguna yang sedang masuk. Field internal " +
+            "(token version, google id, waktu hapus) tidak pernah disertakan.",
+          responses: {
+            "200": {
+              description: "Profil akun",
+              content: { "application/json": { schema: meResponseSchema } },
+            },
+            "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+        put: {
+          operationId: "updateMe",
+          tags: ["users"],
+          summary: "Perbarui profil akun sendiri",
+          description:
+            "Memperbarui nama dan/atau email. Field `email` yang tidak dikirim berarti " +
+            "tidak diubah; `null` mengosongkannya. Email harus belum dipakai akun aktif lain.",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: updateMeSchema } },
+          },
+          responses: {
+            "200": {
+              description: "Profil setelah diperbarui",
+              content: { "application/json": { schema: meResponseSchema } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
+            "409": errorResponse("Email tidak bisa dipakai"),
             "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
           },
         },

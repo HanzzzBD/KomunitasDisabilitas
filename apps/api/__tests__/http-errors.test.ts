@@ -35,6 +35,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Email Google Anda belum terverifikasi",
           "status": 403,
         },
+        "EMAIL_TIDAK_BISA_DIPAKAI": {
+          "hint": "Coba email lain, atau masuk dengan email tersebut bila itu milik Anda",
+          "message": "Email ini tidak bisa dipakai",
+          "status": 409,
+        },
         "GOOGLE_EXCHANGE_GAGAL": {
           "hint": "Ulangi dari tombol Masuk dengan Google; tautan masuk hanya berlaku sekali",
           "message": "Masuk dengan Google tidak berhasil",

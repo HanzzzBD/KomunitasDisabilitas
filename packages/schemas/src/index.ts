@@ -2,6 +2,7 @@
 // Satu file per domain; fondasi bersama di ./common.js.
 export * from "./common.js";
 export * from "./auth.js";
+export * from "./users.js";
 export * from "./accessibility.js";
 export * from "./profiles.js";
 export * from "./resumes.js";

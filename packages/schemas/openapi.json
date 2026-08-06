@@ -10,6 +10,11 @@
       "url": "/api/v1"
     }
   ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
     "/auth/otp/request": {
       "post": {
@@ -374,9 +379,129 @@
           }
         }
       }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Profil akun sendiri",
+        "description": "Mengembalikan profil pengguna yang sedang masuk. Field internal (token version, google id, waktu hapus) tidak pernah disertakan.",
+        "responses": {
+          "200": {
+            "description": "Profil akun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Perbarui profil akun sendiri",
+        "description": "Memperbarui nama dan/atau email. Field `email` yang tidak dikirim berarti tidak diubah; `null` mengosongkannya. Email harus belum dipakai akun aktif lain.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMe"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email tidak bisa dipakai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token dari /auth/otp/verify, /auth/google, atau /auth/refresh"
+      }
+    },
     "schemas": {
       "RequestOtp": {
         "type": "object",
@@ -645,6 +770,102 @@
           "accessToken",
           "expiresIn"
         ]
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Me"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Kosong bila belum diisi saat onboarding"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Alamat email pengguna",
+            "example": "rina@contoh.id"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "seeker",
+              "admin",
+              "employer"
+            ],
+            "description": "Peran pengguna",
+            "example": "seeker"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "phone",
+          "role",
+          "createdAt"
+        ],
+        "description": "Profil akun milik pengguna yang sedang masuk"
+      },
+      "UpdateMe": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80,
+            "description": "Nama lengkap pengguna",
+            "example": "Rina Pratiwi"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Tidak dikirim = tidak diubah; null = dikosongkan",
+            "example": "rina@contoh.id"
+          }
+        },
+        "required": [
+          "fullName"
+        ],
+        "description": "Perbarui profil akun sendiri"
       }
     }
   }
