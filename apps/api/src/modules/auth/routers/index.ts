@@ -1,4 +1,11 @@
-// modules/auth — router. Path relatif; entry point memasangnya di /api/v1.
+// modules/auth — router. Path ditulis relatif; prefix `/api/v1` dipegang
+// registrar (PR-019), yang juga mencatat deklarasi akses tiap rute.
+//
+// SELURUH rute di file ini `access.public` — dan itu bukan kelalaian: ketiganya
+// adalah pintu masuk bagi pemanggil yang MEMANG belum punya access token. OTP
+// dan Google membuktikan diri dengan kredensialnya masing-masing; refresh dan
+// logout membuktikan diri dengan refresh token yang mereka bawa. Menjaga mereka
+// dengan `requireAuth` berarti mensyaratkan sesi untuk membuat sesi.
 //
 // Kedua metode masuk (OTP & Google) berdiri sendiri: masing-masing punya
 // kredensial sendiri dan boleh mati sendiri. Controller yang `null` berarti
@@ -6,13 +13,14 @@
 // bukan 404. Bedanya penting: 404 membuat klien mengira endpoint-nya salah,
 // 503 memberitahu bahwa fiturnya sedang tidak tersedia dan menyarankan jalan
 // masuk yang lain.
-import { Router } from "express";
+import type { Router } from "express";
 import {
   googleAuthSchema,
   refreshSessionSchema,
   requestOtpSchema,
   verifyOtpSchema,
 } from "@nawasena/schemas";
+import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { appError, asyncHandler, validate } from "../../../core/http/index.js";
 import type { OtpController } from "../controllers/otp.controller.js";
 import type { GoogleController } from "../controllers/google.controller.js";
@@ -27,6 +35,10 @@ export interface AuthControllers {
   session: SessionController | null;
 }
 
+/** Alasan keterbukaan — tercatat di registry dan terbaca saat review (PR-106). */
+const ALASAN_LOGIN = "pintu masuk: pemanggil belum punya sesi";
+const ALASAN_SESI = "dikredensial oleh refresh token yang dibawa, bukan access token";
+
 /** Handler "fitur ini belum tersedia" dengan saran metode masuk pengganti. */
 function tertutup(pesan: string, saran: string) {
   return asyncHandler(() => {
@@ -34,40 +46,68 @@ function tertutup(pesan: string, saran: string) {
   });
 }
 
-export function createAuthRouter(controllers: AuthControllers): Router {
-  const router = Router();
+export function createAuthRouter(controllers: AuthControllers, routes: RouteRegistrar): Router {
   const { otp, google, session } = controllers;
 
   // Perpanjangan sesi (PR-018b). Tanpa kunci RS256 endpoint ini menjawab 503 —
   // sama seperti kedua metode masuk, yang juga ikut tertutup karena login yang
   // tidak bisa menerbitkan sesi bukan login.
   if (session === null) {
-    router.all(
+    routes.all(
       ["/auth/refresh", "/auth/logout", "/auth/logout-all"],
+      access.public(ALASAN_SESI),
       tertutup("Perpanjangan sesi belum tersedia", "Coba lagi nanti, atau masuk ulang"),
     );
   } else {
     const bodySesi = validate({ body: refreshSessionSchema });
-    router.post("/auth/refresh", bodySesi, asyncHandler(session.refresh));
+    routes.post("/auth/refresh", access.public(ALASAN_SESI), bodySesi, asyncHandler(session.refresh));
     // Keluar (PR-018c). Kredensialnya refresh token itu sendiri — `requireAuth`
-    // baru lahir di PR-019, dan menunggunya berarti pengguna tidak punya cara
-    // mengakhiri sesinya sama sekali sampai saat itu.
-    router.post("/auth/logout", bodySesi, asyncHandler(session.logout));
-    router.post("/auth/logout-all", bodySesi, asyncHandler(session.logoutAll));
+    // sudah ada sejak PR-019, tetapi memakainya di sini akan membuat pengguna
+    // yang access token-nya baru kedaluwarsa tidak bisa keluar sama sekali.
+    routes.post("/auth/logout", access.public(ALASAN_SESI), bodySesi, asyncHandler(session.logout));
+    routes.post(
+      "/auth/logout-all",
+      access.public(ALASAN_SESI),
+      bodySesi,
+      asyncHandler(session.logoutAll),
+    );
   }
 
   if (otp === null) {
-    router.all("/auth/otp/*", tertutup("Masuk dengan kode OTP belum tersedia", "Coba lagi nanti, atau masuk dengan Google"));
+    routes.all(
+      "/auth/otp/*",
+      access.public(ALASAN_LOGIN),
+      tertutup("Masuk dengan kode OTP belum tersedia", "Coba lagi nanti, atau masuk dengan Google"),
+    );
   } else {
-    router.post("/auth/otp/request", validate({ body: requestOtpSchema }), asyncHandler(otp.request));
-    router.post("/auth/otp/verify", validate({ body: verifyOtpSchema }), asyncHandler(otp.verify));
+    routes.post(
+      "/auth/otp/request",
+      access.public(ALASAN_LOGIN),
+      validate({ body: requestOtpSchema }),
+      asyncHandler(otp.request),
+    );
+    routes.post(
+      "/auth/otp/verify",
+      access.public(ALASAN_LOGIN),
+      validate({ body: verifyOtpSchema }),
+      asyncHandler(otp.verify),
+    );
   }
 
   if (google === null) {
-    router.all("/auth/google", tertutup("Masuk dengan Google belum tersedia", "Coba lagi nanti, atau masuk dengan kode OTP"));
+    routes.all(
+      "/auth/google",
+      access.public(ALASAN_LOGIN),
+      tertutup("Masuk dengan Google belum tersedia", "Coba lagi nanti, atau masuk dengan kode OTP"),
+    );
   } else {
-    router.post("/auth/google", validate({ body: googleAuthSchema }), asyncHandler(google.login));
+    routes.post(
+      "/auth/google",
+      access.public(ALASAN_LOGIN),
+      validate({ body: googleAuthSchema }),
+      asyncHandler(google.login),
+    );
   }
 
-  return router;
+  return routes.router;
 }

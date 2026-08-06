@@ -6,6 +6,7 @@ import type { PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
+import { registrarUji } from "./helpers/routes.js";
 import { createAuthModule } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import { uuidV7 } from "../src/core/ids/index.js";
@@ -71,8 +72,8 @@ async function boot(options: { sessionKeys?: typeof SESSION_KEYS; deleted?: bool
   const api = createServer(env, logger, {
     routes: (app) => {
       app.use(
-        "/api/v1",
         createAuthModule({
+          routes: registrarUji("/api/v1"),
           prisma,
           redis: fakeRedis(),
           otpHashSecret: undefined,

@@ -7,6 +7,7 @@ import { createRedisClients } from "../src/core/redis/index.js";
 import { createHealthService } from "../src/modules/health/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
+import { registrarUji } from "./helpers/routes.js";
 import type { DbClient } from "../src/core/db/index.js";
 import type { RedisClients } from "../src/core/redis/index.js";
 
@@ -99,7 +100,7 @@ async function bootWithDeadDeps() {
   );
   const api = createServer(env, logger, {
     routes: (app) => {
-      app.use(createHealthModule(db, redis));
+      app.use(createHealthModule(db, redis, registrarUji()));
     },
   });
   const { port } = await api.start();
