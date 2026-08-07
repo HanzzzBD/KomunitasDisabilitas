@@ -4,7 +4,7 @@
 // sebagai HTTP 200 dengan body `{"status": false, "reason": "..."}`. Memeriksa
 // status HTTP saja akan menganggap pesan terkirim padahal tidak — dan pengguna
 // menunggu kode yang tidak pernah datang.
-import { buildOtpMessage, OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { OtpSenderError, type OtpSender } from "./otp-sender.js";
 
 /** Bagian `fetch` yang dipakai adapter — memudahkan injeksi di test. */
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -37,7 +37,7 @@ export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike):
   return {
     name: FONNTE_PROVIDER,
 
-    async send({ phone, code }) {
+    async send({ phone, text }) {
       let response: Response;
       try {
         response = await kirim(`${config.baseUrl}/send`, {
@@ -49,7 +49,7 @@ export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike):
           },
           body: new URLSearchParams({
             target: phone,
-            message: buildOtpMessage(code),
+            message: text,
             countryCode: "62",
           }).toString(),
           signal: AbortSignal.timeout(config.timeoutMs),

@@ -8,7 +8,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { AUDIT_ACTION } from "@nawasena/schemas";
 import { AppError } from "../src/core/http/index.js";
-import { createAccountService } from "../src/modules/auth/index.js";
+import {
+  buildAccountDeletedMessage,
+  createAccountService,
+  HARI_SEBELUM_PURGE,
+} from "../src/modules/auth/index.js";
+import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
 import type { AuthUserRepository } from "../src/modules/auth/repositories/user.repository.js";
 
 const USER_ID = "01912345-89ab-7def-8123-000000000001";
@@ -291,6 +296,143 @@ describe("hapus akun — keadaan akun", () => {
       code: "SESI_TIDAK_VALID",
     });
     expect(audit.tahap()).toEqual(["requested"]);
+  });
+});
+
+/** Sender penangkap; `gagal: true` meniru provider yang mati. */
+function fakeSender(opsi: { gagal?: boolean } = {}) {
+  const terkirim: Array<{ phone: string; text: string }> = [];
+  const sender: OtpSender = {
+    name: "uji",
+    async send(pesan) {
+      if (opsi.gagal === true) throw new Error("provider mati");
+      terkirim.push({ ...pesan });
+    },
+  };
+  return { sender, terkirim };
+}
+
+/** Beri kesempatan pengiriman fire-and-forget menyelesaikan microtask-nya. */
+const tungguSebentar = () => new Promise((r) => setTimeout(r, 0));
+
+describe("pemberitahuan pasca-hapus", () => {
+  it("isi pesan menyebut apa yang terjadi, batas waktu, dan cara melapor", () => {
+    // Ketiganya adalah SELURUH gunanya. Pesan yang hanya berkata "akun dihapus"
+    // tidak memberi korban satu pun langkah berikutnya.
+    const pesan = buildAccountDeletedMessage();
+    expect(pesan).toContain("Nawasena");
+    expect(pesan).toContain("dihapus");
+    expect(pesan).toContain(String(HARI_SEBELUM_PURGE));
+    expect(pesan).toMatch(/hubungi kami/i);
+    // Tanpa tautan: pesan yang meminta orang mengeklik sesuatu tepat setelah
+    // kejadian mencurigakan punya bentuk yang sama dengan phishing.
+    expect(pesan).not.toMatch(/https?:\/\//);
+  });
+
+  it("terkirim ke nomor akun setelah penghapusan berhasil", async () => {
+    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null }, { revokedCount: 1 });
+    const { sender, terkirim } = fakeSender();
+    const service = createAccountService({
+      userRepository: repository,
+      otp: { konfirmasiKode: async () => {} },
+      sender,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { otpCode: "482913" });
+    await tungguSebentar();
+
+    expect(terkirim).toEqual([{ phone: PHONE, text: buildAccountDeletedMessage() }]);
+  });
+
+  it("TIDAK terkirim saat konfirmasi gagal — akunnya masih utuh", async () => {
+    // Pesan "akun Anda sudah dihapus" untuk akun yang tidak jadi dihapus adalah
+    // kepanikan yang kita ciptakan sendiri.
+    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null });
+    const { sender, terkirim } = fakeSender();
+    const service = createAccountService({
+      userRepository: repository,
+      otp: {
+        konfirmasiKode: async () => {
+          throw new AppError("KODE_OTP_SALAH");
+        },
+      },
+      sender,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { otpCode: "000000" }).catch(() => undefined);
+    await tungguSebentar();
+
+    expect(terkirim).toEqual([]);
+  });
+
+  it("provider mati TIDAK menggagalkan penghapusan", async () => {
+    // Akunnya sudah terhapus saat pengiriman dicoba. Melempar di titik ini akan
+    // membuat pengguna mengira penghapusannya gagal, lalu mencobanya lagi.
+    const { repository, dipanggil } = fakeUserRepository(
+      { phone: PHONE, googleId: null },
+      { revokedCount: 0 },
+    );
+    const warn = vi.fn();
+    const service = createAccountService({
+      userRepository: repository,
+      otp: { konfirmasiKode: async () => {} },
+      sender: fakeSender({ gagal: true }).sender,
+      auditLog: fakeAudit().auditLog,
+      logger: { warn },
+    });
+
+    await expect(service.deleteAccount(actor, { otpCode: "482913" })).resolves.toEqual({
+      revokedCount: 0,
+    });
+    await tungguSebentar();
+
+    expect(dipanggil.hapus).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    // Nomor tujuan TIDAK ikut ke log: yang berguna saat menyelidiki adalah
+    // provider mana yang gagal, bukan siapa yang tidak menerimanya.
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(PHONE);
+  });
+
+  it("akun tanpa nomor: penghapusan tetap berjalan, tidak ada yang dikirim", async () => {
+    const { repository, dipanggil } = fakeUserRepository(
+      { phone: null, googleId: GOOGLE_ID },
+      { revokedCount: 0 },
+    );
+    const { sender, terkirim } = fakeSender();
+    const service = createAccountService({
+      userRepository: repository,
+      google: fakeGoogle(GOOGLE_ID),
+      sender,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { google: GOOGLE_INPUT });
+    await tungguSebentar();
+
+    expect(dipanggil.hapus).toBe(1);
+    // Celah yang diketahui: pengguna Google-only tidak punya kanal apa pun
+    // sampai verifikasi email ada. Diuji supaya ia tetap terlihat sebagai
+    // keputusan, bukan hilang menjadi asumsi.
+    expect(terkirim).toEqual([]);
+  });
+
+  it("tanpa provider sama sekali: penghapusan tetap berjalan", async () => {
+    const { repository, dipanggil } = fakeUserRepository(
+      { phone: PHONE, googleId: null },
+      { revokedCount: 0 },
+    );
+    const service = createAccountService({
+      userRepository: repository,
+      otp: { konfirmasiKode: async () => {} },
+      sender: undefined,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { otpCode: "482913" });
+
+    expect(dipanggil.hapus).toBe(1);
   });
 });
 

@@ -109,9 +109,13 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
   };
 }
 
-/** Sender penangkap: menyimpan kode agar test bisa "membaca WhatsApp". */
+/** Kode dibaca kembali dari ISI pesan — pintu yang sama dengan yang dipakai
+ *  pengguna, bukan field terpisah yang hanya ada di test (PR-021b). */
+const kodeDari = (text: string): string => /\b(\d{6})\b/.exec(text)?.[1] ?? "";
+
+/** Sender penangkap: menyimpan pesan agar test bisa "membaca WhatsApp". */
 function createCapturingSender() {
-  const terkirim: Array<{ phone: string; code: string }> = [];
+  const terkirim: Array<{ phone: string; text: string }> = [];
   const sender: OtpSender = {
     name: "uji",
     async send(message) {
@@ -182,7 +186,7 @@ describe("generateOtpCode", () => {
 describe("penyimpanan OTP (AC: tidak pernah plaintext)", () => {
   it("tidak ada nilai Redis yang memuat kode, dan tidak ada kunci memuat nomor", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const code = ctx.terkirim[0]?.code ?? "";
+    const code = kodeDari(ctx.terkirim[0]?.text ?? "");
     expect(code).toMatch(/^\d{6}$/);
 
     for (const [key, value] of ctx.nilai) {
@@ -236,7 +240,7 @@ describe("verify", () => {
   it("kode benar → find-or-create user baru (AC)", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
     const hasil = await ctx.service.verify(
-      { phone: PHONE, code: ctx.terkirim[0]!.code },
+      { phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) },
       ACTOR,
     );
     expect(hasil.isNewUser).toBe(true);
@@ -254,7 +258,7 @@ describe("verify", () => {
 
   it("verify menerbitkan pasangan token (PR-018b)", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const hasil = await ctx.service.verify({ phone: PHONE, code: ctx.terkirim[0]!.code }, ACTOR);
+    const hasil = await ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR);
 
     expect(ctx.sessionIssue).toHaveBeenCalledWith(hasil.userId);
     expect(hasil.tokens.accessToken).toBe("access-uji");
@@ -270,7 +274,7 @@ describe("verify", () => {
     const lain = setup({ userId: "01912345-89ab-7def-8123-0000000000aa" });
     await lain.service.request({ phone: PHONE }, ACTOR);
     const hasil = await lain.service.verify(
-      { phone: PHONE, code: lain.terkirim[0]!.code },
+      { phone: PHONE, code: kodeDari(lain.terkirim[0]!.text) },
       ACTOR,
     );
     expect(hasil).toMatchObject({
@@ -288,7 +292,7 @@ describe("verify", () => {
 
   it("kode salah → 401 dengan sisa percobaan pada hint", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const salah = ctx.terkirim[0]!.code === "000000" ? "111111" : "000000";
+    const salah = kodeDari(ctx.terkirim[0]!.text) === "000000" ? "111111" : "000000";
     const err = await tangkap(() => ctx.service.verify({ phone: PHONE, code: salah }, ACTOR));
     expect(err.code).toBe("KODE_OTP_SALAH");
     expect(err.hint).toContain("Sisa 4 percobaan");
@@ -298,7 +302,7 @@ describe("verify", () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
     ctx.redis.majukanWaktu(OTP_POLICY.ttlSeconds + 1);
     const err = await tangkap(() =>
-      ctx.service.verify({ phone: PHONE, code: ctx.terkirim[0]!.code }, ACTOR),
+      ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR),
     );
     expect(err.code).toBe("KODE_OTP_HANGUS");
   });
@@ -306,7 +310,7 @@ describe("verify", () => {
 
 describe("lockout progresif (AC: percobaan ke-6 → OTP hangus + audit)", () => {
   async function gagalBerulang(kali: number) {
-    const kodeBenar = ctx.terkirim[ctx.terkirim.length - 1]!.code;
+    const kodeBenar = kodeDari(ctx.terkirim[ctx.terkirim.length - 1]!.text);
     const salah = kodeBenar === "000000" ? "111111" : "000000";
     const errors: AppError[] = [];
     for (let i = 0; i < kali; i += 1) {
@@ -317,7 +321,7 @@ describe("lockout progresif (AC: percobaan ke-6 → OTP hangus + audit)", () => 
 
   it("percobaan ke-6 menghanguskan kode, mengunci 5 menit, dan ter-audit", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const kodeBenar = ctx.terkirim[0]!.code;
+    const kodeBenar = kodeDari(ctx.terkirim[0]!.text);
 
     const errors = await gagalBerulang(OTP_POLICY.maxAttempts + 1);
     expect(errors.slice(0, 5).map((e) => e.code)).toEqual(Array(5).fill("KODE_OTP_SALAH"));

@@ -161,7 +161,12 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
         userRepository,
         otp: otpService,
         google: googleReauth,
+        // Kanal yang sama dengan OTP (Fonnte → Twilio). Pemberitahuan pasca-hapus
+        // adalah jaring pengaman, bukan syarat: tanpa provider, penghapusan tetap
+        // berjalan dan hanya pemberitahuannya yang tidak terkirim.
+        sender: deps.sender,
         auditLog: deps.auditLog,
+        logger: deps.logger,
       }),
       cookie,
     });
@@ -238,7 +243,9 @@ export {
 } from "./services/google-token.js";
 export { createGoogleService, type GoogleService } from "./services/google.service.js";
 export {
+  buildAccountDeletedMessage,
   createAccountService,
+  HARI_SEBELUM_PURGE,
   type AccountActor,
   type AccountService,
   type MetodeKonfirmasi,

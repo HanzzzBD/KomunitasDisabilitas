@@ -230,6 +230,7 @@ async function boot(options: BootOptions = {}) {
   const audit: Array<{ action: AuditAction; entityId: string | null; meta: unknown }> = [];
   const { prisma, refreshRows } = fakePrisma(rows);
   const redis = fakeRedis();
+  const terkirim: Array<{ phone: string; text: string }> = [];
 
   // Kode "terkirim" ditanam lewat repository yang SAMA dengan yang dipakai
   // produksi — bukan dengan menulis kunci Redis dengan tangan. Hash ber-pepper
@@ -260,6 +261,12 @@ async function boot(options: BootOptions = {}) {
           redis,
           otpHashSecret: options.otpAktif === false ? undefined : OTP_SECRET,
           sessionKeys: SESSION_KEYS,
+          sender: {
+            name: "uji",
+            async send(pesan) {
+              terkirim.push({ ...pesan });
+            },
+          },
           google:
             options.googleAktif === false
               ? undefined
@@ -274,7 +281,7 @@ async function boot(options: BootOptions = {}) {
   });
   const { port } = await api.start();
   active = api;
-  return { base: `http://127.0.0.1:${port}/api/v1`, rows, refreshRows, audit, logSink };
+  return { base: `http://127.0.0.1:${port}/api/v1`, rows, refreshRows, audit, logSink, terkirim };
 }
 
 async function tokenUntuk(userId: string, ver = 0): Promise<string> {
@@ -341,6 +348,20 @@ describe("DELETE /api/v1/auth/account — konfirmasi kode OTP", () => {
     await hapus(base, await tokenUntuk(USER_OTP), { otpCode: KODE_OTP });
 
     expect(rows.some((u) => u.id === USER_OTP)).toBe(true);
+  });
+
+  it("pemberitahuan terkirim ke nomor pemilik — perakitan modulnya tersambung", async () => {
+    // Yang HANYA bisa dibuktikan di sini: `sender` benar-benar sampai dari
+    // deps modul ke service. Unit test memasangnya langsung, jadi kabel yang
+    // putus di createAuthModule akan tetap hijau di sana dan diam di produksi.
+    const { base, terkirim } = await boot({ kodeTersimpan: KODE_OTP });
+
+    await hapus(base, await tokenUntuk(USER_OTP), { otpCode: KODE_OTP });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(terkirim).toHaveLength(1);
+    expect(terkirim[0]?.phone).toBe(PHONE);
+    expect(terkirim[0]?.text).toContain("30 hari");
   });
 
   it("cookie refresh dibuang bersama sesinya", async () => {
