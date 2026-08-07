@@ -365,4 +365,6 @@ Phase 18 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 
 ## Next Phase
 
-Tidak ada - v1.0.0 live. Lanjutan: roadmap Fase 2 produk (ADR-013), retrospektif rilis, dan backlog known-issues non-blocker dari audit a11y (PR-110).
+[Phase 19 - Community (pasca-MVP)](phase-19-community.md) - PR-113..PR-119, dikerjakan setelah v1.0.0 stabil (bukan bagian sprint MVP).
+
+Selain itu: roadmap Fase 2 produk (ADR-013), retrospektif rilis, dan backlog known-issues non-blocker dari audit a11y (PR-110).

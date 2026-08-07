@@ -162,6 +162,17 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Daftar nama variabel yang dikenali API. Diekspor untuk SATU pemakai:
+ * test yang memastikan setiap variabel di sini juga muncul di
+ * `apps/api/.env.example` (boleh sebagai baris berkomentar untuk yang opsional).
+ *
+ * Tanpa penjaga itu, variabel baru bisa ditambahkan di sini dan tidak pernah
+ * sampai ke template — persis yang terjadi pada `INTERNAL_TOKEN`, yang selama
+ * beberapa PR tidak punya satu pun petunjuk keberadaannya bagi operator.
+ */
+export const ENV_KEYS = Object.keys(envSchema.shape).sort();
+
 /** Error konfigurasi: memuat daftar variabel bermasalah untuk pesan fail-fast. */
 export class EnvError extends Error {
   /** [nama variabel, alasan] — dipakai entry point untuk pesan yang jelas. */
