@@ -70,7 +70,58 @@ export function createOtpService(deps: OtpServiceDeps) {
     throw appError("TERLALU_BANYAK_PERCOBAAN", { retryAfterSeconds: sisa });
   }
 
+  /**
+   * Cocokkan kode untuk sebuah nomor: lockout → kode masih ada → pencacah
+   * percobaan → cocok → hanguskan. TIDAK menyentuh tabel users dan tidak
+   * menerbitkan sesi apa pun.
+   *
+   * Dipisah dari `verify()` karena konfirmasi hapus akun (PR-021) memerlukan
+   * pembuktian yang SAMA PERSIS tanpa akibat login. Menyalinnya ke sana akan
+   * melahirkan tangga lockout kedua yang bebas menyimpang — dan pencacah yang
+   * tidak sinkron pada jalur anti-brute-force adalah kelemahan yang tidak
+   * menimbulkan gejala sampai ada yang memanfaatkannya.
+   *
+   * Kegagalannya tetap diaudit sebagai AUTH_LOGIN_FAILED apa pun pemanggilnya:
+   * yang terjadi memang percobaan kredensial yang gagal atas nomor itu, dan
+   * memisahkan sinyalnya per-pemanggil justru memecah pola yang ingin dilihat.
+   */
+  async function konfirmasiKode(phone: string, code: string, actor: OtpActor): Promise<void> {
+    await tolakBilaTerkunci(phone, actor);
+
+    const hash = await otpRepository.readCodeHash(phone);
+    if (hash === null) {
+      auditGagal(actor, "otpInvalid");
+      throw appError("KODE_OTP_HANGUS");
+    }
+
+    const percobaan = await otpRepository.bumpAttempt(phone, OTP_POLICY.ttlSeconds);
+    if (percobaan > OTP_POLICY.maxAttempts) {
+      // Percobaan ke-6: kode hangus, lockout progresif menyala.
+      await otpRepository.dropCode(phone);
+      const strike = await otpRepository.bumpStrike(phone, OTP_POLICY.strikeWindowSeconds);
+      const kunciDetik = lockoutSecondsFor(strike);
+      await otpRepository.lock(phone, kunciDetik);
+      auditGagal(actor, "accountLocked");
+      throw appError("TERLALU_BANYAK_PERCOBAAN", { retryAfterSeconds: kunciDetik });
+    }
+
+    if (!otpRepository.matches(phone, code, hash)) {
+      auditGagal(actor, "otpInvalid");
+      const sisa = OTP_POLICY.maxAttempts - percobaan;
+      throw appError("KODE_OTP_SALAH", {
+        hint:
+          sisa > 0
+            ? `Sisa ${sisa} percobaan sebelum kode dihanguskan`
+            : "Percobaan berikutnya akan menghanguskan kode — minta kode baru",
+      });
+    }
+
+    await otpRepository.clearAfterSuccess(phone);
+  }
+
   return {
+    konfirmasiKode,
+
     /** POST /auth/otp/request — kirim kode baru bila kuota masih ada. */
     async request(input: RequestOtp, actor: OtpActor): Promise<{ retryAfterSeconds: number }> {
       const { phone } = input;
@@ -119,37 +170,7 @@ export function createOtpService(deps: OtpServiceDeps) {
       actor: OtpActor,
     ): Promise<{ userId: string; isNewUser: boolean; tokens: SessionTokens }> {
       const { phone, code } = input;
-      await tolakBilaTerkunci(phone, actor);
-
-      const hash = await otpRepository.readCodeHash(phone);
-      if (hash === null) {
-        auditGagal(actor, "otpInvalid");
-        throw appError("KODE_OTP_HANGUS");
-      }
-
-      const percobaan = await otpRepository.bumpAttempt(phone, OTP_POLICY.ttlSeconds);
-      if (percobaan > OTP_POLICY.maxAttempts) {
-        // Percobaan ke-6: kode hangus, lockout progresif menyala.
-        await otpRepository.dropCode(phone);
-        const strike = await otpRepository.bumpStrike(phone, OTP_POLICY.strikeWindowSeconds);
-        const kunciDetik = lockoutSecondsFor(strike);
-        await otpRepository.lock(phone, kunciDetik);
-        auditGagal(actor, "accountLocked");
-        throw appError("TERLALU_BANYAK_PERCOBAAN", { retryAfterSeconds: kunciDetik });
-      }
-
-      if (!otpRepository.matches(phone, code, hash)) {
-        auditGagal(actor, "otpInvalid");
-        const sisa = OTP_POLICY.maxAttempts - percobaan;
-        throw appError("KODE_OTP_SALAH", {
-          hint:
-            sisa > 0
-              ? `Sisa ${sisa} percobaan sebelum kode dihanguskan`
-              : "Percobaan berikutnya akan menghanguskan kode — minta kode baru",
-        });
-      }
-
-      await otpRepository.clearAfterSuccess(phone);
+      await konfirmasiKode(phone, code, actor);
       const user = await userRepository.findOrCreateByPhone(phone);
 
       // Sesi diterbitkan SETELAH kode dihanguskan: bila penerbitan gagal,

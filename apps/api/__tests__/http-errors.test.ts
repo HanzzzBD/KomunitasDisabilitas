@@ -30,6 +30,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Layanan sedang tidak siap",
           "status": 503,
         },
+        "CARA_KONFIRMASI_TIDAK_COCOK": {
+          "hint": "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
+          "message": "Cara konfirmasi itu tidak bisa dipakai untuk akun Anda",
+          "status": 400,
+        },
         "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
           "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
           "message": "Email Google Anda belum terverifikasi",
@@ -64,6 +69,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Periksa kembali kode dari WhatsApp atau SMS",
           "message": "Kode yang Anda masukkan salah",
           "status": 401,
+        },
+        "KONFIRMASI_GOOGLE_BEDA_AKUN": {
+          "hint": "Ulangi dan pilih akun Google yang Anda pakai untuk masuk ke Nawasena",
+          "message": "Akun Google yang Anda pakai berbeda dengan akun ini",
+          "status": 403,
+        },
+        "KONFIRMASI_TIDAK_TERSEDIA": {
+          "hint": "Coba lagi beberapa saat, atau hubungi kami untuk dibantu menghapus akun",
+          "message": "Kami belum bisa memastikan identitas Anda saat ini",
+          "status": 503,
         },
         "RUTE_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali alamat yang Anda tuju",

@@ -17,6 +17,7 @@ import {
   refreshSessionSchema,
   refreshSessionResponseSchema,
 } from "./auth.js";
+import { deleteAccountSchema } from "./auth.js";
 import { updateMeSchema, meResponseSchema } from "./users.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
@@ -203,6 +204,36 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "204": { description: "Semua sesi pengguna diakhiri" },
             "400": errorResponse("Input tidak valid"),
             "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
+      // Hapus akun (PR-021, hak hapus UU PDP). SATU-SATUNYA endpoint /auth/*
+      // yang menuntut access token — ia bukan pintu masuk, melainkan aksi atas
+      // akun yang sudah masuk. Body-nya membawa BUKTI ULANG kepemilikan, sebab
+      // access token saja hanya membuktikan perangkat ini pernah dipakai masuk.
+      "/auth/account": {
+        delete: {
+          operationId: "deleteAccount",
+          tags: ["auth"],
+          summary: "Hapus akun sendiri",
+          description:
+            "Menghapus akun pemilik sesi (soft delete) dan mencabut seluruh sesinya dalam satu " +
+            "transaksi. Wajib disertai konfirmasi ulang identitas: kode OTP baru ke nomor " +
+            "terdaftar, atau consent Google yang `sub`-nya cocok dengan akun. Data disimpan " +
+            "maksimal 30 hari sebelum purge, sehingga penghapusan keliru masih bisa dibatalkan " +
+            "lewat dukungan pelanggan.",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: deleteAccountSchema } },
+          },
+          responses: {
+            "204": { description: "Akun dihapus dan seluruh sesi dicabut" },
+            "400": errorResponse("Input tidak valid, atau cara konfirmasi tidak dimiliki akun ini"),
+            "401": errorResponse("Belum masuk, sesi berakhir, atau kode OTP salah"),
+            "403": errorResponse("Akun Google yang dipakai berbeda dengan akun ini"),
+            "410": errorResponse("Kode OTP hangus atau kedaluwarsa — minta kode baru"),
+            "429": errorResponse("Percobaan terkunci sementara — lihat header Retry-After"),
+            "503": errorResponse("Identitas belum bisa dipastikan (kredensial server tidak lengkap)"),
           },
         },
       },

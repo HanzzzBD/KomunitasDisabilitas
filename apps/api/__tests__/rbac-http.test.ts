@@ -183,7 +183,7 @@ describe("matriks awal — requireAuth", () => {
 });
 
 describe("router auth nyata", () => {
-  it("seluruh endpoint auth terdeklarasi, dan semuanya publik dengan alasan", () => {
+  it("seluruh endpoint auth terdeklarasi; hanya hapus akun yang menuntut sesi", () => {
     const registry = createRouteRegistry({ guardsFor: () => [] });
     createAuthModule({
       routes: registry.forModule("/api/v1"),
@@ -197,15 +197,24 @@ describe("router auth nyata", () => {
 
     const daftar = registry.list();
     expect(daftar.map((e) => `${e.method} ${e.path}`)).toEqual([
+      "DELETE /api/v1/auth/account",
       "ALL /api/v1/auth/google",
       "POST /api/v1/auth/logout",
       "POST /api/v1/auth/logout-all",
       "ALL /api/v1/auth/otp/*",
       "POST /api/v1/auth/refresh",
     ]);
+
+    // Hapus akun (PR-021) adalah SATU-SATUNYA route auth yang bukan pintu
+    // masuk. Diperiksa terpisah — bukan dikecualikan dari perulangan di bawah —
+    // supaya route baru yang diam-diam ikut menuntut sesi tetap terlihat.
+    const [hapusAkun, ...pintuMasuk] = daftar;
+    expect(hapusAkun?.path).toBe("/api/v1/auth/account");
+    expect(hapusAkun?.access.kind).toBe("authenticated");
+
     // Keterbukaan pintu masuk harus selalu punya alasan tertulis — itulah yang
     // membuat review PR-106 bisa membedakan "publik karena perlu" dari lupa.
-    for (const entry of daftar) {
+    for (const entry of pintuMasuk) {
       expect(entry.access.kind).toBe("public");
       expect(entry.access).toHaveProperty("reason");
     }

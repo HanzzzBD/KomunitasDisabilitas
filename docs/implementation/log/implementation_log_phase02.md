@@ -875,3 +875,93 @@ kita memperlakukan alamat yang **diketik sendiri** setara dengan alamat yang
 * **PR-021** — hapus akun: `email_verified` ikut hilang bersama barisnya; tidak ada tindakan tambahan.
 * **PR-033** — UI pengaturan perlu menjelaskan bahwa email yang baru diketik belum terverifikasi, supaya pengguna tidak mengira dirinya sudah bisa memakai login Google.
 * **PR-106** — matriks authz; tidak terpengaruh.
+
+## PR-021 — Hapus Akun (Soft Delete + Revoke)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-021---hapus-akun-soft-delete--revoke)
+> **Tanggal:** 2026-08-07
+> **Status:** Selesai — seluruh AC terpenuhi
+> **Branch:** `pr-021-hapus-akun` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+Hak hapus UU PDP (PRD FR-1.4) punya endpointnya: `DELETE /api/v1/auth/account`.
+Tiga hal lahir bersamanya — penjaga soft delete global di `core/db`, konfirmasi
+ulang identitas dua jalur (OTP dan Google), dan penghapusan yang berlangsung
+dalam satu transaksi lintas dua tabel.
+
+Sebagian besar fondasinya sudah disiapkan PR sebelumnya tanpa pernah dipakai:
+`RefreshRevokedReason.account_deleted` ada sejak migrasi 01, `ACCOUNT_DELETED`
+ada di katalog audit sejak PR-014, dan `deleted_at` sudah disaring semua query
+login sejak PR-016. Yang belum ada adalah yang menyalakannya.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **529 test lulus** (naik dari 485; 44 test baru), 1 skip.
+`check:openapi` sinkron.
+
+### Scope yang selesai
+
+* **`core/db/soft-delete.ts`** (baru) — fungsi murni `terapkanFilterAktif`: menyisipkan `deletedAt: null` ke `where` untuk 11 operasi model `user`, melewatkan `create`/`delete`/`deleteMany` dengan sengaja.
+* **`core/db/index.ts`** — ekstensi dipasang di `createPrismaClient()`; tipe baru `AppPrisma`.
+* **`modules/auth/repositories/user.repository.ts`** — `findDeleteContext()` (kredensial apa yang dimiliki akun) dan `deleteAccount()` (transaksi: `deleted_at` + `token_version` + pencabutan seluruh sesi).
+* **`modules/auth/repositories/refresh-token.repository.ts`** — `argumenCabutSemuaSesi()` diekspor supaya jalur hapus akun dan `logout-all` memakai satu definisi "dicabut".
+* **`modules/auth/services/account.service.ts`** (baru) — pemilihan jalur konfirmasi, pembuktian, audit tiga tahap.
+* **`modules/auth/services/otp.service.ts`** — `konfirmasiKode()` diekstrak dari `verify()`; login tidak berubah perilakunya sama sekali.
+* **`modules/auth/controllers/account.controller.ts`** (baru) + route `DELETE /auth/account` dengan `access.authenticated()`.
+* **`packages/schemas`** — `googleReauthSchema`, `deleteAccountSchema` (tepat satu cara pembuktian), `redirectUriSchema` dipakai bersama alur masuk, meta `ACCOUNT_DELETED` diperluas, OpenAPI + `openapi.json`.
+* **`core/http/errors.ts`** — tiga kode baru: `CARA_KONFIRMASI_TIDAK_COCOK` (400), `KONFIRMASI_GOOGLE_BEDA_AKUN` (403), `KONFIRMASI_TIDAK_TERSEDIA` (503).
+* **Test** — 44 baru: `soft-delete.test.ts` (9), `auth-account.test.ts` (12), `auth-account-http.test.ts` (15), `auth-account-db.test.ts` (8).
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Purge permanen** — PR-023. PR ini justru membuka jalannya: `delete`/`deleteMany` sengaja tidak disaring penjaga.
+* **UI konfirmasi** — PR-033. Endpointnya sudah punya kontrak zod bersama, jadi tidak ada duplikasi yang perlu ditebus nanti.
+* **Rate limit endpoint ini** — PR-105. Jalur OTP sudah terlindung tangga lockout bersama login; jalur Google belum.
+* **Undelete lewat aplikasi** — sengaja tidak ada. Pemulihan sebelum purge lewat dukungan pelanggan; membuatnya self-service berarti "hapus akun" hanya menyembunyikan, dan janji PDP-nya jadi kabur.
+
+### Keputusan teknis
+
+1. **`$extends`, bukan `$use` — menyimpang dari kata "middleware" di dokumen phase.** `$use` deprecated di Prisma 5 dan dihapus di Prisma 6. Ini kontrol keamanan; ia tidak boleh mati diam-diam saat upgrade. Biayanya `AppPrisma = Omit<PrismaClient, "$on" | "$use">` dan delapan anotasi tipe di `src` — **nol** perubahan di test, karena `PrismaClient` tetap assignable ke tipe yang lebih sempit itu. Hilangnya `$use` dari tipe adalah bagian dari tujuannya, bukan efek samping: pintu bagi middleware baru yang akan mati saat upgrade sekarang tertutup.
+
+2. **Satu cast disengaja, dan hanya satu.** Klien ber-ekstensi tidak assignable ke `AppPrisma` karena TypeScript tidak bisa menyamakan dua overload `$transaction` (bentuk array vs callback). Yang berbeda urutan overload-nya, bukan perilakunya — klien di dalam callback justru superset (ekstensi ikut berlaku, yang memang diinginkan `deleteAccount`). Alasannya ditulis di tempat cast-nya, bukan di sini saja.
+
+3. **Opt-out penjaga berbentuk "sebutkan `deletedAt` sendiri", bukan flag konteks async atau klien kedua.** Dua alternatif itu sama-sama bekerja, tetapi tak satu pun terbaca di tempat panggilan — pembaca query harus tahu ada tidaknya pembungkus di kejauhan. Dengan bentuk ini, `grep "deletedAt"` adalah daftar lengkap tempat yang perlu ditinjau, dan tidak ada cara diam-diam untuk keluar.
+
+4. **Re-auth dua jalur, atas keputusan owner.** Platform ini tidak punya password; kredensialnya OTP-nomor dan Google. Menyediakan satu jalur saja berarti sebagian pengguna tidak akan pernah bisa memakai hak hapus PDP lewat aplikasi. **Nomor dan `sub` yang diuji diambil dari BARIS AKUN, tidak pernah dari body** — inilah bentuk "A tidak bisa menghapus B" yang tidak bisa lupa dipasang, sebab tidak ada salurannya.
+
+5. **Satu transaksi lintas dua tabel, atas permintaan owner.** `deleted_at` + `token_version` sudah atomik sejak awal (satu `UPDATE` = transaksi implisit), tetapi pencabutan refresh token semula terpisah. Invariannya — "akun terhapus tidak punya sesi hidup" — melintasi dua tabel, jadi yang menegakkannya juga harus. Preseden ada: `rotate()` menaruh transaksinya di repository yang memiliki invariannya.
+
+6. **`argumenCabutSemuaSesi` diekspor alih-alih menyalin klausanya.** Dua tempat yang memutuskan apa arti "dicabut" bebas menyimpang: satu lupa `revokedAt: null` di where (mencabut ulang baris mati dan merusak jejak sebabnya), satu lupa `revokedReason` (membuat retensi PR-024 salah). Bentuk data yang salah pada tabel ini tidak menimbulkan gejala apa pun sampai ada yang menyelidiki insiden.
+
+7. **`konfirmasiKode` diekstrak dari `verify()`, bukan disalin.** Menyalinnya akan melahirkan tangga lockout kedua yang bebas menyimpang — pencacah anti-brute-force yang tidak sinkron adalah kelemahan tanpa gejala. Kegagalannya tetap diaudit sebagai `AUTH_LOGIN_FAILED` apa pun pemanggilnya: yang terjadi memang percobaan kredensial gagal atas nomor itu, dan memisahkan sinyalnya per-pemanggil justru memecah pola yang ingin dilihat.
+
+8. **Audit tiga tahap, bukan dua.** `rejected` ditambahkan karena pembuktian yang gagal adalah sinyal tersendiri: berulang atas satu akun berarti seseorang memegang access token-nya tanpa memegang kredensialnya. Ketiganya berguna justru saat salah satu **tidak** muncul — `requested` tanpa `completed` berarti transaksi penghapusan gagal dan akun itu perlu diperiksa tangan sebelum purge.
+
+9. **Kegagalan selalu menutup, tidak pernah membuka.** Fitur OTP mati di server → 503, bukan melewatkan pembuktian. Kredensial Google kosong → 503. Keduanya punya test tersendiri, sebab gagal-terbuka adalah mode kegagalan paling berbahaya untuk kontrol semacam ini dan tidak akan pernah terlihat dari test jalur bahagia.
+
+10. **Controller tidak menghapus cookie saat gagal.** Sesinya masih sah; membuang cookie akan mengeluarkan pengguna dari akun yang justru batal dihapus.
+
+### Bukti verifikasi
+
+* `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 — `@nawasena/api` **529 lulus**, 1 skip.
+* `check:openapi` sinkron; `openapi.json` bertambah 129 baris (path `/auth/account` + komponen `DeleteAccount`/`GoogleReauth`).
+* **Test DB kini benar-benar berjalan lokal.** Migrasi 06 & 07 belum pernah di-apply ke DB dev di mesin ini; `prisma migrate deploy` menjalankannya (aditif, non-destruktif). Sebelum ini 75 test DB selalu skip lokal dan hanya terbukti di CI — jadi baseline verifikasi PR ini lebih kuat daripada PR mana pun sebelumnya di phase ini.
+* Empat test lama ikut berubah, semuanya karena perilaku yang memang berubah: fixture meta `ACCOUNT_DELETED` (skema diperluas), snapshot katalog error (tiga kode baru), daftar route auth di `rbac-http` (kini ada satu route ber-sesi), dan stub repository di `auth-otp` (dua metode baru dibuat meledak supaya pemakaian tak sengaja terlihat).
+* Test daftar route sengaja **tidak** mengecualikan `/auth/account` dari perulangan "semua publik", melainkan memeriksanya terpisah — supaya route baru yang diam-diam ikut menuntut sesi tetap terlihat.
+
+### Risiko yang ditemukan
+
+* **Batas penjaga lebih luas dari yang tertulis di dokumen phase.** Risiko semula hanya menyebut raw SQL. Yang sebenarnya lolos ada dua: raw SQL **dan relasi bersarang** (`include: { user: true }` dijalankan sebagai operasi model lain, jadi penjaganya tidak pernah dipanggil). Tidak ada API Prisma yang menjangkau itu. Ditulis di kepala `core/db/soft-delete.ts` supaya terbaca oleh orang yang sedang menulis query, bukan hanya oleh yang membaca dokumen phase.
+* **Kode OTP untuk hapus akun diminta lewat `/auth/otp/request` yang publik.** Pemegang access token curian bisa memicu pengiriman OTP ke nomor korban — gangguan, bukan pengambilalihan, karena ia tetap tidak bisa membacanya. Kuota kirim 3/jam membatasinya.
+* **Jalur Google belum punya rate limit sendiri** (PR-105).
+* **Belum ada notifikasi "akun Anda dihapus"** ke email/WhatsApp. Bila penghapusan tak sah pernah terjadi, korban baru tahu saat mencoba masuk — dan jendela pemulihan 30 hari mungkin sudah berjalan jauh. Butuh Phase 07 (notifikasi).
+* **`prisma:error` muncul di keluaran test** pada skenario penghapusan kedua (P2025 yang memang diharapkan). Berisik, tidak salah — klien dikonfigurasi `log: ["warn","error"]`.
+
+### Next steps
+
+* **PR-022** (ekspor data PDP) — dependensinya sekarang terpenuhi. Perhatikan: ekspor harus memakai klien ber-penjaga, sehingga akun terhapus tidak bisa mengekspor apa pun.
+* **PR-023** (purge) — jalan masuknya sudah disiapkan: `delete`/`deleteMany` tidak disaring, dan query kandidat cukup menyebut `deletedAt` sendiri. Jendela 30 hari ditegakkan di sana, bukan di sini.
+* **PR-024** (retensi) — baris `refresh_tokens` ber-`account_deleted` kini benar-benar ada; kebijakan retensinya perlu menyebutkannya.
+* **PR-033** (UI) — layar konfirmasi harus bercabang berdasarkan kredensial yang dimiliki akun (`GET /me` memberi `phone`); tulis dengan jelas bahwa penghapusan bisa dibatalkan lewat dukungan pelanggan sebelum 30 hari.
+* **PR-105** — rate limit `DELETE /auth/account`, terutama jalur Google.
+* **PR-106** — matriks authz: `/auth/account` adalah endpoint auth pertama yang ber-sesi; matriksnya akan menunjukkannya sebagai satu-satunya non-publik di modul itu.

@@ -6,8 +6,10 @@
 // SEMUA query login WAJIB menyaring `deletedAt: null`: unique index nomor dan
 // google_id bersifat PARSIAL (PR-009), jadi baris terhapus boleh menyimpan
 // nilai yang sama dan akan menjadi kembar bila ikut terbaca.
-import { Prisma, type PrismaClient, type Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
+import type { AppPrisma } from "../../../core/db/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
+import { argumenCabutSemuaSesi } from "./refresh-token.repository.js";
 
 export interface AuthUserResult {
   id: string;
@@ -32,7 +34,7 @@ export class EmailDiklaimAkunLainError extends Error {
 /** Kode Prisma saat update/delete tidak menemukan baris yang cocok. */
 const RECORD_NOT_FOUND = "P2025";
 
-export function createAuthUserRepository(prisma: PrismaClient) {
+export function createAuthUserRepository(prisma: AppPrisma) {
   /**
    * Akun aktif dengan nomor tsb. `deletedAt: null` WAJIB: unique index nomor
    * bersifat parsial (PR-009) sehingga nomor akun terhapus boleh dipakai ulang.
@@ -84,6 +86,67 @@ export function createAuthUserRepository(prisma: PrismaClient) {
         return row.tokenVersion;
       } catch (err) {
         // P2025 = tidak ada baris aktif dengan id itu; bukan kondisi error.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Kredensial yang dimiliki akun — dasar memilih jalur konfirmasi hapus
+     * (PR-021). Hanya keberadaannya yang menentukan jalur, tetapi NILAINYA
+     * tetap diperlukan: kode OTP diverifikasi terhadap nomor itu, dan identitas
+     * Google dicocokkan terhadap `googleId` itu. Keduanya PII — jangan
+     * dikembalikan ke klien maupun masuk log/audit.
+     */
+    async findDeleteContext(
+      id: string,
+    ): Promise<{ id: string; phone: string | null; googleId: string | null } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, phone: true, googleId: true },
+      });
+    },
+
+    /**
+     * Hapus akun (soft) + matikan seluruh sesinya — SATU TRANSAKSI.
+     *
+     * Dua tabel, satu invarian: "akun terhapus tidak punya sesi hidup". Karena
+     * invariannya melintasi tabel, yang menegakkannya juga harus — kalau tidak,
+     * kegagalan tulis di antara keduanya meninggalkan keadaan yang tidak pernah
+     * dirancang siapa pun: akun terhapus yang refresh token-nya masih aktif.
+     * (Hari ini `findActiveSessionUser` akan tetap menolaknya, jadi itu belum
+     * jadi lubang — tetapi mengandalkan pemeriksaan di tempat lain berarti
+     * invarian ini hidup dari kebiasaan, bukan dari database.)
+     *
+     * Urutan di dalamnya mengikuti `logoutAll`: `token_version` naik LEBIH DULU
+     * sehingga access token yang beredar langsung ditolak, baru refresh dicabut.
+     *
+     * `deletedAt: null` di klausa WHERE membuat operasi ini idempoten terhadap
+     * balapan: dua permintaan hapus bersamaan, hanya satu yang mengenai baris —
+     * yang kalah mendapat P2025 dan menerima `null`, bukan `token_version` yang
+     * naik dua kali.
+     *
+     * `null` = tidak ada akun aktif dengan id itu (sudah terhapus lebih dulu).
+     */
+    async deleteAccount(
+      id: string,
+      now: Date,
+    ): Promise<{ tokenVersion: number; revokedCount: number } | null> {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const row = await tx.user.update({
+            where: { id, deletedAt: null },
+            data: { deletedAt: now, tokenVersion: { increment: 1 } },
+            select: { tokenVersion: true },
+          });
+          const dicabut = await tx.refreshToken.updateMany(
+            argumenCabutSemuaSesi(id, now, "account_deleted"),
+          );
+          return { tokenVersion: row.tokenVersion, revokedCount: dicabut.count };
+        });
+      } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
           return null;
         }

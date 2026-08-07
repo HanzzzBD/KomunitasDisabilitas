@@ -5,7 +5,7 @@
 // adalah guard sesi dari registrar — bila kunci RS256 belum di-set, kedua route
 // menjawab 503 lewat `requireAuth`, bukan lewat cabang khusus di sini.
 import type { Router } from "express";
-import type { PrismaClient } from "@prisma/client";
+import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
 import { createUserProfileRepository } from "./repositories/user.repository.js";
@@ -14,7 +14,7 @@ import { createUsersController } from "./controllers/users.controller.js";
 import { createUsersRouter } from "./routers/index.js";
 
 export interface UsersModuleDeps {
-  prisma: PrismaClient;
+  prisma: AppPrisma;
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
   routes: RouteRegistrar;
   auditLog: AuditLog;
