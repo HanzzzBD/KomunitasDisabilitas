@@ -1062,3 +1062,76 @@ kedaluwarsa.
 * **PR-022** — boleh mulai. Bila agregator ekspor benar-benar butuh relasi `user`, penjaga akan memintanya didaftarkan beserta alasan, dan pemanggilnya wajib menyaring `deletedAt` sendiri.
 * **Tinjau cakupan** begitu `apps/worker` atau `packages/` mulai menyentuh Prisma.
 * Sisa masalah pasca-PR-021 yang belum punya pemilik: verifikasi kepemilikan email (akar dari tiga masalah lain) dan notifikasi "akun Anda dihapus".
+
+## PR-021b — Pemberitahuan pasca-hapus akun
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-021---hapus-akun-soft-delete--revoke)
+> **Tanggal:** 2026-08-07
+> **Status:** Selesai
+> **Branch:** `pr-021b-pemberitahuan-hapus` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+Penghapusan bersifat soft selama 30 hari justru supaya yang keliru bisa
+dibatalkan. Jendela itu tidak ada gunanya kalau pemiliknya baru tahu di hari
+ke-29 — dan orang yang akunnya dihapus tidak punya alasan untuk mencoba masuk
+lagi dalam waktu dekat. PR ini mengirimkan satu pesan WhatsApp/SMS ke nomor
+terdaftar setelah penghapusan berhasil.
+
+Kanalnya sudah ada sejak PR-016b (Fonnte → Twilio). Yang belum ada adalah cara
+memakainya untuk pesan selain OTP.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **545 lulus** (naik dari 538; 7 test baru), 1 skip.
+
+### Scope yang selesai
+
+* **`OtpMessage` digeneralkan** dari `{ phone, code }` menjadi `{ phone, text }`; `buildOtpMessage` pindah ke pemanggil (`otp.service`).
+* **`buildAccountDeletedMessage()`** + konstanta `HARI_SEBELUM_PURGE`.
+* **`account.service`** mengirim pemberitahuan setelah `catat("completed")`, fire-and-forget.
+* **Test**: 6 unit (isi pesan, terkirim, tidak terkirim saat konfirmasi gagal, provider mati tidak menggagalkan, akun tanpa nomor, tanpa provider) + 1 HTTP (perakitan modul tersambung).
+
+### Keputusan teknis
+
+1. **Transport tidak boleh tahu makna pesan.** Sebelum ini setiap adapter memanggil `buildOtpMessage` sendiri dari field `code`. Artinya menambah satu jenis pesan berarti menyunting SETIAP adapter — dan adapter yang terlewat akan mengirim teks yang salah ke pengguna, diam-diam. Ini sisi kedua dari aturan yang sudah tertulis di kepala `otp-sender.ts` ("service tidak boleh tahu nama provider"); PR ini melengkapinya, bukan menambahkan yang baru.
+
+2. **Nama `OtpSender`/`OtpMessage` sengaja TIDAK diganti.** Rename yang akurat menyentuh 78 rujukan di 9 berkas untuk PR yang isinya ~60 baris. Utang ini dicatat di sini alih-alih dibayar dengan diff yang mengubur perubahan sesungguhnya. Namanya kini kurang tepat — kanal itu generik, bukan khusus OTP.
+
+3. **Fire-and-forget, bukan ditunggu.** Akun sudah terhapus saat pengiriman dicoba; melempar di titik itu akan membuat pengguna mengira penghapusannya gagal lalu mencobanya lagi. Menunggu juga bukan pilihan: satu panggilan provider bisa memakan sampai 10 detik, dan itu 10 detik menatap layar menggantung setelah menekan tombol paling final di seluruh aplikasi. Pola yang sama dengan `auditLog`.
+
+4. **Tidak ada tautan di dalam pesan.** Pesan yang meminta orang mengeklik sesuatu tepat setelah kejadian mencurigakan punya bentuk yang persis sama dengan phishing — dan pesan ini justru dibaca oleh orang yang sedang panik. Isinya tiga hal saja: apa yang terjadi, sampai kapan bisa dibatalkan, dan hubungi kami lewat kanal resmi.
+
+5. **Nomor tujuan tidak ikut ke log kegagalan.** Yang berguna saat menyelidiki adalah provider mana yang gagal, bukan siapa yang tidak menerimanya. Diuji.
+
+6. **Test membaca kode OTP dari ISI pesan, bukan dari field terpisah.** Konsekuensi wajar dari perubahan bentuk, tetapi juga peningkatan: test kini memakai pintu yang sama dengan pengguna, sehingga pesan yang salah bentuk menggagalkan test alih-alih lolos karena kodenya masih tersedia lewat pintu belakang.
+
+7. **Satu test HTTP untuk hal yang tidak bisa dibuktikan unit test:** bahwa `sender` benar-benar sampai dari deps modul ke service. Unit test memasangnya langsung, jadi kabel yang putus di `createAuthModule` akan tetap hijau di sana dan diam di produksi.
+
+### Risiko yang ditemukan
+
+* **Pengguna Google-only tetap tanpa kanal apa pun.** Mereka tidak punya nomor, dan kanal email belum ada. Celah ini TIDAK tertutup PR ini — dan justru diuji secara eksplisit (`akun tanpa nomor: penghapusan tetap berjalan, tidak ada yang dikirim`) supaya ia tetap terlihat sebagai keputusan, bukan hilang menjadi asumsi.
+* **Pengiriman tidak punya retry.** Provider yang sedang mati berarti pemberitahuan hilang selamanya — tidak ada antrean, tidak ada percobaan ulang. Memindahkannya ke BullMQ (kanal yang sudah ada sejak PR-008) akan menutup ini; belum dikerjakan karena antreannya belum punya processor notifikasi apa pun (Phase 07).
+* **Nama `OtpSender` kini kurang tepat** — lihat keputusan 2.
+
+### Next steps
+
+* **Phase 07 (notifikasi)** — pindahkan pengiriman ke antrean supaya punya retry, dan tambahkan kanal email yang menutup celah pengguna Google-only.
+* **Rename `OtpSender` → pengirim pesan generik**, sebagai PR terpisah yang isinya memang hanya rename.
+* Sisa masalah pasca-PR-021 yang belum punya pemilik tinggal satu: **penautan akun OTP↔Google**, dan analisisnya berubah — lihat catatan koreksi di entri ini.
+
+### Koreksi atas solusi yang diusulkan sebelumnya (2026-08-07)
+
+Analisis sebelumnya menempatkan **verifikasi kepemilikan email** sebagai akar
+dari tiga masalah: penautan Google otomatis yang hilang, pemesanan alamat orang
+lain, dan ketiadaan kanal notifikasi. Untuk dua yang pertama, itu **menyesatkan**.
+
+Email dipakai sebagai kunci penautan hanya karena tidak ada cara lain saat
+PR-017 ditulis. Sekarang ada: pengguna yang SUDAH masuk bisa menautkan akun
+Google-nya secara eksplisit — mesinnya (`exchange` + `verifier`) sudah dirakit
+di modul auth sejak PR-021 dan hanya menganggur di luar jalur konfirmasi hapus.
+Penautan eksplisit menyelesaikan masalahnya tanpa provider email, tanpa
+kredensial baru, dan tanpa biaya.
+
+Verifikasi email tetap berguna — untuk notifikasi dan pemulihan akun — tetapi
+ia BUKAN prasyarat penautan, dan menempatkannya sebagai akar membuat pekerjaan
+yang seharusnya murah terlihat mahal.

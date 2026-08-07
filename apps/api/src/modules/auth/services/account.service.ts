@@ -19,13 +19,39 @@
 import { AUDIT_ACTION, type DeleteAccount, type GoogleReauth } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
+import type { Logger } from "../../../core/logger/index.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import type { GoogleIdTokenVerifier } from "./google-id-token.js";
 import type { GoogleCodeExchange } from "./google-token.js";
+import type { OtpSender } from "./otp-sender.js";
 import type { OtpService } from "./otp.service.js";
 
 /** Entitas audit modul ini (tanpa PII — nomor/email/googleId tidak pernah ikut). */
 const AUDIT_ENTITY = "auth.account";
+
+/** Hari sebelum data dihapus permanen (SDD §6.4; ditegakkan job purge PR-023). */
+export const HARI_SEBELUM_PURGE = 30;
+
+/**
+ * Pemberitahuan bahwa akun sudah dihapus, dikirim ke nomor terdaftar.
+ *
+ * KENAPA INI PENTING DAN BUKAN SEKADAR SOPAN SANTUN. Penghapusan bersifat soft
+ * selama 30 hari justru supaya yang keliru bisa dibatalkan. Jendela itu tidak
+ * ada gunanya kalau pemiliknya baru tahu di hari ke-29 — dan orang yang akunnya
+ * dihapus tidak punya alasan untuk mencoba masuk lagi dalam waktu dekat.
+ *
+ * Isi pesan sengaja memuat tiga hal saja: apa yang terjadi, sampai kapan bisa
+ * dibatalkan, dan apa yang harus dilakukan bila ini bukan dia. Tidak ada tautan
+ * — pesan yang meminta orang mengeklik sesuatu tepat setelah kejadian
+ * mencurigakan adalah bentuk yang sama dengan phishing.
+ */
+export function buildAccountDeletedMessage(): string {
+  return (
+    "Akun Nawasena Anda sudah dihapus. " +
+    `Data Anda masih bisa dipulihkan dalam ${HARI_SEBELUM_PURGE} hari. ` +
+    "Bila ini bukan Anda, segera hubungi kami lewat kanal resmi Nawasena."
+  );
+}
 
 /** Cara pembuktian yang dipakai; ikut ke audit. */
 export type MetodeKonfirmasi = "otp" | "google";
@@ -45,13 +71,20 @@ export interface AccountServiceDeps {
   otp?: Pick<OtpService, "konfirmasiKode">;
   /** undefined = kredensial Google belum di-set → jalur Google tertutup. */
   google?: { exchange: GoogleCodeExchange; verifier: GoogleIdTokenVerifier };
+  /**
+   * Kanal WhatsApp/SMS untuk pemberitahuan pasca-hapus. undefined = tidak ada
+   * provider; penghapusan tetap berjalan, hanya pemberitahuannya yang tidak
+   * terkirim. Ia jaring pengaman, bukan syarat.
+   */
+  sender?: OtpSender;
   auditLog: AuditLog;
+  logger?: Pick<Logger, "warn">;
   /** Sumber waktu; disuntik test. */
   clock?: () => Date;
 }
 
 export function createAccountService(deps: AccountServiceDeps) {
-  const { userRepository, otp, google, auditLog } = deps;
+  const { userRepository, otp, google, sender, auditLog } = deps;
   const now = deps.clock ?? (() => new Date());
 
   /**
@@ -111,6 +144,31 @@ export function createAccountService(deps: AccountServiceDeps) {
     }
   }
 
+  /**
+   * Kirim pemberitahuan pasca-hapus. TIDAK ditunggu, dan kegagalannya TIDAK
+   * pernah menjatuhkan permintaan — akunnya sudah terhapus, dan membalas
+   * kesalahan pada titik ini akan membuat pengguna mengira penghapusannya gagal
+   * lalu mencobanya lagi. Pola yang sama dengan `auditLog` (core/audit).
+   *
+   * Menunggu pengiriman juga bukan pilihan: satu panggilan provider bisa
+   * memakan sampai 10 detik, dan itu 10 detik pengguna menatap layar yang
+   * menggantung setelah menekan tombol paling final di seluruh aplikasi.
+   *
+   * Akun tanpa nomor (masuk lewat Google) tidak menerima apa pun — celah nyata
+   * yang tertutup begitu ada kanal email.
+   */
+  function beritahuPemilik(phone: string | null): void {
+    if (phone === null || sender === undefined) return;
+    void sender.send({ phone, text: buildAccountDeletedMessage() }).catch((err: unknown) => {
+      // Nomor tujuan TIDAK ikut: ia PII, dan yang berguna saat menyelidiki
+      // adalah provider mana yang gagal, bukan siapa yang tidak menerimanya.
+      deps.logger?.warn(
+        { provider: sender.name, alasan: err instanceof Error ? err.message : "tidak dikenal" },
+        "Pemberitahuan hapus akun gagal terkirim",
+      );
+    });
+  }
+
   return {
     /**
      * DELETE /auth/account — konfirmasi, lalu hapus (soft) beserta seluruh sesi.
@@ -165,6 +223,7 @@ export function createAccountService(deps: AccountServiceDeps) {
       if (hasil === null) throw appError("SESI_TIDAK_VALID");
 
       catat("completed", hasil.revokedCount);
+      beritahuPemilik(konteks.phone);
       return { revokedCount: hasil.revokedCount };
     },
   };

@@ -14,7 +14,8 @@ import {
 import { createFonnteSender, type FetchLike } from "../src/modules/auth/services/fonnte.sender.js";
 import { createTwilioSender } from "../src/modules/auth/services/twilio.sender.js";
 
-const PESAN = { phone: "+6281234567890", code: "482913" };
+const KODE = "482913";
+const PESAN = { phone: "+6281234567890", text: buildOtpMessage(KODE) };
 const FONNTE = { token: "token-fonnte-uji", baseUrl: "https://fonnte.uji", timeoutMs: 5000 };
 const TWILIO = {
   accountSid: "ACuji0000000000000000000000000000",
@@ -70,7 +71,7 @@ describe("adapter Fonnte", () => {
     );
     const body = bacaBody(panggilan[0]!.init);
     expect(body.get("target")).toBe(PESAN.phone);
-    expect(body.get("message")).toContain(PESAN.code);
+    expect(body.get("message")).toContain(KODE);
   });
 
   it("HTTP 200 tetapi status:false → gagal (jebakan khas Fonnte)", async () => {
@@ -97,7 +98,7 @@ describe("adapter Fonnte", () => {
 
     expect((err as Error).message).toBe("gagal menghubungi Fonnte (TimeoutError)");
     expect((err as Error).message).not.toContain(PESAN.phone);
-    expect((err as Error).message).not.toContain(PESAN.code);
+    expect((err as Error).message).not.toContain(KODE);
   });
 });
 
@@ -117,7 +118,7 @@ describe("adapter Twilio", () => {
     const body = bacaBody(panggilan[0]!.init);
     expect(body.get("To")).toBe(PESAN.phone);
     expect(body.get("From")).toBe(TWILIO.from);
-    expect(body.get("Body")).toContain(PESAN.code);
+    expect(body.get("Body")).toContain(KODE);
   });
 
   it("HTTP 401 → gagal dengan pesan provider", async () => {
@@ -178,7 +179,7 @@ describe("rantai fallback (AC: Fonnte gagal → Twilio otomatis)", () => {
     await sender.send(PESAN);
     const teks = JSON.stringify(log.warn.mock.calls);
     expect(teks).not.toContain(PESAN.phone);
-    expect(teks).not.toContain(PESAN.code);
+    expect(teks).not.toContain(KODE);
   });
 
   it("tanpa pengirim sama sekali → pengirim 'belum dikonfigurasi'", async () => {

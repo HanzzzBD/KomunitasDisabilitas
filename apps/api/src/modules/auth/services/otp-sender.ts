@@ -12,8 +12,19 @@ import { createTwilioSender } from "./twilio.sender.js";
 export interface OtpMessage {
   /** Nomor tujuan E.164. PII — jangan pernah masuk log/audit. */
   phone: string;
-  /** Kode 6 angka. Rahasia — jangan pernah masuk log/audit. */
-  code: string;
+  /**
+   * Isi pesan yang SUDAH jadi. Transport tidak tahu — dan tidak boleh tahu —
+   * apakah ini kode masuk, pemberitahuan hapus akun, atau yang lain.
+   *
+   * Ini sisi kedua dari aturan yang sudah ada di kepala berkas: service tidak
+   * tahu nama provider, provider tidak tahu makna pesan. Sebelum PR-021b field
+   * ini bernama `code` dan setiap adapter memanggil `buildOtpMessage` sendiri —
+   * artinya menambah satu jenis pesan berarti menyunting SETIAP adapter, dan
+   * adapter yang terlewat akan mengirim teks yang salah ke pengguna.
+   *
+   * Rahasia bila memuat kode — jangan pernah masuk log/audit.
+   */
+  text: string;
 }
 
 export interface OtpSender {

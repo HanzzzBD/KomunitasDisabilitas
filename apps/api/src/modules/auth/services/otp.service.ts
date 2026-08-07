@@ -10,7 +10,7 @@ import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
-import { OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { buildOtpMessage, OtpSenderError, type OtpSender } from "./otp-sender.js";
 import type { SessionService, SessionTokens } from "./session.service.js";
 
 /**
@@ -141,7 +141,9 @@ export function createOtpService(deps: OtpServiceDeps) {
       await otpRepository.saveCode(phone, code, OTP_POLICY.ttlSeconds);
 
       try {
-        await sender.send({ phone, code });
+        // Teks dirakit DI SINI, bukan di adapter: transport tidak boleh tahu
+        // makna pesan yang dibawanya (lihat OtpMessage.text).
+        await sender.send({ phone, text: buildOtpMessage(code) });
       } catch (err) {
         // Kode yang tidak pernah sampai tidak boleh menggantung 5 menit.
         await otpRepository.dropCode(phone);

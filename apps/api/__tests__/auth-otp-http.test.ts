@@ -20,6 +20,14 @@ const refreshStore = fakeRefreshTokenStore();
 const PHONE = "+6281234567890";
 const SECRET = "rahasia-uji-otp-minimal-32-karakter!!";
 
+/**
+ * Kode dibaca KEMBALI dari isi pesan, bukan dari field terpisah (PR-021b, sejak
+ * transport hanya membawa teks jadi). Itu persis yang dilakukan pengguna saat
+ * menerima WhatsApp/SMS-nya — jadi pesan yang salah bentuk menggagalkan test,
+ * bukan lolos diam-diam karena kodenya masih tersedia lewat pintu belakang.
+ */
+const kodeDari = (text: string): string => /\b(\d{6})\b/.exec(text)?.[1] ?? "";
+
 function testEnv(): Env {
   return loadEnv({
     DATABASE_URL: "postgresql://user:pass@127.0.0.1:9",
@@ -111,7 +119,7 @@ async function boot(options: BootOptions = {}) {
     },
   });
   const logger = createLogger(env, { destination });
-  const terkirim: Array<{ phone: string; code: string }> = [];
+  const terkirim: Array<{ phone: string; text: string }> = [];
   const sender: OtpSender = {
     name: "uji",
     async send(message) {
@@ -185,7 +193,7 @@ describe("POST /api/v1/auth/otp/verify", () => {
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
     const res = await kirimJson(`${base}/auth/otp/verify`, {
       phone: PHONE,
-      code: terkirim[0]!.code,
+      code: kodeDari(terkirim[0]!.text),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { userId: string; isNewUser: boolean } };
@@ -197,12 +205,12 @@ describe("POST /api/v1/auth/otp/verify", () => {
     const { base, terkirim } = await boot();
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
     const pertama = (await (
-      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: terkirim[0]!.code })
+      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: kodeDari(terkirim[0]!.text) })
     ).json()) as { data: { userId: string } };
 
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
     const kedua = (await (
-      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: terkirim[1]!.code })
+      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: kodeDari(terkirim[1]!.text) })
     ).json()) as { data: { userId: string; isNewUser: boolean } };
 
     expect(kedua.data.userId).toBe(pertama.data.userId);
@@ -212,7 +220,7 @@ describe("POST /api/v1/auth/otp/verify", () => {
   it("kode salah → 401 envelope KODE_OTP_SALAH", async () => {
     const { base, terkirim } = await boot();
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
-    const salah = terkirim[0]!.code === "000000" ? "111111" : "000000";
+    const salah = kodeDari(terkirim[0]!.text) === "000000" ? "111111" : "000000";
     const res = await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: salah });
     expect(res.status).toBe(401);
     expect((await res.json()) as { code: string }).toMatchObject({ code: "KODE_OTP_SALAH" });
@@ -303,7 +311,7 @@ describe("gerbang konfigurasi & kebersihan log", () => {
   it("log request tidak memuat nomor HP maupun kode OTP (AC)", async () => {
     const { base, terkirim, baris } = await boot();
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
-    const code = terkirim[0]!.code;
+    const code = kodeDari(terkirim[0]!.text);
     await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code });
 
     const log = baris.join("\n");

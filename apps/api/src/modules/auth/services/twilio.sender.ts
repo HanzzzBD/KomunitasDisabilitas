@@ -2,7 +2,7 @@
 //
 // Dipakai hanya bila Fonnte gagal: SMS lebih mahal, tetapi tidak menuntut
 // pengguna punya WhatsApp aktif — penting untuk pengguna di jaringan lemah.
-import { buildOtpMessage, OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { OtpSenderError, type OtpSender } from "./otp-sender.js";
 import type { FetchLike } from "./fonnte.sender.js";
 
 export interface TwilioConfig {
@@ -39,7 +39,7 @@ export function createTwilioSender(config: TwilioConfig, fetchImpl?: FetchLike):
   return {
     name: TWILIO_PROVIDER,
 
-    async send({ phone, code }) {
+    async send({ phone, text }) {
       let response: Response;
       try {
         response = await kirim(url, {
@@ -51,7 +51,7 @@ export function createTwilioSender(config: TwilioConfig, fetchImpl?: FetchLike):
           body: new URLSearchParams({
             To: phone,
             From: config.from,
-            Body: buildOtpMessage(code),
+            Body: text,
           }).toString(),
           signal: AbortSignal.timeout(config.timeoutMs),
         });
