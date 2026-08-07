@@ -82,6 +82,35 @@ describe("repository profil (integration)", () => {
     expect(row?.email).toBe(`tetap${EMAIL_SUFFIX}`);
   });
 
+  it("email yang diketik pengguna SELALU tersimpan belum terverifikasi (PR-020a)", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // Berangkat dari keadaan terverifikasi (warisan login Google) untuk
+    // membuktikan statusnya benar-benar DITURUNKAN, bukan sekadar tidak naik.
+    const id = uuidV7();
+    await prisma.user.create({
+      data: { id, fullName: NAMA_UJI, email: `google${EMAIL_SUFFIX}`, emailVerified: true },
+    });
+
+    await repository.updateProfile(id, { fullName: NAMA_UJI, email: `diketik${EMAIL_SUFFIX}` });
+
+    const baris = await prisma.user.findUniqueOrThrow({ where: { id } });
+    expect(baris.emailVerified).toBe(false);
+  });
+
+  it("email tidak dikirim → status verifikasi tidak ikut turun", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const id = uuidV7();
+    await prisma.user.create({
+      data: { id, fullName: NAMA_UJI, email: `tetapverif${EMAIL_SUFFIX}`, emailVerified: true },
+    });
+
+    // Menyimpan nama saja tidak boleh mencabut bukti kepemilikan email.
+    await repository.updateProfile(id, { fullName: NAMA_BARU });
+
+    const baris = await prisma.user.findUniqueOrThrow({ where: { id } });
+    expect(baris.emailVerified).toBe(true);
+  });
+
   it("email null → dikosongkan", async (ctx) => {
     if (!dbTersedia) return ctx.skip();
     const id = await buatUser(`dihapus${EMAIL_SUFFIX}`);

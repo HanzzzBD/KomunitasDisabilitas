@@ -35,6 +35,12 @@ model User {
   phone        String?
   googleId     String?   @map("google_id")
   email        String?
+  /// Apakah kepemilikan alamat email sudah DIBUKTIKAN (PR-020a). true hanya
+  /// bila alamatnya datang dari identitas Google yang `email_verified` — email
+  /// yang diketik sendiri lewat PUT /me selalu false. Hanya baris ber-true yang
+  /// boleh dipakai menautkan identitas Google (SDD §8.1): tanpa syarat itu,
+  /// siapa pun bisa mengklaim email orang lain lalu menerima akun Google-nya.
+  emailVerified Boolean  @default(false) @map("email_verified")
   fullName     String    @map("full_name")
   role         Role      @default(seeker)
   /// `ver` pada klaim access token (SDD §8.1). Menaikkannya satu langkah
