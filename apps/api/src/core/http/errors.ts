@@ -110,6 +110,33 @@ export const ERROR_CATALOG = {
     message: "Email ini tidak bisa dipakai",
     hint: "Coba email lain, atau masuk dengan email tersebut bila itu milik Anda",
   },
+  // --- Hapus akun (PR-021) ---
+  // Pemanggil sudah terbukti pemilik sesi, jadi memberitahunya kredensial apa
+  // yang dipunyai akunnya BUKAN kebocoran — dan tanpa itu ia hanya bisa
+  // menebak-nebak cara mengonfirmasi. Hint diisi kontekstual oleh service.
+  CARA_KONFIRMASI_TIDAK_COCOK: {
+    status: 400,
+    message: "Cara konfirmasi itu tidak bisa dipakai untuk akun Anda",
+    hint: "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
+  },
+  // Consent Google-nya sah, tetapi milik akun Google yang BERBEDA. Dibedakan
+  // dari "token tidak valid" dengan sengaja: penyebabnya hampir selalu salah
+  // pilih akun di layar Google, dan pesan yang menyebutnya membuat pengguna
+  // tahu harus berbuat apa.
+  KONFIRMASI_GOOGLE_BEDA_AKUN: {
+    status: 403,
+    message: "Akun Google yang Anda pakai berbeda dengan akun ini",
+    hint: "Ulangi dan pilih akun Google yang Anda pakai untuk masuk ke Nawasena",
+  },
+  // Tidak ada satu pun kredensial yang bisa diverifikasi (mis. login Google
+  // belum dikonfigurasi di server). Menolak penghapusan lebih baik daripada
+  // menjalankannya tanpa pembuktian — tetapi hak hapus PDP tidak boleh mati
+  // karenanya, jadi hint mengarahkan ke jalur manusia.
+  KONFIRMASI_TIDAK_TERSEDIA: {
+    status: 503,
+    message: "Kami belum bisa memastikan identitas Anda saat ini",
+    hint: "Coba lagi beberapa saat, atau hubungi kami untuk dibantu menghapus akun",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

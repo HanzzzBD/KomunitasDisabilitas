@@ -151,6 +151,20 @@ export const pkceCodeVerifierSchema = z
   .openapi({ description: "PKCE code_verifier (RFC 7636), 43–128 karakter" });
 
 /**
+ * Harus sama persis dengan redirect_uri saat meminta `code` — Google menolak
+ * bila berbeda. Skema kustom mobile (mis. `com.nawasena:/oauth`) ikut valid.
+ *
+ * Dipakai dua alur: masuk (`googleAuthSchema`) dan konfirmasi hapus akun
+ * (`googleReauthSchema`). Satu definisi, supaya batas panjang & pesan
+ * kesalahannya tidak bisa menyimpang di antara keduanya.
+ */
+const redirectUriSchema = z
+  .string()
+  .url({ message: "Alamat pengalihan tidak valid" })
+  .max(2048, { message: "Alamat pengalihan terlalu panjang" })
+  .openapi({ example: "http://localhost:5173/masuk/google" });
+
+/**
  * POST /api/v1/auth/google — body.
  * Alur authorization code + PKCE (bukan implicit): klien publik (web/mobile)
  * menukar `code` di server kita, sehingga client_secret tidak pernah ada di
@@ -160,16 +174,7 @@ export const googleAuthSchema = z
   .object({
     code: authorizationCodeSchema,
     codeVerifier: pkceCodeVerifierSchema,
-    /**
-     * Harus sama persis dengan redirect_uri saat meminta `code` — Google
-     * menolak bila berbeda. Skema kustom mobile (mis. `com.nawasena:/oauth`)
-     * ikut valid.
-     */
-    redirectUri: z
-      .string()
-      .url({ message: "Alamat pengalihan tidak valid" })
-      .max(2048, { message: "Alamat pengalihan terlalu panjang" })
-      .openapi({ example: "http://localhost:5173/masuk/google" }),
+    redirectUri: redirectUriSchema,
     client: sessionClientSchema,
   })
   .openapi({ ref: "GoogleAuth", description: "Tukar authorization code Google (PKCE) jadi sesi" });
@@ -224,3 +229,65 @@ export const refreshSessionResponseSchema = z
   .openapi({ ref: "RefreshSessionResponse" });
 
 export type RefreshSessionResponse = z.infer<typeof refreshSessionResponseSchema>;
+
+/**
+ * Bukti kepemilikan akun Google untuk konfirmasi hapus akun (PR-021).
+ *
+ * Bentuknya sama dengan masuk MINUS `client`: tidak ada sesi yang diterbitkan
+ * di sini, jadi tidak ada yang perlu diputuskan tentang cookie vs body. Yang
+ * dipakai server hanyalah klaim `sub` dari id_token — dicocokkan dengan
+ * `google_id` akun yang sedang dihapus.
+ */
+export const googleReauthSchema = z
+  .object({
+    code: authorizationCodeSchema,
+    codeVerifier: pkceCodeVerifierSchema,
+    redirectUri: redirectUriSchema,
+  })
+  .openapi({ ref: "GoogleReauth", description: "Konfirmasi ulang identitas lewat Google" });
+
+export type GoogleReauth = z.infer<typeof googleReauthSchema>;
+
+/**
+ * DELETE /api/v1/auth/account — body.
+ *
+ * KENAPA ADA BODY SAMA SEKALI. Access token saja TIDAK cukup untuk menghapus
+ * akun: ia berumur 15 menit dan diperbarui diam-diam, sehingga perangkat yang
+ * ditinggalkan terbuka — atau token yang dicuri — sudah memenuhi syaratnya.
+ * Penghapusan menuntut bukti kredensial ASLI, sekali lagi, saat itu juga.
+ *
+ * Dua jalur karena platform ini punya dua kredensial dan TIDAK punya password:
+ * pemilik nomor membuktikan diri dengan kode OTP, pengguna Google dengan
+ * consent Google yang baru. Menyediakan hanya satu jalur berarti sebagian
+ * pengguna tidak bisa memakai hak hapus UU PDP sama sekali (PRD FR-1.4).
+ *
+ * Tepat SATU yang boleh diisi. "Keduanya" ditolak, bukan diam-diam dipilihkan
+ * salah satu: permintaan yang membawa dua bukti berarti klien tidak tahu yang
+ * mana yang sedang ia pakai, dan menebak untuknya menyembunyikan bug itu.
+ */
+export const deleteAccountSchema = z
+  .object({
+    otpCode: otpCodeSchema
+      .optional()
+      .openapi({ description: "Kode OTP baru ke nomor terdaftar — untuk akun ber-nomor HP" }),
+    google: googleReauthSchema
+      .optional()
+      .openapi({ description: "Untuk akun yang masuk lewat Google" }),
+  })
+  .superRefine((nilai, ctx) => {
+    const terisi = [nilai.otpCode !== undefined, nilai.google !== undefined].filter(Boolean).length;
+    if (terisi === 1) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        terisi === 0
+          ? "Konfirmasi dulu dengan kode OTP, atau lewat akun Google Anda"
+          : "Pilih satu cara konfirmasi saja: kode OTP atau akun Google",
+    });
+  })
+  .openapi({
+    ref: "DeleteAccount",
+    description: "Konfirmasi hapus akun — tepat satu cara pembuktian",
+  });
+
+export type DeleteAccount = z.infer<typeof deleteAccountSchema>;

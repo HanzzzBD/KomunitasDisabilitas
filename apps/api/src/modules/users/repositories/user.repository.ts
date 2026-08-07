@@ -9,7 +9,8 @@
 // SEMUA query WAJIB menyaring `deletedAt: null`: unique index nomor, google_id,
 // dan email bersifat PARSIAL, jadi baris terhapus boleh menyimpan nilai yang
 // sama dan akan menjadi kembar bila ikut terbaca.
-import { Prisma, type PrismaClient, type Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
+import type { AppPrisma } from "../../../core/db/index.js";
 
 /** Baris profil apa adanya dari DB; pemetaan ke kontrak API ada di service. */
 export interface UserProfileRow {
@@ -45,7 +46,7 @@ export class EmailSudahDipakaiError extends Error {
   }
 }
 
-export function createUserProfileRepository(prisma: PrismaClient) {
+export function createUserProfileRepository(prisma: AppPrisma) {
   return {
     /** Profil akun aktif; null bila tidak ada atau sudah dihapus. */
     async findActiveById(id: string): Promise<UserProfileRow | null> {

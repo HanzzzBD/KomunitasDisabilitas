@@ -6,7 +6,8 @@
 //
 // Token mentah TIDAK PERNAH menyentuh file ini — hanya SHA-256-nya (kolom
 // token_hash, unique). Bocornya isi tabel tidak memberi token yang bisa dipakai.
-import type { PrismaClient, RefreshRevokedReason } from "@prisma/client";
+import type { RefreshRevokedReason } from "@prisma/client";
+import type { AppPrisma } from "../../../core/db/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
 
 export type { RefreshRevokedReason };
@@ -34,7 +35,28 @@ export interface RefreshTokenInsert {
   expiresAt: Date;
 }
 
-export function createRefreshTokenRepository(prisma: PrismaClient) {
+/**
+ * Argumen `updateMany` untuk mencabut SEMUA sesi hidup milik satu pengguna.
+ *
+ * Diekspor karena hapus akun (PR-021) harus melakukannya di dalam transaksi
+ * yang sama dengan `UPDATE users` — jadi ia memanggil `tx.refreshToken`
+ * langsung, bukan lewat repository ini. Tanpa satu definisi bersama, akan ada
+ * DUA tempat yang memutuskan apa artinya "dicabut", dan keduanya bebas
+ * menyimpang: satu lupa `revokedAt: null` di where (mencabut ulang baris mati
+ * dan merusak jejak sebabnya), satu lupa mengisi `revokedReason` (membuat
+ * PR-024 salah menentukan retensi). Bentuk data yang salah pada tabel ini tidak
+ * menimbulkan gejala apa pun sampai ada yang menyelidiki insiden.
+ */
+export function argumenCabutSemuaSesi(userId: string, now: Date, reason: RefreshRevokedReason) {
+  return {
+    // `revokedAt: null` WAJIB: baris yang sudah dicabut tidak boleh ditulis
+    // ulang — sebab pencabutan pertamanya (mis. `reuse`) adalah buktinya.
+    where: { userId, revokedAt: null },
+    data: { revokedAt: now, revokedReason: reason },
+  };
+}
+
+export function createRefreshTokenRepository(prisma: AppPrisma) {
   return {
     /** Simpan refresh baru (login baru atau hasil rotasi). */
     async insert(input: RefreshTokenInsert): Promise<string> {
@@ -144,10 +166,9 @@ export function createRefreshTokenRepository(prisma: PrismaClient) {
       now: Date,
       reason: RefreshRevokedReason,
     ): Promise<number> {
-      const hasil = await prisma.refreshToken.updateMany({
-        where: { userId, revokedAt: null },
-        data: { revokedAt: now, revokedReason: reason },
-      });
+      const hasil = await prisma.refreshToken.updateMany(
+        argumenCabutSemuaSesi(userId, now, reason),
+      );
       return hasil.count;
     },
   };

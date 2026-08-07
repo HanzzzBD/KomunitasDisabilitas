@@ -121,8 +121,18 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     /** true bila perubahan ini MENGOSONGKAN email. */
     cleared: z.boolean(),
   }),
+  // Tiga tahap, dan ketiganya berguna justru saat SALAH SATU tidak muncul:
+  // `rejected` tanpa `requested` = seseorang mencoba menghapus akun ini dan
+  // gagal membuktikan diri (pola berulang = access token bocor); `requested`
+  // tanpa `completed` = pembuktian lolos tetapi transaksi penghapusan gagal,
+  // dan akun itu perlu diperiksa tangan. Tanpa pemisahan ini, keduanya hanya
+  // terlihat sebagai "tidak ada catatan".
   [AUDIT_ACTION.ACCOUNT_DELETED]: z.object({
-    stage: z.enum(["requested", "completed"]),
+    stage: z.enum(["requested", "rejected", "completed"]),
+    /** Cara pengguna membuktikan diri. Bukan PII — nomor/email tidak ikut. */
+    method: z.enum(["otp", "google"]),
+    /** Hanya pada `completed`: jumlah sesi hidup yang ikut dicabut. */
+    revokedCount: z.number().int().min(0).optional(),
   }),
 };
 

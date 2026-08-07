@@ -5,17 +5,22 @@
 // bisa di-boot tanpa kredensial apa pun (dev), tetapi tidak pernah berjalan
 // dalam mode "aman setengah" (hash tanpa kunci / audience tidak diperiksa).
 import type { Router } from "express";
-import type { PrismaClient } from "@prisma/client";
+import type { AppPrisma } from "../../core/db/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
 import type { Logger } from "../../core/logger/index.js";
 import { createOtpRepository, type OtpRedisLike } from "./repositories/otp.repository.js";
 import { createAuthUserRepository } from "./repositories/user.repository.js";
-import { createOtpService } from "./services/otp.service.js";
+import { createOtpService, type OtpService } from "./services/otp.service.js";
 import { createOtpController } from "./controllers/otp.controller.js";
+import { createAccountService } from "./services/account.service.js";
+import { createAccountController } from "./controllers/account.controller.js";
 import { createGoogleService } from "./services/google.service.js";
 import { createGoogleController } from "./controllers/google.controller.js";
-import { createGoogleIdTokenVerifier } from "./services/google-id-token.js";
-import { createGoogleCodeExchange } from "./services/google-token.js";
+import {
+  createGoogleIdTokenVerifier,
+  type GoogleIdTokenVerifier,
+} from "./services/google-id-token.js";
+import { createGoogleCodeExchange, type GoogleCodeExchange } from "./services/google-token.js";
 import { createAuthRouter, type AuthControllers } from "./routers/index.js";
 import { createRefreshTokenRepository } from "./repositories/refresh-token.repository.js";
 import { createSessionService, type SessionService } from "./services/session.service.js";
@@ -42,7 +47,7 @@ export interface GoogleAuthConfig {
 }
 
 export interface AuthModuleDeps {
-  prisma: PrismaClient;
+  prisma: AppPrisma;
   /** Klien Redis CACHE (bukan queue) — OTP berumur pendek dan boleh ter-evict. */
   redis: OtpRedisLike;
   /** env.OTP_HASH_SECRET; undefined = endpoint OTP tertutup (503). */
@@ -66,11 +71,13 @@ export interface AuthModuleDeps {
 
 export function createAuthModule(deps: AuthModuleDeps): Router {
   const userRepository = createAuthUserRepository(deps.prisma);
-  const controllers: AuthControllers = { otp: null, google: null, session: null };
+  const controllers: AuthControllers = { otp: null, google: null, session: null, account: null };
 
   // Sesi dirakit LEBIH DULU: kedua metode masuk bergantung padanya. Login yang
   // tidak bisa menerbitkan sesi bukan login — jadi tanpa kunci, keduanya ikut
   // tertutup, bukan berhasil lalu mengembalikan userId telanjang.
+  const cookie = createSessionCookie({ secure: deps.cookieSecure ?? true });
+
   let sessionService: SessionService | undefined;
   if (deps.sessionKeys === undefined) {
     deps.logger.warn(
@@ -85,54 +92,79 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
       refreshTokenRepository: createRefreshTokenRepository(deps.prisma),
       auditLog: deps.auditLog,
     });
-    controllers.session = createSessionController({
-      service: sessionService,
-      cookie: createSessionCookie({ secure: deps.cookieSecure ?? true }),
-    });
+    controllers.session = createSessionController({ service: sessionService, cookie });
   }
 
   // Kedua metode masuk butuh DUA hal: kredensialnya sendiri, dan penerbit sesi.
   const sesi = controllers.session;
 
+  // Disimpan di variabel karena dipakai DUA kali: sebagai metode masuk, dan
+  // sebagai alat pembuktian ulang saat hapus akun (PR-021).
+  let otpService: OtpService | undefined;
   if (deps.otpHashSecret === undefined) {
     deps.logger.warn({ modul: "auth" }, "OTP_HASH_SECRET belum di-set — endpoint OTP dimatikan (503)");
   } else if (sesi !== null && sessionService !== undefined) {
-    controllers.otp = createOtpController(
-      createOtpService({
-        otpRepository: createOtpRepository({ redis: deps.redis, secret: deps.otpHashSecret }),
-        userRepository,
-        sender: deps.sender ?? createUnavailableOtpSender(),
-        sessionService,
-        auditLog: deps.auditLog,
-        logger: deps.logger,
-      }),
-      sesi,
-    );
+    otpService = createOtpService({
+      otpRepository: createOtpRepository({ redis: deps.redis, secret: deps.otpHashSecret }),
+      userRepository,
+      sender: deps.sender ?? createUnavailableOtpSender(),
+      sessionService,
+      auditLog: deps.auditLog,
+      logger: deps.logger,
+    });
+    controllers.otp = createOtpController(otpService, sesi);
   }
 
+  let googleReauth: { exchange: GoogleCodeExchange; verifier: GoogleIdTokenVerifier } | undefined;
   if (deps.google === undefined) {
     deps.logger.warn(
       { modul: "auth" },
       "Kredensial Google OAuth belum di-set — endpoint /auth/google dimatikan (503)",
     );
-  } else if (sesi !== null && sessionService !== undefined) {
+  } else {
     const { clientId, clientSecret, jwksUrl, tokenUrl, timeoutMs, fetchImpl } = deps.google;
-    controllers.google = createGoogleController(
-      createGoogleService({
-        // Verifier dibuat SEKALI di sini: ia menyimpan kunci publik Google di
-        // memori. Membuatnya per-permintaan berarti satu HTTP ke Google per login.
-        verifier: createGoogleIdTokenVerifier({ clientId, jwksUrl, timeoutMs }),
-        exchange: createGoogleCodeExchange(
-          { clientId, clientSecret, tokenUrl, timeoutMs },
-          deps.logger,
-          fetchImpl,
-        ),
+    // Verifier & exchange dirakit SEKALI di sini: verifier menyimpan kunci
+    // publik Google di memori, jadi membuatnya per-permintaan berarti satu HTTP
+    // ke Google setiap kali. Keduanya dipakai bersama oleh login dan konfirmasi
+    // hapus akun — satu konfigurasi audience/timeout, bukan dua yang bisa
+    // menyimpang.
+    googleReauth = {
+      verifier: createGoogleIdTokenVerifier({ clientId, jwksUrl, timeoutMs }),
+      exchange: createGoogleCodeExchange(
+        { clientId, clientSecret, tokenUrl, timeoutMs },
+        deps.logger,
+        fetchImpl,
+      ),
+    };
+    if (sesi !== null && sessionService !== undefined) {
+      controllers.google = createGoogleController(
+        createGoogleService({
+          verifier: googleReauth.verifier,
+          exchange: googleReauth.exchange,
+          userRepository,
+          sessionService,
+          auditLog: deps.auditLog,
+        }),
+        sesi,
+      );
+    }
+  }
+
+  // Hapus akun (PR-021). Bergantung pada KUNCI SESI, bukan pada kredensial OTP/
+  // Google: tanpa kunci, `requireAuth` tidak bisa membaca siapa pemanggilnya,
+  // sehingga tidak ada akun yang bisa ditunjuk untuk dihapus. Kredensial yang
+  // kosong ditangani lebih dalam — jalur yang bersangkutan menjawab 503, bukan
+  // melewatkan pembuktian.
+  if (sessionService !== undefined) {
+    controllers.account = createAccountController({
+      service: createAccountService({
         userRepository,
-        sessionService,
+        otp: otpService,
+        google: googleReauth,
         auditLog: deps.auditLog,
       }),
-      sesi,
-    );
+      cookie,
+    });
   }
 
   return createAuthRouter(controllers, deps.routes);
@@ -148,7 +180,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
  * sesi: satu definisi "user yang boleh berjalan", jadi akun terhapus tidak
  * mungkin lolos di satu jalur tetapi tertahan di jalur lain.
  */
-export function createSessionUserSource(prisma: PrismaClient): SessionUserLookup {
+export function createSessionUserSource(prisma: AppPrisma): SessionUserLookup {
   const repository = createAuthUserRepository(prisma);
   return (userId) => repository.findActiveSessionUser(userId);
 }
@@ -205,6 +237,12 @@ export {
   type GoogleTokenExchangeConfig,
 } from "./services/google-token.js";
 export { createGoogleService, type GoogleService } from "./services/google.service.js";
+export {
+  createAccountService,
+  type AccountActor,
+  type AccountService,
+  type MetodeKonfirmasi,
+} from "./services/account.service.js";
 export {
   createSessionService,
   type SessionActor,

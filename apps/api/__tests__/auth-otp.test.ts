@@ -98,6 +98,14 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
     bumpTokenVersion() {
       throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
     },
+    // Jalur hapus akun (PR-021) memakai repository yang sama; alur OTP login
+    // tidak boleh menyentuhnya.
+    findDeleteContext() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur hapus akun");
+    },
+    deleteAccount() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur hapus akun");
+    },
   };
 }
 

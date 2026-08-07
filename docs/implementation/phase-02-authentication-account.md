@@ -492,7 +492,7 @@ Bisnis: hak hapus UU PDP (PRD FR-1.4). Teknis: `deleted_at` + `ver` bump + middl
 
 **Backend Changes:**
 
-* Prisma middleware soft-delete; users service.
+* ~~Prisma middleware soft-delete~~ → **Prisma client extension** (`$extends`) di `core/db`; endpoint hapus akun di modul `auth`. Lihat catatan penyimpangan di bawah Acceptance Criteria.
 
 **Frontend Changes:**
 
@@ -500,7 +500,7 @@ Bisnis: hak hapus UU PDP (PRD FR-1.4). Teknis: `deleted_at` + `ver` bump + middl
 
 **Database Changes:**
 
-* Tidak ada.
+* Tidak ada. (`RefreshRevokedReason.account_deleted` sudah disiapkan migrasi 01; PR ini yang pertama memakainya.)
 
 **API Changes:**
 
@@ -512,11 +512,11 @@ Bisnis: hak hapus UU PDP (PRD FR-1.4). Teknis: `deleted_at` + `ver` bump + middl
 
 **Testing Checklist:**
 
-* [ ] Unit Test (middleware)
-* [ ] Integration Test (lintas modul)
+* [x] Unit Test (middleware) — 9 test `soft-delete.test.ts` (operasi disaring vs sengaja dilewati, opt-out eksplisit, operasi tak dikenal) + 12 test service `auth-account.test.ts`.
+* [x] Integration Test (lintas modul) — 8 test PostgreSQL nyata `auth-account-db.test.ts`: dua klien Prisma berdampingan (ber-ekstensi vs mentah) membuktikan bahwa baris terhapus DISEMBUNYIKAN, bukan hilang; repository `auth` dan `users` sama-sama buta. Plus 15 test HTTP `auth-account-http.test.ts`.
 * [ ] E2E Test (di PR-033)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (hapus akun uji)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (hapus akun uji) — diotomatiskan: seluruh alur (kode benar, kode salah, kode hangus, cara konfirmasi salah, consent Google beda akun, tanpa token, akses pasca-hapus) dijalankan sebagai permintaan HTTP nyata.
 
 **Deliverables:**
 
@@ -525,6 +525,9 @@ Bisnis: hak hapus UU PDP (PRD FR-1.4). Teknis: `deleted_at` + `ver` bump + middl
 **Out of Scope:**
 
 * Hard purge (PR-023); UI (PR-033).
+* Rate limit khusus endpoint ini (PR-105). Percobaan OTP sudah dibatasi tangga lockout bersama login; jalur Google belum punya batasnya sendiri.
+* Penyaringan relasi bersarang (`include: { user: true }`) dan `$queryRaw` — batas yang tidak bisa ditutup ekstensi Prisma mana pun; lihat Risks.
+* Pembatalan penghapusan lewat aplikasi (undelete). Sebelum purge, pemulihan dilakukan lewat dukungan pelanggan.
 
 **Rollback Strategy:**
 
@@ -532,11 +535,15 @@ RB-Std; soft delete reversible via support sebelum purge.
 
 #### Acceptance Criteria
 
-* [ ] Pasca-hapus: login ditolak, refresh ditolak.
-* [ ] Tidak ada query modul mana pun mengembalikan user terhapus (middleware test lintas modul).
-* [ ] Konfirmasi memerlukan re-auth ringan (OTP/relogin) — anti hapus tak sengaja.
-* [ ] Audit tercatat.
-* [ ] Data menunggu purge ≤ 30 hari (ditandai untuk PR-023).
+* [x] Pasca-hapus: login ditolak, refresh ditolak. — Tiga lapis yang saling menutup: `deleted_at` membuat `findActiveByPhone`/`findActiveByGoogleId`/`findActiveSessionUser` buta, `token_version` naik sehingga access token yang beredar langsung ditolak, dan seluruh refresh token dicabut ber-`account_deleted`. Diuji lewat HTTP (permintaan kedua dengan token yang sama → 401) dan DB.
+* [x] Tidak ada query modul mana pun mengembalikan user terhapus (middleware test lintas modul). — Penjaganya di `core/db`, bukan di tiap repository: query users apa pun yang TIDAK menyebut `deletedAt` otomatis tersaring. Diuji dengan `findUnique`/`findFirst`/`count` telanjang terhadap PostgreSQL nyata, dibandingkan klien mentah yang masih melihat barisnya. **Batasnya tercatat di Risks — bukan klaim menyeluruh.**
+* [x] Konfirmasi memerlukan re-auth ringan (OTP/relogin) — anti hapus tak sengaja. — **Dua jalur, sebab platform ini punya dua kredensial dan tidak punya password:** kode OTP baru ke nomor terdaftar, atau consent Google baru yang klaim `sub`-nya dicocokkan dengan `google_id` akun. Menyediakan satu jalur saja berarti sebagian pengguna tidak akan pernah bisa memakai hak hapus PDP lewat aplikasi. Nomor/`sub` yang diuji diambil dari BARIS AKUN, tidak pernah dari body.
+* [x] Audit tercatat. — `ACCOUNT_DELETED` dengan tiga tahap: `rejected` (pembuktian gagal), `requested` (lolos, sebelum tulis), `completed` (dengan `revokedCount`). Berguna justru saat salah satu tidak muncul — lihat [docs/audit-action-catalog.md](../audit-action-catalog.md). Nomor, googleId, dan kode OTP tidak pernah masuk meta.
+* [x] Data menunggu purge ≤ 30 hari (ditandai untuk PR-023). — Baris `users` tetap ada (diuji lewat klien mentah), dan `delete`/`deleteMany` sengaja TIDAK disaring supaya job purge punya jalan masuk. Jendela 30 hari itu sendiri ditegakkan PR-023.
+
+> **Penyimpangan dari Technical Notes (keputusan agent 2026-08-07):** dokumen menulis "Prisma **middleware**", tetapi `$use` sudah deprecated di Prisma 5 dan **dihapus di Prisma 6**. Ini kontrol keamanan — ia tidak boleh mati diam-diam saat upgrade. Yang dipakai adalah penggantinya resmi, **client extension** (`$extends`). Biayanya satu tipe baru `AppPrisma = Omit<PrismaClient, "$on" | "$use">` dan delapan anotasi tipe di `src`; nol perubahan di test. Hilangnya `$use` dari tipe itu bukan efek samping melainkan bagian dari tujuannya: pintu bagi middleware baru yang akan mati saat upgrade sekarang tertutup.
+>
+> **Atomisitas (permintaan owner 2026-08-07):** `deleted_at`, `token_version`, dan pencabutan seluruh refresh token berada dalam SATU `$transaction` (`userRepository.deleteAccount`). Invariannya — "akun terhapus tidak punya sesi hidup" — melintasi dua tabel, jadi yang menegakkannya juga harus. Semantik "dicabut" punya satu definisi bersama (`argumenCabutSemuaSesi`) supaya jalur hapus akun tidak menulis versi keduanya sendiri.
 
 #### Dependencies
 
@@ -544,7 +551,13 @@ RB-Std; soft delete reversible via support sebelum purge.
 
 #### Risks
 
-* Query lolos middleware (raw SQL). Mitigasi: konvensi repo + review raw SQL wajib filter deleted.
+* ~~Query lolos middleware (raw SQL). Mitigasi: konvensi repo + review raw SQL wajib filter deleted.~~ **Terkonfirmasi saat implementasi, dan lebih luas dari yang tertulis.** Ekstensi Prisma hanya menjangkau operasi **top-level** model `user`. Dua hal lolos: (a) **relasi bersarang** — `application.findMany({ include: { user: true } })` dijalankan sebagai operasi `application`, jadi penjaganya tidak pernah dipanggil; (b) **`$queryRaw`**, by design. Keduanya ditulis di kepala `core/db/soft-delete.ts`, bukan hanya di sini — penjaga yang diam soal batasnya lebih berbahaya daripada yang tidak ada, sebab ia mengundang orang berhenti berpikir. Mitigasi tetap: konvensi repository + review wajib untuk raw SQL dan `include` yang menyentuh `users`.
+* **Kode OTP untuk hapus akun diminta lewat `/auth/otp/request` yang publik.** Tidak ada endpoint tantangan terpisah, jadi klien harus tahu nomornya sendiri (dari `GET /me`). Konsekuensi yang diterima: pemegang access token curian bisa MEMICU pengiriman OTP ke nomor korban — gangguan, bukan pengambilalihan, karena ia tetap tidak bisa membacanya. Kuota kirim 3/jam membatasi penyalahgunaannya.
+* **Jalur Google belum punya rate limit sendiri** (PR-105). Percobaan OTP dibatasi tangga lockout bersama login; percobaan consent Google tidak.
+
+#### Log Implementasi
+
+* 2026-08-07 — PR-021 selesai (penjaga soft delete global di `core/db`, `DELETE /api/v1/auth/account` dengan re-auth OTP + Google, penghapusan satu transaksi, audit tiga tahap). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-021--hapus-akun-soft-delete--revoke).
 
 
 ### PR-022 - Ekspor Data Pribadi (PDP)

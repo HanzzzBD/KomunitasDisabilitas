@@ -12,8 +12,10 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
 | `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |
 | `DATA_EXPORTED` | Ekspor data subjek | `format` |
-| `ACCOUNT_DELETED` | Permintaan/selesainya hapus akun | `stage` |
+| `ACCOUNT_DELETED` | Konfirmasi hapus akun ditolak/diterima, dan selesainya penghapusan | `stage`, `method`, `revokedCount` |
 
 Jangan masukkan nama, telepon, email, nilai disabilitas, kebutuhan akomodasi, token, atau nilai field sensitif lain ke `meta`. Katalog dipetakan pada PR modul terkait; baca massal dicatat per-job, bukan per-record.
+
+Perhatikan `ACCOUNT_DELETED`: `stage` dibaca sebagai **rangkaian**, bukan tiga kejadian lepas. `rejected` berulang atas satu akun berarti ada yang memegang access token-nya tetapi tidak memegang kredensialnya; `requested` tanpa `completed` berarti pembuktian lolos tetapi transaksi penghapusan gagal — akun itu perlu diperiksa tangan sebelum purge (PR-023).
 
 Perhatikan `ACCOUNT_EMAIL_CHANGED`: yang dicatat adalah **fakta perubahannya**, bukan alamatnya. `audit_logs` bertahan 2 tahun (SDD §6.4) — menaruh email di sana berarti menyimpan PII jauh melewati baris yang memilikinya. Alamat saat ini selalu bisa dibaca dari `users` lewat jalur yang punya kontrol aksesnya sendiri.

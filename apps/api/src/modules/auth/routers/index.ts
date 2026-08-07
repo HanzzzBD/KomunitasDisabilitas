@@ -1,11 +1,14 @@
 // modules/auth — router. Path ditulis relatif; prefix `/api/v1` dipegang
 // registrar (PR-019), yang juga mencatat deklarasi akses tiap rute.
 //
-// SELURUH rute di file ini `access.public` — dan itu bukan kelalaian: ketiganya
-// adalah pintu masuk bagi pemanggil yang MEMANG belum punya access token. OTP
+// HAMPIR seluruh rute di file ini `access.public` — dan itu bukan kelalaian:
+// semuanya pintu masuk bagi pemanggil yang MEMANG belum punya access token. OTP
 // dan Google membuktikan diri dengan kredensialnya masing-masing; refresh dan
 // logout membuktikan diri dengan refresh token yang mereka bawa. Menjaga mereka
 // dengan `requireAuth` berarti mensyaratkan sesi untuk membuat sesi.
+//
+// Kekecualiannya satu: DELETE /auth/account (PR-021). Ia bukan pintu masuk,
+// melainkan aksi atas akun yang sudah masuk — lihat alasannya di tempatnya.
 //
 // Kedua metode masuk (OTP & Google) berdiri sendiri: masing-masing punya
 // kredensial sendiri dan boleh mati sendiri. Controller yang `null` berarti
@@ -15,6 +18,7 @@
 // masuk yang lain.
 import type { Router } from "express";
 import {
+  deleteAccountSchema,
   googleAuthSchema,
   refreshSessionSchema,
   requestOtpSchema,
@@ -25,6 +29,7 @@ import { appError, asyncHandler, validate } from "../../../core/http/index.js";
 import type { OtpController } from "../controllers/otp.controller.js";
 import type { GoogleController } from "../controllers/google.controller.js";
 import type { SessionController } from "../controllers/session.controller.js";
+import type { AccountController } from "../controllers/account.controller.js";
 
 export interface AuthControllers {
   /** null = OTP_HASH_SECRET belum di-set (atau kunci sesi belum ada). */
@@ -33,6 +38,8 @@ export interface AuthControllers {
   google: GoogleController | null;
   /** null = kunci sesi RS256 belum di-set → sesi tidak bisa diterbitkan. */
   session: SessionController | null;
+  /** null = kunci sesi RS256 belum di-set; hapus akun butuh sesi yang terbaca. */
+  account: AccountController | null;
 }
 
 /** Alasan keterbukaan — tercatat di registry dan terbaca saat review (PR-106). */
@@ -47,7 +54,30 @@ function tertutup(pesan: string, saran: string) {
 }
 
 export function createAuthRouter(controllers: AuthControllers, routes: RouteRegistrar): Router {
-  const { otp, google, session } = controllers;
+  const { otp, google, session, account } = controllers;
+
+  // Hapus akun (PR-021). SATU-SATUNYA route di file ini yang TIDAK publik: ia
+  // bukan pintu masuk, melainkan aksi atas akun yang sudah masuk. Identitas
+  // datang dari access token, dan body hanya membawa BUKTI ULANG kepemilikan —
+  // tidak ada saluran untuk menyebut akun orang lain.
+  //
+  // `access.authenticated()` dan bukan `access.self()` dengan alasan yang sama
+  // seperti /me (PR-020): tidak ada param `:userId` untuk dibandingkan, dan
+  // requireSelf pada route tanpa param menolak semuanya.
+  if (account === null) {
+    routes.delete(
+      "/auth/account",
+      access.authenticated(),
+      tertutup("Hapus akun belum tersedia", "Coba lagi nanti, atau hubungi kami untuk dibantu"),
+    );
+  } else {
+    routes.delete(
+      "/auth/account",
+      access.authenticated(),
+      validate({ body: deleteAccountSchema }),
+      asyncHandler(account.deleteAccount),
+    );
+  }
 
   // Perpanjangan sesi (PR-018b). Tanpa kunci RS256 endpoint ini menjawab 503 —
   // sama seperti kedua metode masuk, yang juga ikut tertutup karena login yang

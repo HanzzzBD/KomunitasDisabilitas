@@ -380,6 +380,91 @@
         }
       }
     },
+    "/auth/account": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Hapus akun sendiri",
+        "description": "Menghapus akun pemilik sesi (soft delete) dan mencabut seluruh sesinya dalam satu transaksi. Wajib disertai konfirmasi ulang identitas: kode OTP baru ke nomor terdaftar, atau consent Google yang `sub`-nya cocok dengan akun. Data disimpan maksimal 30 hari sebelum purge, sehingga penghapusan keliru masih bisa dibatalkan lewat dukungan pelanggan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Akun dihapus dan seluruh sesi dicabut"
+          },
+          "400": {
+            "description": "Input tidak valid, atau cara konfirmasi tidak dimiliki akun ini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, sesi berakhir, atau kode OTP salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Akun Google yang dipakai berbeda dengan akun ini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Kode OTP hangus atau kedaluwarsa — minta kode baru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Percobaan terkunci sementara — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identitas belum bisa dipastikan (kredensial server tidak lengkap)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me": {
       "get": {
         "operationId": "getMe",
@@ -770,6 +855,50 @@
           "accessToken",
           "expiresIn"
         ]
+      },
+      "DeleteAccount": {
+        "type": "object",
+        "properties": {
+          "otpCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Kode OTP baru ke nomor terdaftar — untuk akun ber-nomor HP",
+            "example": "482913"
+          },
+          "google": {
+            "$ref": "#/components/schemas/GoogleReauth",
+            "description": "Untuk akun yang masuk lewat Google"
+          }
+        },
+        "description": "Konfirmasi hapus akun — tepat satu cara pembuktian"
+      },
+      "GoogleReauth": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Authorization code sekali pakai dari Google"
+          },
+          "codeVerifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9\\-._~]{43,128}$",
+            "description": "PKCE code_verifier (RFC 7636), 43–128 karakter"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "http://localhost:5173/masuk/google"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier",
+          "redirectUri"
+        ],
+        "description": "Konfirmasi ulang identitas lewat Google"
       },
       "MeResponse": {
         "type": "object",
