@@ -551,13 +551,14 @@ RB-Std; soft delete reversible via support sebelum purge.
 
 #### Risks
 
-* ~~Query lolos middleware (raw SQL). Mitigasi: konvensi repo + review raw SQL wajib filter deleted.~~ **Terkonfirmasi saat implementasi, dan lebih luas dari yang tertulis.** Ekstensi Prisma hanya menjangkau operasi **top-level** model `user`. Dua hal lolos: (a) **relasi bersarang** — `application.findMany({ include: { user: true } })` dijalankan sebagai operasi `application`, jadi penjaganya tidak pernah dipanggil; (b) **`$queryRaw`**, by design. Keduanya ditulis di kepala `core/db/soft-delete.ts`, bukan hanya di sini — penjaga yang diam soal batasnya lebih berbahaya daripada yang tidak ada, sebab ia mengundang orang berhenti berpikir. Mitigasi tetap: konvensi repository + review wajib untuk raw SQL dan `include` yang menyentuh `users`.
+* ~~Query lolos middleware (raw SQL). Mitigasi: konvensi repo + review raw SQL wajib filter deleted.~~ **Terkonfirmasi saat implementasi, dan lebih luas dari yang tertulis.** Ekstensi Prisma hanya menjangkau operasi **top-level** model `user`. Dua hal lolos: (a) **relasi bersarang** — `application.findMany({ include: { user: true } })` dijalankan sebagai operasi `application`, jadi penjaganya tidak pernah dipanggil; (b) **`$queryRaw`**, by design. Keduanya ditulis di kepala `core/db/soft-delete.ts`, bukan hanya di sini — penjaga yang diam soal batasnya lebih berbahaya daripada yang tidak ada, sebab ia mengundang orang berhenti berpikir. **Mitigasi ditingkatkan di PR-021a:** keduanya — plus `new PrismaClient()` di luar `core/db`, bypass yang lebih total daripada dua lainnya — kini gagal di CI alih-alih bergantung pada review (`apps/api/__tests__/soft-delete-jangkauan.test.ts`). Penjaga itu sendiri punya batas yang tercatat: ia pemindai teks atas `apps/api/src`, jadi `include` yang dirakit lewat variabel lolos darinya.
 * **Kode OTP untuk hapus akun diminta lewat `/auth/otp/request` yang publik.** Tidak ada endpoint tantangan terpisah, jadi klien harus tahu nomornya sendiri (dari `GET /me`). Konsekuensi yang diterima: pemegang access token curian bisa MEMICU pengiriman OTP ke nomor korban — gangguan, bukan pengambilalihan, karena ia tetap tidak bisa membacanya. Kuota kirim 3/jam membatasi penyalahgunaannya.
 * **Jalur Google belum punya rate limit sendiri** (PR-105). Percobaan OTP dibatasi tangga lockout bersama login; percobaan consent Google tidak.
 
 #### Log Implementasi
 
 * 2026-08-07 — PR-021 selesai (penjaga soft delete global di `core/db`, `DELETE /api/v1/auth/account` dengan re-auth OTP + Google, penghapusan satu transaksi, audit tiga tahap). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-021--hapus-akun-soft-delete--revoke).
+* 2026-08-07 — PR-021a selesai (penjaga jangkauan soft delete di CI: klien tak ber-ekstensi, relasi bersarang, raw SQL). Dipasang selagi jumlah pelanggaran masih nol, sebelum PR-022. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-021a--penjaga-jangkauan-soft-delete).
 
 
 ### PR-022 - Ekspor Data Pribadi (PDP)
