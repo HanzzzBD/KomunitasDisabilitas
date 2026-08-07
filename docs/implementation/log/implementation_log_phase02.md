@@ -965,3 +965,100 @@ Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
 * **PR-033** (UI) — layar konfirmasi harus bercabang berdasarkan kredensial yang dimiliki akun (`GET /me` memberi `phone`); tulis dengan jelas bahwa penghapusan bisa dibatalkan lewat dukungan pelanggan sebelum 30 hari.
 * **PR-105** — rate limit `DELETE /auth/account`, terutama jalur Google.
 * **PR-106** — matriks authz: `/auth/account` adalah endpoint auth pertama yang ber-sesi; matriksnya akan menunjukkannya sebagai satu-satunya non-publik di modul itu.
+
+## PR-021a — Penjaga jangkauan soft delete
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-021---hapus-akun-soft-delete--revoke)
+> **Tanggal:** 2026-08-07
+> **Status:** Selesai
+> **Branch:** `pr-021a-penjaga-jangkauan` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+PR-021 memasang penjaga soft delete, lalu menulis batasnya dengan jujur:
+ekstensi Prisma hanya menjangkau operasi top-level model `user`. PR ini
+memindahkan batas itu dari catatan menjadi kegagalan CI.
+
+Tiga hal yang sekarang membuat build merah:
+
+1. `new PrismaClient()` di luar `core/db/index.ts` — klien tanpa ekstensi sama sekali.
+2. `include:`/`select:` yang membaca relasi `user`.
+3. `$queryRaw`/`$executeRaw` menyentuh `users` tanpa menyebut `deleted_at`.
+
+Satu berkas test, tanpa dependensi baru, tanpa perubahan kode produksi.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **538 lulus** (naik dari 529; 9 test baru), 1 skip.
+
+### Kenapa sekarang, bukan nanti
+
+Saat PR ini ditulis, jumlah pelanggaran di seluruh `apps/api/src` adalah **nol**,
+jadi daftar `RELASI_DIIZINKAN` lahir kosong.
+
+PR-022 (ekspor data PDP) adalah agregator lintas modul — pemakai `include`
+pertama yang sesungguhnya. Memasang penjaga setelahnya berarti memulai dengan
+daftar pengecualian yang sudah terisi, dan daftar warisan tidak pernah ditinjau
+siapa pun: ia hanya diwarisi. Bersih hari ini adalah aset yang punya tanggal
+kedaluwarsa.
+
+### Keputusan teknis
+
+1. **Bypass nomor 1 ditambahkan sendiri, tidak ada di daftar risiko manapun.**
+   Saat memeriksa keadaan awal, `new PrismaClient()` ternyata muncul di
+   `prisma/seed.ts` — dan tidak ada yang menghalangi kemunculan berikutnya di
+   `src`. Ini bypass yang lebih total daripada dua lainnya: bukan celah sempit,
+   melainkan penjaga yang tidak dipasang sama sekali. Justru karena tidak
+   tercatat sebagai risiko, ia yang paling layak dijaga otomatis.
+
+2. **Komentar dibuang sebelum dipindai, dan itu bukan detail.**
+   `core/db/soft-delete.ts` memuat `include: { user: true }` di dalam komentar
+   yang menerangkan bahaya bentuk itu. Penjaga tanpa pembuang komentar akan
+   menuduh dokumentasinya sendiri — dan yang terjadi berikutnya bukan penjaga
+   diperbaiki, melainkan penjaga dimatikan. Pembuang komentar mempertahankan
+   string dan baris baru supaya nomor baris laporan tetap jujur.
+
+3. **`user:` dibedakan dari `userId:`.** Hampir setiap `select` di repo ini
+   memuat `userId`. Tanpa pembedaan ini penjaganya berisik pada belasan tempat
+   yang benar, dan penjaga berisik akan dimatikan orang.
+
+4. **Pemindai diuji terhadap contoh SEBELUM dilepas ke repo.** Repo hari ini
+   bersih, jadi pemeriksaan terhadapnya tidak membuktikan apa pun — pemindai
+   yang rusak akan sama hijaunya. Empat test contoh (melanggar vs aman) yang
+   membuat penjaga ini tidak lulus secara hampa, ditambah pemeriksaan bahwa
+   penelusuran direktori benar-benar membuka >30 berkas.
+
+5. **Diverifikasi dengan mutasi, bukan hanya dengan contoh inline.** Satu berkas
+   berisi ketiga pelanggaran ditanam sementara di `apps/api/src`; ketiga
+   pemeriksaan repo merah, empat self-test pemindai tetap hijau, lalu berkasnya
+   dihapus. Contoh inline membuktikan regexnya benar; mutasi membuktikan
+   penelusuran berkas dan jalur allowlist-nya benar-benar tersambung.
+
+6. **Daftar pengecualian punya pemeriksaan kebalikan.** Entri yang
+   pelanggarannya sudah dibereskan WAJIB dihapus, kalau tidak test merah. Pola
+   yang sama dengan `BELUM_ADA` di `docs-links.test.ts` (PR docs #44): tanpa itu
+   daftar pengecualian hanya bertambah dan pelan-pelan menjadi izin permanen
+   bagi hal yang sudah lama tidak ada.
+
+### Batas penjaga ini — ditulis supaya tidak disalahartikan
+
+* **Pemindai teks, bukan pemeriksa tipe.** `include` yang dirakit lewat variabel
+  (`const inc = { user: true }; findMany({ include: inc })`) lolos. Menutupnya
+  butuh analisis tipe — biayanya jauh di atas nilainya untuk saat ini.
+* **Cakupan `apps/api/src` saja.** `prisma/seed.ts` sengaja di luar: ia tidak
+  pernah melayani permintaan, hanya mengisi database dev/CI. `packages/` dan
+  `apps/worker` belum menyentuh Prisma sama sekali; begitu salah satunya mulai,
+  cakupan ini harus ditinjau ulang.
+* **Tidak menjamin query di dalam allowlist benar.** Ia hanya memaksa
+  pengecualian menjadi keputusan sadar yang tertulis alasannya.
+
+### Bukti verifikasi
+
+* `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 — `@nawasena/api` **538 lulus**, 1 skip.
+* Mutasi: ketiga pemeriksaan repo merah pada pelanggaran yang ditanam di `src`, self-test pemindai tetap hijau, mutasi dihapus.
+* Tidak ada perubahan kode produksi — nol risiko regresi runtime.
+
+### Next steps
+
+* **PR-022** — boleh mulai. Bila agregator ekspor benar-benar butuh relasi `user`, penjaga akan memintanya didaftarkan beserta alasan, dan pemanggilnya wajib menyaring `deletedAt` sendiri.
+* **Tinjau cakupan** begitu `apps/worker` atau `packages/` mulai menyentuh Prisma.
+* Sisa masalah pasca-PR-021 yang belum punya pemilik: verifikasi kepemilikan email (akar dari tiga masalah lain) dan notifikasi "akun Anda dihapus".
