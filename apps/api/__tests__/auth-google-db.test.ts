@@ -75,13 +75,15 @@ describe("findOrCreateByGoogle", () => {
     expect(await prisma.user.count({ where: { googleId: googleUji("02") } })).toBe(1);
   });
 
-  it("akun lama dengan email sama DITAUTKAN, bukan diduplikasi", async (ctx) => {
+  it("akun lama dengan email TERVERIFIKASI ditautkan, bukan diduplikasi", async (ctx) => {
     if (!dbTersedia) return ctx.skip();
     const repo = createAuthUserRepository(prisma);
     const email = emailUji("03");
     // Akun hasil login OTP (PR-016): tanpa google_id, nama masih kosong.
+    // `emailVerified: true` WAJIB sejak PR-020a — alamat yang diketik sendiri
+    // tidak lagi cukup untuk menarik identitas Google ke sini.
     const lama = await prisma.user.create({
-      data: { id: uuidV7(), email, fullName: "", phone: "+62857000903" },
+      data: { id: uuidV7(), email, emailVerified: true, fullName: "", phone: "+62857000903" },
       select: { id: true },
     });
 
@@ -95,12 +97,46 @@ describe("findOrCreateByGoogle", () => {
     expect(await prisma.user.count({ where: { email } })).toBe(1);
   });
 
+  // --- PR-020a: email yang belum dibuktikan tidak boleh menarik identitas Google ---
+
+  it("email yang DIKETIK SENDIRI tidak menautkan identitas Google (anti-takeover)", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const repo = createAuthUserRepository(prisma);
+    const email = emailUji("08");
+    // Skenario serangannya: penyerang mengklaim alamat korban lewat PUT /me,
+    // yang SELALU menyimpan emailVerified: false.
+    const pengklaim = await prisma.user.create({
+      data: { id: uuidV7(), email, emailVerified: false, fullName: "Pengklaim" },
+      select: { id: true },
+    });
+
+    await expect(repo.findOrCreateByGoogle(identitas("08", { email }))).rejects.toThrow(
+      /diklaim akun lain/,
+    );
+
+    // Baris penyerang TIDAK menerima google_id korban — inti perbaikannya.
+    const baris = await prisma.user.findUniqueOrThrow({ where: { id: pengklaim.id } });
+    expect(baris.googleId).toBeNull();
+    // Dan tidak ada akun bayangan yang diam-diam dibuat memakai alamat itu.
+    expect(await prisma.user.count({ where: { email } })).toBe(1);
+  });
+
+  it("akun baru dari Google selalu lahir dengan email_verified true", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const repo = createAuthUserRepository(prisma);
+
+    const hasil = await repo.findOrCreateByGoogle(identitas("09"));
+
+    const baris = await prisma.user.findUniqueOrThrow({ where: { id: hasil.id } });
+    expect(baris.emailVerified).toBe(true);
+  });
+
   it("nama yang sudah diisi pengguna TIDAK ditimpa nama dari Google", async (ctx) => {
     if (!dbTersedia) return ctx.skip();
     const repo = createAuthUserRepository(prisma);
     const email = emailUji("04");
     const lama = await prisma.user.create({
-      data: { id: uuidV7(), email, fullName: "Nama Pilihan Sendiri" },
+      data: { id: uuidV7(), email, emailVerified: true, fullName: "Nama Pilihan Sendiri" },
       select: { id: true },
     });
 

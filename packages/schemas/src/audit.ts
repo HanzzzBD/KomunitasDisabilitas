@@ -73,6 +73,11 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
       "googleTokenInvalid",
       /** Email Google belum terverifikasi — linking ditolak (anti-takeover). */
       "googleEmailNotVerified",
+      /** PR-020a: alamat dari Google dipegang akun lain yang belum membuktikan
+       *  kepemilikannya. Ditolak, BUKAN ditautkan — penautan ke baris itu persis
+       *  pengambilalihan yang dicegah. Layak diaudit: pola berulang atas banyak
+       *  alamat berarti ada yang sedang memanen email lewat PUT /me. */
+      "googleEmailClaimed",
     ]),
   }),
   [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: z.object({

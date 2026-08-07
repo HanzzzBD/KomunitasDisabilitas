@@ -11,7 +11,7 @@ import type { AddressInfo } from "node:net";
 import { Writable } from "node:stream";
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { SignJWT, exportJWK, generateKeyPair, type JWK, type KeyLike } from "jose";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
@@ -152,6 +152,8 @@ interface BarisUser {
   id: string;
   googleId: string | null;
   email: string | null;
+  /** PR-020a: true hanya bila alamatnya datang dari Google. */
+  emailVerified?: boolean;
   fullName: string;
   deletedAt: Date | null;
 }
@@ -168,6 +170,11 @@ function fakePrisma(awal: BarisUser[] = []) {
             u.deletedAt === null &&
             (where.googleId === undefined || u.googleId === where.googleId) &&
             (where.email === undefined || u.email === where.email) &&
+            // Penyaring PR-020a. Fake yang mengabaikannya akan menautkan baris
+            // yang produksi TOLAK — yaitu meluluskan test atas lubang yang
+            // justru sedang ditutup.
+            (where.emailVerified === undefined ||
+              (u.emailVerified ?? false) === where.emailVerified) &&
             // findActiveSessionUser (PR-018b) mencari lewat id.
             (where.id === undefined || u.id === where.id),
         );
@@ -175,6 +182,16 @@ function fakePrisma(awal: BarisUser[] = []) {
         return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0 });
       },
       create: ({ data }: { data: BarisUser }) => {
+        // Wasit unique parsial email (migrasi 06) — di sinilah 409 lahir.
+        if (
+          data.email !== null &&
+          users.some((u) => u.deletedAt === null && u.email === data.email)
+        ) {
+          throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+            code: "P2002",
+            clientVersion: "5.22.0",
+          });
+        }
         users.push({ ...data, deletedAt: null });
         return Promise.resolve({ id: data.id });
       },
@@ -308,7 +325,7 @@ describe("POST /api/v1/auth/google — jalur berhasil", () => {
     expect(audit.at(-1)?.meta).toEqual({ method: "google", isNewUser: false });
   });
 
-  it("akun lama dengan email sama ditautkan, bukan diduplikasi", async () => {
+  it("akun lama dengan email TERVERIFIKASI ditautkan, bukan diduplikasi", async () => {
     balasanToken = await balasanSukses();
     const { base, users } = await boot({
       users: [
@@ -316,6 +333,8 @@ describe("POST /api/v1/auth/google — jalur berhasil", () => {
           id: "01912345-89ab-7def-8123-000000000009",
           googleId: null,
           email: "rina@contoh.id",
+          // Terbukti milik pemiliknya (mis. warisan login Google sebelumnya).
+          emailVerified: true,
           fullName: "",
           deletedAt: null,
         },
@@ -328,6 +347,36 @@ describe("POST /api/v1/auth/google — jalur berhasil", () => {
     expect(body.data.userId).toBe("01912345-89ab-7def-8123-000000000009");
     expect(users).toHaveLength(1);
     expect(users[0]?.googleId).toBe("google-sub-uji-1");
+  });
+
+  it("akun lama dengan email BELUM terverifikasi TIDAK ditautkan → 409 (PR-020a)", async () => {
+    balasanToken = await balasanSukses();
+    const KLAIMER = "01912345-89ab-7def-8123-00000000000a";
+    const { base, users, audit } = await boot({
+      users: [
+        {
+          id: KLAIMER,
+          googleId: null,
+          // Diketik sendiri lewat PUT /me — bisa saja milik orang lain.
+          email: "rina@contoh.id",
+          emailVerified: false,
+          fullName: "Pengklaim",
+          deletedAt: null,
+        },
+      ],
+    });
+
+    const res = await masuk(base);
+
+    expect(res.status).toBe(409);
+    expect((await res.json()) as { code: string }).toMatchObject({
+      code: "EMAIL_GOOGLE_DIKLAIM_AKUN_LAIN",
+    });
+    // Inilah inti perbaikannya: identitas Google TIDAK mendarat di baris itu…
+    expect(users[0]?.googleId).toBeNull();
+    // …dan tidak ada akun bayangan yang diam-diam dibuat.
+    expect(users).toHaveLength(1);
+    expect(audit.at(-1)?.meta).toEqual({ reason: "googleEmailClaimed" });
   });
 });
 
@@ -439,10 +488,14 @@ describe("kerahasiaan (AC: tidak ada token Google tersimpan permanen)", () => {
     for (const rahasia of [ACCESS_TOKEN, REFRESH_TOKEN, CODE, VERIFIER, CLIENT_SECRET]) {
       expect(tersimpan).not.toContain(rahasia);
     }
-    // Yang BOLEH tersimpan hanyalah tiga hal ini.
+    // Yang BOLEH tersimpan hanyalah identitas — bukan satu pun token.
+    // `emailVerified` bergabung di PR-020a: ia menandai bahwa alamat itu datang
+    // dari Google, dan justru itulah yang membuatnya tidak bisa dipalsukan lewat
+    // PUT /me. Ia jawaban ya/tidak, bukan kredensial.
     expect(Object.keys(users[0] ?? {}).sort()).toEqual([
       "deletedAt",
       "email",
+      "emailVerified",
       "fullName",
       "googleId",
       "id",

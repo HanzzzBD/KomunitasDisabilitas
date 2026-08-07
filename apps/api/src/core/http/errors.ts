@@ -75,6 +75,15 @@ export const ERROR_CATALOG = {
     message: "Data masuk dari Google tidak sah",
     hint: "Ulangi dari tombol Masuk dengan Google",
   },
+  // PR-020a: alamat dari Google dipegang akun lain yang belum membuktikannya.
+  // Hint-nya mengarahkan ke OTP, bukan sekadar menolak: jalur itu tetap terbuka
+  // penuh, jadi pengguna TIDAK terkunci dari platform — dan bagi pengguna yang
+  // memang pemilik kedua-duanya, itu memang langkah yang benar.
+  EMAIL_GOOGLE_DIKLAIM_AKUN_LAIN: {
+    status: 409,
+    message: "Email Google Anda sudah terdaftar lewat cara lain",
+    hint: "Masuk dengan kode OTP memakai nomor HP Anda; hubungi kami bila Anda tidak mengenali akun itu",
+  },
   EMAIL_GOOGLE_BELUM_TERVERIFIKASI: {
     status: 403,
     message: "Email Google Anda belum terverifikasi",

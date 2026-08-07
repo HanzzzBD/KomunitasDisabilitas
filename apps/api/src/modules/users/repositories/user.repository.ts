@@ -67,7 +67,19 @@ export function createUserProfileRepository(prisma: PrismaClient) {
         return await prisma.user.update({
           // Filter non-unique di samping PK = extendedWhereUnique (GA Prisma 5).
           where: { id, deletedAt: null },
-          data,
+          data: {
+            fullName: data.fullName,
+            ...(data.email === undefined
+              ? {}
+              : // Email yang DIKETIK SENDIRI tidak pernah terverifikasi — endpoint
+                // ini tidak punya cara membuktikan pengguna memegang alamat itu
+                // (PR-020a). Nilai false-nya yang membuat alamat ini tidak bisa
+                // dipakai menautkan identitas Google siapa pun. Ditulis ulang
+                // SETIAP kali email disentuh, termasuk saat dikosongkan: alamat
+                // terverifikasi dari Google yang diganti manual kehilangan
+                // statusnya, dan itu memang yang benar.
+                { email: data.email, emailVerified: false }),
+          },
           select: KOLOM_PROFIL,
         });
       } catch (err) {

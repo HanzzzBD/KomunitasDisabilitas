@@ -456,14 +456,23 @@ RB-Std.
 
 #### Risks
 
-* ~~Minim.~~ **Ditemukan saat implementasi:** membuat `email` bisa diubah pengguna membuka jalur penautan akun yang sebelumnya tidak ada — lihat catatan di bawah.
-* **Email belum diverifikasi kepemilikannya.** Pengguna bisa menyetel alamat yang bukan miliknya. Unique index menutup penautan Google ke akun yang salah, tetapi tidak menutup pengguna yang mengklaim alamat orang lain yang BELUM punya akun Nawasena. Verifikasi email tidak ada di backlog manapun — kandidat PR baru sebelum email dipakai untuk notifikasi (Phase 07) atau pemulihan akun.
+* ~~Minim.~~ **Ditemukan saat implementasi:** membuat `email` bisa diubah pengguna membuka jalur penautan akun yang sebelumnya tidak ada — ditutup di PR-020a, lihat catatan di bawah.
+* **Email masih belum diverifikasi kepemilikannya.** Pengguna tetap bisa MENGETIK alamat yang bukan miliknya; yang ditutup PR-020a adalah kemampuan alamat itu menarik identitas Google. Verifikasi kepemilikan (kirim tautan/kode) tidak ada di backlog manapun — kandidat PR baru sebelum email dipakai untuk notifikasi (Phase 07) atau pemulihan akun.
+* **Pengguna OTP tidak lagi tertaut otomatis ke Google.** Konsekuensi PR-020a: mendaftar lewat OTP, mengetik email, lalu login Google kini DITOLAK (409) dan diarahkan masuk lewat OTP. Penautan otomatis kembali begitu verifikasi email ada.
 
-> **Koreksi "Database Changes: Tidak ada" (keputusan owner 2026-08-06):** `PUT /me` membuat `email` bisa diubah pengguna, dan `findOrCreateByGoogle` (PR-017) menautkan identitas Google ke akun yang emailnya cocok. Yang diverifikasi di sana adalah `email_verified` **dari Google**, bukan email yang tersimpan di sisi kita — jadi penyerang yang menyetel email korban di akunnya sendiri akan menerima identitas Google korban saat korban login pertama kali. Migrasi 06 menambahkan `CREATE UNIQUE INDEX users_email_aktif_key ON users (email) WHERE deleted_at IS NULL` — aditif, backward-compatible satu versi, dan mengikuti pola dua index parsial migrasi 01. Pemeriksaan di lapisan aplikasi saja ditolak: ia baca-lalu-tulis, dan balapan dua permintaan bersamaan adalah persis bentuk eksploitnya.
+> **Koreksi "Database Changes: Tidak ada" (keputusan owner 2026-08-06):** `PUT /me` membuat `email` bisa diubah pengguna, dan `findOrCreateByGoogle` (PR-017) menautkan identitas Google ke akun yang emailnya cocok. Yang diverifikasi di sana adalah `email_verified` **dari Google**, bukan email yang tersimpan di sisi kita — jadi penyerang yang menyetel email korban di akunnya sendiri akan menerima identitas Google korban saat korban login pertama kali. Dua migrasi menjawabnya:
+>
+> * **Migrasi 06** — `CREATE UNIQUE INDEX users_email_aktif_key ON users (email) WHERE deleted_at IS NULL`. Aditif, mengikuti pola dua index parsial migrasi 01.
+> * **Migrasi 07 (PR-020a)** — kolom `email_verified`; hanya baris ber-`true` yang boleh dicocokkan saat penautan Google.
+>
+> **KOREKSI ATAS KLAIM AWAL PR-020 (2026-08-06):** deskripsi PR-020 menyatakan migrasi 06 "menutup jalur penautan akun". Itu **terlalu jauh, dan kekeliruannya penting**. Index unik hanya mencegah DUA baris memegang alamat yang sama — ia melindungi akun yang SUDAH ADA. Ia sama sekali tidak mencegah seseorang mengklaim lebih dulu alamat yang BELUM terdaftar, dan justru itulah serangannya: korban yang belum punya akun tetap akan mendarat di baris penyerang. Yang benar-benar menutup lubang adalah **migrasi 07 + penyaring `emailVerified: true`** di PR-020a. Migrasi 06 tetap berguna (mencegah dua akun berebut satu alamat), tetapi ia bukan mitigasinya.
+>
+> Pemeriksaan di lapisan aplikasi saja tetap ditolak: ia baca-lalu-tulis, dan balapan dua permintaan bersamaan adalah persis bentuk eksploitnya. File migrasi 06 **tidak** disunting untuk memuat koreksi ini — Prisma menyimpan checksum tiap migrasi yang sudah di-apply, jadi menyunting isinya akan membuat `migrate deploy` menolak berjalan.
 
 #### Log Implementasi
 
 * 2026-08-06 — PR-020 selesai (modul `users`, `GET/PUT /api/v1/me`, kontrak zod bersama, audit perubahan email, migrasi 06 unique parsial email). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020--users--getput-me).
+* 2026-08-06 — PR-020a selesai (migrasi 07 `email_verified`, penyaring penautan Google, perbaikan 500 → 409, koreksi klaim keamanan PR-020). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020a--email_verified-koreksi-lubang-penautan-akun).
 
 
 ### PR-021 - Hapus Akun (Soft Delete + Revoke)

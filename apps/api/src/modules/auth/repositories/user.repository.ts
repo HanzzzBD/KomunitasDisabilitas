@@ -17,6 +17,18 @@ export interface AuthUserResult {
 
 /** Kode Prisma untuk pelanggaran unique constraint. */
 const UNIQUE_VIOLATION = "P2002";
+
+/**
+ * Alamat email dari Google sudah dipegang akun lain yang BELUM membuktikan
+ * kepemilikannya (diketik sendiri lewat PUT /me). Akun baru tidak bisa dibuat,
+ * dan penautan ke baris itu justru yang sedang dicegah.
+ */
+export class EmailDiklaimAkunLainError extends Error {
+  constructor() {
+    super("email dari Google sedang diklaim akun lain yang belum terverifikasi");
+    this.name = "EmailDiklaimAkunLainError";
+  }
+}
 /** Kode Prisma saat update/delete tidak menemukan baris yang cocok. */
 const RECORD_NOT_FOUND = "P2025";
 
@@ -135,8 +147,19 @@ export function createAuthUserRepository(prisma: PrismaClient) {
       const tertaut = await findActiveByGoogleId(googleId);
       if (tertaut !== null) return { id: tertaut.id, isNew: false };
 
+      // `emailVerified: true` WAJIB (PR-020a). Tanpa syarat itu, alamat yang
+      // DIKETIK SENDIRI seseorang lewat PUT /me cukup untuk menarik identitas
+      // Google orang lain ke akunnya — pengambilalihan yang tidak memerlukan
+      // kata sandi, token, atau akses apa pun ke akun korban. Yang boleh
+      // dicocokkan hanyalah alamat yang kepemilikannya sudah dibuktikan, dan
+      // hari ini satu-satunya bukti yang kita punya adalah Google sendiri.
+      //
+      // Konsekuensi yang diterima sadar: pengguna yang mendaftar lewat OTP lalu
+      // mengetik emailnya di pengaturan TIDAK lagi tertaut otomatis saat login
+      // Google — ia mendapat penolakan yang mengarahkannya masuk lewat OTP.
+      // Penautan otomatis kembali begitu verifikasi email ada.
       const seemail = await prisma.user.findFirst({
-        where: { email, deletedAt: null },
+        where: { email, emailVerified: true, deletedAt: null },
         select: { id: true, fullName: true },
       });
       if (seemail !== null) {
@@ -154,7 +177,10 @@ export function createAuthUserRepository(prisma: PrismaClient) {
 
       try {
         const created = await prisma.user.create({
-          data: { id: uuidV7(), googleId, email, fullName },
+          // Alamat ini datang dari id_token Google yang sudah diperiksa
+          // `email_verified`-nya oleh pemanggil — inilah satu-satunya tempat
+          // `emailVerified: true` boleh ditulis.
+          data: { id: uuidV7(), googleId, email, emailVerified: true, fullName },
           select: { id: true },
         });
         return { id: created.id, isNew: true };
@@ -162,6 +188,11 @@ export function createAuthUserRepository(prisma: PrismaClient) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === UNIQUE_VIOLATION) {
           const winner = await findActiveByGoogleId(googleId);
           if (winner !== null) return { id: winner.id, isNew: false };
+          // Bukan balapan google_id, berarti index email (migrasi 06) yang
+          // menolak: alamat ini dipegang akun lain yang BELUM membuktikannya.
+          // Dulu baris ini jatuh ke `throw err` → 500. Sekarang ia error
+          // bernama, supaya pemanggil bisa menjawab dengan arahan yang berguna.
+          throw new EmailDiklaimAkunLainError();
         }
         throw err;
       }

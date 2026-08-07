@@ -754,6 +754,8 @@ Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
 
 ### Keputusan teknis
 
+> ⚠️ **KOREKSI (PR-020a, 2026-08-06):** keputusan 1 di bawah dan deskripsi PR-020 menyatakan migrasi 06 menutup jalur penautan akun. **Itu keliru.** Index unik hanya mencegah dua baris memegang alamat yang sama — ia melindungi akun yang sudah ada, dan tidak mencegah penyerang mengklaim lebih dulu alamat yang belum terdaftar. Yang benar-benar menutup lubang adalah migrasi 07 + penyaring `emailVerified: true`; lihat [PR-020a](#pr-020a--email_verified-koreksi-lubang-penautan-akun).
+
 1. **Migrasi 06 (unique parsial email) — koreksi atas "Database Changes: Tidak ada", disetujui owner.** `PUT /me` membuat email bisa diubah pengguna, sementara `findOrCreateByGoogle` (PR-017) menautkan identitas Google ke akun yang emailnya cocok. Yang diverifikasi di sana adalah `email_verified` **dari Google**, bukan email yang tersimpan di sisi kita — jadi penyerang yang menyetel email korban di akunnya sendiri akan menerima identitas Google korban saat korban login pertama kali, dan korban masuk ke akun orang lain. **Pemeriksaan di lapisan aplikasi saja ditolak:** ia baca-lalu-tulis, dan balapan dua permintaan bersamaan adalah persis bentuk eksploitnya, bukan kasus tepi teoretis. Index-nya PARSIAL mengikuti pola migrasi 01: email akun terhapus boleh dipakai ulang — hak hapus UU PDP tidak boleh berubah menjadi hukuman seumur hidup atas alamat sendiri.
 2. **`access.authenticated()`, BUKAN `access.self()`** meski Technical Notes menyebut requireSelf. `/me` tidak punya param `:userId` untuk dibandingkan, dan `requireSelf` menolak semua permintaan pada route tanpa param (perilaku yang sengaja dipilih di PR-019). Yang dijaga requireSelf dijamin di sini oleh bentuk endpoint-nya: identitas datang dari sesi dan **tidak ada saluran input** untuk menyebut pengguna lain — service-nya bahkan tidak punya parameternya. `access.self` menunggu endpoint ber-param pertama.
 3. **`email` di-`toLowerCase()` di kontrak, bukan di service.** Menyimpan dua bentuk kapitalisasi berbeda akan membuat unique index menganggapnya dua alamat berlainan — persis celah yang index itu tutup.
@@ -790,3 +792,86 @@ Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
 * **PR baru (usulan)** — verifikasi kepemilikan email, sebelum Phase 07 memakai email untuk notifikasi.
 * **PR-105** — rate limit per-IP; sertakan `/me`.
 * **Penjaga katalog audit (usulan kecil)** — test yang membandingkan `AUDIT_ACTION` dengan tabel di `docs/audit-action-catalog.md`, meniru apa yang `check:openapi` lakukan untuk kontrak API.
+
+---
+## PR-020a — `email_verified`: koreksi lubang penautan akun
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-020---users--getput-me)
+> **Tanggal:** 2026-08-06
+> **Status:** Selesai
+> **Branch:** `pr-020a-email-verified` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+PR perbaikan atas PR-020. Dua hal yang salah, satu di dokumen dan satu di kode:
+
+1. **Klaim keamanan PR-020 berlebihan.** Migrasi 06 (unique parsial email)
+   digambarkan "menutup jalur penautan akun". Tidak. Index unik hanya mencegah
+   DUA baris memegang alamat yang sama — ia melindungi akun yang **sudah ada**,
+   dan sama sekali tidak mencegah seseorang mengklaim lebih dulu alamat yang
+   **belum terdaftar**. Justru itulah serangannya, dan ia masih terbuka penuh
+   setelah PR-020 merged.
+2. **Migrasi 06 memperkenalkan bug 500.** `findOrCreateByGoogle` menangani
+   `P2002` dengan hanya mencari ulang `google_id`. Sejak email punya unique
+   index, `P2002` dari email jatuh ke `throw err` → 500 `TERJADI_KESALAHAN`.
+
+Keduanya ditutup di sini. Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9,
+`pnpm test` 9/9 — `@nawasena/api` **408 lulus**, 75 skip (integrasi DB, CI).
+
+### Serangan yang sebenarnya, dan kenapa index saja tidak cukup
+
+```
+Penyerang: PUT /me { email: "korban@gmail.com" }     → baris penyerang, email diketik sendiri
+Korban   : login Google pertama kali
+           langkah 1  findActiveByGoogleId  → null   (korban memang belum pernah masuk)
+           langkah 2  findFirst({ email })  → BARIS PENYERANG
+           → google_id korban ditulis ke akun penyerang; korban masuk ke akun orang lain
+```
+
+Index unik tidak pernah ikut campur di alur ini: hanya ADA SATU baris dengan
+alamat itu, dan index puas. Yang keliru bukan jumlah barisnya — melainkan bahwa
+kita memperlakukan alamat yang **diketik sendiri** setara dengan alamat yang
+**terbukti**.
+
+### Scope yang selesai
+
+* **Migrasi 07** — kolom `users.email_verified` (`NOT NULL DEFAULT false`), backfill `true` untuk baris ber-email yang masih memegang `google_id`.
+* **`schema.prisma`** — field `emailVerified` + dokumentasi aturannya.
+* **`modules/auth`** — langkah 2 `findOrCreateByGoogle` menyaring `emailVerified: true`; pembuatan akun via Google menulis `emailVerified: true`; `P2002` non-`google_id` → `EmailDiklaimAkunLainError` (bukan 500).
+* **`modules/users`** — `updateProfile` menulis `emailVerified: false` setiap kali email disentuh, termasuk saat dikosongkan.
+* **`core/http`** — kode `EMAIL_GOOGLE_DIKLAIM_AKUN_LAIN` (409) dengan hint yang mengarahkan ke OTP.
+* **`packages/schemas`** — alasan audit `googleEmailClaimed` (penambahan anggota enum = aditif).
+* **Koreksi dokumen** — phase doc, entry log PR-020 (banner koreksi di atas keputusan 1), komentar migrasi 07.
+* **Test** — 1 HTTP baru (409 + audit + `google_id` tidak berpindah), 4 DB baru, 3 test lama disesuaikan.
+
+### Keputusan teknis
+
+1. **DITOLAK, bukan ditautkan, dan juga bukan "buat akun tanpa email".** Tiga pilihan saat alamat dari Google dipegang baris yang belum terbukti: tautkan (= serangan itu sendiri), buat akun baru tanpa email (pengguna masuk, tetapi akunnya terbelah diam-diam dan datanya berserak), atau tolak dengan arahan. Dipilih yang ketiga. Alasannya bukan kemurnian: **jalur OTP tetap terbuka penuh**, jadi pengguna tidak pernah terkunci dari platform — sementara akun kembar tanpa email adalah kerusakan data yang tidak pernah memberi sinyal.
+2. **Hint mengarahkan ke OTP, bukan sekadar menolak.** Bagi pengguna yang memang pemilik kedua-duanya (daftar lewat OTP, lalu mengetik emailnya), itu memang langkah yang benar. Bagi korban serangan, kalimat "hubungi kami bila Anda tidak mengenali akun itu" adalah satu-satunya cara insiden ini sampai ke kami.
+3. **Diaudit sebagai `AUTH_LOGIN_FAILED` dengan `reason: googleEmailClaimed`.** Satu kejadian bisa saja tidak sengaja; pola berulang atas banyak alamat berarti ada yang memanen email lewat `PUT /me` untuk memanen identitas Google. Tanpa baris audit, pola itu tidak punya tempat untuk terlihat.
+4. **Backfill dipersempit ke baris yang masih memegang `google_id`.** Sebelum PR-020 tidak ada cara mengisi email selain lewat Google, jadi backfill "semua email" pun secara historis benar. Tetapi `google_id` adalah bukti yang **melekat pada barisnya sendiri**, bukan kesimpulan dari sejarah — dan baris ber-email tanpa `google_id` hanya mungkin lahir dari `PUT /me` setelah PR-020, yang justru tidak boleh dipercaya.
+5. **`emailVerified` ditulis ulang menjadi `false` SETIAP kali email disentuh**, termasuk saat dikosongkan. Alamat terverifikasi dari Google yang diganti manual kehilangan statusnya — itu memang yang benar, dan menuliskannya tanpa syarat menghilangkan satu cabang yang bisa salah.
+6. **File migrasi 06 TIDAK disunting.** Prisma menyimpan checksum tiap migrasi yang sudah di-apply; menyunting isinya — bahkan hanya komentarnya — membuat `migrate deploy` menolak berjalan. Koreksinya hidup di migrasi 07, phase doc, dan log ini.
+7. **Fake Prisma di `auth-google-http` diajari menghormati `emailVerified` DAN unique email.** Fake yang mengabaikan penyaring baru akan menautkan baris yang produksi tolak — yaitu meluluskan test atas lubang yang justru sedang ditutup. Ini pola yang sama dengan temuan `PrismaClientKnownRequestError` di PR-020: tiruan yang lebih longgar daripada aslinya adalah cara paling rapi untuk lulus tanpa jaminan.
+
+### Bukti verifikasi
+
+* `pnpm lint` — 9/9 hijau. `pnpm typecheck` — 9/9 hijau.
+* `pnpm test` — 9/9 hijau. `@nawasena/api`: **408 lulus**, 75 skip (DB lokal mati; CI menjalankannya).
+* `check:openapi` — sinkron (tidak ada perubahan kontrak HTTP selain kode error baru).
+* Snapshot katalog error diperbarui (satu entri baru).
+* Tiga test lama yang ikut berubah, dan alasannya: dua test DB PR-017a kini menyeed `emailVerified: true` (skenarionya memang akun terverifikasi), dan guard kolom tersimpan di `auth-google-http` bertambah satu kunci — `emailVerified` adalah jawaban ya/tidak, bukan kredensial.
+
+### Risiko yang ditemukan
+
+* **Pengguna OTP kehilangan penautan otomatis.** Daftar lewat OTP → ketik email → login Google kini ditolak 409. Ini konsekuensi langsung dari menutup lubangnya, bukan efek samping yang bisa dihindari: kita tidak punya cara membedakan pemilik sah dari pengklaim tanpa verifikasi. Penautan otomatis kembali begitu verifikasi email ada. **Sampai saat itu, ini gesekan UX nyata yang akan terlihat di dukungan pengguna.**
+* **Verifikasi kepemilikan email masih belum ada** — kini menjadi prasyarat untuk memulihkan UX di atas, bukan sekadar higiene keamanan. Naik prioritas.
+* **Penyerang masih bisa "memesan" alamat orang lain** di barisnya sendiri. Ia tidak lagi mendapat apa pun darinya, tetapi ia MENGHALANGI pemilik sah mendaftar lewat Google (jalur OTP tetap terbuka). Verifikasi email menutup ini juga; sampai saat itu, baris audit `googleEmailClaimed` adalah satu-satunya cara melihatnya.
+* **Balapan `update` di langkah 2 masih belum ditangani** (P2002 pada `google_id` saat dua login bersamaan menaut baris yang sama). Pra-ada sejak PR-017, tidak disentuh di sini — cakupannya alur penautan, bukan alur klaim email.
+
+### Next steps
+
+* **PR baru (naik prioritas)** — verifikasi kepemilikan email. Kini bukan hanya menutup sisa lubang, tetapi juga memulihkan penautan otomatis bagi pengguna OTP.
+* **PR-021** — hapus akun: `email_verified` ikut hilang bersama barisnya; tidak ada tindakan tambahan.
+* **PR-033** — UI pengaturan perlu menjelaskan bahwa email yang baru diketik belum terverifikasi, supaya pengguna tidak mengira dirinya sudah bisa memakai login Google.
+* **PR-106** — matriks authz; tidak terpengaruh.

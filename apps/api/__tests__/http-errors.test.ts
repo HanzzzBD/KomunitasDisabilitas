@@ -35,6 +35,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Email Google Anda belum terverifikasi",
           "status": 403,
         },
+        "EMAIL_GOOGLE_DIKLAIM_AKUN_LAIN": {
+          "hint": "Masuk dengan kode OTP memakai nomor HP Anda; hubungi kami bila Anda tidak mengenali akun itu",
+          "message": "Email Google Anda sudah terdaftar lewat cara lain",
+          "status": 409,
+        },
         "EMAIL_TIDAK_BISA_DIPAKAI": {
           "hint": "Coba email lain, atau masuk dengan email tersebut bila itu milik Anda",
           "message": "Email ini tidak bisa dipakai",
