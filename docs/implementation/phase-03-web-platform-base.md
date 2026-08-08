@@ -398,14 +398,14 @@ RB-Std.
 #### Acceptance Criteria
 
 * [x] Toggle mode mengubah seluruh string shell tanpa reload. — **PR-029a.** Mode disimpan sebagai state React; perubahannya merender ulang seluruh pohon. Test memeriksa **dua string berbeda** ikut berubah — kalau hanya satu yang diperiksa, konteks yang tidak benar-benar merender ulang akan lolos.
-* [ ] Key tanpa varian simple → lint warning terdaftar. — **sudah dijamin TIPE sejak PR-029a, lebih keras daripada yang diminta:** `EntriTeks` menuntut kedua varian, jadi yang hilang adalah `typecheck` MERAH, bukan peringatan yang bisa diabaikan (diverifikasi mutasi: `TS2741`). Kotaknya tetap terbuka karena PR-029b masih menambahkan penjaga untuk hal yang TIDAK bisa dijamin tipe — varian simple yang disalin mentah dari `id`.
+* [x] Key tanpa varian simple → lint warning terdaftar. — **dua lapis, keduanya lebih keras daripada peringatan lint.** (1) **Tipe** (PR-029a): `EntriTeks` menuntut kedua varian, jadi yang hilang adalah `typecheck` MERAH — diverifikasi mutasi (`TS2741`). (2) **Penjaga CI** (PR-029b): varian simple yang *disalin mentah* dari `id` — hal yang tidak bisa dibedakan tipe — wajib didaftarkan di `SAMA_DENGAN_SENGAJA` beserta alasannya, dengan pemeriksaan arah balik agar alasan basi ikut merah. Diverifikasi mutasi dua arah.
 * [x] Fallback key hilang → tampil key + error log (bukan blank). — **PR-029a.** Fallback berlapis: varian diminta → varian `id` → kunci itu sendiri. Layar kosong tidak bisa dilaporkan pengguna; `shell.luring.judul` yang muncul di layar bisa langsung dicari di kode. Pelaporannya disuntikkan (`laporKunciHilang`), jadi PR-103 bisa mengarahkannya ke observability tanpa menyentuh berkas ini.
-* [ ] Katalog terstruktur per fitur. — struktur sudah berdiri di PR-029a (satu berkas per fitur, dirakit di `katalog/index.ts`); **penjaganya** menyusul di PR-029b.
+* [x] Katalog terstruktur per fitur. — **PR-029b.** Satu berkas per fitur, dirakit di `katalog/index.ts`. Dijaga: tiap kunci wajib berprefiks nama fiturnya, tidak boleh ada kunci kembar antar fitur (spread akan menimpanya **diam-diam** dan fitur yang kalah kehilangan teksnya tanpa satu pun galat), dan `katalog` + `fiturKatalog` wajib memuat kunci yang sama.
 * [x] Interpolasi aman (tanpa injeksi HTML). — **PR-029a.** Mengembalikan STRING BIASA dan tidak pernah menyentuh HTML; **tidak ada varian "rich text"** — begitu ada, seseorang akan memakainya untuk teks yang berasal dari pengguna. Nilai di dalam hasil tidak diproses ulang (menutup penggantian berantai), dan `Object.hasOwn` menutup pembacaan rantai prototipe (`{constructor}` tidak mencetak teks fungsi). Diuji dengan `<img src=x onerror=…>` sebagai nilai parameter.
 
 > **Dipecah jadi dua PR (persetujuan owner 2026-08-08):** scope utuh terukur ≈ 690 LOC, di atas batas <500.
 > **PR-029a** — tipe & kontrak katalog, pencarian + fallback, interpolasi aman, provider + hook, katalog shell, integrasi 16 string yang sudah ada — *selesai* (AC 1, 3, 5).
-> **PR-029b** — penjaga kelengkapan katalog per fitur + panduan menulis `id-simple` — *belum* (AC 2, 4).
+> **PR-029b** — penjaga kelengkapan katalog per fitur + panduan menulis `id-simple` — *selesai* (AC 2, 4). **Seluruh AC PR-029 kini terpenuhi.**
 >
 > **Penyimpangan sadar pada AC-2:** "lint warning" diganti jaminan TIPE. `EntriTeks` menuntut kedua varian, sehingga yang hilang menjadi `typecheck` merah — lebih keras daripada peringatan, dan tanpa aturan ESLint kustom (~200 LOC) yang harus dirawat. Diverifikasi mutasi.
 >
@@ -417,11 +417,12 @@ RB-Std.
 
 #### Risks
 
-* Varian simple ditulis asal. Mitigasi: panduan menulis bahasa sederhana di docs + review konten. — **panduannya belum ada; itu isi PR-029b.** Tipe hanya menjamin varian simple ADA, bukan bahwa ia benar-benar lebih sederhana.
+* Varian simple ditulis asal. Mitigasi: panduan menulis bahasa sederhana di docs + review konten. — **ditutup di PR-029b:** [docs/panduan-bahasa-sederhana.md](../panduan-bahasa-sederhana.md) + penjaga CI untuk salinan mentah. Yang TETAP tidak dijamin mesin: apakah kalimatnya benar-benar lebih mudah dipahami. Itu pekerjaan review, dan panduan itu rujukannya.
 
 #### Log Implementasi
 
 * 2026-08-08 — PR-029a selesai (mesin i18n dua varian, fallback berlapis, interpolasi aman, katalog shell, integrasi 16 string). AC 1, 3, 5 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-029a--mesin-i18n-dua-varian--katalog-shell).
+* 2026-08-08 — PR-029b selesai (penjaga salinan mentah dua arah, penjaga struktur per fitur, panduan menulis bahasa sederhana). AC 2 & 4 terpenuhi — **PR-029 tuntas**. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-029b--penjaga-katalog--panduan-bahasa-sederhana).
 
 
 ### PR-030 - Web Auth Pages

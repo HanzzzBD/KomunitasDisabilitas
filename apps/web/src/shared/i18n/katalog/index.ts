@@ -15,6 +15,18 @@ export const katalog = {
 } as const;
 
 /**
+ * Daftar fitur beserta katalognya — dipakai penjaga CI, bukan kode aplikasi.
+ *
+ * Ada BERDAMPINGAN dengan `katalog` di atas, dan itu duplikasi yang disengaja:
+ * `katalog` memakai spread literal supaya `KunciTeks` di bawah tetap berupa
+ * union kunci yang tepat (`Object.assign` akan melunturkannya menjadi
+ * `string`). Duplikasi itu sendiri dijaga — `katalog-kelengkapan.test.ts`
+ * menuntut kedua daftar memuat kunci yang persis sama, jadi fitur yang
+ * ditambahkan ke salah satunya saja membuat CI merah.
+ */
+export const fiturKatalog = [{ nama: "shell", entri: katalogShell }] as const;
+
+/**
  * Seluruh kunci yang sah, diturunkan dari katalog — bukan ditulis ulang.
  *
  * Inilah yang membuat kunci salah ketik menjadi galat `typecheck`, bukan teks

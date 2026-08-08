@@ -269,3 +269,58 @@ Juga tercatat: `// eslint-disable-next-line` hanya berlaku untuk SATU baris beri
 * **PR-029b** — penjaga kelengkapan katalog per fitur + **panduan menulis `id-simple`** (mitigasi yang diminta Risks: *"Varian simple ditulis asal"*).
 * **PR-026** — sambungkan mode ke store preferensi + `data-lang-mode`.
 * **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
+
+---
+## PR-029b — Penjaga katalog & panduan bahasa sederhana
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-029---i18n-catalog-id--id-simple)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai. **PR-029 tuntas** — seluruh 5 AC terpenuhi.
+
+### Ringkasan hasil
+
+Menutup dua AC yang tersisa dengan menyerang hal yang **tidak bisa dijamin tipe**: varian `id-simple` yang disalin mentah dari `id`, dan struktur katalog per fitur. Ditambah [panduan menulis bahasa sederhana](../../panduan-bahasa-sederhana.md) — mitigasi yang diminta bagian Risks.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **83 test** (dari 74).
+
+### Pembagian tugas yang perlu dipahami
+
+| Lapis | Menjamin | Sejak |
+|---|---|---|
+| **Tipe** (`EntriTeks`) | kedua varian **ADA** | PR-029a |
+| **Penjaga CI** | varian simple bukan **salinan mentah**; struktur per fitur | PR-029b |
+| **Review manusia** | kalimatnya benar-benar lebih mudah | panduan |
+
+Batas ketiga ditulis eksplisit di panduannya: mesin tidak bisa menilai keterbacaan, dan penjaga yang berpura-pura bisa akan membuat orang berhenti berpikir.
+
+### Keputusan teknis
+
+* **Daftar `SAMA_DENGAN_SENGAJA` dengan pemeriksaan DUA ARAH.** Entri identik yang tidak terdaftar → merah. Entri terdaftar yang **tidak lagi identik** → juga merah. Tanpa arah kedua, daftar pengecualian akan menyimpan alasan yang sudah tidak benar — dan daftar yang memuat kebohongan berhenti bisa dipercaya. Pola yang sama dengan `RELASI_DIIZINKAN` (PR-021a) dan `export-kelengkapan` (PR-022).
+* **Kunci kembar antar fitur = merah.** Katalog dirakit dengan spread; kunci kembar menimpa **diam-diam**, dan fitur yang kalah kehilangan teksnya tanpa satu pun galat.
+* **`fiturKatalog` berdampingan dengan `katalog`, dan duplikasinya dijaga.** `katalog` harus memakai spread literal agar `KunciTeks` tetap union kunci yang tepat (`Object.assign` melunturkannya jadi `string`). Penjaga menuntut kedua daftar memuat kunci yang sama, sehingga fitur yang ditambahkan ke salah satu saja langsung merah.
+* **Penjaga "tidak lulus secara hampa"**: katalog harus punya >5 entri, dan entri identik harus <½ total. Kalau semua entri identik, katalog `id-simple` sesungguhnya tidak pernah ditulis.
+* **Spasi menggantung ditolak.** Tidak terlihat saat review; terbaca screen reader sebagai jeda dan menggeser tata letak.
+
+### Temuan saat menulis panduan
+
+**Aturan "varian simple harus lebih pendek" TIDAK dipasang — karena salah.** Kandidatnya terlihat masuk akal sampai diuji ke katalog nyata:
+
+```
+id         : "Memuat halaman…"              (16)
+id-simple  : "Sebentar, halaman sedang dibuka…"  (33) ← lebih PANJANG
+```
+
+"Memuat" adalah kata formal yang jarang dipakai sehari-hari; "sedang dibuka" lebih panjang tetapi langsung dimengerti. Memaksakan aturan panjang akan mendorong singkatan dan kalimat menggantung — kebalikan dari tujuannya. Yang dikejar **beban berpikir yang lebih ringan, bukan jumlah karakter**. Ditulis di panduan sebagai kesalahpahaman yang paling mahal.
+
+### Verifikasi
+
+* **Uji mutasi dua arah:**
+  * varian simple disalin mentah (`shell.memuat`) → merah, dengan pesan yang menunjuk panduannya;
+  * entri pengecualian dibuat basi → merah lewat pemeriksaan arah balik.
+* Panduan didaftarkan di CLAUDE.md §7 supaya ditemukan sebelum orang menulis teks UI, bukan sesudah.
+
+### Next steps
+
+* **PR-026** — store preferensi a11y; sambungkan mode bahasa ke `data-lang-mode`.
+* **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
+* **Manual Verification PR-029** (*review bahasa sederhana oleh non-engineer*) kini punya rujukan yang bisa dipakai peninjau.
