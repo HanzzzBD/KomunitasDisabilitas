@@ -243,6 +243,11 @@ export {
 } from "./services/google-token.js";
 export { createGoogleService, type GoogleService } from "./services/google.service.js";
 export {
+  createRefreshTokenPolicies,
+  type RefreshTokenRetentionDays,
+} from "./services/retention.service.js";
+export { createRefreshTokenRepository } from "./repositories/refresh-token.repository.js";
+export {
   buildAccountDeletedMessage,
   createAccountService,
   HARI_SEBELUM_PURGE,

@@ -29,6 +29,12 @@ export const AUDIT_ACTION = {
    *  dicatat adalah penghapusan PERMANEN, satu-satunya bukti bahwa janji
    *  "hilang ≤ 30 hari" ditepati setelah barisnya sendiri tidak ada lagi. */
   DATA_PURGED: "DATA_PURGED",
+  /** PR-024a: penghapusan terjadwal menurut kebijakan retensi SDD §6.4.
+   *  Terpisah dari DATA_PURGED: yang ini TIDAK dipicu permintaan siapa pun dan
+   *  tidak terikat satu akun — ia kebersihan operasional yang wajib bisa
+   *  dibuktikan berjalan, terutama untuk `refresh_tokens` yang ambangnya
+   *  adalah jendela deteksi reuse, bukan setelan storage. */
+  DATA_RETAINED: "DATA_RETAINED",
 } as const;
 
 export const auditActionSchema = z.enum([
@@ -44,6 +50,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED,
   AUDIT_ACTION.ACCOUNT_DELETED,
   AUDIT_ACTION.DATA_PURGED,
+  AUDIT_ACTION.DATA_RETAINED,
 ]);
 
 export type AuditAction = z.infer<typeof auditActionSchema>;
@@ -157,6 +164,19 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     anonymized: z.number().int().min(0),
     /** Total baris data anak pribadi yang ikut dihapus. */
     records: z.number().int().min(0),
+  }),
+  // Dipakai per KEBIJAKAN dan sekali sebagai ringkasan run (`policy: "run"`).
+  // `remaining` ikut dicatat karena angka yang benar-benar berguna saat
+  // menyelidiki adalah selisihnya: tabel yang bertambah lebih cepat daripada
+  // yang dibersihkan tidak terlihat dari `deleted` saja.
+  [AUDIT_ACTION.DATA_RETAINED]: z.object({
+    dryRun: z.boolean(),
+    /** Nama kebijakan, atau "run" untuk ringkasan. Bukan PII. */
+    policy: z.string(),
+    deleted: z.number().int().min(0),
+    remaining: z.number().int().min(0),
+    /** Hanya pada ringkasan: bulan ai_usage yang difinalkan ke agregat. */
+    monthsAggregated: z.number().int().min(0).optional(),
   }),
   [AUDIT_ACTION.ACCOUNT_DELETED]: z.object({
     stage: z.enum(["requested", "rejected", "completed"]),

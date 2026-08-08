@@ -92,6 +92,16 @@ export const QUEUE_DEFAULTS: QueueConfigs = {
     timeoutMs: 600_000, // 10 menit
     ...QUEUE_RETENTION,
   },
+  // PR-024a. Angka mengikuti pdp-purge dan alasannya sama: operasi destruktif
+  // tidak boleh di-retry otomatis (attempts 1) — kegagalan di tengah batch
+  // harus dilihat manusia, bukan diulang membuta. Penanganannya operasional.
+  "maintenance-retention": {
+    concurrency: 1,
+    attempts: 1,
+    backoffMs: 0,
+    timeoutMs: 600_000, // 10 menit
+    ...QUEUE_RETENTION,
+  },
   "maintenance-backup": {
     concurrency: 1,
     attempts: 1,

@@ -20,6 +20,7 @@ import {
   type ProcessorMap,
 } from "@nawasena/api/core/queue";
 import { createPdpPurgeProcessor } from "./processors/pdp-purge.js";
+import { createRetentionProcessor } from "./processors/retention.js";
 
 /**
  * Jadwal cron purge PDP — SDD §16: harian 03:17 WIB.
@@ -29,6 +30,14 @@ import { createPdpPurgeProcessor } from "./processors/pdp-purge.js";
  * dengan backup.
  */
 const JADWAL_PURGE = { pattern: "17 3 * * *", tz: "Asia/Jakarta" } as const;
+
+/**
+ * Retensi (PR-024a) berjalan 02:47 WIB — SEBELUM purge (03:17), sesudah backup
+ * (02:07). Urutannya disengaja: purge menghapus `ai_usage` milik akun terpurge
+ * tanpa memandang umur, jadi menjalankan agregasi lebih dulu memperkecil
+ * jendela pemakaian AI yang hilang dari agregat bulanan sebelum sempat dihitung.
+ */
+const JADWAL_RETENSI = { pattern: "47 2 * * *", tz: "Asia/Jakarta" } as const;
 
 let env;
 try {
@@ -62,6 +71,7 @@ const auditLog = createAuditLog({
 /** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
 const PROCESSORS: ProcessorMap = {
   [QUEUE_NAME.MAINTENANCE_PDP_PURGE]: createPdpPurgeProcessor({ prisma, auditLog, logger }),
+  [QUEUE_NAME.MAINTENANCE_RETENTION]: createRetentionProcessor({ prisma, auditLog, logger, env }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
@@ -93,16 +103,26 @@ const runtime = createWorkerRuntime({
  * Redis yang memang sudah ada, dan jadwalnya ikut berpindah bersama kode alih-
  * alih hidup di berkas crontab yang tidak pernah masuk review.
  */
-dlqPool
-  .queueOf(QUEUE_NAME.MAINTENANCE_PDP_PURGE)
-  .add(QUEUE_NAME.MAINTENANCE_PDP_PURGE, {}, { repeat: JADWAL_PURGE, jobId: "cron-pdp-purge" })
-  .then(() => logger.info({ jadwal: JADWAL_PURGE.pattern }, "Purge PDP terjadwal"))
-  .catch((err: unknown) => {
-    // Bukan alasan menjatuhkan worker: processor lain tetap berguna, dan job
-    // tetap bisa di-enqueue manual. Tetapi ia HARUS berisik — purge yang tidak
-    // terjadwal berarti janji 30 hari berhenti ditepati tanpa gejala apa pun.
-    logger.error({ err }, "Gagal menjadwalkan purge PDP — jalankan manual sampai diperbaiki");
-  });
+function jadwalkan(
+  queue: (typeof QUEUE_NAME)[keyof typeof QUEUE_NAME],
+  jadwal: { pattern: string; tz: string },
+  jobId: string,
+  keterangan: string,
+): void {
+  dlqPool
+    .queueOf(queue)
+    .add(queue, {}, { repeat: jadwal, jobId })
+    .then(() => logger.info({ queue, jadwal: jadwal.pattern }, `${keterangan} terjadwal`))
+    .catch((err: unknown) => {
+      // Bukan alasan menjatuhkan worker: processor lain tetap berguna, dan job
+      // tetap bisa di-enqueue manual. Tetapi ia HARUS berisik — job kebersihan
+      // yang tidak terjadwal berarti kebijakan berhenti ditepati tanpa gejala.
+      logger.error({ err, queue }, `Gagal menjadwalkan ${keterangan} — jalankan manual`);
+    });
+}
+
+jadwalkan(QUEUE_NAME.MAINTENANCE_PDP_PURGE, JADWAL_PURGE, "cron-pdp-purge", "Purge PDP");
+jadwalkan(QUEUE_NAME.MAINTENANCE_RETENTION, JADWAL_RETENSI, "cron-retention", "Retensi data");
 
 logger.info({ queues: runtime.running() }, "Worker siap");
 

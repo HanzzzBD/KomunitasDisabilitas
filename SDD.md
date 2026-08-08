@@ -667,7 +667,10 @@ Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
 | `pdf-render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
 | `notify-push` / `notify-email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
 | `maintenance-pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
+| `maintenance-retention` | cron harian 02:47 WIB | 1 | manual | 10 m | §6.4; *ditambahkan PR-024a — lihat catatan* |
 | `maintenance-backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
+
+> **`maintenance-retention` (ditambahkan 2026-08-08, PR-024a):** tabel di atas semula tidak punya baris untuk kebijakan retensi §6.4, padahal §6.4 menyebut "job harian" untuk lima jenis data. Celahnya ditambal di sini. Jadwal **02:47 WIB** dipilih agar berjalan SEBELUM `pdp-purge` (03:17): purge menghapus `ai_usage` milik akun terpurge tanpa memandang umur, jadi menjalankan agregasi bulanan lebih dulu memperkecil jendela pemakaian AI yang hilang dari agregat sebelum sempat dihitung. `manual` (tanpa retry otomatis) sama seperti `pdp-purge` — operasi destruktif yang gagal di tengah batch harus dilihat manusia, bukan diulang membuta.
 
 Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue (queue pendamping `<queue>-dlq`) → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract-{sessionId}`, dibangun lewat `buildJobId()` di `core/queue`) untuk anti-duplikat; queue dan cache memakai **dua service Redis terpisah** — cache boleh LRU-evict, queue wajib `noeviction` (ADR-004 revisi PR-008; rumusan lama "dua DB index" tidak dapat memenuhi kebutuhan eviction yang berbeda karena `maxmemory-policy` berlaku per instance).
 

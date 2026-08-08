@@ -28,6 +28,7 @@ export const QUEUE_NAME = {
   NOTIFY_PUSH: "notify-push",
   NOTIFY_EMAIL: "notify-email",
   MAINTENANCE_PDP_PURGE: "maintenance-pdp-purge",
+  MAINTENANCE_RETENTION: "maintenance-retention",
   MAINTENANCE_BACKUP: "maintenance-backup",
 } as const;
 
@@ -39,6 +40,7 @@ export const queueNameSchema = z.enum([
   QUEUE_NAME.NOTIFY_PUSH,
   QUEUE_NAME.NOTIFY_EMAIL,
   QUEUE_NAME.MAINTENANCE_PDP_PURGE,
+  QUEUE_NAME.MAINTENANCE_RETENTION,
   QUEUE_NAME.MAINTENANCE_BACKUP,
 ]);
 
@@ -176,3 +178,44 @@ export const pdpPurgeReportSchema = z.object({
 });
 
 export type PdpPurgeReport = z.infer<typeof pdpPurgeReportSchema>;
+
+/**
+ * Payload job `maintenance-retention` (PR-024a).
+ *
+ * `dryRun` mengikuti alasan yang sama dengan pdp-purge: operator harus bisa
+ * melihat apa yang akan hilang sebelum sesuatu hilang. Default `false` — cron
+ * mengirim payload kosong, dan retensi yang diam-diam menjadi dry-run adalah
+ * kebijakan SDD §6.4 yang tidak pernah berjalan tanpa ada yang menyadarinya.
+ */
+export const retentionJobSchema = z.object({
+  dryRun: z.boolean().default(false),
+});
+
+export type RetentionJob = z.infer<typeof retentionJobSchema>;
+
+/** Hasil satu kebijakan dalam satu run. */
+export const retentionPolicyResultSchema = z.object({
+  /** Nama kebijakan, mis. `refresh_tokens.reuse`. Bukan PII. */
+  policy: z.string(),
+  deleted: z.number().int().min(0),
+  /**
+   * Baris yang MASIH memenuhi syarat hapus setelah run ini — sisa di luar
+   * batas batch. Tanpa angka ini, tabel yang tumbuh lebih cepat daripada yang
+   * dibersihkan terlihat persis seperti tabel yang sehat.
+   */
+  remaining: z.number().int().min(0),
+});
+
+export type RetentionPolicyResult = z.infer<typeof retentionPolicyResultSchema>;
+
+/** Hasil satu run retensi — dikembalikan processor dan dicatat audit. */
+export const retentionReportSchema = z.object({
+  dryRun: z.boolean(),
+  /** Bulan `ai_usage` yang difinalkan ke agregat pada run ini. */
+  monthsAggregated: z.number().int().min(0),
+  policies: z.array(retentionPolicyResultSchema),
+  deleted: z.number().int().min(0),
+  remaining: z.number().int().min(0),
+});
+
+export type RetentionReport = z.infer<typeof retentionReportSchema>;

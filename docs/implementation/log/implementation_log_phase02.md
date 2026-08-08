@@ -1315,3 +1315,101 @@ jalur yang produksi tolak.
 * **PR-104** (backup harian) — prasyarat sesungguhnya bagi Rollback Strategy PR ini; sampai ada, purge tidak punya jaring pengaman.
 * **PR-103** (observability) — sambungkan metrik DLQ ke alerting; hook-nya sudah terpasang.
 * **Tinjau `TABEL_DIHAPUS`** setiap kali modul baru menyimpan data pengguna. Penjaga akan memaksanya, tetapi keputusannya tetap manusia yang ambil.
+
+## PR-024a — Retention Jobs (refresh_tokens, match_scores, ai_usage)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-024---retention-jobs-match_scoresai_usagetranskripjob-expiryrefresh_tokens)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai — 7 dari 8 AC terpenuhi; job-expiry menunggu event bus (PR-024b)
+> **Branch:** `pr-024a-retensi` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+Kebijakan retensi SDD §6.4 berjalan otomatis: antrean `maintenance-retention`
+harian 02:47 WIB dengan dry-run, DELETE berbatch, metrik sisa, dan audit per
+kebijakan.
+
+Tiga kebijakan yang substratnya ada: `refresh_tokens` berjenjang (90/180/730),
+`match_scores` 7 hari, `ai_usage` 90 hari dengan agregat bulanan yang
+difinalkan sebelum penghapusan.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **647 lulus** (naik dari 613; 33 test baru + 1 di schemas), 1 skip.
+
+### Pemecahan scope, dan kenapa
+
+PR-024 sebagaimana ditulis melebihi target 500 LOC, dan **dua dari lima
+kebijakannya tidak punya substrat sama sekali**:
+
+* **Transkrip cv-chat 30 hari** — tidak ada tabelnya. `cv_chat` hanya nilai enum
+  `AiFeature`; tabel transkrip lahir bersama modul AI CV builder (Phase 10).
+* **Job expiry → event `job.closed`** — tidak ada event bus in-process. CLAUDE.md
+  §3.2 menyebutnya sebagai pola resmi, tetapi implementasinya belum pernah
+  dibuat. Bentuknya akan menentukan seluruh komunikasi antar-modul setelahnya.
+
+Owner memilih mengerjakan tiga kebijakan bertabel lebih dulu. **Seluruh AC
+keamanan masuk di PR ini**, sebab semuanya memang tentang `refresh_tokens`.
+
+### Scope yang selesai
+
+* **`packages/schemas`** — queue `maintenance-retention`, `retentionJobSchema`, `retentionReportSchema`, aksi audit `DATA_RETAINED` + meta; katalog audit diperbarui.
+* **`core/config/env.ts` + `.env.example`** — tujuh variabel `RETENTION_*`, semuanya opsional dengan default SDD §6.4.
+* **Migrasi 08** — tabel `ai_usage_monthly` + dua index BRIN pada `refresh_tokens`.
+* **`modules/auth`** — `countRetention`/`deleteRetentionBatch` di repository, `createRefreshTokenPolicies` di service.
+* **`modules/users/services/retention.service.ts`** — mesin: registry kebijakan, batching, batas run, dry-run, agregasi bulanan, audit.
+* **`apps/worker`** — processor `retention.ts` + jadwal 02:47 WIB; penjadwalan dua cron dirapikan jadi satu helper.
+* **Test** — 33 baru: `retention.test.ts` (14), `retention-db.test.ts` (15), `migrasi-skema.test.ts` (4), plus satu di `packages/schemas`.
+
+### Keputusan teknis
+
+1. **Kebijakan `refresh_tokens` hidup di modul auth, bukan di berkas retensi umum.** Ambang 180 hari BUKAN setelan kebersihan storage — ia jendela deteksi reuse (§8.1). Alasan sepenting itu harus duduk di sebelah `session.service.ts` yang bergantung padanya. Di berkas maintenance, ia akan dibaca sebagai angka yang boleh dikecilkan demi menghemat disk, dan yang mengecilkannya tidak akan pernah tahu bahwa ia memperpendek kemampuan kita melihat pencurian sesi.
+
+2. **Tiga kategori dengan predikat SALING LEPAS.** `expired` menuntut `revoked_at IS NULL`; tanpanya, token yang DICABUT akan hilang pada hari ke-90 alih-alih 180. Itulah bug yang diminta AC untuk dijaga secara eksplisit — dan **diverifikasi dengan mutasi**: menghapus syarat itu membuat dua test AC merah.
+
+3. **`revoked_reason` NULL diperlakukan sebagai `rotated`.** Baris sebelum migrasi 05 bernilai NULL; predikat yang menuntut sebab non-NULL tidak akan pernah membersihkannya. Diuji tersendiri.
+
+4. **Agregat `ai_usage` difinalkan per BULAN LENGKAP, sekali saja.** Alternatif "hitung ulang tiap run" salah dan berbahaya: bulan yang sebagian barisnya sudah terhapus akan menghitung ulang menjadi lebih kecil, dan agregat menyusut diam-diam setiap hari — kesalahan yang tidak pernah menimbulkan error dan hanya terlihat bertahun kemudian sebagai grafik yang salah. Bulan selesai difinalkan ~1 hari setelah berakhir, jauh sebelum barisnya mencapai 90 hari.
+
+5. **`ai_usage_monthly` sengaja TANPA `user_id`.** Agregat yang memuat PII akan ikut terhapus saat purge — dan justru ketiadaan itulah yang membuat angkanya selamat melewati penghapusan akun.
+
+6. **Sisa dihitung SETELAH penghapusan.** Angka yang berguna saat menyelidiki adalah selisihnya: tabel yang bertambah lebih cepat daripada yang dibersihkan tidak terlihat sama sekali dari `deleted` saja.
+
+7. **DELETE berbatch lewat subquery `LIMIT`** — `deleteMany` Prisma tidak punya `take`, dan DELETE tanpa batas pada tabel yang terus tumbuh mengunci lama serta menggelembungkan WAL.
+
+8. **Nilai env `0` ditolak** (`min 1`). `RETENTION_..._DAYS=0` akan mengosongkan seluruh tabel pada run berikutnya; salah ketik yang menghapus segalanya tidak boleh terlihat seperti konfigurasi yang sah.
+
+9. **Jadwal 02:47, SEBELUM purge 03:17.** Purge menghapus `ai_usage` milik akun terpurge tanpa memandang umur; menjalankan agregasi lebih dulu memperkecil jendela pemakaian AI yang hilang sebelum sempat dihitung.
+
+10. **Baris `maintenance-retention` ditambahkan ke SDD §16.** Tabel itu semula tidak punya baris untuk retensi, padahal §6.4 menyebut "job harian" untuk lima jenis data — celah dokumen yang ikut ditambal.
+
+### Penjaga baru di luar scope yang diminta
+
+`migrasi-skema.test.ts`: migrasi di repo ini **ditulis tangan**, jadi ada dua
+tempat yang harus sepakat dan **tidak ada apa pun yang memeriksanya** —
+`migrate deploy` hanya menjalankan SQL, dan `migrate reset` di CI tidak
+membandingkan hasilnya dengan `schema.prisma`.
+
+Bentuk kegagalannya diam: tabel atau index yang dideklarasikan di schema tetapi
+tidak pernah ditulis ke SQL akan ADA di klien Prisma (typecheck lolos,
+autocomplete jalan) dan TIDAK ADA di database. Yang menemukannya adalah query
+pertama di produksi. PR ini menambahkan dua BRIN dengan cara persis itu, jadi
+penjaganya dipasang sekalian.
+
+Ia tidak menggantikan `migrate diff` — tidak melihat tipe kolom maupun urutan.
+Yang dijamin: setiap nama tabel dan index yang disebut schema muncul di suatu
+file migrasi.
+
+### Risiko yang ditemukan
+
+* **Purge (PR-023) bisa menggerus agregat AI.** `ai_usage` milik akun terpurge dihapus tanpa memandang umur. Bila pemakaiannya berasal dari bulan yang belum difinalkan, ia hilang dari agregat selamanya. Jendelanya sempit (butuh akun yang dihapus 30+ hari lalu DAN pemakaian dari bulan berjalan) dan diperkecil dengan menjadwalkan retensi sebelum purge — tetapi tidak tertutup. Menambalnya berarti menyentuh purge, di luar scope PR ini.
+* **`match_scores` dan `ai_usage` menumpang di modul users.** Modul pemiliknya (matching Phase 11, AI Phase 06) belum lahir. Dicatat eksplisit di `createOrphanPolicies` supaya pemindahannya kelak menjadi langkah yang disengaja, bukan penemuan tak terduga.
+* **Batas per run belum punya alarm.** Processor menulis `warn` bila ada sisa, tetapi tidak ada yang membandingkan angka itu antar-run. Backlog yang tumbuh perlahan hanya terlihat oleh manusia yang membaca log dua hari berturut-turut. PR-103 yang seharusnya mengubahnya jadi metrik.
+* **Rollback migrasi 08 tidak sepenuhnya aman.** `DROP TABLE ai_usage_monthly` menghilangkan agregat yang sudah terkumpul, dan ia TIDAK bisa dihitung ulang dari `ai_usage` yang barisnya sudah dihapus. Rollback setelah job pernah berjalan menuntut restore dari backup, bukan sekadar DROP. Ditulis di kepala file migrasi.
+
+### Next steps
+
+* **PR-024b** — job expiry + event bus in-process. Event bus dulu, sebagai keputusan arsitektur tersendiri.
+* **Phase 10** — tabel transkrip cv-chat lahir; daftarkan kebijakan 30 hari lewat registry yang sama.
+* **Phase 06 / Phase 11** — pindahkan kebijakan `ai_usage` dan `match_scores` ke modul pemiliknya.
+* **PR-103** — ubah `remaining` menjadi metrik supaya backlog yang tumbuh terlihat tanpa membaca log.
+* **PR-104** — backup harian; prasyarat rollback strategy PR ini dan PR-023.
