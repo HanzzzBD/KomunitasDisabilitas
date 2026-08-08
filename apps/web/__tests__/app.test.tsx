@@ -1,21 +1,26 @@
-// Membuktikan rangkaian Vite → React → jsdom → Testing Library benar-benar
-// hidup. Test ini sengaja kecil: nilainya bukan menguji <h1>, melainkan
-// membuktikan bahwa harness-nya berfungsi sebelum PR berikutnya bergantung
-// padanya. Harness yang rusak akan tampak sebagai "semua test lulus".
+// Membuktikan rangkaian nyata hidup: Vite → React → provider → router → jsdom.
+// Test ini merender `App` APA ADANYA — router browser dan semua — supaya
+// perakitan yang dipakai pengguna itulah yang diuji, bukan versi yang dirakit
+// ulang khusus untuk test.
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { App } from "../src/app/App.js";
 
 describe("App shell", () => {
-  it("merender landmark main dan tepat satu h1", () => {
+  it("merender route '/' lewat pemuatan lazy", async () => {
     render(<App />);
 
-    // getByRole, bukan querySelector: yang diuji adalah apa yang DILIHAT
-    // pengguna screen reader, bukan nama tag-nya.
+    // findBy*, bukan getBy*: route dimuat `import()` dinamis, jadi render
+    // pertama sengaja belum memuat isinya. Memakai getBy di sini akan gagal —
+    // dan kegagalannya justru bukti bahwa pemecahan chunk-nya nyata.
+    expect(await screen.findByRole("heading", { level: 1, name: "Nawasena" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
+  });
 
-    const judul = screen.getAllByRole("heading", { level: 1 });
-    expect(judul).toHaveLength(1);
-    expect(judul[0]).toHaveAccessibleName("Nawasena");
+  it("menyediakan tautan ke halaman masuk", async () => {
+    render(<App />);
+
+    const tautan = await screen.findByRole("link", { name: "Masuk" });
+    expect(tautan).toHaveAttribute("href", "/masuk");
   });
 });

@@ -18,7 +18,7 @@
 /* eslint-disable no-console -- Ini alat baris perintah: keluarannya DIBACA manusia
    di log CI, jadi console adalah antarmukanya, bukan sisa debug. */
 import { gzipSync } from "node:zlib";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,6 +50,36 @@ export function asetAwalDari(html: string): string[] {
   }
 
   return [...jalur].sort();
+}
+
+/**
+ * Seluruh berkas .js di dalam dist — awal MAUPUN lazy.
+ *
+ * Dipakai hanya untuk menghitung selisihnya terhadap aset awal; jangan pernah
+ * dipakai sebagai dasar budget (lihat catatan di kepala berkas).
+ */
+export function daftarJsDi(akarDist: string, prefix = ""): string[] {
+  const hasil: string[] = [];
+  for (const entri of readdirSync(join(akarDist, prefix), { withFileTypes: true })) {
+    const relatif = `${prefix}/${entri.name}`;
+    if (entri.isDirectory()) hasil.push(...daftarJsDi(akarDist, relatif));
+    else if (entri.name.endsWith(".js")) hasil.push(relatif);
+  }
+  return hasil.sort();
+}
+
+/**
+ * Chunk yang TIDAK diunduh saat render pertama — bukti code-splitting.
+ *
+ * AC PR-025 menyebut "bukti bundle analyzer". Diganti pemeriksaan mesin karena
+ * tangkapan layar analyzer tidak bisa membuat CI merah: ia membuktikan keadaan
+ * pada satu momen, lalu tidak pernah memeriksa lagi. Nol chunk lazi berarti
+ * `import()` dinamis diam-diam ikut ter-inline — regresi yang tidak menimbulkan
+ * gejala apa pun selain halaman yang makin lambat.
+ */
+export function chunkLazy(semuaJs: readonly string[], asetAwal: readonly string[]): string[] {
+  const awal = new Set(asetAwal);
+  return semuaJs.filter((j) => !awal.has(j));
 }
 
 export interface UkuranAset {
@@ -114,6 +144,21 @@ function jalankan(): void {
 
   const hasil = evaluasiBudget(ukurAset(jalurAset, DIST));
   console.log(ringkas(hasil));
+
+  // AC PR-025: "Route ter-code-split". Sejak PR-025b tiap route dimuat lewat
+  // `import()` dinamis, jadi nol chunk lazy berarti pemecahannya hilang.
+  const lazy = chunkLazy(daftarJsDi(DIST), jalurAset);
+  console.log(`\nChunk lazy (tidak diunduh di awal): ${lazy.length}`);
+  for (const j of lazy) console.log(`  ${j}`);
+
+  if (lazy.length === 0) {
+    console.error(
+      "\nTidak ada chunk lazy — route seharusnya dipecah per halaman (SDD §4.1).\n" +
+        "Periksa apakah `import()` di src/app/routes.ts masih memakai literal statis.",
+    );
+    process.exit(1);
+  }
+
   if (!hasil.lolos) process.exit(1);
 }
 
