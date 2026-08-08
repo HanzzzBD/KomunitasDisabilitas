@@ -1219,3 +1219,99 @@ ikut ditambahkan saat modulnya lahir.
 * **PR-033** (UI) — tombol unduh; ia yang memasang nama berkas dan menangani 429 dengan menampilkan sisa waktu dari `Retry-After`.
 * **PR-037 dan seterusnya** — tiap modul yang menyimpan data pengguna WAJIB mendaftarkan kontributornya lewat `UsersModuleDeps.contributors` dan menambahkan field-nya di `dataExportSchema`. Penjaga kelengkapan akan menolak build sampai itu dilakukan; daftar `DITUNDA` menyebut PR-nya masing-masing.
 * **PR-105** — rate limit umum; kuota ekspor sudah punya batasnya sendiri dan tidak perlu diulang.
+
+## PR-023 — Worker pdp-purge (Purge Akun ≤ 30 Hari)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-023---worker-pdp-purge-purge-akun--30-hari)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai — seluruh AC terpenuhi
+> **Branch:** `pr-023-worker-pdp-purge` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+PR-021 membuat penghapusan akun bersifat SOFT supaya yang keliru bisa
+dibatalkan. PR ini yang membuat sisi keduanya benar: setelah 30 hari lewat,
+data benar-benar hilang dan bukan sekadar disembunyikan.
+
+Job `maintenance-pdp-purge` berjalan harian 03:17 WIB, punya dry-run, dan
+mencatat setiap akun yang dibersihkan — satu-satunya bukti yang tersisa setelah
+barisnya sendiri tidak ada lagi.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **613 lulus** (naik dari 579; 33 test baru), 1 skip.
+
+### Dua jalur, dan kenapa bukan satu
+
+* **Tanpa lamaran `hired` → `DELETE FROM users`.** Cascade membereskan seluruh
+  anaknya sendiri, jadi tabel yang lahir di PR mana pun ikut tercakup tanpa ada
+  yang perlu mengingatnya. Ini penghapusan yang sesungguhnya.
+* **Dengan lamaran `hired` → anonimisasi.** `hired count` adalah North Star
+  Metric proyek ini (SDD §6.4), dan ia hidup di baris `applications` yang
+  ber-`onDelete: Cascade`. Menghapus barisnya berarti setiap orang yang
+  menghapus akunnya ikut menghapus bukti bahwa platform ini pernah menempatkan
+  seseorang bekerja. Baris `users` dipertahankan tanpa satu pun PII.
+
+### Scope yang selesai
+
+* **`modules/users/services/purge.service.ts`** (baru) — `PURGE_POLICY`, `kandidatWhere`, `TABEL_DIHAPUS`, service dua jalur dengan dry-run.
+* **`apps/worker/src/processors/pdp-purge.ts`** (baru) — adapter: validasi payload, panggil service, log run.
+* **`apps/worker/src/index.ts`** — daftarkan processor, rakit klien Prisma + audit, jadwalkan repeatable job `17 3 * * *` TZ `Asia/Jakarta`.
+* **`packages/schemas`** — `pdpPurgeJobSchema`, `pdpPurgeReportSchema`, aksi audit `DATA_PURGED` + meta; katalog audit diperbarui.
+* **`apps/api/package.json`** — export `./core/db`, `./core/audit`, `./modules/users` supaya worker bisa memakainya.
+* **Penjaga** — `purge-kelengkapan.test.ts` (baru) + cakupan `soft-delete-jangkauan` diperluas ke `apps/worker/src`; parser `schema.prisma` diekstrak ke `__tests__/helpers/prisma-schema.ts` supaya dua penjaga tidak memelihara dua salinan.
+* **Test** — 33 baru: `users-purge.test.ts` (15), `users-purge-db.test.ts` (10), `purge-kelengkapan.test.ts` (8), plus satu di `packages/schemas`.
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Retensi data lain** (`ai_usage` 90 hari, `match_scores` 7 hari, `refresh_tokens` berjenjang) — PR-024. Purge ini hanya menyentuh akun terhapus.
+* **Endpoint memicu purge manual** — job bisa di-enqueue lewat BullMQ; endpoint operator menunggu PR-103/Phase 16.
+* **Test di `apps/worker`** — adapter-nya 40 baris tanpa cabang berarti, dan menambah harness vitest ke worker untuk itu tidak sepadan. Yang security-relevant (default `dryRun: false`) diuji di `packages/schemas`, tempat harness-nya sudah ada.
+
+### Keputusan teknis
+
+1. **Logika di modul, adapter di worker.** Technical Notes menempatkan keduanya di `apps/worker/processors/pdp-purge.ts`. Aturan bisnis yang tinggal di entry point tidak pernah punya test, tidak pernah punya batas modul, dan tidak pernah dipakai ulang — dan `apps/api` sudah punya seluruh harness yang diperlukan sementara `apps/worker` belum punya satu test pun.
+
+2. **Tidak ada kolom "sudah dipurge".** Kandidat didefinisikan dari KEADAAN TUJUAN: `deleted_at < cutoff` DAN baris masih memegang PII. Baris yang sudah bersih tidak pernah cocok lagi → idempoten tanpa migrasi, dan run yang gagal separuh jalan otomatis dilanjutkan berikutnya tanpa penanganan khusus. Diuji: run kedua melaporkan nol kandidat.
+
+3. **Satu transaksi per akun.** Penghapusan separuh jalan pada operasi destruktif adalah bentuk kegagalan paling buruk: data hilang, tetapi barisnya masih terpilih besok. Diuji lewat jejak panggilan.
+
+4. **`applications.resume_id` dilepas SEBELUM resume dihapus.** FK-nya `onDelete: NoAction` (PR-011, disengaja — DELETE resume yang masih dipakai lamaran harus ditolak). Urutan terbalik menggagalkan SELURUH transaksi, dan hanya untuk akun yang pernah melamar — kegagalan yang sangat mudah lolos dari test berdata bersih. Diuji dua kali: urutannya di unit test, akibatnya di test DB.
+
+5. **Cron dijadwalkan worker sendiri**, bukan crontab sistem. Satu-satunya prasyaratnya Redis yang memang sudah ada, jadwalnya ikut berpindah bersama kode, dan BullMQ membuat pendaftaran ulang saat restart bersifat idempoten. Kegagalan penjadwalan TIDAK menjatuhkan worker (processor lain tetap berguna) tetapi ditulis sebagai `error` — purge yang tidak terjadwal berarti janji 30 hari berhenti ditepati tanpa gejala.
+
+6. **Audit dua tingkat, satu aksi.** `DATA_PURGED` per akun (`entityId` = id akun) dan satu ringkasan run (`entityId` null). Bentuk metanya sama supaya keduanya bisa dijumlahkan tanpa perlakuan khusus. Ringkasan ditulis bahkan saat nol kandidat — "job berjalan dan tidak menemukan apa-apa" dan "job tidak berjalan sama sekali" adalah dua keadaan yang sangat berbeda dan tanpa baris ini terlihat persis sama.
+
+7. **`dryRun` default `false`.** Terlihat sepele, dan justru itu bahayanya: cron mengirim payload kosong, jadi default `true` akan membuat purge harian melaporkan sukses setiap hari tanpa pernah menghapus apa pun. Diuji tersendiri.
+
+8. **Batas 500 akun per run.** Timeout queue-nya 10 menit (SDD §16); run tanpa batas atas akan menabraknya pada backlog besar dan gagal SETELAH menghapus separuh. `hasMore` di laporan + `warn` di processor supaya backlog yang tidak menyusut terlihat.
+
+### Bug yang ditemukan test DB, bukan penalaran
+
+`UPDATE users` pada jalur anonimisasi selalu gagal `P2025`. Sebabnya penjaga
+soft delete PR-021: `user.update` termasuk operasi yang disaring, jadi ekstensi
+menyisipkan `deletedAt: null` — dan akun yang sedang dianonimkan justru yang
+`deleted_at`-nya terisi. Query-nya mencari baris yang secara definisi tidak
+mungkin ada.
+
+Perbaikannya menyebut `deletedAt: { not: null }` di klausanya sendiri — jalan
+keluar yang memang dirancang PR-021a, sekaligus pengaman tambahan: purge tidak
+mungkin menyentuh akun aktif.
+
+Yang layak dicatat bukan bug-nya, melainkan bahwa **unit test dengan fake Prisma
+tidak akan pernah menemukannya**. Fake tidak punya ekstensi. Ini contoh kedua
+setelah PR-020 di mana tiruan yang lebih longgar daripada aslinya meluluskan
+jalur yang produksi tolak.
+
+### Risiko yang ditemukan
+
+* **Jalur anonimisasi tidak dilindungi cascade** — baris `users` tidak pernah dihapus, jadi tabel baru TIDAK ikut terbersihkan sendiri. Dijaga `purge-kelengkapan.test.ts`; diverifikasi dengan menanam model sementara di `schema.prisma`.
+* **Baris hasil anonimisasi menumpuk selamanya.** Tanpa PII, tetapi tetap baris. Belum masalah pada skala MVP; patut ditinjau bila `users` tumbuh jauh melampaui pengguna aktifnya.
+* **Backlog > 500 akun butuh beberapa hari.** Selama itu janji 30 hari meleset untuk sebagian akun.
+* **Tidak ada jalan kembali setelah run.** Pemulihan hanya lewat backup harian (PR-104, belum ada). Sampai backup itu ada, jendela 30 hari adalah satu-satunya pengaman.
+
+### Next steps
+
+* **PR-024** (retention jobs) — pola yang sama bisa dipakai ulang: service di modul, adapter di worker, penjaga kelengkapan bila menyentuh tabel yang bisa bertambah.
+* **PR-104** (backup harian) — prasyarat sesungguhnya bagi Rollback Strategy PR ini; sampai ada, purge tidak punya jaring pengaman.
+* **PR-103** (observability) — sambungkan metrik DLQ ke alerting; hook-nya sudah terpasang.
+* **Tinjau `TABEL_DIHAPUS`** setiap kali modul baru menyimpan data pengguna. Penjaga akan memaksanya, tetapi keputusannya tetap manusia yang ambil.

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   errorEnvelopeSchema,
   paginationQuerySchema,
+  pdpPurgeJobSchema,
   requestOtpSchema,
   type RequestOtp,
 } from "../src/index.js";
@@ -50,6 +51,16 @@ describe("skema fondasi (common)", () => {
     expect(paginationQuerySchema.parse({})).toEqual({ limit: 20 });
     expect(paginationQuerySchema.parse({ limit: "50" }).limit).toBe(50);
     expect(paginationQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+});
+
+describe("payload job purge PDP (PR-023)", () => {
+  it("payload kosong dari cron BUKAN dry-run", () => {
+    // Job terjadwal dikirim tanpa isi. Kalau default-nya `true`, purge harian
+    // akan melaporkan sukses setiap hari tanpa pernah menghapus apa pun — dan
+    // janji "data hilang ≤ 30 hari" berhenti ditepati tanpa satu pun gejala.
+    expect(pdpPurgeJobSchema.parse({}).dryRun).toBe(false);
+    expect(pdpPurgeJobSchema.parse({ dryRun: true }).dryRun).toBe(true);
   });
 });
 

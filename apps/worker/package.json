@@ -15,7 +15,8 @@
   "dependencies": {
     "@nawasena/api": "workspace:*",
     "bullmq": "5.81.2",
-    "pino": "9.5.0"
+    "pino": "9.5.0",
+    "@nawasena/schemas": "workspace:*"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",

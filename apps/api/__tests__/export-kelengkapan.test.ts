@@ -18,11 +18,10 @@
 // seseorang memutuskan. Itulah seluruh gunanya: memaksa keputusan pada saat
 // tabelnya lahir, bukan menunggu ada yang teringat.
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { dataExportSchema } from "@nawasena/schemas";
+import { bacaSchemaPrisma, tabelBerelasiUser } from "./helpers/prisma-schema.js";
 
-const schema = readFileSync(resolve(__dirname, "../prisma/schema.prisma"), "utf8");
+const schema = bacaSchemaPrisma();
 
 /** Bagian yang BENAR-BENAR ada di berkas ekspor hari ini. */
 const TERDAFTAR: Readonly<Record<string, string>> = {
@@ -66,29 +65,7 @@ const DIKECUALIKAN: Readonly<Record<string, string>> = {
   sign_videos: "relasi `created_by` — sama seperti companies: konten kamus BISINDO milik platform.",
 };
 
-/**
- * Model + nama tabelnya yang punya field bertipe `User`/`User?`.
- *
- * `audit_logs` tidak akan muncul di sini dan itu disengaja: ia TIDAK punya FK ke
- * users (skema PR-009), justru supaya jejak audit bertahan melewati penghapusan
- * akun. Ia juga bukan kandidat ekspor — isinya catatan keamanan kami yang
- * memuat aktor lain.
- */
-export function tabelBerelasiUser(prismaSchema: string): string[] {
-  const tabel: string[] = [];
-  const modelPola = /^model\s+\w+\s*\{([\s\S]*?)^\}/gm;
-
-  let cocok: RegExpExecArray | null;
-  while ((cocok = modelPola.exec(prismaSchema)) !== null) {
-    const isi = cocok[1] as string;
-    // Field relasi berbentuk `nama  User` atau `nama User?  @relation(...)`.
-    if (!/^\s*\w+\s+User\??\s/m.test(isi)) continue;
-    const map = /@@map\("([^"]+)"\)/.exec(isi);
-    if (map !== null) tabel.push(map[1] as string);
-  }
-  return tabel.sort();
-}
-
+/** Tabel yang barisnya terikat pada seorang pengguna (parser: helpers/prisma-schema). */
 const berelasi = tabelBerelasiUser(schema);
 
 describe("pemindai schema.prisma", () => {

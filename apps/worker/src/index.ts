@@ -7,8 +7,11 @@
 // Processor fitur (ekstraksi CV, embedding, render PDF, notifikasi) belum ada
 // di Phase 1 — masing-masing didaftarkan oleh PR fiturnya di PROCESSORS.
 /* eslint-disable no-console -- sebelum logger siap, satu-satunya saluran adalah console */
+import { QUEUE_NAME } from "@nawasena/schemas";
 import { loadEnv, EnvError } from "@nawasena/api/core/config";
 import { createLogger } from "@nawasena/api/core/logger";
+import { createAuditLog, createPrismaAuditWriter } from "@nawasena/api/core/audit";
+import { createPrismaClient } from "@nawasena/api/core/db";
 import {
   createDlqHandler,
   createRawQueuePool,
@@ -16,9 +19,16 @@ import {
   loadQueueConfigs,
   type ProcessorMap,
 } from "@nawasena/api/core/queue";
+import { createPdpPurgeProcessor } from "./processors/pdp-purge.js";
 
-/** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
-const PROCESSORS: ProcessorMap = {};
+/**
+ * Jadwal cron purge PDP — SDD §16: harian 03:17 WIB.
+ *
+ * Menit ganjil disengaja (bukan 03:00): jam bulat adalah tempat semua job
+ * terjadwal di dunia berkumpul, dan job destruktif tidak boleh berebut I/O
+ * dengan backup.
+ */
+const JADWAL_PURGE = { pattern: "17 3 * * *", tz: "Asia/Jakarta" } as const;
 
 let env;
 try {
@@ -38,6 +48,21 @@ try {
 
 const logger = createLogger(env, { service: "worker" });
 const connection = { url: env.REDIS_QUEUE_URL };
+
+// Klien Prisma ber-penjaga soft delete (PR-021). Purge memang perlu melihat
+// baris terhapus — dan ia menyebut `deletedAt` sendiri di where-nya, jalan
+// keluar yang dirancang eksplisit supaya terbaca di tempat panggilan.
+const prisma = createPrismaClient();
+const auditLog = createAuditLog({
+  writer: createPrismaAuditWriter(prisma),
+  logger,
+  metrics: { increment: (name) => logger.warn({ metric: name }, "Metrik audit bertambah") },
+});
+
+/** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
+const PROCESSORS: ProcessorMap = {
+  [QUEUE_NAME.MAINTENANCE_PDP_PURGE]: createPdpPurgeProcessor({ prisma, auditLog, logger }),
+};
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
 const dlqPool = createRawQueuePool(connection);
@@ -59,6 +84,26 @@ const runtime = createWorkerRuntime({
   onFailed: (queue, job, error) => dlq.onFailed(queue, job, error),
 });
 
+/**
+ * Daftarkan job berulang purge PDP. BullMQ menyimpannya di bawah kunci yang
+ * diturunkan dari pola + nama, jadi memanggil ini pada SETIAP boot bersifat
+ * idempoten — restart tidak menumpuk jadwal ganda.
+ *
+ * Dijadwalkan worker sendiri, bukan cron sistem: satu-satunya prasyaratnya
+ * Redis yang memang sudah ada, dan jadwalnya ikut berpindah bersama kode alih-
+ * alih hidup di berkas crontab yang tidak pernah masuk review.
+ */
+dlqPool
+  .queueOf(QUEUE_NAME.MAINTENANCE_PDP_PURGE)
+  .add(QUEUE_NAME.MAINTENANCE_PDP_PURGE, {}, { repeat: JADWAL_PURGE, jobId: "cron-pdp-purge" })
+  .then(() => logger.info({ jadwal: JADWAL_PURGE.pattern }, "Purge PDP terjadwal"))
+  .catch((err: unknown) => {
+    // Bukan alasan menjatuhkan worker: processor lain tetap berguna, dan job
+    // tetap bisa di-enqueue manual. Tetapi ia HARUS berisik — purge yang tidak
+    // terjadwal berarti janji 30 hari berhenti ditepati tanpa gejala apa pun.
+    logger.error({ err }, "Gagal menjadwalkan purge PDP — jalankan manual sampai diperbaiki");
+  });
+
 logger.info({ queues: runtime.running() }, "Worker siap");
 
 /**
@@ -73,7 +118,7 @@ function shutdown(signal: string): void {
 
   runtime
     .drain()
-    .then(() => Promise.allSettled([dlq.close(), dlqPool.close()]))
+    .then(() => Promise.allSettled([dlq.close(), dlqPool.close(), prisma.$disconnect()]))
     .then(() => {
       logger.info("Worker berhenti bersih");
       process.exit(0);

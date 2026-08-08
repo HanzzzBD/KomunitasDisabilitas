@@ -76,3 +76,10 @@ export {
   type ExportContributor,
   type ExportService,
 } from "./services/export.service.js";
+export {
+  createPurgeService,
+  kandidatWhere,
+  PURGE_POLICY,
+  TABEL_DIHAPUS,
+  type PurgeService,
+} from "./services/purge.service.js";
