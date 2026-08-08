@@ -4,7 +4,12 @@ import { QUEUE_NAME, QUEUE_NAMES, dlqNameOf, internalQueuesResponseSchema } from
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { QUEUE_DEFAULTS, type QueueLike, type QueueRegistry } from "../src/core/queue/index.js";
-import { createInternalModule, INTERNAL_TOKEN_HEADER } from "../src/modules/internal/index.js";
+import {
+  createInternalAuth,
+  createInternalModule,
+  INTERNAL_TOKEN_HEADER,
+} from "../src/modules/internal/index.js";
+import { registrarUji } from "./helpers/routes.js";
 import { createQueuesService } from "../src/modules/internal/services/queues.service.js";
 import { createServer, type ApiServer } from "../src/server.js";
 
@@ -56,7 +61,9 @@ async function bootTestServer(
             options.queueCounts ?? { waiting: 2, active: 1, delayed: 0, failed: 3, completed: 10 },
           ),
           dlqQueueOf: () => queueDenganCacah(options.dlqCounts ?? {}),
-          internalToken: options.token,
+          // Penjaga token internal kini datang dari deklarasi access.internal
+          // (PR-019) — registrar yang memasangnya, bukan router.
+          routes: registrarUji("", { internalGuard: createInternalAuth(options.token) }),
         }),
       );
     },

@@ -20,6 +20,8 @@ const ENTITY_ID = "01912345-89ab-7def-8123-456789abcdeb";
 
 const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.AUTH_LOGIN_FAILED]: { reason: "otpInvalid" },
+  [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: { method: "google", isNewUser: true },
+  [AUDIT_ACTION.AUTH_REFRESH_REUSED]: { revokedCount: 2 },
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: {
     purpose: "support",
     fields: ["disabilityTypes"],
@@ -28,8 +30,23 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: { from: "viewed", to: "interview" },
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },
-  [AUDIT_ACTION.DATA_EXPORTED]: { format: "json" },
-  [AUDIT_ACTION.ACCOUNT_DELETED]: { stage: "requested" },
+  [AUDIT_ACTION.DATA_EXPORTED]: { format: "json", formatVersion: 1, sections: ["account"] },
+  [AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED]: { hadPreviousEmail: true, cleared: false },
+  [AUDIT_ACTION.ACCOUNT_DELETED]: { stage: "completed", method: "otp", revokedCount: 2 },
+  [AUDIT_ACTION.DATA_PURGED]: {
+    dryRun: false,
+    accounts: 1,
+    deleted: 1,
+    anonymized: 0,
+    records: 4,
+  },
+  [AUDIT_ACTION.DATA_RETAINED]: {
+    dryRun: false,
+    policy: "refresh_tokens.reuse",
+    deleted: 12,
+    remaining: 0,
+  },
+  [AUDIT_ACTION.JOB_AUTO_CLOSED]: { dryRun: false, closed: 3, remaining: 0 },
 };
 
 function createOptions(append: (entry: AuditEntry) => Promise<void>): {
@@ -109,7 +126,11 @@ describe("createAuditLog", () => {
     const auditLog = createAuditLog(options);
 
     const startedAt = performance.now();
-    auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, { format: "json" });
+    auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, {
+      format: "json",
+      formatVersion: 1,
+      sections: ["account"],
+    });
     const elapsedMs = performance.now() - startedAt;
 
     expect(append).toHaveBeenCalledOnce();
@@ -123,6 +144,8 @@ describe("createAuditLog", () => {
 
     auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, {
       format: "json",
+      formatVersion: 1,
+      sections: ["account"],
       phone: "nomor-dummy",
     });
     await new Promise((resolve) => setImmediate(resolve));

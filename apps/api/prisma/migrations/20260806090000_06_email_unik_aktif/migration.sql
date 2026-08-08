@@ -1,0 +1,33 @@
+-- Migrasi 06 (PR-020): email unik untuk akun AKTIF.
+--
+-- KENAPA INI ADA. PR-020 membuat `email` bisa diubah pengguna lewat PUT /me.
+-- Tanpa wasit di tingkat DB, itu membuka jalur penautan akun yang tidak ada
+-- sebelumnya:
+--
+--   findOrCreateByGoogle (PR-017) menautkan identitas Google ke akun yang
+--   emailnya cocok. Yang diverifikasi di sana adalah `email_verified` DARI
+--   GOOGLE — bukan email yang tersimpan di sisi kita. Jadi penyerang yang
+--   menyetel email korban di akunnya sendiri akan menerima identitas Google
+--   korban saat korban login pertama kali, dan korban masuk ke akun orang lain.
+--
+-- Pemeriksaan di lapisan aplikasi saja tidak cukup: ia baca-lalu-tulis, dan
+-- dua permintaan bersamaan sama-sama lolos pemeriksaan sebelum salah satunya
+-- menulis. Balapan itu persis bentuk eksploitnya, bukan kasus tepi teoretis.
+--
+-- PARSIAL (WHERE deleted_at IS NULL), mengikuti pola users_phone_aktif_key dan
+-- users_google_id_aktif_key dari migrasi 01: email akun yang sudah dihapus
+-- boleh dipakai ulang oleh pemiliknya — hak hapus UU PDP tidak boleh berubah
+-- menjadi hukuman seumur hidup atas alamat emailnya sendiri.
+--
+-- ADITIF & backward-compatible satu versi: tidak ada kolom/tipe yang berubah,
+-- dan data yang ada sudah unik secara de-facto (penautan lewat email di PR-017
+-- selalu memakai ulang baris yang cocok alih-alih membuat duplikat). Kode versi
+-- sebelumnya tetap berjalan di atas skema ini.
+-- Rollback = DROP INDEX "users_email_aktif_key".
+--
+-- Fitur di luar dukungan Prisma (unique parsial) = raw SQL, TIDAK dideklarasikan
+-- di schema.prisma — sama seperti dua index parsial migrasi 01.
+--
+-- Tidak perlu `AND email IS NOT NULL`: di PostgreSQL dua NULL tidak pernah
+-- dianggap sama, jadi akun tanpa email (login OTP) tidak saling bertabrakan.
+CREATE UNIQUE INDEX "users_email_aktif_key" ON "users" ("email") WHERE "deleted_at" IS NULL;

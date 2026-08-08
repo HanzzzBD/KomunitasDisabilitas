@@ -35,8 +35,19 @@ model User {
   phone        String?
   googleId     String?   @map("google_id")
   email        String?
+  /// Apakah kepemilikan alamat email sudah DIBUKTIKAN (PR-020a). true hanya
+  /// bila alamatnya datang dari identitas Google yang `email_verified` — email
+  /// yang diketik sendiri lewat PUT /me selalu false. Hanya baris ber-true yang
+  /// boleh dipakai menautkan identitas Google (SDD §8.1): tanpa syarat itu,
+  /// siapa pun bisa mengklaim email orang lain lalu menerima akun Google-nya.
+  emailVerified Boolean  @default(false) @map("email_verified")
   fullName     String    @map("full_name")
   role         Role      @default(seeker)
+  /// `ver` pada klaim access token (SDD §8.1). Menaikkannya satu langkah
+  /// membuat SELURUH access token lama ditolak — logout semua perangkat dan
+  /// pencabutan saat ganti role. Sengaja di tabel ini (bukan cache): kill-switch
+  /// sesi tidak boleh ikut hilang saat Redis di-evict atau restart.
+  tokenVersion Int       @default(0) @map("token_version")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(6)
   /// Soft delete (fondasi hak hapus UU PDP); purge/anonimisasi ≤30 hari (job worker).
@@ -60,6 +71,27 @@ model User {
   @@map("users")
 }
 
+/// Sebab pencabutan refresh token (PR-018c). Dua kegunaan:
+///
+/// 1. Membedakan REUSE sungguhan dari klien basi. Tanpa ini, logout mencabut
+///    keluarga token, lalu klien basi yang mencoba refresh menyalakan alarm
+///    `AUTH_REFRESH_REUSED` palsu — tepat pada sinyal keamanan yang paling
+///    tidak boleh berisik. Hanya baris ber-`rotated` yang layak dicurigai.
+/// 2. Retensi berjenjang (PR-024, SDD §6.4): baris `reuse` adalah bukti
+///    insiden dan disimpan 2 tahun, jauh lebih lama daripada rotasi biasa.
+enum RefreshRevokedReason {
+  /// Dicabut karena dipakai dan digantikan penerusnya (alur normal).
+  rotated
+  /// Pengguna keluar dari perangkat ini.
+  logout
+  /// Pengguna keluar dari SEMUA perangkat (disertai bump users.token_version).
+  logout_all
+  /// Token yang sudah dicabut dipakai lagi → seluruh keluarga dibakar.
+  reuse
+  /// Akun dihapus (PR-021).
+  account_deleted
+}
+
 /// Refresh token ROTATING (SDD §8.1): hanya hash yang disimpan; familyId
 /// mendeteksi reuse — token lama dipakai ulang → cabut seluruh keluarga.
 model RefreshToken {
@@ -70,12 +102,25 @@ model RefreshToken {
   familyId  String    @map("family_id") @db.Uuid
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// NULL selama baris masih aktif; terisi bersamaan dengan revokedAt.
+  /// Nullable juga demi baris lama (PR-018a) yang dicabut sebelum kolom ada.
+  revokedReason RefreshRevokedReason? @map("revoked_reason")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
+  // BRIN untuk job retensi (PR-024a, SDD §6.4). Kedua kolom append-mostly dan
+  // berkorelasi waktu — kasus pemakaian BRIN (SDD §6.2): indeksnya kecil
+  // (kilobyte, bukan megabyte) dan tabel ini tumbuh terus. Tanpa keduanya,
+  // purge harian men-seq-scan seluruh tabel setiap malam.
+  //
+  // Dideklarasikan di schema, BUKAN hanya raw SQL — mengikuti pelajaran
+  // `audit_logs_created_at_brin` (PR-010): index yang hanya ada di file migrasi
+  // dianggap drift oleh migrasi berikutnya, yang lalu men-generate DROP INDEX.
+  @@index([revokedAt], map: "refresh_tokens_revoked_at_brin", type: Brin)
+  @@index([expiresAt], map: "refresh_tokens_expires_at_brin", type: Brin)
   @@map("refresh_tokens")
 }
 
@@ -432,6 +477,30 @@ model AiUsage {
   /// Kuota harian per fitur (SDD §6.3).
   @@index([userId, feature, createdAt])
   @@map("ai_usage")
+}
+
+/// Agregat bulanan pemakaian AI (PR-024a, SDD §6.4: "agregat bulanan
+/// dipertahankan"). SENGAJA tanpa `user_id`: agregat yang memuat PII akan ikut
+/// terhapus saat purge, dan justru ketiadaan itulah yang membuatnya selamat —
+/// angka bulanan tetap utuh meski setiap pemiliknya menghapus akunnya.
+///
+/// Satu bulan difinalkan SEKALI, setelah bulannya berakhir dan jauh sebelum
+/// baris mentahnya mencapai umur retensi. Tidak pernah dihitung ulang:
+/// menghitung ulang bulan yang sebagian barisnya sudah terhapus akan membuat
+/// agregat menyusut diam-diam setiap hari.
+model AiUsageMonthly {
+  /// Hari pertama bulan ybs (UTC) — `date_trunc('month', created_at)`.
+  month     DateTime  @db.Date
+  feature   AiFeature
+  provider  String
+  /// Jumlah panggilan yang teragregasi ke baris ini.
+  requests  Int       @default(0)
+  tokensIn  BigInt    @default(0) @map("tokens_in")
+  tokensOut BigInt    @default(0) @map("tokens_out")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([month, feature, provider])
+  @@map("ai_usage_monthly")
 }
 
 model Notification {

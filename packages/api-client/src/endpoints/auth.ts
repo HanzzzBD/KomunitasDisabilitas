@@ -3,8 +3,16 @@
 import {
   requestOtpSchema,
   requestOtpResponseSchema,
+  verifyOtpSchema,
+  verifyOtpResponseSchema,
+  refreshSessionSchema,
+  refreshSessionResponseSchema,
   type RequestOtp,
   type RequestOtpResponse,
+  type VerifyOtp,
+  type VerifyOtpResponse,
+  type RefreshSession,
+  type RefreshSessionResponse,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
@@ -30,4 +38,63 @@ export async function requestOtp(
     body,
     responseSchema: requestOtpResponseSchema,
   });
+}
+
+/**
+ * POST /auth/otp/verify — tukar kode OTP dengan sesi (PR-018b).
+ * `refreshToken` hanya ada pada response bila `client: "mobile"`; web
+ * menerimanya sebagai cookie HttpOnly yang tidak terlihat dari JavaScript.
+ */
+export async function verifyOtp(client: ApiClient, input: VerifyOtp): Promise<VerifyOtpResponse> {
+  const body = verifyOtpSchema.parse(input);
+  return client.request("/auth/otp/verify", {
+    method: "POST",
+    body,
+    responseSchema: verifyOtpResponseSchema,
+  });
+}
+
+/**
+ * POST /auth/refresh — perpanjang sesi.
+ *
+ * JANGAN memanggil ini langsung dari kode fitur: pakai `refresh` di
+ * ApiClientOptions supaya 401 → refresh → retry berjalan otomatis dan hanya
+ * SEKALI per permintaan. Memanggilnya manual di banyak tempat berisiko
+ * merotasi refresh token secara paralel — dan rotasi paralel adalah persis
+ * bentuk yang dibaca server sebagai reuse, sehingga seluruh sesi tercabut.
+ */
+export async function refreshSession(
+  client: ApiClient,
+  input: RefreshSession = {},
+): Promise<RefreshSessionResponse> {
+  const body = refreshSessionSchema.parse(input);
+  return client.request("/auth/refresh", {
+    method: "POST",
+    body,
+    responseSchema: refreshSessionResponseSchema,
+    // Refresh yang ditolak TIDAK boleh memicu refresh lagi — lihat catatan
+    // pada skipAuthRefresh di client.ts.
+    skipAuthRefresh: true,
+  });
+}
+
+/**
+ * POST /auth/logout — keluar dari perangkat ini (PR-018c).
+ * Idempoten: tidak pernah melempar karena token tidak dikenal. Setelah ini,
+ * buang access & refresh token yang tersimpan di klien.
+ */
+export async function logout(client: ApiClient, input: RefreshSession = {}): Promise<void> {
+  const body = refreshSessionSchema.parse(input);
+  // 401 pada logout tidak boleh memicu refresh: sesi memang sedang diakhiri.
+  await client.request("/auth/logout", { method: "POST", body, skipAuthRefresh: true });
+}
+
+/**
+ * POST /auth/logout-all — keluar dari SEMUA perangkat (PR-018c).
+ * Menaikkan token version, sehingga access token yang beredar di perangkat
+ * lain langsung ditolak — tidak perlu menunggu 15 menit.
+ */
+export async function logoutAll(client: ApiClient, input: RefreshSession = {}): Promise<void> {
+  const body = refreshSessionSchema.parse(input);
+  await client.request("/auth/logout-all", { method: "POST", body, skipAuthRefresh: true });
 }

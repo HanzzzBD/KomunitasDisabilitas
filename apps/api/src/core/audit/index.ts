@@ -1,5 +1,6 @@
 // core/audit — penulis audit append-only, non-blocking, dan bebas PII (SDD §8.3).
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type { AppPrisma } from "../db/index.js";
 import {
   auditActionSchema,
   auditActorSchema,
@@ -55,7 +56,7 @@ export function sanitizeAuditMeta(action: AuditAction, meta: unknown): Record<st
   return parsed.success ? parsed.data : null;
 }
 
-export function createPrismaAuditWriter(prisma: PrismaClient): AuditWriter {
+export function createPrismaAuditWriter(prisma: AppPrisma): AuditWriter {
   return {
     async append(entry) {
       await prisma.auditLog.create({ data: entry });

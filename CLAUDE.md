@@ -1,8 +1,8 @@
 # CLAUDE.md — Project Context & Development Guide
 
-> **Last Updated:** 2026-07-17  
+> **Last Updated:** 2026-08-07  
 > **Project:** Nawasena (Inclusive Career Ecosystem for People with Disabilities)  
-> **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, PR-PLAN v3.0
+> **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, docs/implementation/ (backlog)
 
 ---
 
@@ -29,8 +29,8 @@
 
 ### Roadmap Implementasi Terbaru
 - Dokumentasi implementasi terbaru tersedia di [docs/implementation/README.md](./docs/implementation/README.md)
-- Backlog dibagi ke dalam **18 phase** dan **112 PR** untuk 8 sprint + soak/release
-- Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, dan release
+- Backlog dibagi ke dalam **19 phase** dan **119 PR** untuk 8 sprint + soak/release (Phase 19 = Community, pasca-v1.0.0)
+- Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, release, dan community (pasca-MVP)
 
 ### Dokumentasi Log Implementasi
 - Implementasi dilakukan per PR.
@@ -224,7 +224,7 @@ Database (PostgreSQL)
 - **Format:** `prettier` (auto-format on save)
 - **Test:** Unit tests via Vitest (slot e2e/a11y disiapkan, diaktifkan PR-031)
 
-**Conventions (dari PR-PLAN v3.0):**
+**Conventions (dari docs/implementation/README.md — Konvensi Global):**
 
 ```typescript
 // ❌ DON'T: Validasi ad-hoc
@@ -355,6 +355,14 @@ GEMINI_API_KEY="..."
 NODE_ENV="development"
 ```
 
+**Siapa yang memuat `.env` (eksplisit — bukan efek samping):**
+- Prisma CLI (`prisma migrate`, `prisma studio`) — otomatis.
+- Script `dev`: `tsx watch --env-file-if-exists=.env src/index.ts`.
+- Script `start` (produksi/kontainer): **tidak** memuat `.env`; env var datang dari compose/CI.
+- Env var yang sudah ada **selalu menang** atas isi `.env` (file hanya mengisi yang kosong).
+- Gerbang fail-fast (`loadEnv` → `parseFieldKeys` → `loadQueueConfigs`) berjalan **setelah** pemuatan itu, jadi `.env` yang kurang `FIELD_KEY_V1` tetap membuat boot gagal.
+- `apps/api/src/index.ts` hanya berisi gerbang; seluruh wiring ada di `src/boot.ts` yang di-import dinamis. **Jangan menambah import statis yang menyentuh `@prisma/client` di `index.ts`** — Prisma memuat `.env` saat di-import dan akan melangkahi gerbang (diuji di `crypto-boot.test.ts`).
+
 **CI/Production:**
 - Env vars set in GitHub Secrets, passed to runner at build time
 - No `.env` files in repo
@@ -369,11 +377,16 @@ git revert <commit-hash>
 
 # 2. Rebuild image (CI automatic)
 # 3. Rollback deployment
-./deploy.sh --rollback
+./deploy.sh --rollback   # BELUM ADA — lahir di Phase 16 (infra/deploy.sh)
 
 # Database: Migrations backward-compatible one version
 # (DB NOT rolled back with image; ensures no data loss)
 ```
+
+> **Keadaan hari ini:** langkah 3 belum bisa dijalankan — tidak ada deployment
+> otomatis maupun `deploy.sh` di repo. RB-Std praktis berhenti di `git revert`
+> + build ulang. Setiap dokumen phase yang menyebut "RB-Std" merujuk prosedur
+> lengkap di atas sebagai TARGET, bukan sebagai kemampuan yang sudah ada.
 
 ### 5.8 Alur Pengiriman PR (Wajib — Setelah Task PR Selesai)
 
@@ -410,18 +423,19 @@ ProjectKomunitasDisabilitas/
 │   ├── ui/               (shared React components, a11y)
 │   └── a11y/             (accessibility utilities & hooks)
 ├── docs/
-│   ├── PR-PLAN.md        (engineering backlog)
-│   ├── adr/              (architecture decision records)
-│   ├── implementation/   (phase-based implementation plan, 18 phases / 112 PR)
+│   ├── adr/              (architecture decision records + README.md sebagai indexnya)
+│   ├── implementation/   (engineering backlog: 19 phases / 119 PR + README.md index)
 │   │   ├── log/          (implementation logs per completed phase)
 │   │   └── *.md          (phase docs)
-│   └── README.md         (ADR index)
+│   ├── audit-action-catalog.md
+│   ├── rbac-route-registry.md   (konvensi guard & route registry, PR-019)
+│   └── runbook-keys.md
 ├── .github/
-│   └── workflows/        (GitHub Actions: pr.yml, deploy.yml)
+│   └── workflows/        (GitHub Actions: pr.yml; deploy.yml menyusul di Phase 16)
 ├── apps/api/.env.example (template per app — TIDAK ada .env.example di root)
-├── docker-compose.yml    (local dev, staging, production overlays)
-├── Dockerfile            (single multi-stage for API + worker)
-├──     .md             (product design, personas, flows)
+├── apps/api/Dockerfile   (multi-stage, context = root; melayani API DAN worker)
+├── docker-compose.dev.yml (stack dev; overlay staging/produksi menyusul Phase 16)
+├── DESIGN.md             (product design, personas, flows)
 ├── PRD.md                (product requirements)
 ├── SDD.md                (software design doc)
 ├── Deskripsi.txt         (project overview)
@@ -441,14 +455,14 @@ ProjectKomunitasDisabilitas/
 | [PRD.md](./PRD.md) | Product Requirements Document v1.1 — business goals, user personas, features |
 | [SDD.md](./SDD.md) | Software Design Document v1.1 — technical architecture, module design, risks/mitigations |
 | [DESIGN.md](./DESIGN.md) | Product Design — UI flows, accessibility specs, design system |
-| [docs/PR-PLAN.md](./docs/PR-PLAN.md) | Engineering Backlog v3.0 — PR breakdown, dependencies, acceptance criteria |
-| [docs/implementation/README.md](./docs/implementation/README.md) | Implementation plan index — 18 phases, 112 PR, sprint roadmap, dependency graph |
+| [docs/implementation/README.md](./docs/implementation/README.md) | **Engineering backlog & implementation plan index** — 19 phases, 119 PR, sprint roadmap, dependency graph, matriks traceability FR/NFR. Ini pengganti rujukan docs/PR-PLAN.md di dokumen lama — file itu tidak pernah ada di repo. |
 | [docs/implementation/phase-01-foundation.md](./docs/implementation/phase-01-foundation.md) | Phase 1 foundation PRs and execution scope |
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
 | [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
 | [docs/adr/README.md](./docs/adr/README.md) | ADR index & navigation |
 | `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
-| `docker-compose.yml` | Multi-container setup (PostgreSQL, Redis, API, worker, web) |
+| `docker-compose.dev.yml` | Stack dev: PostgreSQL, `redis-cache`, `redis-queue`, api, worker. **Dua Redis terpisah dengan sengaja** (ADR-004): cache boleh di-evict (`allkeys-lru`), queue tidak boleh (`noeviction` + AOF). Overlay staging/produksi menyusul di Phase 16. |
+| `docs/rbac-route-registry.md` | Konvensi guard RBAC & route registry (PR-019) — wajib dibaca sebelum menambah endpoint |
 
 ---
 
@@ -462,8 +476,8 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 # Edit apps/api/.env bila perlu (default sudah cocok dengan compose dev)
 
-# 3. Start PostgreSQL + Redis locally (or Docker Compose)
-docker-compose up -d postgres redis
+# 3. Start PostgreSQL + kedua Redis (cache & queue terpisah — ADR-004)
+docker compose -f docker-compose.dev.yml up -d postgres redis-cache redis-queue
 
 # 4. Run migrations
 pnpm --filter @nawasena/api exec prisma migrate dev
@@ -537,17 +551,20 @@ pnpm --filter @nawasena/api exec prisma migrate reset
 
 ### Docker & Deployment
 ```bash
-# Build Docker image locally
-docker build -t nawasena:latest .
+# Build image lokal — context = ROOT repo, Dockerfile ada di apps/api/
+# (satu image melayani API dan worker; worker hanya menimpa command-nya).
+docker build -f apps/api/Dockerfile --target dev -t nawasena:dev .
 
 # Start full stack (local dev)
-docker-compose up
+docker compose -f docker-compose.dev.yml up
 
-# Deploy (via CI/CD on push to main)
-git push origin main  # triggers GitHub Actions
+# Deploy: workflow deploy.yml BELUM ADA — dibuat di Phase 16
+# (docs/implementation/phase-16-infrastructure-observability.md).
+# Hari ini CI hanya menjalankan pr.yml (lint-typecheck-test).
 
-# Manual rollback
-./deploy.sh --rollback
+# Manual rollback: ./deploy.sh --rollback — SKRIPNYA BELUM ADA.
+# Lahir sebagai infra/deploy.sh di Phase 16. Sampai saat itu RB-Std berhenti
+# di `git revert` + build ulang; tidak ada langkah rollback otomatis.
 ```
 
 ### Monorepo
@@ -606,10 +623,11 @@ pnpm turbo prune --scope=@nawasena/api
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2026-07-17 | Initial creation from PRD v1.1, SDD v1.1, ADRs, PR-PLAN v3.0 |
+| 1.0 | 2026-07-17 | Initial creation from PRD v1.1, SDD v1.1, ADRs, backlog v3.0 |
+| 1.1 | 2026-08-07 | Sinkronisasi dokumen: rujukan docs/PR-PLAN.md (tidak pernah ada) diarahkan ke docs/implementation/, perintah Docker/compose dibetulkan, deploy.sh & deploy.yml ditandai belum ada, Phase 19 masuk total (119 PR / 19 phase). Ditambah tiga penjaga otomatis agar dokumen tidak melenceng lagi. |
 
 ---
 
-**Last Edited:** 2026-07-17  
+**Last Edited:** 2026-08-07  
 **Next Review:** After PR-010 (first integration point)  
 **Maintainer:** Tech Lead / Architect

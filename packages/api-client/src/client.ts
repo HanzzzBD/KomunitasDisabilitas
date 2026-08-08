@@ -15,7 +15,9 @@ export interface ApiClientOptions {
   getAccessToken?: () => string | null | Promise<string | null>;
   /**
    * Hook refresh saat 401: kembalikan true bila token baru siap → request
-   * di-retry SEKALI. STUB sampai PR-018 — default selalu false.
+   * di-retry SEKALI. Pakai `createSessionRefresher` (PR-018b) — ia
+   * men-single-flight panggilan refresh, yang WAJIB karena refresh token
+   * bersifat rotating. Default: selalu false (tanpa sesi, 401 diteruskan).
    */
   refresh?: () => boolean | Promise<boolean>;
   /** Override fetch (test/polyfill). Default: globalThis.fetch. */
@@ -29,6 +31,15 @@ export interface RequestOptions<TResponse> {
   /** Skema response; bila diberikan, response diparse (guard drift runtime). */
   responseSchema?: z.ZodType<TResponse>;
   signal?: AbortSignal;
+  /**
+   * Jangan jalankan hook refresh pada 401 permintaan ini.
+   *
+   * WAJIB untuk permintaan /auth/refresh itu sendiri: tanpa ini, refresh yang
+   * ditolak 401 akan memicu hook refresh lagi — dan karena hook-nya
+   * single-flight, ia menunggu panggilan yang sedang berjalan, yaitu dirinya
+   * sendiri. Hasilnya deadlock (tanpa single-flight: rekursi tak berujung).
+   */
+  skipAuthRefresh?: boolean;
 }
 
 export interface ApiClient {
@@ -69,7 +80,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     let response = await doFetch(path, reqOptions);
 
     // 401 → refresh sekali → retry sekali. 401 kedua lolos ke error biasa.
-    if (response.status === 401 && (await refresh())) {
+    if (response.status === 401 && reqOptions.skipAuthRefresh !== true && (await refresh())) {
       response = await doFetch(path, reqOptions);
     }
 

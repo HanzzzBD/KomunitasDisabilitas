@@ -26,6 +26,12 @@ export const REDACTION_PATHS: string[] = [
     "authorization",
     "cookie",
     "otp",
+    // PR-016: nomor HP = PII; `target` adalah nama field nomor tujuan pada
+    // payload provider WhatsApp/SMS. `code` sengaja TIDAK didaftarkan — kunci
+    // itu dipakai error handler untuk kode error (bukan kode OTP), dan kode OTP
+    // memang tidak pernah masuk objek log (dinamai `otp` bila terpaksa).
+    "phone",
+    "target",
     "password",
     "token",
     "accessToken",

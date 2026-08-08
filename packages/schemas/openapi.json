@@ -10,6 +10,11 @@
       "url": "/api/v1"
     }
   ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
     "/auth/otp/request": {
       "post": {
@@ -60,12 +65,580 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Pengiriman OTP belum dikonfigurasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/otp/verify": {
+      "post": {
+        "operationId": "verifyOtp",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verifikasi kode OTP",
+        "security": [],
+        "description": "Memeriksa kode OTP. Bila cocok, akun dicari berdasarkan nomor HP dan dibuat bila belum ada (find-or-create).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kode cocok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyOtpResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Kode salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Kode hangus atau kedaluwarsa — minta kode baru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Percobaan terkunci sementara — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "post": {
+        "operationId": "loginWithGoogle",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Masuk dengan Google",
+        "security": [],
+        "description": "Menukar authorization code Google (dengan PKCE code_verifier) menjadi sesi. id_token diverifikasi terhadap kunci publik Google (audience, issuer, kedaluwarsa). Akun dicari berdasarkan google_id, lalu email terverifikasi, dan dibuat bila belum ada (find-or-create).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuth"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Masuk berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Code/verifier ditolak Google, atau id_token tidak sah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email Google belum terverifikasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Login Google belum dikonfigurasi atau Google tidak terjangkau",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "refreshSession",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Perpanjang sesi",
+        "security": [],
+        "description": "Menukar refresh token dengan pasangan token baru. Klien web tidak mengirim body: tokennya ada di cookie HttpOnly yang dilampirkan browser, dan token barunya dikembalikan sebagai cookie pula. Klien mobile mengirim dan menerima refresh token di body untuk disimpan di SecureStore.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesi diperpanjang",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token tidak dikenal, kedaluwarsa, atau sudah dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Keluar dari perangkat ini",
+        "security": [],
+        "description": "Mencabut seluruh rantai sesi perangkat ini (satu keluarga token). Perangkat lain tidak tersentuh. Cookie refresh dihapus. Selalu 204, termasuk bila token tidak dikirim atau tidak dikenal.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Sesi perangkat ini diakhiri"
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "operationId": "logoutAll",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Keluar dari semua perangkat",
+        "security": [],
+        "description": "Menaikkan token version pengguna (seluruh access token yang beredar langsung ditolak) dan mencabut semua refresh token miliknya. Cookie refresh dihapus. Selalu 204, termasuk bila token tidak dikirim atau tidak dikenal.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Semua sesi pengguna diakhiri"
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/account": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Hapus akun sendiri",
+        "description": "Menghapus akun pemilik sesi (soft delete) dan mencabut seluruh sesinya dalam satu transaksi. Wajib disertai konfirmasi ulang identitas: kode OTP baru ke nomor terdaftar, atau consent Google yang `sub`-nya cocok dengan akun. Data disimpan maksimal 30 hari sebelum purge, sehingga penghapusan keliru masih bisa dibatalkan lewat dukungan pelanggan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Akun dihapus dan seluruh sesi dicabut"
+          },
+          "400": {
+            "description": "Input tidak valid, atau cara konfirmasi tidak dimiliki akun ini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, sesi berakhir, atau kode OTP salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Akun Google yang dipakai berbeda dengan akun ini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Kode OTP hangus atau kedaluwarsa — minta kode baru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Percobaan terkunci sementara — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identitas belum bisa dipastikan (kredensial server tidak lengkap)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Profil akun sendiri",
+        "description": "Mengembalikan profil pengguna yang sedang masuk. Field internal (token version, google id, waktu hapus) tidak pernah disertakan.",
+        "responses": {
+          "200": {
+            "description": "Profil akun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Perbarui profil akun sendiri",
+        "description": "Memperbarui nama dan/atau email. Field `email` yang tidak dikirim berarti tidak diubah; `null` mengosongkannya. Email harus belum dipakai akun aktif lain.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMe"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email tidak bisa dipakai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/export": {
+      "get": {
+        "operationId": "exportMyData",
+        "tags": [
+          "users"
+        ],
+        "summary": "Unduh seluruh data pribadi sendiri",
+        "description": "Mengembalikan seluruh data milik pengguna yang sedang masuk dalam satu berkas JSON ber-versi. `formatVersion` naik hanya saat bentuknya berubah dengan cara yang tidak aditif — bagian baru yang ditambahkan kelak tidak menaikkannya. Dibatasi 3 kali per 24 jam per pengguna, dan setiap ekspor tercatat di audit.",
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataExportResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota unduh harian habis — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token dari /auth/otp/verify, /auth/google, atau /auth/refresh"
+      }
+    },
     "schemas": {
       "RequestOtp": {
         "type": "object",
@@ -91,7 +664,7 @@
               "retryAfterSeconds": {
                 "type": "integer",
                 "minimum": 0,
-                "example": 60
+                "example": 0
               }
             },
             "required": [
@@ -129,6 +702,461 @@
           "message"
         ],
         "description": "Envelope error standar Nawasena"
+      },
+      "VerifyOtp": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Kode OTP 6 angka dari WhatsApp/SMS",
+            "example": "482913"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "default": "web",
+            "description": "Jenis klien — menentukan cookie vs body",
+            "example": "web"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ],
+        "description": "Verifikasi kode OTP yang diterima pengguna"
+      },
+      "VerifyOtpResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID",
+                "example": "01912345-89ab-7def-8123-456789abcdef"
+              },
+              "isNewUser": {
+                "type": "boolean",
+                "example": false
+              },
+              "accessToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "JWT RS256, berlaku 15 menit"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "example": 900
+              },
+              "refreshToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
+              }
+            },
+            "required": [
+              "userId",
+              "isNewUser",
+              "accessToken",
+              "expiresIn"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GoogleAuth": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Authorization code sekali pakai dari Google"
+          },
+          "codeVerifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9\\-._~]{43,128}$",
+            "description": "PKCE code_verifier (RFC 7636), 43–128 karakter"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "http://localhost:5173/masuk/google"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "default": "web",
+            "description": "Jenis klien — menentukan cookie vs body",
+            "example": "web"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier",
+          "redirectUri"
+        ],
+        "description": "Tukar authorization code Google (PKCE) jadi sesi"
+      },
+      "GoogleAuthResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID",
+                "example": "01912345-89ab-7def-8123-456789abcdef"
+              },
+              "isNewUser": {
+                "type": "boolean",
+                "example": false
+              },
+              "accessToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "JWT RS256, berlaku 15 menit"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "example": 900
+              },
+              "refreshToken": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
+              }
+            },
+            "required": [
+              "userId",
+              "isNewUser",
+              "accessToken",
+              "expiresIn"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "RefreshSession": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Hanya untuk client mobile; web memakai cookie"
+          }
+        },
+        "description": "Perpanjang sesi dengan refresh token"
+      },
+      "RefreshSessionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionTokens"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SessionTokens": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "JWT RS256, berlaku 15 menit"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "example": 900
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Hanya untuk client=mobile; web menerimanya sebagai cookie"
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresIn"
+        ]
+      },
+      "DeleteAccount": {
+        "type": "object",
+        "properties": {
+          "otpCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Kode OTP baru ke nomor terdaftar — untuk akun ber-nomor HP",
+            "example": "482913"
+          },
+          "google": {
+            "$ref": "#/components/schemas/GoogleReauth",
+            "description": "Untuk akun yang masuk lewat Google"
+          }
+        },
+        "description": "Konfirmasi hapus akun — tepat satu cara pembuktian"
+      },
+      "GoogleReauth": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Authorization code sekali pakai dari Google"
+          },
+          "codeVerifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9\\-._~]{43,128}$",
+            "description": "PKCE code_verifier (RFC 7636), 43–128 karakter"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "http://localhost:5173/masuk/google"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier",
+          "redirectUri"
+        ],
+        "description": "Konfirmasi ulang identitas lewat Google"
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Me"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Kosong bila belum diisi saat onboarding"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Alamat email pengguna",
+            "example": "rina@contoh.id"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "seeker",
+              "admin",
+              "employer"
+            ],
+            "description": "Peran pengguna",
+            "example": "seeker"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "phone",
+          "role",
+          "createdAt"
+        ],
+        "description": "Profil akun milik pengguna yang sedang masuk"
+      },
+      "UpdateMe": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80,
+            "description": "Nama lengkap pengguna",
+            "example": "Rina Pratiwi"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Tidak dikirim = tidak diubah; null = dikosongkan",
+            "example": "rina@contoh.id"
+          }
+        },
+        "required": [
+          "fullName"
+        ],
+        "description": "Perbarui profil akun sendiri"
+      },
+      "DataExportResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataExport"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DataExport": {
+        "type": "object",
+        "properties": {
+          "formatVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "account": {
+            "$ref": "#/components/schemas/ExportAccount"
+          }
+        },
+        "required": [
+          "formatVersion",
+          "exportedAt",
+          "account"
+        ],
+        "additionalProperties": false,
+        "description": "Berkas ekspor data pribadi"
+      },
+      "ExportAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Alamat email pengguna",
+            "example": "rina@contoh.id"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "seeker",
+              "admin",
+              "employer"
+            ],
+            "description": "Peran pengguna",
+            "example": "seeker"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "authMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "otp",
+                "google"
+              ],
+              "description": "Cara masuk yang tersedia untuk akun ini"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "emailVerified",
+          "phone",
+          "role",
+          "createdAt",
+          "authMethods"
+        ],
+        "description": "Data identitas akun"
       }
     }
   }

@@ -8,10 +8,16 @@
   "exports": {
     "./core/queue": "./src/core/queue/index.ts",
     "./core/config": "./src/core/config/index.ts",
-    "./core/logger": "./src/core/logger/index.ts"
+    "./core/logger": "./src/core/logger/index.ts",
+    "./core/db": "./src/core/db/index.ts",
+    "./core/audit": "./src/core/audit/index.ts",
+    "./modules/users": "./src/modules/users/index.ts",
+    "./modules/auth": "./src/modules/auth/index.ts",
+    "./core/events": "./src/core/events/index.ts",
+    "./modules/jobs": "./src/modules/jobs/index.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "start": "tsx src/index.ts",
     "lint": "eslint src __tests__ prisma --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -32,6 +38,7 @@
     "express-rate-limit": "7.5.0",
     "helmet": "8.0.0",
     "ioredis": "5.4.2",
+    "jose": "5.9.6",
     "pg": "8.13.1",
     "pino": "9.5.0",
     "pino-http": "10.3.0",

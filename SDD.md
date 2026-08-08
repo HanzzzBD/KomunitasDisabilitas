@@ -318,11 +318,16 @@ Kebijakan: mulai dengan indeks di atas saja; tambahan wajib lewat bukti `pg_stat
 | Akun dihapus (soft delete) | purge/anonimisasi ≤ 30 hari | job `pdp-purge` harian (worker) |
 | `ai_usage` | 90 hari (agregat bulanan dipertahankan) | job harian |
 | `match_scores` | 7 hari sejak `computed_at` | job harian |
+| `refresh_tokens` kedaluwarsa (tak pernah dicabut) | 90 hari sejak `expires_at` | job harian |
+| `refresh_tokens` dicabut (rotasi/logout/hapus akun) | 180 hari sejak `revoked_at` | job harian |
+| `refresh_tokens` dicabut karena **reuse terdeteksi** | 2 tahun sejak `revoked_at` | job harian |
 | `audit_logs` | 2 tahun | arsip ke R2 lalu hapus |
 | Transkrip sesi cv-chat | 30 hari setelah finalize | job harian |
 | Backup | 30 hari | lifecycle rule R2 |
 
 Anonimisasi mempertahankan agregat North Star (hired count) tanpa PII.
+
+**`refresh_tokens` sengaja TIDAK diperlakukan seragam** (keputusan owner 2026-08-04). Baris yang **dicabut** adalah satu-satunya cara reuse detection (§8.1) membedakan token curian dari token yang tidak dikenal: begitu barisnya hilang, replay terbaca sebagai "tidak dikenal" dan keluarga token tidak pernah dicabut. Karena itu angka 180 hari di atas **bukan** setelan kebersihan — ia adalah **jendela deteksi reuse**. Baris yang dicabut karena reuse disamakan dengan `audit_logs` (2 tahun) sebab baris DB dan baris auditnya adalah dua paruh bukti yang sama. Retensi ini tidak menahan hak hapus UU PDP: akun terhapus membawa serta `refresh_tokens`-nya lewat `ON DELETE CASCADE`.
 
 ### 6.5 Enkripsi
 
@@ -662,7 +667,10 @@ Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
 | `pdf-render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
 | `notify-push` / `notify-email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
 | `maintenance-pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
+| `maintenance-retention` | cron harian 02:47 WIB | 1 | manual | 10 m | §6.4; *ditambahkan PR-024a — lihat catatan* |
 | `maintenance-backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
+
+> **`maintenance-retention` (ditambahkan 2026-08-08, PR-024a):** tabel di atas semula tidak punya baris untuk kebijakan retensi §6.4, padahal §6.4 menyebut "job harian" untuk lima jenis data. Celahnya ditambal di sini. Jadwal **02:47 WIB** dipilih agar berjalan SEBELUM `pdp-purge` (03:17): purge menghapus `ai_usage` milik akun terpurge tanpa memandang umur, jadi menjalankan agregasi bulanan lebih dulu memperkecil jendela pemakaian AI yang hilang dari agregat sebelum sempat dihitung. `manual` (tanpa retry otomatis) sama seperti `pdp-purge` — operasi destruktif yang gagal di tengah batch harus dilihat manusia, bukan diulang membuta.
 
 Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue (queue pendamping `<queue>-dlq`) → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract-{sessionId}`, dibangun lewat `buildJobId()` di `core/queue`) untuk anti-duplikat; queue dan cache memakai **dua service Redis terpisah** — cache boleh LRU-evict, queue wajib `noeviction` (ADR-004 revisi PR-008; rumusan lama "dua DB index" tidak dapat memenuhi kebutuhan eviction yang berbeda karena `maxmemory-policy` berlaku per instance).
 

@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Writable } from "node:stream";
@@ -32,11 +34,22 @@ interface BootResult {
  * (kasus fail-fast). `expectExit`=false: boot diharapkan sukses → kita tunggu
  * baris "API siap" lalu bunuh proses (proses server hidup terus).
  */
-function bootApi(env: NodeJS.ProcessEnv, expectExit: boolean): Promise<BootResult> {
+function bootApi(
+  env: NodeJS.ProcessEnv,
+  expectExit: boolean,
+  /** Nama file env yang dimuat eksplisit — meniru script "dev" (PR-016 fix). */
+  envFile?: string,
+): Promise<BootResult> {
   return new Promise((resolvePromise, rejectPromise) => {
     // node --import tsx: jalankan TS langsung tanpa bergantung pada .bin shim
     // (lintas OS; hindari masalah resolusi .cmd di Windows).
-    const child = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], {
+    const args = [
+      ...(envFile === undefined ? [] : [`--env-file-if-exists=${envFile}`]),
+      "--import",
+      "tsx",
+      "src/index.ts",
+    ];
+    const child = spawn(process.execPath, args, {
       cwd: apiDir,
       // Env BERSIH: hanya yang kita berikan (jangan wariskan FIELD_KEY_* host).
       env: { PATH: process.env.PATH, ...env },
@@ -84,6 +97,31 @@ describe("fail-fast kunci enkripsi saat boot (AC PR-013)", () => {
     expect(r.stdout).not.toContain("API siap menerima koneksi");
   }, 25_000);
 
+  // Regresi PR-016: `@prisma/client` memuat apps/api/.env ke process.env saat
+  // di-import. Ketika modul yang menyentuh Prisma ikut ter-import di index.ts,
+  // .env menambal FIELD_KEY_V1 yang hilang SEBELUM gerbang berjalan dan boot
+  // yang seharusnya mati justru lanjut. Test ini menjaga urutannya: gerbang
+  // dulu, wiring (dan Prisma) belakangan lewat import dinamis ./boot.ts.
+  it(".env yang memuat FIELD_KEY_V1 TIDAK menyelamatkan boot dengan env bersih", async (ctx) => {
+    const envFile = resolve(apiDir, ".env");
+    if (existsSync(envFile)) {
+      // Jangan pernah menimpa .env developer. CI tidak punya .env → di sanalah
+      // penjagaan ini benar-benar berjalan.
+      // eslint-disable-next-line no-console -- info skip untuk developer lokal
+      console.warn("apps/api/.env sudah ada — test penjagaan urutan boot dilewati.");
+      return ctx.skip();
+    }
+
+    writeFileSync(envFile, `FIELD_KEY_V1=${Buffer.alloc(32, 9).toString("base64")}\n`, "utf8");
+    try {
+      const r = await bootApi({ ...BASE_ENV }, true);
+      expect(r.code).not.toBe(0);
+      expect(r.stdout).not.toContain("API siap menerima koneksi");
+    } finally {
+      rmSync(envFile, { force: true });
+    }
+  }, 25_000);
+
   it("FIELD_KEY_V1 valid → boot berhasil (server listen)", async () => {
     const key = Buffer.alloc(32, 3).toString("base64");
     const r = await bootApi({ ...BASE_ENV, FIELD_KEY_V1: key }, false);
@@ -91,6 +129,125 @@ describe("fail-fast kunci enkripsi saat boot (AC PR-013)", () => {
     // Material kunci TIDAK muncul di output apa pun (stdout/stderr).
     expect(r.stdout).not.toContain(key);
     expect(r.stderr).not.toContain(key);
+  }, 25_000);
+});
+
+// Gerbang kedua di entry point yang sama (PR-018a). Memakai helper spawn di
+// atas dengan sengaja: yang diuji bukan "kunci sesi valid" — itu urusan
+// auth-session-keys.test.ts — melainkan bahwa gerbangnya benar-benar berjalan
+// di index.ts SEBELUM server listen, persis seperti gerbang kunci enkripsi.
+describe("fail-fast kunci sesi RS256 saat boot (AC PR-018)", () => {
+  const FIELD_KEY = Buffer.alloc(32, 3).toString("base64");
+  const ENV_SIAP = { ...BASE_ENV, FIELD_KEY_V1: FIELD_KEY };
+  const b64 = (pem: string) => Buffer.from(pem, "utf8").toString("base64");
+
+  function pasanganRsa() {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    return {
+      priv: b64(privateKey.export({ type: "pkcs8", format: "pem" }).toString()),
+      pub: b64(publicKey.export({ type: "spki", format: "pem" }).toString()),
+    };
+  }
+
+  it("tanpa kunci sesi → boot TETAP BERHASIL (fitur sesi mati, bukan boot gagal)", async () => {
+    const r = await bootApi(ENV_SIAP, false);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("hanya JWT_PRIVATE_KEY → exit ≠ 0, pesan menyebut JWT_PUBLIC_KEY", async () => {
+    const { priv } = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: priv }, true);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("JWT_PUBLIC_KEY");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("kunci publik BUKAN pasangan privat → exit ≠ 0 sebelum server start", async () => {
+    const a = pasanganRsa();
+    const b = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: a.priv, JWT_PUBLIC_KEY: b.pub }, true);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("bukan pasangan");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("JWT_PRIVATE_KEY salah bentuk → exit ≠ 0", async () => {
+    const { pub } = pasanganRsa();
+    const r = await bootApi(
+      { ...ENV_SIAP, JWT_PRIVATE_KEY: b64("bukan kunci"), JWT_PUBLIC_KEY: pub },
+      true,
+    );
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("JWT_PRIVATE_KEY");
+  }, 25_000);
+
+  it("pasangan valid → boot berhasil, kunci privat TIDAK muncul di output", async () => {
+    const { priv, pub } = pasanganRsa();
+    const r = await bootApi({ ...ENV_SIAP, JWT_PRIVATE_KEY: priv, JWT_PUBLIC_KEY: pub }, false);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain(priv);
+    expect(r.stderr).not.toContain(priv);
+    expect(r.stdout).not.toContain("BEGIN PRIVATE KEY");
+  }, 25_000);
+});
+
+// Jalur dev (script "dev": tsx watch --env-file-if-exists=.env). Pemuatan .env
+// adalah properti PERINTAH PELUNCUR, bukan kode aplikasi — sehingga dev nyaman
+// tanpa membuat produksi diam-diam membaca file. File uji sengaja BUKAN ".env"
+// agar test ini selalu berjalan (tidak pernah bersinggungan dengan .env milik
+// developer) dan tidak perlu skip.
+describe("pemuatan .env eksplisit lewat --env-file (jalur dev)", () => {
+  const envFileUji = ".env.uji-boot";
+  const envFilePath = resolve(apiDir, envFileUji);
+  const KUNCI_VALID = Buffer.alloc(32, 4).toString("base64");
+  /** Isi file env lengkap seperti .env developer sungguhan. */
+  const ISI_LENGKAP = [
+    `DATABASE_URL=${BASE_ENV.DATABASE_URL}`,
+    `REDIS_URL=${BASE_ENV.REDIS_URL}`,
+    `REDIS_QUEUE_URL=${BASE_ENV.REDIS_QUEUE_URL}`,
+    "HOST=127.0.0.1",
+    "PORT=0",
+    `FIELD_KEY_V1=${KUNCI_VALID}`,
+  ].join("\n");
+
+  afterEach(() => {
+    rmSync(envFilePath, { force: true });
+  });
+
+  it("env var dari file dipakai: boot berhasil walau shell hanya berisi PATH", async () => {
+    writeFileSync(envFilePath, `${ISI_LENGKAP}\n`, "utf8");
+    const r = await bootApi({ NODE_ENV: "test" }, false, envFileUji);
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain(KUNCI_VALID); // kunci tidak bocor ke log
+  }, 25_000);
+
+  it("file env tanpa FIELD_KEY_V1 → boot TETAP mati (fail-fast tidak dilemahkan)", async () => {
+    const tanpaKunci = ISI_LENGKAP.split("\n")
+      .filter((baris) => !baris.startsWith("FIELD_KEY_V1"))
+      .join("\n");
+    writeFileSync(envFilePath, `${tanpaKunci}\n`, "utf8");
+    const r = await bootApi({ NODE_ENV: "test" }, true, envFileUji);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain("FIELD_KEY_V1");
+    expect(r.stdout).not.toContain("API siap menerima koneksi");
+  }, 25_000);
+
+  it("env var shell MENANG atas isi file (deploy tidak bisa ditimpa .env basi)", async () => {
+    // File menunjuk port DB yang salah; shell menunjuk yang benar. Bila file
+    // menang, PORT=65000 dari file akan terlihat pada baris "API siap".
+    writeFileSync(envFilePath, `${ISI_LENGKAP}\nPORT=65000\n`, "utf8");
+    const r = await bootApi(
+      { NODE_ENV: "test", PORT: "0", FIELD_KEY_V1: KUNCI_VALID },
+      false,
+      envFileUji,
+    );
+    expect(r.stdout).toContain("API siap menerima koneksi");
+    expect(r.stdout).not.toContain('"port":65000');
+  }, 25_000);
+
+  it("file env tidak ada → tidak error, boot jalan dari env var saja", async () => {
+    const r = await bootApi({ ...BASE_ENV, FIELD_KEY_V1: KUNCI_VALID }, false, envFileUji);
+    expect(r.stdout).toContain("API siap menerima koneksi");
   }, 25_000);
 });
 

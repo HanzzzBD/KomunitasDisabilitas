@@ -1,0 +1,266 @@
+// modules/auth — repository akun untuk login OTP & Google (find-or-create).
+//
+// Hanya modul auth yang boleh menyentuh tabel users dari sini; modul lain
+// memakai service (aturan boundaries PR-002).
+//
+// SEMUA query login WAJIB menyaring `deletedAt: null`: unique index nomor dan
+// google_id bersifat PARSIAL (PR-009), jadi baris terhapus boleh menyimpan
+// nilai yang sama dan akan menjadi kembar bila ikut terbaca.
+import { Prisma, type Role } from "@prisma/client";
+import type { AppPrisma } from "../../../core/db/index.js";
+import { uuidV7 } from "../../../core/ids/index.js";
+import { argumenCabutSemuaSesi } from "./refresh-token.repository.js";
+
+export interface AuthUserResult {
+  id: string;
+  /** true bila baris baru dibuat pada panggilan ini. */
+  isNew: boolean;
+}
+
+/** Kode Prisma untuk pelanggaran unique constraint. */
+const UNIQUE_VIOLATION = "P2002";
+
+/**
+ * Alamat email dari Google sudah dipegang akun lain yang BELUM membuktikan
+ * kepemilikannya (diketik sendiri lewat PUT /me). Akun baru tidak bisa dibuat,
+ * dan penautan ke baris itu justru yang sedang dicegah.
+ */
+export class EmailDiklaimAkunLainError extends Error {
+  constructor() {
+    super("email dari Google sedang diklaim akun lain yang belum terverifikasi");
+    this.name = "EmailDiklaimAkunLainError";
+  }
+}
+/** Kode Prisma saat update/delete tidak menemukan baris yang cocok. */
+const RECORD_NOT_FOUND = "P2025";
+
+export function createAuthUserRepository(prisma: AppPrisma) {
+  /**
+   * Akun aktif dengan nomor tsb. `deletedAt: null` WAJIB: unique index nomor
+   * bersifat parsial (PR-009) sehingga nomor akun terhapus boleh dipakai ulang.
+   */
+  async function findActiveByPhone(phone: string): Promise<{ id: string } | null> {
+    return prisma.user.findFirst({ where: { phone, deletedAt: null }, select: { id: true } });
+  }
+
+  /** Akun aktif yang sudah tertaut ke identitas Google tsb. */
+  async function findActiveByGoogleId(googleId: string): Promise<{ id: string } | null> {
+    return prisma.user.findFirst({ where: { googleId, deletedAt: null }, select: { id: true } });
+  }
+
+  return {
+    findActiveByPhone,
+    findActiveByGoogleId,
+
+    /**
+     * Data yang dibutuhkan untuk menerbitkan/memperbarui sesi (PR-018a).
+     * `deletedAt: null` WAJIB di sini juga: refresh token milik akun yang sudah
+     * dihapus tidak boleh menghidupkan sesi baru.
+     */
+    async findActiveSessionUser(
+      id: string,
+    ): Promise<{ id: string; role: Role; tokenVersion: number } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, role: true, tokenVersion: true },
+      });
+    },
+
+    /**
+     * Naikkan `ver` satu langkah — kill-switch sesi (SDD §8.1). Setelah ini
+     * SETIAP access token lama ditolak verifikasinya, tanpa perlu menunggu
+     * 15 menit dan tanpa daftar token yang harus disisir.
+     *
+     * Increment dilakukan di DB (`increment`), bukan baca-lalu-tulis di
+     * aplikasi: dua pencabutan bersamaan tidak boleh saling menimpa sehingga
+     * salah satunya diam-diam tidak berlaku.
+     */
+    async bumpTokenVersion(id: string): Promise<number | null> {
+      try {
+        const row = await prisma.user.update({
+          // Filter non-unique di samping PK = extendedWhereUnique (GA Prisma 5).
+          where: { id, deletedAt: null },
+          data: { tokenVersion: { increment: 1 } },
+          select: { tokenVersion: true },
+        });
+        return row.tokenVersion;
+      } catch (err) {
+        // P2025 = tidak ada baris aktif dengan id itu; bukan kondisi error.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Kredensial yang dimiliki akun — dasar memilih jalur konfirmasi hapus
+     * (PR-021). Hanya keberadaannya yang menentukan jalur, tetapi NILAINYA
+     * tetap diperlukan: kode OTP diverifikasi terhadap nomor itu, dan identitas
+     * Google dicocokkan terhadap `googleId` itu. Keduanya PII — jangan
+     * dikembalikan ke klien maupun masuk log/audit.
+     */
+    async findDeleteContext(
+      id: string,
+    ): Promise<{ id: string; phone: string | null; googleId: string | null } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, phone: true, googleId: true },
+      });
+    },
+
+    /**
+     * Hapus akun (soft) + matikan seluruh sesinya — SATU TRANSAKSI.
+     *
+     * Dua tabel, satu invarian: "akun terhapus tidak punya sesi hidup". Karena
+     * invariannya melintasi tabel, yang menegakkannya juga harus — kalau tidak,
+     * kegagalan tulis di antara keduanya meninggalkan keadaan yang tidak pernah
+     * dirancang siapa pun: akun terhapus yang refresh token-nya masih aktif.
+     * (Hari ini `findActiveSessionUser` akan tetap menolaknya, jadi itu belum
+     * jadi lubang — tetapi mengandalkan pemeriksaan di tempat lain berarti
+     * invarian ini hidup dari kebiasaan, bukan dari database.)
+     *
+     * Urutan di dalamnya mengikuti `logoutAll`: `token_version` naik LEBIH DULU
+     * sehingga access token yang beredar langsung ditolak, baru refresh dicabut.
+     *
+     * `deletedAt: null` di klausa WHERE membuat operasi ini idempoten terhadap
+     * balapan: dua permintaan hapus bersamaan, hanya satu yang mengenai baris —
+     * yang kalah mendapat P2025 dan menerima `null`, bukan `token_version` yang
+     * naik dua kali.
+     *
+     * `null` = tidak ada akun aktif dengan id itu (sudah terhapus lebih dulu).
+     */
+    async deleteAccount(
+      id: string,
+      now: Date,
+    ): Promise<{ tokenVersion: number; revokedCount: number } | null> {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const row = await tx.user.update({
+            where: { id, deletedAt: null },
+            data: { deletedAt: now, tokenVersion: { increment: 1 } },
+            select: { tokenVersion: true },
+          });
+          const dicabut = await tx.refreshToken.updateMany(
+            argumenCabutSemuaSesi(id, now, "account_deleted"),
+          );
+          return { tokenVersion: row.tokenVersion, revokedCount: dicabut.count };
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Cari akun aktif; buat bila belum ada. Dua verifikasi bersamaan untuk
+     * nomor yang sama bisa lolos pemeriksaan pertama — unique index parsial
+     * menjadi wasit, dan pihak yang kalah membaca ulang baris pemenang.
+     *
+     * `fullName` sengaja kosong: login OTP tidak menanyakan nama. Pengguna
+     * mengisinya pada onboarding (PUT /me, PR-020).
+     */
+    async findOrCreateByPhone(phone: string): Promise<AuthUserResult> {
+      const existing = await findActiveByPhone(phone);
+      if (existing !== null) return { id: existing.id, isNew: false };
+
+      try {
+        const created = await prisma.user.create({
+          data: { id: uuidV7(), phone, fullName: "" },
+          select: { id: true },
+        });
+        return { id: created.id, isNew: true };
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === UNIQUE_VIOLATION) {
+          const winner = await findActiveByPhone(phone);
+          if (winner !== null) return { id: winner.id, isNew: false };
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Login Google (PR-017). Tiga jalur, diurutkan dari yang paling tepercaya:
+     *
+     * 1. `google_id` cocok → akun yang sama, selalu. Inilah yang membuat login
+     *    kedua dan seterusnya mendarat di akun yang sama meski email di Google
+     *    berganti.
+     * 2. email cocok → TAUTKAN akun yang sudah ada (mis. dibuat lewat OTP lalu
+     *    mengisi email di PUT /me). Aman HANYA karena pemanggil sudah menolak
+     *    `email_verified !== true`: tanpa syarat itu langkah ini adalah jalan
+     *    masuk account takeover.
+     * 3. tidak keduanya → akun baru.
+     *
+     * `email` sengaja TIDAK punya unique index (skema PR-009), jadi langkah 2
+     * tidak punya wasit di tingkat DB. Itu tidak masalah di sini: dua login
+     * bersamaan dengan email sama pasti membawa `google_id` yang sama pula
+     * (satu email terverifikasi hanya melekat pada satu akun Google), sehingga
+     * keduanya menulis nilai yang identik. Balapan pembuatan akun baru diwasiti
+     * unique index parsial `google_id`.
+     */
+    async findOrCreateByGoogle(identity: {
+      googleId: string;
+      email: string;
+      fullName: string;
+    }): Promise<AuthUserResult> {
+      const { googleId, email, fullName } = identity;
+
+      const tertaut = await findActiveByGoogleId(googleId);
+      if (tertaut !== null) return { id: tertaut.id, isNew: false };
+
+      // `emailVerified: true` WAJIB (PR-020a). Tanpa syarat itu, alamat yang
+      // DIKETIK SENDIRI seseorang lewat PUT /me cukup untuk menarik identitas
+      // Google orang lain ke akunnya — pengambilalihan yang tidak memerlukan
+      // kata sandi, token, atau akses apa pun ke akun korban. Yang boleh
+      // dicocokkan hanyalah alamat yang kepemilikannya sudah dibuktikan, dan
+      // hari ini satu-satunya bukti yang kita punya adalah Google sendiri.
+      //
+      // Konsekuensi yang diterima sadar: pengguna yang mendaftar lewat OTP lalu
+      // mengetik emailnya di pengaturan TIDAK lagi tertaut otomatis saat login
+      // Google — ia mendapat penolakan yang mengarahkannya masuk lewat OTP.
+      // Penautan otomatis kembali begitu verifikasi email ada.
+      const seemail = await prisma.user.findFirst({
+        where: { email, emailVerified: true, deletedAt: null },
+        select: { id: true, fullName: true },
+      });
+      if (seemail !== null) {
+        await prisma.user.update({
+          where: { id: seemail.id },
+          data: {
+            googleId,
+            // Nama yang sudah diisi pengguna TIDAK ditimpa; yang kosong (akun
+            // hasil login OTP) diisi dari Google agar tidak perlu mengetik lagi.
+            ...(seemail.fullName === "" ? { fullName } : {}),
+          },
+        });
+        return { id: seemail.id, isNew: false };
+      }
+
+      try {
+        const created = await prisma.user.create({
+          // Alamat ini datang dari id_token Google yang sudah diperiksa
+          // `email_verified`-nya oleh pemanggil — inilah satu-satunya tempat
+          // `emailVerified: true` boleh ditulis.
+          data: { id: uuidV7(), googleId, email, emailVerified: true, fullName },
+          select: { id: true },
+        });
+        return { id: created.id, isNew: true };
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === UNIQUE_VIOLATION) {
+          const winner = await findActiveByGoogleId(googleId);
+          if (winner !== null) return { id: winner.id, isNew: false };
+          // Bukan balapan google_id, berarti index email (migrasi 06) yang
+          // menolak: alamat ini dipegang akun lain yang BELUM membuktikannya.
+          // Dulu baris ini jatuh ke `throw err` → 500. Sekarang ia error
+          // bernama, supaya pemanggil bisa menjawab dengan arahan yang berguna.
+          throw new EmailDiklaimAkunLainError();
+        }
+        throw err;
+      }
+    },
+  };
+}
+
+export type AuthUserRepository = ReturnType<typeof createAuthUserRepository>;
