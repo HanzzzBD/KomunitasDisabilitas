@@ -33,6 +33,13 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.DATA_EXPORTED]: { format: "json", formatVersion: 1, sections: ["account"] },
   [AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED]: { hadPreviousEmail: true, cleared: false },
   [AUDIT_ACTION.ACCOUNT_DELETED]: { stage: "completed", method: "otp", revokedCount: 2 },
+  [AUDIT_ACTION.DATA_PURGED]: {
+    dryRun: false,
+    accounts: 1,
+    deleted: 1,
+    anonymized: 0,
+    records: 4,
+  },
 };
 
 function createOptions(append: (entry: AuditEntry) => Promise<void>): {

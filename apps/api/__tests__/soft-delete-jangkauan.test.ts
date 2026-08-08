@@ -19,13 +19,16 @@
 // pertama yang sesungguhnya) berarti memulai dengan daftar yang sudah terisi,
 // dan daftar warisan tidak pernah ditinjau siapa pun.
 //
-// CAKUPAN: `apps/api/src` saja. `apps/api/prisma/seed.ts` sengaja di luar — ia
-// tidak pernah melayani permintaan, hanya mengisi database dev/CI.
+// CAKUPAN: `apps/api/src` DAN `apps/worker/src` (diperluas di PR-023, saat
+// worker mulai menyentuh Prisma untuk purge PDP — persis syarat yang dicatat
+// log PR-021a). `apps/api/prisma/seed.ts` sengaja di luar: ia tidak pernah
+// melayani permintaan, hanya mengisi database dev/CI.
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 const SRC = join(__dirname, "..", "src");
+const WORKER_SRC = join(__dirname, "..", "..", "worker", "src");
 
 /** Satu-satunya file yang boleh membangun klien Prisma. */
 const PEMBUAT_KLIEN = join("core", "db", "index.ts");
@@ -193,8 +196,8 @@ export function cariKlienTakBerpenjaga(kode: string): Temuan[] {
   return temuan;
 }
 
-/** Seluruh berkas TypeScript di bawah `apps/api/src`. */
-function berkasSumber(dir: string = SRC): string[] {
+/** Seluruh berkas TypeScript di bawah sebuah direktori. */
+function berkasSumber(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entri) => {
     const penuh = join(dir, entri.name);
     if (entri.isDirectory()) return berkasSumber(penuh);
@@ -202,10 +205,14 @@ function berkasSumber(dir: string = SRC): string[] {
   });
 }
 
-const sumber = berkasSumber().map((file) => ({
-  relatif: relative(SRC, file),
-  isi: readFileSync(file, "utf8"),
-}));
+/** `apps/api/src` + `apps/worker/src`, dengan label yang menyebut app-nya. */
+const sumber = [
+  ...berkasSumber(SRC).map((file) => ({ relatif: relative(SRC, file), isi: readFileSync(file, "utf8") })),
+  ...(existsSync(WORKER_SRC) ? berkasSumber(WORKER_SRC) : []).map((file) => ({
+    relatif: join("..", "worker", "src", relative(WORKER_SRC, file)),
+    isi: readFileSync(file, "utf8"),
+  })),
+];
 
 // ===== Pemindai diuji lebih dulu ====================================
 // Repo hari ini BERSIH, jadi pemeriksaan terhadapnya tidak membuktikan bahwa
@@ -262,7 +269,11 @@ describe("pemindai — terbukti menangkap sebelum dilepas ke repo", () => {
     // Penelusuran direktori yang rusak akan membuat SELURUH pemeriksaan repo di
     // bawah hijau tanpa membuka satu berkas pun.
     expect(sumber.length).toBeGreaterThan(30);
-    expect(sumber.map((f) => f.relatif)).toContain(join("core", "db", "soft-delete.ts"));
+    const daftar = sumber.map((f) => f.relatif);
+    expect(daftar).toContain(join("core", "db", "soft-delete.ts"));
+    // Cakupan worker (PR-023) — kalau penelusurannya diam-diam berhenti bekerja,
+    // purge bisa membangun kliennya sendiri tanpa ada yang menegur.
+    expect(daftar).toContain(join("..", "worker", "src", "index.ts"));
   });
 });
 

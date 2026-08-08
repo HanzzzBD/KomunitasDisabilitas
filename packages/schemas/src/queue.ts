@@ -141,3 +141,38 @@ export const QUEUE_CONFIG_FIELDS = [
 ] as const satisfies readonly (keyof QueueConfig)[];
 
 export type QueueConfigField = (typeof QUEUE_CONFIG_FIELDS)[number];
+
+/**
+ * Payload job `maintenance-pdp-purge` (PR-023).
+ *
+ * `dryRun` ADA karena job ini menghapus data pribadi secara permanen. Operator
+ * yang menyalakannya pertama kali di staging harus bisa melihat APA yang akan
+ * hilang sebelum sesuatu benar-benar hilang — dan itu mustahil bila satu-satunya
+ * cara menjalankannya adalah yang sungguhan.
+ *
+ * Default `false` disengaja: cron harian menjalankan job TANPA payload, dan
+ * purge yang diam-diam menjadi dry-run adalah janji "hapus ≤ 30 hari" yang tidak
+ * pernah ditepati tanpa ada yang menyadarinya.
+ */
+export const pdpPurgeJobSchema = z.object({
+  dryRun: z.boolean().default(false),
+});
+
+export type PdpPurgeJob = z.infer<typeof pdpPurgeJobSchema>;
+
+/** Hasil satu run purge — dikembalikan processor dan dicatat audit. */
+export const pdpPurgeReportSchema = z.object({
+  dryRun: z.boolean(),
+  /** Akun yang memenuhi syarat pada run ini (dibatasi `batasPerRun`). */
+  accounts: z.number().int().min(0),
+  /** Akun yang dihapus penuh — tidak punya lamaran hired. */
+  deleted: z.number().int().min(0),
+  /** Akun yang dianonimkan — lamaran hired-nya dipertahankan. */
+  anonymized: z.number().int().min(0),
+  /** Total baris data anak pribadi yang dihapus. */
+  records: z.number().int().min(0),
+  /** true bila masih ada kandidat tersisa di luar batas run ini. */
+  hasMore: z.boolean(),
+});
+
+export type PdpPurgeReport = z.infer<typeof pdpPurgeReportSchema>;

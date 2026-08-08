@@ -8,7 +8,10 @@
   "exports": {
     "./core/queue": "./src/core/queue/index.ts",
     "./core/config": "./src/core/config/index.ts",
-    "./core/logger": "./src/core/logger/index.ts"
+    "./core/logger": "./src/core/logger/index.ts",
+    "./core/db": "./src/core/db/index.ts",
+    "./core/audit": "./src/core/audit/index.ts",
+    "./modules/users": "./src/modules/users/index.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",

@@ -132,6 +132,9 @@ importers:
       '@nawasena/api':
         specifier: workspace:*
         version: link:../api
+      '@nawasena/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       bullmq:
         specifier: 5.81.2
         version: 5.81.2

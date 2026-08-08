@@ -24,6 +24,11 @@ export const AUDIT_ACTION = {
    *  Alamat emailnya sendiri TIDAK pernah masuk meta (lihat auditMetaSchemas). */
   ACCOUNT_EMAIL_CHANGED: "ACCOUNT_EMAIL_CHANGED",
   ACCOUNT_DELETED: "ACCOUNT_DELETED",
+  /** PR-023: purge/anonimisasi akun terhapus oleh job terjadwal. Terpisah dari
+   *  ACCOUNT_DELETED karena pelakunya SISTEM, bukan pengguna — dan karena yang
+   *  dicatat adalah penghapusan PERMANEN, satu-satunya bukti bahwa janji
+   *  "hilang ≤ 30 hari" ditepati setelah barisnya sendiri tidak ada lagi. */
+  DATA_PURGED: "DATA_PURGED",
 } as const;
 
 export const auditActionSchema = z.enum([
@@ -38,6 +43,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.DATA_EXPORTED,
   AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED,
   AUDIT_ACTION.ACCOUNT_DELETED,
+  AUDIT_ACTION.DATA_PURGED,
 ]);
 
 export type AuditAction = z.infer<typeof auditActionSchema>;
@@ -133,6 +139,25 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   // tanpa `completed` = pembuktian lolos tetapi transaksi penghapusan gagal,
   // dan akun itu perlu diperiksa tangan. Tanpa pemisahan ini, keduanya hanya
   // terlihat sebagai "tidak ada catatan".
+  // Dipakai DUA kali per run: sekali per akun (entityId = id akun) dan sekali
+  // sebagai ringkasan run (entityId = null). Bentuk metanya sama supaya
+  // keduanya bisa dijumlahkan tanpa perlakuan khusus saat investigasi.
+  //
+  // `dryRun` WAJIB ada, bukan opsional: laporan tanpa penanda itu tidak bisa
+  // dibedakan dari penghapusan sungguhan saat dibaca kembali berbulan-bulan
+  // kemudian — dan itu persis pertanyaan yang diajukan orang saat menyelidiki
+  // data yang hilang.
+  [AUDIT_ACTION.DATA_PURGED]: z.object({
+    dryRun: z.boolean(),
+    /** Akun yang diproses (1 pada baris per-akun). */
+    accounts: z.number().int().min(0),
+    /** Akun yang dihapus penuh — tanpa lamaran hired. */
+    deleted: z.number().int().min(0),
+    /** Akun yang dianonimkan — lamaran hired-nya dipertahankan. */
+    anonymized: z.number().int().min(0),
+    /** Total baris data anak pribadi yang ikut dihapus. */
+    records: z.number().int().min(0),
+  }),
   [AUDIT_ACTION.ACCOUNT_DELETED]: z.object({
     stage: z.enum(["requested", "rejected", "completed"]),
     /** Cara pengguna membuktikan diri. Bukan PII — nomor/email tidak ikut. */

@@ -687,11 +687,11 @@ Bisnis: janji hapus ≤ 30 hari ditepati otomatis (PRD FR-1.4). Teknis: cron 03:
 
 **Testing Checklist:**
 
-* [ ] Unit Test (selector kandidat purge)
-* [ ] Integration Test (purge + agregat)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (dry-run di staging)
+* [x] Unit Test (selector kandidat purge) — 15 test `users-purge.test.ts`: bentuk selector, dry-run tanpa transaksi, urutan pelepasan `resume_id`, isi audit, batas per run.
+* [x] Integration Test (purge + agregat) — 10 test PostgreSQL nyata `users-purge-db.test.ts` dengan `clock` di-fast-forward: kedua jalur, hired count tidak berubah, idempotensi run kedua, dry-run tidak mengubah apa pun.
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (dry-run di staging) — diotomatiskan sebagai test DB; dry-run tetap tersedia untuk dijalankan operator (`{ "dryRun": true }`).
 
 **Deliverables:**
 
@@ -700,6 +700,8 @@ Bisnis: janji hapus ≤ 30 hari ditepati otomatis (PRD FR-1.4). Teknis: cron 03:
 **Out of Scope:**
 
 * Retensi data lain (PR-024).
+* Endpoint memicu purge manual — job bisa di-enqueue lewat BullMQ; endpoint operator menunggu PR-103/Phase 16.
+* Pemulihan akun yang telanjur dipurge. Setelah run, tidak ada jalan kembali selain backup harian (PR-104) — itulah gunanya jendela 30 hari.
 
 **Rollback Strategy:**
 
@@ -707,11 +709,17 @@ Restore dari backup harian (PR-104); job dapat di-pause via config.
 
 #### Acceptance Criteria
 
-* [ ] Akun terhapus > 30 hari → data pribadi hilang/dianonimkan (fast-forward test).
-* [ ] hired count agregat tidak berubah pasca-purge.
-* [ ] Dry-run mode menghasilkan laporan tanpa menghapus.
-* [ ] Run ter-audit (jumlah entitas).
-* [ ] Gagal purge → alert (hook PR-103).
+* [x] Akun terhapus > 30 hari → data pribadi hilang/dianonimkan (fast-forward test). — **Dua jalur.** Tanpa lamaran `hired` → `DELETE FROM users`, cascade membereskan seluruh anaknya (termasuk tabel yang lahir di PR mana pun). Dengan lamaran `hired` → baris dipertahankan tanpa satu pun PII (`full_name=''`, email/phone/google_id/last_active_at NULL, `email_verified=false`) dan 10 tabel data anak dihapus eksplisit. Diuji terhadap PostgreSQL nyata dengan `clock` yang di-fast-forward 40 hari.
+* [x] hired count agregat tidak berubah pasca-purge. — Diuji langsung: `COUNT(*) WHERE status='hired'` sebelum dan sesudah run identik, dan lamarannya masih ada. Inilah alasan jalur anonimisasi ada sama sekali.
+* [x] Dry-run mode menghasilkan laporan tanpa menghapus. — `{ dryRun: true }` menghitung dampak **tanpa membuka transaksi**; diuji bahwa tidak ada `delete`/`update` yang terpanggil dan bahwa data di DB tetap utuh. Default `false` — cron tanpa payload harus benar-benar menghapus, dan itu diuji tersendiri di `packages/schemas`.
+* [x] Run ter-audit (jumlah entitas). — `DATA_PURGED` per akun (`entityId` = id akun) **dan** satu ringkasan run (`entityId` null) dengan `{ dryRun, accounts, deleted, anonymized, records }`. Ringkasan ditulis bahkan saat nol kandidat: "job berjalan dan tidak menemukan apa-apa" harus bisa dibedakan dari "job tidak berjalan".
+* [x] Gagal purge → alert (hook PR-103). — Sudah ada, tidak dibangun ulang: `attempts: 1` (SDD §16) membuat kegagalan langsung jatuh ke `createDlqHandler`, yang menaikkan metrik dan menulis log. PR-103 yang menyambungkan metrik itu ke backend alerting.
+
+> **Catatan bentuk (keputusan owner 2026-08-08):** Technical Notes menempatkan logika di `apps/worker/processors/pdp-purge.ts`. Berkas itu ada, tetapi sebagai **adapter** — validasi payload, panggil service, tulis log. Aturannya tinggal di `modules/users/services/purge.service.ts`. Alasannya sama dengan PR-022: worker adalah entry point, dan aturan bisnis yang tinggal di entry point tidak pernah punya test, tidak pernah punya batas modul, dan tidak pernah dipakai ulang. `apps/api` juga sudah punya seluruh harness test yang diperlukan; `apps/worker` belum punya satu test pun.
+>
+> **Tidak ada kolom "sudah dipurge", dan itu disengaja.** Kandidat didefinisikan dari KEADAAN TUJUAN: `deleted_at < cutoff` **dan** baris masih memegang PII (`phone`/`email`/`google_id`/`full_name`). Baris yang sudah bersih tidak pernah cocok lagi, sehingga job idempoten tanpa migrasi apa pun — dan run yang gagal separuh jalan otomatis dilanjutkan run berikutnya tanpa penanganan khusus.
+>
+> **Cron dijadwalkan worker sendiri** (`17 3 * * *`, TZ `Asia/Jakarta`, SDD §16) lewat repeatable job BullMQ saat boot. Idempoten terhadap restart, dan jadwalnya ikut berpindah bersama kode alih-alih hidup di crontab yang tidak pernah masuk review.
 
 #### Dependencies
 
@@ -720,7 +728,15 @@ Restore dari backup harian (PR-104); job dapat di-pause via config.
 
 #### Risks
 
-* Purge keliru menghapus data aktif. Mitigasi: dry-run + test agregat + backup harian (PR-104).
+* ~~Purge keliru menghapus data aktif.~~ **Ditutup berlapis:** selector menuntut `deleted_at` **dan** PII tersisa; `UPDATE` anonimisasi menyertakan `deleted_at IS NOT NULL` di klausanya sehingga akun aktif tidak mungkin tersentuh; seluruh pekerjaan satu akun berada dalam satu transaksi; dan dry-run tersedia sebelum run sungguhan. Diuji: akun aktif dan akun terhapus 10 hari sama-sama tidak menjadi kandidat.
+* **Penjaga soft delete (PR-021) ikut menyaring `user.update`** — ditemukan saat test DB pertama kali dijalankan, bukan lewat penalaran. Tanpa menyebut `deletedAt` sendiri, anonimisasi tidak akan pernah menemukan barisnya. Perilaku penjaganya benar; yang perlu diingat adalah setiap operasi masa depan yang menyasar baris terhapus wajib menyatakannya di tempat panggilan.
+* **Jalur anonimisasi tidak dilindungi cascade.** Baris `users` tidak pernah dihapus, jadi tabel baru yang menyimpan data pengguna TIDAK ikut terbersihkan sendiri. Dijaga `purge-kelengkapan.test.ts`: setiap model berelasi `User` wajib diklasifikasi `TABEL_DIHAPUS`, `DIPERTAHANKAN`, atau `KEPENGARANGAN` — tabel baru membuat build merah.
+* **Batas 500 akun per run.** Backlog besar butuh beberapa hari untuk habis, dan selama itu janji 30 hari meleset untuk sebagian akun. Processor menulis `warn` saat masih ada sisa; yang perlu diawasi adalah apakah angkanya menyusut.
+* **Baris hasil anonimisasi menumpuk selamanya.** Tanpa PII, tetapi tetap baris. Belum jadi masalah pada skala MVP (< 5.000 pengguna); patut ditinjau ulang bila `users` tumbuh jauh melampaui pengguna aktifnya.
+
+#### Log Implementasi
+
+* 2026-08-08 — PR-023 selesai (processor `maintenance-pdp-purge`, dua jalur hapus/anonimkan, dry-run, audit per akun + ringkasan run, cron 03:17 WIB, penjaga kelengkapan purge). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-023--worker-pdp-purge-purge-akun--30-hari).
 
 
 ### PR-024 - Retention Jobs (match_scores/ai_usage/transkrip/job-expiry/refresh_tokens)
