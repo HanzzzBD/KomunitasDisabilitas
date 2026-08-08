@@ -10,7 +10,7 @@ import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
-import { buildOtpMessage, OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { alasanAmanUntukLog, buildOtpMessage, type OtpSender } from "./otp-sender.js";
 import type { SessionService, SessionTokens } from "./session.service.js";
 
 /**
@@ -147,10 +147,12 @@ export function createOtpService(deps: OtpServiceDeps) {
       } catch (err) {
         // Kode yang tidak pernah sampai tidak boleh menggantung 5 menit.
         await otpRepository.dropCode(phone);
-        logger.error(
-          { provider: err instanceof OtpSenderError ? err.provider : "tidak diketahui" },
-          "Gagal mengirim kode OTP",
-        );
+        // Alasan provider ikut dicatat (setelah diredaksi): dengan SATU provider
+        // terpasang, createFallbackOtpSender mengembalikan sender itu langsung
+        // sehingga log rantai — satu-satunya tempat `alasan` dulu muncul — tidak
+        // pernah berjalan. Akibatnya OTP gagal tanpa satu pun petunjuk kenapa,
+        // justru pada konfigurasi yang paling lazim di awal.
+        logger.error(alasanAmanUntukLog(err), "Gagal mengirim kode OTP");
         throw appError("BELUM_SIAP", {
           message: "Pengiriman kode sedang bermasalah",
           hint: "Coba lagi beberapa saat, atau masuk dengan Google",

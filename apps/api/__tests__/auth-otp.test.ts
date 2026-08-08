@@ -379,7 +379,13 @@ describe("kegagalan pengirim", () => {
     expect(err.code).toBe("BELUM_SIAP");
     expect(err.status).toBe(503);
     expect(await lokal.otpRepository.readCodeHash(PHONE)).toBeNull();
-    // Log kegagalan hanya menyebut provider — tanpa nomor/kode.
-    expect(lokal.logger.error).toHaveBeenCalledWith({ provider: "gagal" }, expect.any(String));
+    // Log kegagalan menyebut provider DAN alasannya — tanpa nomor/kode.
+    // `alasan` ditambahkan bersama perbaikan Temuan 3: dengan satu provider
+    // terpasang, log rantai (satu-satunya tempat alasan dulu muncul) tidak
+    // pernah berjalan, sehingga OTP gagal tanpa petunjuk apa pun.
+    expect(lokal.logger.error).toHaveBeenCalledWith(
+      { provider: "gagal", alasan: "provider mati" },
+      expect.any(String),
+    );
   });
 });

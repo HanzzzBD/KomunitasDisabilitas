@@ -45,6 +45,44 @@ export class OtpSenderError extends Error {
 }
 
 /**
+ * Deret 4 angka atau lebih — bentuk yang dipakai nomor HP (E.164) DAN kode OTP
+ * 6 angka. Kode status HTTP (3 angka) sengaja lolos: ia keterangan kegagalan
+ * yang berguna dan bukan rahasia.
+ */
+const DERET_ANGKA_PANJANG = /\d{4,}/g;
+
+/** Batas panjang keterangan di log — provider bisa mengembalikan teks panjang. */
+const MAKS_ALASAN = 200;
+
+/**
+ * Ubah kegagalan pengirim menjadi keterangan yang aman dicatat.
+ *
+ * Dua aturan, keduanya karena teks ini datang dari PIHAK LUAR:
+ *
+ * 1. **Hanya `OtpSenderError` yang pesannya boleh ikut.** Error jenis lain
+ *    dilaporkan sebatas NAMA-nya. Pesan `Error` sembarang bisa memuat apa saja
+ *    — URL berparameter, isi body, jejak internal — dan tidak ada satu pun yang
+ *    kita kendalikan. Nama kelasnya cukup untuk membedakan jenis kegagalan.
+ * 2. **Deret angka panjang diredaksi.** Provider mengembalikan alasannya
+ *    sendiri, dan alasan itu lazim mengutip balik target atau isi pesan yang
+ *    dikirim — yang berarti nomor HP atau kode OTP bisa masuk log lewat pintu
+ *    yang tidak kita tulis sendiri. `audit_logs` & log bertahan lama; nomor dan
+ *    kode tidak boleh ikut bertahan bersamanya.
+ */
+export function alasanAmanUntukLog(err: unknown): { provider: string; alasan: string } {
+  if (!(err instanceof OtpSenderError)) {
+    return {
+      provider: "tidak diketahui",
+      alasan: err instanceof Error ? err.name : "kesalahan tidak dikenal",
+    };
+  }
+  return {
+    provider: err.provider,
+    alasan: err.message.replace(DERET_ANGKA_PANJANG, "[angka]").slice(0, MAKS_ALASAN),
+  };
+}
+
+/**
  * Isi pesan OTP — Bahasa Indonesia sederhana, satu kalimat per informasi
  * (dibacakan utuh oleh screen reader). Menyebut nama layanan di depan agar
  * pengguna tahu kode ini milik siapa sebelum mendengar angkanya, dan
@@ -106,11 +144,14 @@ export function createFallbackOtpSender(
           }
           return;
         } catch (err) {
-          const alasan = err instanceof Error ? err.message : "kesalahan tidak dikenal";
           gagal.push(sender.name);
           const masihAdaCadangan = index < senders.length - 1;
           logger.warn(
-            { provider: sender.name, alasan, masihAdaCadangan },
+            // Pesan mentah provider TIDAK ditulis apa adanya — lihat
+            // alasanAmanUntukLog. Sebelumnya `err.message` masuk log utuh.
+            // `provider` diambil dari sender yang baru dipanggil (otoritatif),
+            // bukan dari isi error.
+            { provider: sender.name, alasan: alasanAmanUntukLog(err).alasan, masihAdaCadangan },
             "Pengirim OTP gagal",
           );
         }

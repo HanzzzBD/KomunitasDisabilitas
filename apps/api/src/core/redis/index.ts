@@ -13,12 +13,29 @@ export interface RedisClients {
   end(): Promise<void>;
 }
 
+/**
+ * Konstruktor ioredis TIDAK memblokir: koneksi dibuka di latar, jadi boot API
+ * tetap tidak menunggu Redis (niat asli `lazyConnect`) sementara perintah
+ * pertama tidak lagi jatuh ke koneksi yang belum ada.
+ *
+ * `lazyConnect: true` + `enableOfflineQueue: false` sebelumnya SALING
+ * MENIADAKAN: lazyConnect menunda koneksi sampai perintah pertama, tetapi
+ * perintah itu hanya bisa menunggu koneksi selesai bila boleh diantre — dan
+ * offline queue yang mati menolaknya seketika ("Stream isn't writeable").
+ * Akibatnya seluruh jalur Redis (OTP, kuota ekspor PDP) menjawab 500 kecuali
+ * `ping()` kebetulan berjalan lebih dulu dan menyambungkan klien.
+ *
+ * Batas antrean tetap ada dan bukan tak terhingga: `maxRetriesPerRequest`
+ * membuat perintah menyerah setelah satu percobaan ulang, jadi saat Redis
+ * benar-benar mati pemanggil menerima error dalam hitungan ratusan milidetik
+ * alih-alih menggantung. Antrean hanya menjembatani jendela reconnect —
+ * yang justru kejadian jauh lebih sering daripada Redis mati total.
+ */
 function createClient(url: string): Redis {
   return new Redis(url, {
-    lazyConnect: true, // konek saat pertama dipakai — boot API tidak menunggu Redis
-    maxRetriesPerRequest: 1, // gagal cepat; retry = urusan pemanggil
+    maxRetriesPerRequest: 1, // gagal cepat; retry = urusan pemanggil, dan pembatas antrean
     retryStrategy: (times) => Math.min(times * 500, 5000), // reconnect santai, tanpa storm
-    enableOfflineQueue: false, // saat down: error langsung, bukan antre diam-diam
+    enableOfflineQueue: true, // jembatani jendela reconnect; dibatasi maxRetriesPerRequest
   });
 }
 
@@ -33,9 +50,14 @@ export function createRedisClients(env: Pick<Env, "REDIS_URL" | "REDIS_QUEUE_URL
   return {
     cache,
     queue,
+    // TIDAK ada `connect()` manual di sini lagi. Cabang itu membuat health
+    // memakai jalur yang BERBEDA dari setiap pemanggil lain: ia menyambungkan
+    // klien, pemanggil biasa tidak. Justru divergensi itu yang menyembunyikan
+    // bug di atas — `/readyz` melaporkan `redisCache: true` sementara endpoint
+    // OTP menjawab 500. Health kini memakai jalur yang sama persis, sehingga
+    // "siap" berarti hal yang sama bagi keduanya.
     async ping(client) {
       try {
-        if (client.status === "wait") await client.connect();
         const res = await client.ping();
         return res === "PONG";
       } catch {

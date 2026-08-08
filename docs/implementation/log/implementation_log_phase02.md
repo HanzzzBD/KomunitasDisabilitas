@@ -1498,3 +1498,70 @@ Tiga batas ditulis di kepala `core/events/index.ts` supaya tidak ditemukan nanti
 * **Phase 08 (jobs)** — lengkapi modul: repository, router, controller. Pindahkan SQL expiry ke repository.
 * **Phase 10** — tabel transkrip cv-chat; daftarkan kebijakan retensi 30 hari.
 * **PR-103** — `remaining` (retensi dan lowongan) jadi metrik, bukan hanya baris log.
+
+
+## Perbaikan — klien Redis tidak pernah tersambung (Temuan 1 & 3)
+
+Ditemukan 2026-08-08 saat **Manual Verification PR-016** dijalankan pertama kali terhadap kredensial Fonnte nyata. Bukan hasil penalaran atas kode, dan tidak satu pun dari 671 test menangkapnya.
+
+### Ringkasan hasil
+
+`POST /api/v1/auth/otp/request` menjawab **500** di lingkungan nyata. Sebabnya bukan Fonnte melainkan `core/redis`: dua opsi koneksi yang saling meniadakan membuat perintah Redis pertama selalu ditolak.
+
+```
+Error: Stream isn't writeable and enableOfflineQueue options is false
+  at ioredis .ttl()
+  at otp.repository.ts  (lockRemainingSeconds)
+  at otp.service.ts     (tolakBilaTerkunci)
+```
+
+### Sebab akar
+
+`createClient()` menyetel `lazyConnect: true` bersama `enableOfflineQueue: false`. `lazyConnect` menunda koneksi sampai perintah pertama — tetapi perintah itu hanya bisa menunggu koneksi selesai bila boleh **diantre**, dan offline queue yang mati menolaknya seketika. Keduanya masuk akal sendiri-sendiri; bersama-sama mereka meniadakan.
+
+Satu-satunya kode yang menyambungkan adalah `ping()`, yang memanggil `client.connect()` manual. Akibatnya jalur Redis hanya berfungsi bila health check kebetulan berjalan lebih dulu — dan `/readyz` melaporkan `redisCache: true` sementara endpoint OTP menjawab 500.
+
+Terbukti terisolasi (probe ioredis, Redis hidup):
+
+| Konfigurasi | Hasil |
+|---|---|
+| tanpa `lazyConnect`, offlineQueue **true** | OK 12ms, `status=ready` |
+| `lazyConnect` + offlineQueue **false** (lama) | **GAGAL 0ms**, `status=connecting` |
+| Redis mati + `maxRetriesPerRequest: 1` | gagal **515ms** — bukan menggantung |
+
+### Kenapa CI hijau sementara fiturnya rusak
+
+Tidak satu pun test menjalankan Redis nyata **melalui `createRedisClients()`**:
+
+* unit test memakai fake in-memory — tidak punya koneksi sama sekali;
+* `auth-otp-redis.test.ts` merakit klien ioredis-nya sendiri, tanpa `enableOfflineQueue: false` dan dengan `connect()` eksplisit — menghindari kedua sebabnya;
+* test HTTP memakai `redis://127.0.0.1:9` yang sengaja mati — hanya jalur gagal yang teruji.
+
+Lubang ini sudah tercatat saat tinjauan Exit Criteria beberapa jam sebelumnya ("CI tidak menyediakan `redis-cache`"), tetapi dicatat sebagai kedalaman test, bukan sebagai bug yang sedang berjalan.
+
+### Keputusan teknis
+
+* **Opsi 3 (keputusan owner):** connect saat boot + offline queue, dengan `maxRetriesPerRequest` sebagai pembatas. `lazyConnect` dihapus — konstruktor ioredis tidak memblokir, jadi niat asli "boot API tidak menunggu Redis" tetap terpenuhi (ADR-004 & SDD §530 hanya menuntut `/readyz` melaporkan kesiapan, bukan boot gagal saat Redis mati).
+* `maxRetriesPerRequest: 1` dan `retryStrategy` **dipertahankan apa adanya** — keduanya sudah punya alasan tertulis, dan yang pertama justru pembatas antrean yang membuat opsi 3 aman.
+* **`connect()` manual di `ping()` dihapus.** Cabang itu membuat health memakai jalur berbeda dari setiap pemanggil lain — dan justru divergensi itu yang menyembunyikan bug ini. Health kini memakai jalur yang sama persis.
+* **Temuan 3 — alasan kegagalan provider kini dicatat**, lewat `alasanAmanUntukLog()`. Dua aturan, keduanya karena teks itu datang dari pihak luar: hanya `OtpSenderError` yang pesannya boleh ikut (error lain sebatas nama kelasnya), dan deret 4+ angka diredaksi menjadi `[angka]` — bentuk yang dipakai nomor E.164 **dan** kode OTP 6 angka. Kode status HTTP (3 angka) sengaja lolos.
+* Sebelumnya alasan hanya muncul di log rantai fallback — yang **tidak pernah berjalan** pada konfigurasi satu provider, sebab `createFallbackOtpSender` mengembalikan sender tunggal secara langsung. Log rantai pun dulu menulis `err.message` mentah; kini ikut diredaksi.
+
+### Verifikasi
+
+* `redis-koneksi.test.ts` (5 test) — menjalankan Redis nyata **lewat `createRedisClients()`**: klien segar tanpa ping lebih dulu, klien queue, jendela reconnect (`disconnect(true)` lalu perintah langsung), gagal-cepat saat Redis mati, dan `ping()`.
+* **Uji mutasi:** mengembalikan konfigurasi lama membuat **4 test merah** dengan galat produksi yang sama persis.
+* **Uji mutasi menangkap cacat pada test itu sendiri.** Versi pertamanya memakai `ping()` dari factory yang sedang diuji sebagai probe ketersediaan; saat mutasi dipasang, probe ikut gagal dan seluruh test **di-skip alih-alih merah** — penjaga yang lulus secara hampa. Probe diganti klien ioredis mentah.
+* End-to-end pada instance segar tanpa `readyz`: 500 → **503 dengan alasan tercatat**, `"provider":"fonnte","alasan":"Fonnte gagal mengirim: invalid token"`.
+* `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` **683 lulus** (dari 671), `check:openapi` sinkron.
+
+### Risiko yang ditemukan
+
+* **Radius bug ini lebih luas dari OTP.** Kuota ekspor PDP (PR-022) memakai Redis cache yang sama dan rusak dengan cara yang sama — tidak terlihat karena endpoint ekspor belum pernah dijalankan terhadap Redis nyata.
+* **CI masih tanpa service `redis-cache`.** Test baru memakai `REDIS_QUEUE_URL` sebagai cadangan sehingga tetap berjalan di CI, tetapi tidak ada yang menguji Redis ber-`allkeys-lru` sungguhan.
+* **`FONNTE_TOKEN` tidak valid** (terbaca dari log setelah perbaikan). Bukan bug kode; menunggu pemeriksaan device/token/kuota di dashboard oleh owner.
+
+### Next steps
+
+* **PR-105** — rate limit; pertimbangkan sekalian menambah service `redis-cache` di `pr.yml`.
+* **Kanal pemberitahuan hapus akun (PR-021b)** memakai transport yang sama dan hanya mencatat nama provider. Aman hari ini, tetapi bila kelak ia mencatat alasan, pakai `alasanAmanUntukLog()` — jangan menulis versi kedua. Tidak disentuh di sini karena di luar scope.
