@@ -1,0 +1,61 @@
+# Menghapus branch PR setelah PR-nya di-merge — KECUALI branch phase.
+#
+# Kenapa bukan setelan repo "Automatically delete head branches":
+# setelan itu menghapus head branch SETIAP PR yang di-merge, termasuk saat
+# `phase-XX → main`. Branch phase harus tetap hidup setelah merge ke main
+# (rujukan historis per phase, dan titik cabang PR berikutnya bila sebuah
+# phase dibuka kembali). Setelan bawaan tidak bisa mengecualikan pola nama,
+# jadi penjaganya ditulis di sini.
+#
+# `pull_request_target`, bukan `pull_request`: definisi workflow diambil dari
+# BASE branch, sehingga ia tetap berjalan untuk PR yang branch-nya dibuat
+# sebelum berkas ini ada. Dengan `pull_request`, workflow diambil dari hasil
+# merge PR — PR lama tidak akan pernah memicunya.
+#
+# Risiko lazim `pull_request_target` (token tulis di konteks base) TIDAK
+# berlaku di sini: job ini tidak pernah men-checkout kode PR dan tidak
+# menjalankan apa pun dari branch itu. Satu-satunya data dari PR adalah NAMA
+# branch, dan itu pun dioper lewat env var, bukan disisipkan ke baris perintah
+# (nama branch bisa memuat karakter yang berbahaya bila diinterpolasi shell).
+
+name: Hapus branch PR
+
+on:
+  pull_request_target:
+    types: [closed]
+
+# Hanya butuh menghapus ref. Tidak ada izin lain yang diberikan.
+permissions:
+  contents: write
+
+jobs:
+  hapus:
+    name: hapus head branch
+    runs-on: ubuntu-latest
+    # Empat syarat, semuanya harus benar:
+    #   1. PR benar-benar di-merge — PR yang ditutup TANPA merge bisa memuat
+    #      kerja yang belum ada di mana pun; menghapusnya membuang kerja itu.
+    #   2. Bukan branch phase.
+    #   3. Bukan `main` (mustahil dalam praktik, tetapi murah untuk dijaga).
+    #   4. Berasal dari repo ini, bukan fork — ref fork bukan milik kita.
+    if: >-
+      github.event.pull_request.merged == true &&
+      !startsWith(github.event.pull_request.head.ref, 'phase-') &&
+      github.event.pull_request.head.ref != 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Hapus ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          # Lewat env, bukan interpolasi langsung ke `run` — lihat catatan di atas.
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          echo "Menghapus branch: $HEAD_REF"
+          # Branch bisa sudah dihapus manual lebih dulu; itu bukan kegagalan.
+          if gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" --silent; then
+            echo "Terhapus."
+          else
+            echo "Tidak terhapus (kemungkinan sudah tidak ada) — dibiarkan."
+          fi

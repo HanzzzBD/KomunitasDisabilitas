@@ -403,6 +403,9 @@ Setelah sebuah task PR-XXX **selesai** (implementasi + test + `pnpm lint`/`typec
 6. **Merge manual setelah hijau:** `gh pr merge <nomor> --merge`.
    - Auto-merge repo DINONAKTIFKAN (by design) — jangan pakai `--auto`; agent yang menunggu CI lalu merge.
 7. **Sinkron lokal:** `git fetch origin --prune && git checkout phase-XX-<nama> && git pull --ff-only`, lalu kembali/berhenti.
+   - Branch PR **dihapus otomatis** di remote setelah merge oleh `.github/workflows/hapus-branch-pr.yml`. Karena itu `--prune` bukan kosmetik: tanpa itu, ref remote yang sudah hilang tetap menumpuk di lokal. Hapus juga branch lokalnya (`git branch -d <nama>`) — workflow hanya menjangkau remote.
+   - **Branch `phase-*` sengaja TIDAK ikut terhapus**, termasuk saat `phase-XX → main` di-merge: ia rujukan historis per phase dan titik cabang bila phase dibuka kembali. Inilah alasan setelan repo "Automatically delete head branches" **tidak** dipakai — ia tidak bisa mengecualikan pola nama.
+   - PR yang ditutup **tanpa** merge tidak dihapus: branch-nya bisa memuat kerja yang belum ada di mana pun.
 8. **Larangan keras:** JANGAN pernah membuat PR atau merge apa pun ke `main`. `phase-XX → main` hanya terjadi setelah SELURUH PR phase selesai (Exit Criteria terpenuhi) **dan** atas perintah eksplisit owner.
 
 ---
