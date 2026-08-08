@@ -107,6 +107,14 @@ jobs:
       - name: OpenAPI drift check
         run: pnpm --filter @nawasena/schemas check:openapi
 
+      # AC PR-025: budget JS awal < 200 KB gzip (SDD §4.5).
+      # Dipasang selagi bundelnya masih ~45 KB — penjaga yang lahir setelah
+      # bundelnya gemuk hanya akan mengesahkan keadaan yang sudah terlanjur.
+      # Build-nya sendiri juga berguna: ia membuktikan apps/web benar-benar bisa
+      # dibangun untuk produksi, bukan hanya lolos typecheck.
+      - name: Build web + cek budget bundle
+        run: pnpm --filter @nawasena/web build && pnpm --filter @nawasena/web cek:budget
+
   # ---- Slot non-blocking (diaktifkan PR-031) ----
   # `if: false` = job tidak pernah jalan, tapi struktur & nama check sudah dipesan
   # sehingga PR-031 cukup mengganti kondisi + mengisi langkah.
