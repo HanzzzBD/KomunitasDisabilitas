@@ -109,3 +109,52 @@ Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (`@nawasena/w
 
 * **PR-025c** — error boundary aksesibel (menggantikan layar bawaan React Router), banner offline `role="alert"`, skeleton `aria-busy`.
 * **PR-031a** — gerbang a11y sebelum pustaka komponen lahir.
+
+---
+## Insiden CI — flake "Worker exited unexpectedly" (2026-08-08)
+
+> **Status:** sebab TIDAK ditemukan. Yang diperbaiki adalah kemampuan mendiagnosis kejadian berikutnya, bukan gejalanya.
+
+### Yang terjadi
+
+CI PR #59 (PR-025b) gagal pada langkah `Unit test`. Satu worker vitest mati:
+
+```
+Error: Worker exited unexpectedly
+  at ChildProcess.onUnexpectedExit (tinypool/dist/index.js:118:30)
+```
+
+56 dari 57 berkas test `apps/api` lulus; 674 dari 684 test sempat berjalan. Berkas yang gugur: **`users-purge-db.test.ts`** (10 test) — persis selisihnya. Tidak ada satu pun galat JavaScript sebelum worker lenyap.
+
+Jalan ulang **tanpa perubahan apa pun**: hijau (2m7s). Flake, bukan regresi.
+
+### Hipotesis yang diuji dan DIBANTAH
+
+**"Memori menumpuk lintas berkas karena `fileParallelism: false`."** Masuk akal di atas kertas: 57 berkas berjalan berurutan, jadi berkas berat di akhir antrean akan kena lebih dulu.
+
+Diukur dengan `vitest run --logHeapUsage`: heap per berkas **12–35 MB, tanpa tren naik** — berkas terakhir seringan yang pertama (13, 14, 15 MB). `users-purge-db.test.ts` sendiri hanya **22 MB**. Vitest mengisolasi dengan benar; tidak ada akumulasi.
+
+Hipotesis gugur. Kalau tidak diukur, ia akan menjadi dasar tambalan yang salah.
+
+### Koreksi penalaran yang perlu diingat
+
+Pemeriksaan pertama mencari kata "out of memory"/"killed" di log job dan tidak menemukannya. **Itu bukan bukti bukan-OOM**: pesan OOM killer ditulis ke log kernel, bukan ke stdout job. Absennya bukti di tempat yang salah bukan bukti absennya sebab.
+
+### Kenapa tidak ditambal
+
+Dua sumber bukti yang paling menentukan tidak pernah masuk log job:
+
+1. jejak OOM killer kernel;
+2. keluaran runtime kontainer service (GitHub hanya menampilkan langkah penyiapannya).
+
+Tanpa keduanya, tambalan apa pun — membatasi konkurensi Turbo, menaikkan heap, menambah retry — adalah tebakan. Tebakan yang kebetulan menghilangkan gejala justru **menghabiskan satu-satunya kesempatan belajar**, dan flake-nya akan kembali di tempat lain.
+
+### Yang dikerjakan
+
+Langkah `Diagnostik kegagalan test` di `pr.yml`, berjalan **hanya saat test merah** (`if: failure()`): memori & disk, jejak OOM killer dari `dmesg`, dan `docker logs` seluruh kontainer service. Tiap perintah ber-`|| true` agar diagnostik tidak mengubah sebab kegagalan yang sedang dilaporkan.
+
+### Yang harus diperhatikan berikutnya
+
+* **Kejadian kedua = pola, bukan kebetulan.** Bila muncul lagi, log diagnostik akan menyebut apakah OOM terlibat dan apa yang dilakukan Postgres saat itu.
+* **Kebiasaan mengulang sampai hijau adalah risiko sesungguhnya.** Satu flake yang dibiarkan mengajarkan bahwa merah boleh diabaikan — dan setelah itu CI berhenti berarti.
+* Kandidat mitigasi bila sebabnya kelak terbukti tekanan sumber daya: `turbo run test --concurrency=2` di CI.

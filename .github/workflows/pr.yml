@@ -103,6 +103,47 @@ jobs:
       - name: Unit test
         run: pnpm test
 
+      # Diagnostik kegagalan test — HANYA berjalan saat langkah di atas merah.
+      #
+      # Lahir dari kejadian nyata (2026-08-08, PR #59): satu worker vitest mati
+      # dengan "Worker exited unexpectedly" tanpa satu pun galat JavaScript, dan
+      # jalan ulang tanpa perubahan apa pun langsung hijau. Penyebabnya TIDAK
+      # bisa ditentukan, karena dua sumber bukti yang paling menentukan tidak
+      # pernah masuk log job:
+      #
+      #   1. Pesan OOM killer kernel — ia menulis ke log kernel, bukan ke stdout
+      #      job. Absennya kata "killed" di log karena itu BUKAN bukti bukan-OOM.
+      #   2. Log kontainer service (postgres/redis) — GitHub hanya menampilkan
+      #      langkah penyiapannya, bukan keluaran runtime-nya.
+      #
+      # Langkah ini menutup keduanya, supaya kejadian kedua menghasilkan DATA
+      # alih-alih dugaan. Sengaja tidak menambal apa pun: tambalan atas sebab
+      # yang belum diketahui bisa menghilangkan gejalanya tanpa menghilangkan
+      # masalahnya — dan menghabiskan satu-satunya kesempatan belajar.
+      #
+      # `|| true` di tiap perintah: diagnostik tidak boleh mengubah sebab
+      # kegagalan yang sedang dilaporkan.
+      - name: Diagnostik kegagalan test
+        if: failure()
+        run: |
+          echo "::group::Memori & disk"
+          free -m || true
+          df -h || true
+          echo "::endgroup::"
+
+          echo "::group::Jejak OOM killer (kernel)"
+          # Inilah bukti yang hilang pada kejadian pertama.
+          sudo dmesg -T 2>/dev/null | grep -iE "out of memory|oom-kill|killed process" | tail -20 || echo "(dmesg tidak terbaca / tidak ada jejak OOM)"
+          echo "::endgroup::"
+
+          echo "::group::Kontainer service"
+          docker ps -a || true
+          for c in $(docker ps -aq); do
+            echo "--- docker logs $c (200 baris terakhir) ---"
+            docker logs --tail 200 "$c" 2>&1 || true
+          done
+          echo "::endgroup::"
+
       # Drift kontrak: openapi.json wajib sinkron dengan skema zod (PR-004).
       - name: OpenAPI drift check
         run: pnpm --filter @nawasena/schemas check:openapi
