@@ -58,3 +58,54 @@ PR-025 utuh terukur ≈ 965 LOC, hampir dua kali batas <500. Dipecah tiga menuru
 * **PR-025c** — error boundary aksesibel, banner offline `role="alert"`, skeleton `aria-busy`.
 * **PR-031a** — gerbang a11y: `jsx-a11y` + `jest-axe` ditegakkan CI, sebelum pustaka komponen lahir di PR-027.
 * Angkat keputusan **fondasi PWA** ke owner.
+
+---
+## PR-025b — Routing lazy & provider stack
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-025---appsweb-bootstrap)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai (bagian kedua dari PR-025; error boundary/offline/skeleton = PR-025c)
+
+### Ringkasan hasil
+
+React Router v7 dengan pemuatan lazy per route, dan tumpukan provider TanStack Query dengan angka-angka SDD §4.1. Build nyata menghasilkan **dua chunk lazy** terpisah; bundel awal 75,9 KB dari 200 KB.
+
+Menutup AC *"Route ter-code-split (bukti bundle analyzer)"*.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (`@nawasena/web` 34 test; total workspace 766), `vite build` + `cek:budget` lolos.
+
+### Scope selesai
+
+* **`app/query-client.ts`** — `createQueryClient()` dengan `staleTime` 60 s, `retry` 2, backoff eksponensial berbatas, `networkMode: "online"`.
+* **`app/providers.tsx`** — `QueryClientProvider`, klien bisa disuntik untuk test.
+* **`app/routes.ts`** — daftar route sebagai DATA, tiap route `lazy`.
+* **`app/App.tsx`** — perakitan: provider + router.
+* **`routes/beranda.tsx`, `routes/masuk.tsx`** — kerangka halaman; isinya lahir di PR-032 dan PR-030.
+* **`scripts/cek-budget.ts`** — bertambah `daftarJsDi()` dan `chunkLazy()`; nol chunk lazy membuat CI merah.
+* **15 test baru** — router (5), query client (6), chunkLazy (3), plus app shell yang kini menguji pemuatan lazy.
+
+### Keputusan teknis
+
+* **`RouterProvider` diambil dari `react-router`, BUKAN `react-router/dom`.** Subpath `/dom` mengekspor `RouterProvider`-nya sendiri dengan salinan konteks yang terpisah, sehingga `<Link>` (yang membaca konteks dari entry utama) melempar `Cannot destructure property 'basename' ... as it is null`. **Ditemukan lewat test, bukan lewat membaca dokumentasi** — dugaan awal "subpath /dom adalah varian browser yang benar" keliru pada versi ini.
+* **Daftar route dipisah dari perakitan router** (`routes.ts` vs `App.tsx`) supaya test memakai `createMemoryRouter` atas daftar yang SAMA PERSIS dengan produksi. Daftar kedua yang dirakit test bebas menyimpang tanpa ada yang tahu.
+* **`useState` initializer malas untuk QueryClient**, bukan `?? createQueryClient()` di JSX: bentuk kedua membuat klien baru pada setiap render, dan tiap klien baru membawa cache kosong. Gejalanya menyesatkan — data seolah tidak pernah ter-cache.
+* **`refetchOnWindowFocus: false`** (bawaan TanStack adalah `true`). Pengguna screen reader dan keyboard sering berpindah jendela; konten yang berubah sendiri saat kembali menghilangkan konteks yang sedang dibaca.
+* **Mutasi `retry: 0`.** Melamar dan menghapus akun tidak idempoten; mengulanginya diam-diam bisa menciptakan aksi ganda yang tidak pernah diminta.
+* **Route `/masuk` sudah ada sejak sekarang** meski isinya PR-030: `http://localhost:5173/masuk/google` adalah redirect URI yang SUDAH terdaftar di Google Cloud Console — jalur URL-nya bagian dari kontrak dengan pihak luar, bukan pilihan bebas belakangan. Dikunci test.
+
+### Verifikasi
+
+* **Uji mutasi:** `lazy` diganti impor statis untuk kedua route → `cek:budget` keluar **status 1** ("Tidak ada chunk lazy"), DAN test `setiap route dimuat lazy` merah. Dua lapis, keduanya benar-benar dieksekusi.
+* **Build produksi nyata:** 87 modul, `index` 75,9 KB gzip + chunk `beranda` dan `masuk` terpisah.
+* Test `app.test.tsx` memakai `findBy*`, bukan `getBy*` — kegagalan `getBy` di sana justru bukti pemuatannya asinkron.
+
+### Risiko yang ditemukan
+
+* **Bundel awal naik 44,8 → 75,9 KB** hanya karena react-router + TanStack Query. Masih 124 KB tersisa, tetapi pustaka komponen (PR-027/028) belum masuk sama sekali. Angka ini perlu dilihat tiap PR FE, bukan diperiksa sekali di akhir.
+* **Belum ada `errorElement`.** Kegagalan route saat ini jatuh ke layar bawaan React Router yang berbahasa Inggris dan menampilkan jejak tumpukan. Ditutup PR-025c.
+* **Belum ada route 404.** URL asing kini menghasilkan layar error bawaan yang sama. Milik PR-032.
+
+### Next steps
+
+* **PR-025c** — error boundary aksesibel (menggantikan layar bawaan React Router), banner offline `role="alert"`, skeleton `aria-busy`.
+* **PR-031a** — gerbang a11y sebelum pustaka komponen lahir.

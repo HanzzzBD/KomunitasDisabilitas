@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   BATAS_GZIP_BYTES,
   asetAwalDari,
+  chunkLazy,
   evaluasiBudget,
   ringkas,
   type UkuranAset,
@@ -83,6 +84,26 @@ describe("evaluasiBudget — kapan merah", () => {
 
   it("batas bawaan adalah 200 KB biner, sesuai SDD §4.5", () => {
     expect(BATAS_GZIP_BYTES).toBe(204_800);
+  });
+});
+
+describe("chunkLazy — bukti code-splitting (AC PR-025)", () => {
+  const SEMUA = ["/assets/index-A1.js", "/assets/vendor-D4.js", "/assets/beranda-Z9.js", "/assets/masuk-Y8.js"];
+  const AWAL = ["/assets/index-A1.js", "/assets/vendor-D4.js"];
+
+  it("mengembalikan chunk yang TIDAK diunduh di awal", () => {
+    expect(chunkLazy(SEMUA, AWAL)).toEqual(["/assets/beranda-Z9.js", "/assets/masuk-Y8.js"]);
+  });
+
+  it("kosong bila semua chunk masuk payload awal — inilah keadaan yang harus MERAH", () => {
+    // Terjadi kalau `import()` dinamis ikut ter-inline (mis. jalurnya diubah
+    // menjadi variabel). Tidak ada gejala selain halaman yang makin lambat,
+    // jadi hanya penjaga ini yang akan menyadarinya.
+    expect(chunkLazy(AWAL, AWAL)).toEqual([]);
+  });
+
+  it("tidak terganggu urutan daftar", () => {
+    expect(chunkLazy([...SEMUA].reverse(), AWAL)).toHaveLength(2);
   });
 });
 

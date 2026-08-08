@@ -15,8 +15,10 @@
     "cek:budget": "tsx scripts/cek-budget.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.62.11",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "react-router": "7.1.1"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",
