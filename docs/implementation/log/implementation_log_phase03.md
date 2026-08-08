@@ -158,3 +158,63 @@ Langkah `Diagnostik kegagalan test` di `pr.yml`, berjalan **hanya saat test mera
 * **Kejadian kedua = pola, bukan kebetulan.** Bila muncul lagi, log diagnostik akan menyebut apakah OOM terlibat dan apa yang dilakukan Postgres saat itu.
 * **Kebiasaan mengulang sampai hijau adalah risiko sesungguhnya.** Satu flake yang dibiarkan mengajarkan bahwa merah boleh diabaikan — dan setelah itu CI berhenti berarti.
 * Kandidat mitigasi bila sebabnya kelak terbukti tekanan sumber daya: `turbo run test --concurrency=2` di CI.
+
+---
+## PR-025c — Kegagalan yang jujur: error boundary, banner luring, penanda memuat
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-025---appsweb-bootstrap)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai. **PR-025 tuntas** — seluruh 5 AC terpenuhi.
+
+### Ringkasan hasil
+
+Tiga jalur kegagalan yang sebelumnya bisu kini punya suara: kesalahan route, kehilangan koneksi, dan perpindahan halaman yang lambat. Menutup AC *"Offline → banner alert; mutasi tertahan, tidak gagal senyap"* dan *"Error boundary menampilkan pesan sederhana + tombol muat ulang"*.
+
+Bundel awal 76,6 KB dari 200 KB; dua chunk lazy tetap terpisah.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **55 test**. Test DB `apps/api` terlewat lokal (Docker Desktop mati saat run terakhir) — nol perubahan di `apps/api`, dan CI menjalankannya terhadap Postgres nyata.
+
+### Scope selesai
+
+* **`app/kesalahan.tsx`** — `LayarKesalahan`, dipasang sebagai `ErrorBoundary` route induk.
+* **`app/banner-luring.tsx`** — banner `role="alert"` + tombol "Coba lagi".
+* **`app/tata-letak.tsx`** — route induk: banner + `aria-busy` saat berpindah halaman + `<Outlet />`.
+* **`shared/status-jaringan.ts`** — `useStatusJaringan()`.
+* **`app/routes.ts`** — direstrukturisasi jadi bersarang di bawah route induk, plus catch-all 404.
+* **28 test baru** — banner (7), layar kesalahan (6), status jaringan (4), router yang diperluas.
+
+### Keputusan teknis
+
+* **`ErrorBoundary` di route INDUK, bukan per halaman.** Dipasang per halaman, ia akan terlewat pada halaman yang ditambahkan belakangan — dan di sanalah layar bawaan React Router muncul: berbahasa Inggris, menampilkan jejak tumpukan, dan menyapa pengembang ("💿 Hey developer 👋"). Bagi pengguna yang dituju produk ini, layar itu bukan sekadar jelek — ia tidak bisa dibaca dan membocorkan jalur berkas internal.
+* **Catch-all `path: "*"` MELEMPAR `Response(404)`, bukan merender `LayarKesalahan` langsung.** Dirender sebagai halaman biasa, `useRouteError()` kosong dan pesannya jatuh ke "ada yang tidak berjalan semestinya" — padahal yang terjadi jelas "halaman tidak ditemukan". Dilempar sebagai error, ia sampai ke ErrorBoundary dengan status yang benar.
+* **`ErrorBoundary` (komponen), bukan `errorElement` (elemen JSX)** — `routes.ts` tetap `.ts` murni data, tanpa satu pun markup.
+* **Banner dirender bersyarat, BUKAN disembunyikan CSS.** `role="alert"` hanya diumumkan saat elemennya MASUK ke DOM; elemen yang selalu ada lalu di-`display:none` tidak pernah memicu pengumuman, dan pengguna screen reader tidak akan pernah tahu koneksinya putus.
+* **`role="alert"` (asertif) dipilih sadar** meski menyela: kehilangan koneksi mengubah apa yang bisa dilakukan pengguna SEKARANG, jadi menundanya sampai jeda bicara berikutnya berarti mereka terus mencoba hal yang tidak akan berhasil.
+* **"Coba lagi" melepas mutasi lebih dulu, baru menyegarkan.** Mutasi adalah niat pengguna yang sudah dinyatakan (mis. menekan "Lamar"); itu lebih penting daripada memperbarui tampilan. Urutannya dikunci test.
+* **Layar kesalahan tidak menampilkan detail teknis apa pun** — tanpa jejak tumpukan, tanpa pesan asli. Tidak berguna bagi pengguna, dan bisa memuat jalur berkas atau potongan data. Pengirimannya ke observability = PR-103.
+* **`window.location.reload()`, bukan navigasi router:** keadaan aplikasi sudah terbukti rusak, dan router bisa gagal lagi dengan cara yang sama.
+* **Penanda memuat berupa TEKS, bukan animasi berputar** — pengguna `prefers-reduced-motion` tetap terlayani, dan teksnya terbaca screen reader apa adanya. Skeleton visual adalah komponen `packages/ui` (PR-028); yang wajib ada sekarang penandanya, sebab tanpa itu setiap halaman berikutnya lahir dengan transisi yang bisu.
+
+### Konvensi baru yang berlaku ke seluruh proyek
+
+**Hook kustom WAJIB berawalan `use`** — `useStatusJaringan`, bukan `gunakanStatusJaringan`. Ditemukan saat `react-hooks/rules-of-hooks` menolak nama Indonesia. Bukan karena bahasa Inggris lebih baik: `use` di sini **bukan kata, melainkan penanda protokol** yang dibaca React dan aturan lint untuk mengenali bahwa sebuah fungsi boleh memanggil hook lain. Kata domainnya tetap Indonesia. Dicatat di `packages/config/eslint/react.cjs` — tempat orang akan menabraknya.
+
+### Verifikasi
+
+* **Uji mutasi:** `ErrorBoundary` dilepas dari route induk → **dua test merah**, termasuk yang perilaku (layar bawaan React Router muncul kembali untuk URL asing).
+* Layar kesalahan diuji lewat router NYATA yang benar-benar melempar, bukan dengan merender komponennya langsung — merendernya di luar konteks error akan menguji jalur yang tidak pernah dipakai pengguna.
+* Test kebocoran eksplisit: pesan `Error` berisi jalur berkas internal dipastikan **tidak** muncul di DOM.
+* Build nyata: 76,6 KB / 200 KB, dua chunk lazy utuh.
+
+### Risiko yang ditemukan
+
+* **`navigator.onLine` hanya melaporkan sambungan perangkat, bukan keterjangkauan server kita.** Wi-Fi hotel yang meminta login, atau API kita yang mati, tetap menghasilkan `true`. Banner ini petunjuk, bukan vonis — kegagalan permintaan tetap butuh pesannya sendiri di PR fitur. Batas ini ditulis di kepala `status-jaringan.ts`.
+* **Halaman 404 masih memakai layar kesalahan umum.** Ia tidak memberi "jalan pulang yang jelas" seperti dituntut AC PR-032 — itu milik PR-032.
+* **Belum ada error boundary React di LUAR router** (mis. kegagalan di dalam `Providers`). Layar putih masih mungkin di jalur itu.
+
+### Next steps
+
+* **PR-031a** — gerbang a11y (`jsx-a11y` + `jest-axe` ditegakkan CI) SEBELUM pustaka komponen lahir di PR-027.
+* **PR-029** — i18n dua varian; seluruh string di PR ini masih hardcoded satu varian.
+* **PR-032** — halaman 404 sesungguhnya + landmark/skip-link final.
+* Angkat keputusan **fondasi PWA** (SDD §4.4) ke owner.

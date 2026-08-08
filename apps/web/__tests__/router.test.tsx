@@ -3,8 +3,7 @@
 // test — dan route produksi yang salah tulis akan lolos tanpa gejala.
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-// Satu sumber untuk router DAN provider — lihat catatan di App.tsx.
-import { createMemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, RouterProvider, type RouteObject } from "react-router";
 import { ruteApp } from "../src/app/routes.js";
 import { Providers } from "../src/app/providers.js";
 import { createQueryClient } from "../src/app/query-client.js";
@@ -18,7 +17,12 @@ function renderDi(jalur: string) {
   );
 }
 
-describe("ruteApp", () => {
+const induk = ruteApp[0] as RouteObject;
+const anak = (induk.children ?? []) as RouteObject[];
+const catchAll = anak.find((r) => r.path === "*");
+const halaman = anak.filter((r) => r !== catchAll);
+
+describe("ruteApp — halaman", () => {
   it("'/' memuat Beranda", async () => {
     renderDi("/");
     expect(await screen.findByRole("heading", { level: 1, name: "Nawasena" })).toBeInTheDocument();
@@ -29,19 +33,53 @@ describe("ruteApp", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Masuk" })).toBeInTheDocument();
   });
 
-  it("setiap route dimuat lazy — tidak ada Component yang diimpor statis", () => {
+  it("URL asing → pesan 404 kita, BUKAN layar bawaan React Router", async () => {
+    renderDi("/jalur-yang-tidak-ada");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Halaman tidak ditemukan" }),
+    ).toBeInTheDocument();
+    // Layar bawaan React Router menyapa pengembang; kalau string ini muncul,
+    // berarti ErrorBoundary kita tidak terpasang.
+    expect(screen.queryByText(/Unexpected Application Error/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("ruteApp — bentuk", () => {
+  it("setiap halaman dimuat lazy — tidak ada Component yang diimpor statis", () => {
     // Inilah yang membuat pemecahan chunk terjadi. Mengganti satu `lazy`
     // menjadi `Component` yang diimpor di atas berkas akan menarik halaman itu
     // ke bundel awal tanpa satu pun test lain gagal — kecuali test ini.
-    for (const rute of ruteApp) {
-      expect(typeof rute.lazy, `route ${String(rute.path)} tidak lazy`).toBe("function");
-      expect(rute.Component, `route ${String(rute.path)} punya Component statis`).toBeUndefined();
+    for (const rute of halaman) {
+      const nama = String(rute.path ?? "(index)");
+      expect(typeof rute.lazy, `halaman ${nama} tidak lazy`).toBe("function");
+      expect(rute.Component, `halaman ${nama} punya Component statis`).toBeUndefined();
     }
   });
 
+  it("route induk SENGAJA tidak lazy — ia shell yang selalu dibutuhkan", () => {
+    expect(induk.Component).toBeDefined();
+    expect(induk.lazy).toBeUndefined();
+  });
+
+  it("induk memasang ErrorBoundary sehingga SELURUH anak terlindungi", () => {
+    // Dipasang per halaman, ia akan terlewat pada halaman yang ditambahkan
+    // belakangan — dan di sanalah layar bawaan React Router akan muncul.
+    expect(induk.ErrorBoundary).toBeDefined();
+  });
+
+  it("catch-all melempar 404, bukan merender layar kesalahan langsung", async () => {
+    // Dirender langsung, `useRouteError()` kosong dan pesannya jatuh ke
+    // "ada yang tidak berjalan semestinya" — padahal yang terjadi jelas 404.
+    expect(catchAll).toBeDefined();
+    expect(catchAll?.Component).toBeUndefined();
+    await expect(async () => {
+      await (catchAll?.loader as () => Promise<unknown>)();
+    }).rejects.toBeInstanceOf(Response);
+  });
+
   it("penjaga ini tidak lulus secara hampa", () => {
-    // Daftar kosong akan membuat loop di atas lulus tanpa memeriksa apa pun.
-    expect(ruteApp.length).toBeGreaterThan(1);
+    expect(halaman.length).toBeGreaterThan(1);
   });
 
   it("jalur '/masuk' dipertahankan — sudah terdaftar di Google Cloud Console", () => {
@@ -49,6 +87,6 @@ describe("ruteApp", () => {
     // sudah disepakati pihak luar. Mengubah jalur ini berarti login Google
     // berhenti bekerja sampai Console ikut diubah — kegagalan yang muncul jauh
     // dari sebabnya, jadi dikunci di sini.
-    expect(ruteApp.map((r) => r.path)).toContain("/masuk");
+    expect(anak.map((r) => r.path)).toContain("masuk");
   });
 });
