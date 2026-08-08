@@ -22,6 +22,13 @@ export interface UserProfileRow {
   createdAt: Date;
 }
 
+/** Baris ekspor PDP: profil + dua kolom yang tidak tampil di UI (PR-022). */
+export interface ExportAccountRow extends UserProfileRow {
+  emailVerified: boolean;
+  /** Dipakai HANYA untuk menurunkan daftar cara masuk; tidak pernah diekspor. */
+  googleId: string | null;
+}
+
 /** Kolom yang dibaca — daftar eksplisit, bukan `select: *`. Kolom internal
  *  (tokenVersion, googleId, deletedAt) tidak boleh ikut terbawa tanpa sengaja. */
 const KOLOM_PROFIL = {
@@ -51,6 +58,21 @@ export function createUserProfileRepository(prisma: AppPrisma) {
     /** Profil akun aktif; null bila tidak ada atau sudah dihapus. */
     async findActiveById(id: string): Promise<UserProfileRow | null> {
       return prisma.user.findFirst({ where: { id, deletedAt: null }, select: KOLOM_PROFIL });
+    },
+
+    /**
+     * Baris untuk ekspor PDP (PR-022) — lebih luas daripada profil, sebab hak
+     * portabilitas mencakup data yang tidak ditampilkan di UI.
+     *
+     * `googleId` ikut dibaca HANYA untuk diturunkan menjadi daftar cara masuk;
+     * ia tidak pernah keluar dari service. `tokenVersion` dan `deletedAt` tetap
+     * di luar: keduanya mekanik internal, bukan data pribadi siapa pun.
+     */
+    async findAccountForExport(id: string): Promise<ExportAccountRow | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { ...KOLOM_PROFIL, emailVerified: true, googleId: true },
+      });
     },
 
     /**

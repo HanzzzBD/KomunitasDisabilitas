@@ -600,11 +600,11 @@ Bisnis: hak portabilitas UU PDP (SDD §8.7). Teknis: agregator lintas modul via 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (agregator)
-* [ ] Integration Test (kelengkapan + isolasi)
-* [ ] E2E Test (unduh dari settings PR-033)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi payload)
+* [x] Unit Test (agregator) — 17 test `users-export.test.ts`: pemetaan kontributor, `google_id` tidak pernah keluar, penolakan kontributor di luar kontrak, audit tanpa isi data, dan perilaku pencacah kuota (termasuk kunci Redis tanpa TTL).
+* [x] Integration Test (kelengkapan + isolasi) — 9 test HTTP `users-export-http.test.ts` (dua pengguna, dua berkas, nol kebocoran silang; 429 + `Retry-After`) + 8 test penjaga `export-kelengkapan.test.ts`.
+* [ ] E2E Test (di PR-033)
+* [x] Accessibility Test (N/A — tidak ada perubahan frontend)
+* [x] Manual Verification (inspeksi payload) — diotomatiskan: response nyata di-parse ulang memakai `dataExportSchema` yang sama dengan yang dipakai FE, jadi tidak ada bentuk buatan test yang bisa berbeda dari kontrak.
 
 **Deliverables:**
 
@@ -613,6 +613,9 @@ Bisnis: hak portabilitas UU PDP (SDD §8.7). Teknis: agregator lintas modul via 
 **Out of Scope:**
 
 * Format arsip ZIP/PDF.
+* `Content-Disposition: attachment` — tombol unduh milik PR-033. Endpoint yang kadang response API kadang berkas lebih sulit dipakai keduanya.
+* Streaming JSON — belum perlu; lihat Risks.
+* Bagian ekspor milik modul yang belum lahir — lihat catatan di bawah Acceptance Criteria.
 
 **Rollback Strategy:**
 
@@ -620,11 +623,17 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Ekspor memuat: akun, preferensi, profil (termasuk sensitif milik sendiri), CV, lamaran, notifikasi.
-* [ ] Tidak ada data pihak lain di payload (test).
-* [ ] Ekspor ter-audit.
-* [ ] Rate limit bekerja.
-* [ ] Format JSON stabil (versioned).
+* [~] Ekspor memuat: akun, preferensi, profil (termasuk sensitif milik sendiri), CV, lamaran, notifikasi. — **`account` selesai; lima sisanya belum punya modul.** Tabelnya ada sejak migrasi 02–03, tetapi TIDAK ADA endpoint yang bisa mengisinya: pengguna hari ini tidak bisa membuat profil karier, CV, lamaran, atau notifikasi. Jadi berkas ini **lengkap terhadap data yang benar-benar bisa dimiliki**, bukan setengah jadi. Sisanya dipindahkan dari checklist ini ke daftar `DITUNDA` di `export-kelengkapan.test.ts`, tempat ia tidak bisa terlewat.
+* [x] Tidak ada data pihak lain di payload (test). — Dijamin BENTUK endpoint: `userId` dari `authOf(req)`, dan tidak ada satu pun parameter yang bisa menyebut pengguna lain. Diuji lewat HTTP dengan dua pengguna: berkas A tidak memuat nama/email/nomor B, dan sebaliknya. `google_id` juga tidak pernah keluar — diturunkan menjadi `authMethods`.
+* [x] Ekspor ter-audit. — `DATA_EXPORTED` dengan `{ format, formatVersion, sections }`. **Isi datanya tidak pernah masuk audit**: `audit_logs` bertahan 2 tahun (SDD §6.4), jauh melewati baris yang memilikinya. Ekspor yang ditolak kuota TIDAK dicatat sebagai ekspor — diuji.
+* [x] Rate limit bekerja. — 3 per 24 jam per pengguna, pencacah di Redis (bukan memory store limiter global, yang mereset tiap deploy dan tidak dibagi antar replika). 429 + `Retry-After` yang jujur karena TTL tidak pernah diperpanjang. Kuota diperiksa SEBELUM query mana pun berjalan.
+* [x] Format JSON stabil (versioned). — `formatVersion: 1`. Naik hanya saat perubahan TIDAK aditif; menambah bagian baru kelak tidak menaikkannya. Response nyata di-parse ulang dengan `dataExportSchema` yang sama dengan yang dipakai FE.
+
+> **Catatan bentuk (keputusan owner 2026-08-07):** AC-1 menuntut enam kategori, lima di antaranya belum punya modul. Alih-alih membaca tabelnya langsung dari modul `users` — yang melanggar Technical Notes ("memanggil service modul lain — bukan repo lintas modul") dan menciptakan pembacaan kedua yang harus dibongkar saat PR-037 dan seterusnya lahir — ekspor dibangun sebagai **registry kontributor**: tiap modul menyerahkan bagiannya lewat `UsersModuleDeps.contributors`, dan agregator tidak pernah menyentuh tabel milik modul lain.
+>
+> Kelengkapannya dijaga mesin. `export-kelengkapan.test.ts` membaca `schema.prisma`, mengumpulkan setiap model berelasi ke `User`, dan menuntut tiap model berada di salah satu dari tiga keadaan: **terdaftar**, **ditunda** (menyebut PR pengambilnya), atau **dikecualikan** (dengan alasan). Tabel baru yang menyimpan data pengguna membuat build MERAH sampai seseorang memutuskan — diverifikasi dengan menanam model sementara di `schema.prisma`.
+>
+> `dataExportSchema` memakai `.strict()` dengan sengaja: kontributor yang belum punya tempat di kontrak membuat permintaan GAGAL, bukan datanya dibuang diam-diam. Objek zod yang longgar akan membuat modul baru mendaftar, tidak ada yang error, dan pengguna menerima ekspor yang kekurangan tanpa satu pun sinyal.
 
 #### Dependencies
 
@@ -632,7 +641,13 @@ RB-Std.
 
 #### Risks
 
-* Payload membesar. Mitigasi: streaming JSON bila perlu.
+* ~~Payload membesar. Mitigasi: streaming JSON bila perlu.~~ **Belum terjadi dan tidak akan terjadi sampai bagian lain masuk** — berkas hari ini hanya satu objek `account`. Yang perlu diawasi saat `applications`/`notifications` bergabung: keduanya tumbuh tanpa batas atas. Kontributornya wajib membawa batas atau paginasinya sendiri; agregator tidak punya cara mengetahui ukuran yang wajar untuk bagian milik modul lain.
+* **Kuota memakai Redis cache (`allkeys-lru`), yang boleh di-evict.** Konsekuensi jujurnya: di bawah tekanan memori, pencacah bisa hilang dan jatah pengguna kembali penuh sebelum 24 jam. Diterima sadar — kehilangannya melonggarkan batas, tidak merusak data, dan memindahkannya ke Redis queue (`noeviction`) akan mencampur kuota dengan antrean pekerjaan.
+* **Pencacah naik pada percobaan, bukan pada keberhasilan** (preseden limiter OTP). Kegagalan server tetap memakan satu dari tiga jatah harian. Lebih ketat, dan konsisten dengan limiter yang sudah ada.
+
+#### Log Implementasi
+
+* 2026-08-07 — PR-022 selesai (`GET /api/v1/me/export`, registry kontributor, kuota 3/24 jam di Redis, audit tanpa isi data, penjaga kelengkapan dari `schema.prisma`). Empat dari lima AC terpenuhi; AC-1 sebagian dan sisanya terlacak di kode. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-022--ekspor-data-pribadi-pdp).
 
 
 ### PR-023 - Worker pdp-purge (Purge Akun ≤ 30 Hari)

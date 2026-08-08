@@ -1135,3 +1135,87 @@ kredensial baru, dan tanpa biaya.
 Verifikasi email tetap berguna — untuk notifikasi dan pemulihan akun — tetapi
 ia BUKAN prasyarat penautan, dan menempatkannya sebagai akar membuat pekerjaan
 yang seharusnya murah terlihat mahal.
+
+## PR-022 — Ekspor Data Pribadi (PDP)
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-022---ekspor-data-pribadi-pdp)
+> **Tanggal:** 2026-08-07
+> **Status:** Selesai — 4 dari 5 AC terpenuhi; AC-1 sebagian, sisanya terlacak di kode
+> **Branch:** `pr-022-ekspor-pdp` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+`GET /api/v1/me/export` — hak portabilitas UU PDP (§8.7). Berkas JSON ber-versi,
+dibatasi 3 kali per 24 jam per pengguna, dan setiap ekspor tercatat di audit
+tanpa satu pun data pribadi ikut masuk.
+
+Bentuknya bukan agregator yang merakit semuanya sendiri, melainkan **registry
+kontributor**: tiap modul menyerahkan bagiannya, dan kelengkapannya dijaga
+mesin lewat pembacaan `schema.prisma`.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **579 lulus** (naik dari 545; 34 test baru), 1 skip.
+`check:openapi` sinkron.
+
+### Temuan yang menentukan bentuk PR ini
+
+AC-1 menuntut ekspor memuat **akun, preferensi, profil, CV, lamaran,
+notifikasi**. Lima dari enam itu tidak punya modul — `modules/` hari ini hanya
+`auth`, `health`, `internal`, `users`.
+
+Tabelnya memang ada sejak migrasi 02–03. Tetapi **tidak ada satu pun endpoint
+yang bisa mengisinya**: pengguna hari ini tidak bisa membuat profil karier, CV,
+lamaran, atau notifikasi. Jadi berkas berisi `account` saja bukan ekspor
+setengah jadi — ia **lengkap terhadap data yang benar-benar bisa dimiliki
+pengguna**. Yang belum ada adalah jaminan bahwa bagian berikutnya benar-benar
+ikut ditambahkan saat modulnya lahir.
+
+### Scope yang selesai
+
+* **`packages/schemas/src/export.ts`** (baru) — `EXPORT_FORMAT_VERSION`, `exportAccountSchema`, `dataExportSchema` (`.strict()`), `dataExportResponseSchema`.
+* **`modules/users/services/export.service.ts`** (baru) — `ExportContributor`, `createAccountContributor`, `createExportService`, `EXPORT_POLICY`.
+* **`modules/users/repositories/export-quota.repository.ts`** (baru) — pencacah harian di Redis.
+* **`user.repository.ts`** — `findAccountForExport()`; **`users/index.ts`** — titik masuk `contributors` untuk modul lain.
+* **Route** `GET /me/export` dengan `access.authenticated()`, OpenAPI + `openapi.json`, meta audit `DATA_EXPORTED` diperluas, katalog audit diperbarui.
+* **Test** — 34 baru: `users-export.test.ts` (17), `users-export-http.test.ts` (9), `export-kelengkapan.test.ts` (8).
+
+### Scope yang TIDAK selesai (dan kenapa)
+
+* **Lima bagian ekspor lainnya** — modulnya belum ada. Dipindahkan ke daftar `DITUNDA` di penjaga, masing-masing menyebut PR pengambilnya.
+* **`Content-Disposition: attachment`** — tombol unduh milik PR-033. Endpoint yang kadang response API kadang berkas lebih sulit dipakai keduanya.
+* **Streaming JSON** — belum perlu; berkas hari ini satu objek.
+* **Dekripsi field sensitif (ADR-007)** — miliknya `seeker_profiles`, yang modulnya belum lahir. Kontributor PR-037 yang akan melakukannya, di modulnya sendiri.
+
+### Keputusan teknis
+
+1. **Registry kontributor, bukan repository lintas modul.** Alternatifnya — modul `users` membaca langsung `seeker_profiles`, `resumes`, dan seterusnya — akan mencentang AC-1 hari ini, tetapi melanggar Technical Notes yang eksplisit dan menciptakan pembacaan kedua yang harus dibongkar saat PR-037 dan seterusnya lahir. Dan isinya akan kosong untuk setiap pengguna nyata, karena tidak ada cara mengisinya.
+
+2. **Kelengkapan dijaga mesin, bukan checklist.** `export-kelengkapan.test.ts` membaca `schema.prisma`, mengumpulkan setiap model berelasi ke `User`, dan menuntut tiap model **terdaftar**, **ditunda** (menyebut PR-nya), atau **dikecualikan** (dengan alasan). Tabel baru = build merah sampai diputuskan. Daftar `DITUNDA` **adalah AC-1**, dipindahkan dari dokumen ke tempat yang tidak bisa dilewati. Diverifikasi dengan menanam model sementara di `schema.prisma` — pesan gagalnya menyebut ketiga pilihan yang tersedia.
+
+3. **`dataExportSchema` memakai `.strict()`.** Ini bukan kehati-hatian umum, melainkan pasangan dari keputusan 1: karena bagian dirakit dari registry, objek zod yang longgar akan MEMBUANG bagian yang belum punya tempat di kontrak — modul baru mendaftar, tidak ada yang error, dan pengguna menerima ekspor yang kekurangan tanpa satu pun sinyal. Dengan `.strict()`, kontributor tanpa tempat membuat permintaan gagal, dan yang menambahkannya dipaksa menuliskannya di kontrak juga.
+
+4. **`google_id` tidak pernah diekspor mentah.** Ia pengenal opaque milik Google: tidak berarti apa pun bagi pengguna, sekaligus tautan kredensial. Diturunkan menjadi `authMethods: ["otp", "google"]`, yang menjawab pertanyaan sesungguhnya — "bagaimana saya masuk ke akun ini".
+
+5. **Kuota di Redis, bukan di memory store limiter global.** Limiter global (`core/http`) memakai memory store: ia mereset tiap deploy dan tidak dibagi antar replika. Untuk kuota yang diukur dalam HARI keduanya fatal — restart mengembalikan jatah, dua replika berarti jatah ganda. Mekanismenya sengaja sama persis dengan limiter kirim OTP (INCR + EXPIRE saat pertama, TTL tidak pernah diperpanjang) supaya ada satu pola di codebase, bukan dua.
+
+6. **Kunci Redis memuat `userId` apa adanya**, tanpa sidik HMAC seperti nomor HP di repo OTP. Alasannya: userId adalah UUID acak, bukan PII yang bisa dikenali orang, dan ia sudah muncul di `audit_logs` sebagai `actor_id`. Menyamarkannya tidak menambah perlindungan apa pun, hanya membuat operasi (mis. menyetel ulang kuota satu pengguna) mustahil.
+
+7. **Kuota diperiksa SEBELUM satu pun query berjalan.** Endpoint ini menyentuh banyak tabel; menolak setelah bekerja berarti biaya penyalahgunaan tetap dibayar server. Diuji dengan spy pada kontributor.
+
+8. **Kontributor dijalankan berurutan, bukan `Promise.all`.** Urutan key di berkas jadi stabil (`account` selalu di atas, sehingga pembaca menemukan identitas pemiliknya lebih dulu), dan kegagalan pertama menghentikan sisanya alih-alih menyisakan query yang berjalan tanpa ada yang menunggunya.
+
+9. **Fake Prisma di test HTTP MENGHORMATI `select`.** Fake yang mengembalikan baris penuh akan meluluskan test atas kebocoran yang produksi tidak punya — atau menyembunyikan yang punya. Ini pelajaran PR-020 yang diterapkan sejak awal, bukan setelah gagal.
+
+### Risiko yang ditemukan
+
+* **Payload akan membesar tanpa batas atas saat `applications`/`notifications` bergabung.** Keduanya tumbuh seiring pemakaian. Kontributornya wajib membawa batas atau paginasinya sendiri — agregator tidak punya cara mengetahui ukuran yang wajar untuk bagian milik modul lain. Risiko asli di dokumen phase menyebut "streaming JSON bila perlu"; yang lebih tepat adalah batas di sisi kontributor.
+* **Kuota memakai Redis cache (`allkeys-lru`) yang boleh di-evict.** Di bawah tekanan memori, pencacah bisa hilang dan jatah kembali penuh sebelum 24 jam. Diterima sadar: kehilangannya melonggarkan batas, tidak merusak data, dan memindahkannya ke Redis queue (`noeviction`) akan mencampur kuota dengan antrean pekerjaan.
+* **Pencacah naik pada percobaan, bukan pada keberhasilan.** Kegagalan server memakan satu dari tiga jatah harian. Mengikuti preseden limiter OTP; lebih ketat dan konsisten, tetapi terasa keras pada kuota sekecil ini.
+* **Satu test sempat lulus secara hampa** dan tertangkap saat menulis: spy `kumpulkan` dibuat tetapi tidak pernah tersambung ke kontributor yang dipakai, sehingga `expect(kumpulkan).not.toHaveBeenCalled()` benar tanpa memeriksa apa pun. Diperbaiki dengan menyambungkannya DAN menambahkan pemeriksaan bahwa spy-nya memang terpanggil pada jalur normal.
+
+### Next steps
+
+* **PR-023** (purge) — dependensinya terpenuhi sejak PR-021. Perhatikan: akun terhapus tidak bisa mengekspor apa pun (klien ber-penjaga), jadi tidak ada interaksi baru.
+* **PR-033** (UI) — tombol unduh; ia yang memasang nama berkas dan menangani 429 dengan menampilkan sisa waktu dari `Retry-After`.
+* **PR-037 dan seterusnya** — tiap modul yang menyimpan data pengguna WAJIB mendaftarkan kontributornya lewat `UsersModuleDeps.contributors` dan menambahkan field-nya di `dataExportSchema`. Penjaga kelengkapan akan menolak build sampai itu dilakukan; daftar `DITUNDA` menyebut PR-nya masing-masing.
+* **PR-105** — rate limit umum; kuota ekspor sudah punya batasnya sendiri dan tidak perlu diulang.

@@ -108,8 +108,14 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: z.object({
     operation: z.enum(["create", "update", "publish", "close", "moderate"]),
   }),
+  // Nama BAGIAN yang ikut diekspor, bukan isinya. Berguna persis saat ada
+  // sengketa "data saya tidak lengkap": ia menunjukkan apa yang platform
+  // memang punya saat itu, tanpa menyalin satu pun data pribadi ke audit_logs
+  // yang bertahan 2 tahun.
   [AUDIT_ACTION.DATA_EXPORTED]: z.object({
     format: z.literal("json"),
+    formatVersion: z.number().int().positive(),
+    sections: z.array(z.string()),
   }),
   // ALAMAT EMAIL TIDAK PERNAH DICATAT — audit_logs bertahan 2 tahun (SDD §6.4)
   // dan email adalah PII. Yang berguna saat investigasi adalah bahwa perubahan

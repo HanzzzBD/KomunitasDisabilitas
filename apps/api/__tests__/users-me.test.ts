@@ -43,6 +43,11 @@ function rakit(options: { row?: UserProfileRow | null; emailBentrok?: boolean } 
 
   const userRepository: UserProfileRepository = {
     findActiveById: () => Promise.resolve(awal),
+    // Jalur ekspor PDP (PR-022) tidak dipakai alur profil; dibuat meledak
+    // supaya pemakaian tak sengaja terlihat sebagai kegagalan test.
+    findAccountForExport: () => {
+      throw new Error("Alur profil tidak boleh menyentuh jalur ekspor");
+    },
     updateProfile: (_id, data) => {
       if (options.emailBentrok === true) return Promise.reject(new EmailSudahDipakaiError());
       tersimpan.push(data);
