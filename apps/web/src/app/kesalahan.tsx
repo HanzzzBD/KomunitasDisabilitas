@@ -6,37 +6,41 @@
 // yang dituju produk ini, layar itu bukan sekadar jelek: ia tidak bisa dibaca,
 // tidak bisa ditindaklanjuti, dan membocorkan jalur berkas internal.
 import { isRouteErrorResponse, useRouteError } from "react-router";
+import { useTeks, type KunciTeks } from "../shared/i18n/index.js";
 
 /**
- * Pesan per keadaan, dalam bahasa yang menyebut LANGKAH BERIKUTNYA, bukan
- * penyebab teknis. Pengguna tidak bisa berbuat apa pun dengan "500 Internal
- * Server Error"; mereka bisa berbuat sesuatu dengan "coba lagi sebentar lagi".
+ * Kunci pesan per keadaan. Teksnya sendiri tinggal di katalog, dalam dua
+ * varian bahasa — yang dipilih di sini hanya KEADAANNYA.
+ *
+ * Pesan-pesan itu menyebut LANGKAH BERIKUTNYA, bukan penyebab teknis:
+ * pengguna tidak bisa berbuat apa pun dengan "500 Internal Server Error".
  */
-function pesanUntuk(error: unknown): { judul: string; penjelasan: string } {
+function kunciUntuk(error: unknown): { judul: KunciTeks; penjelasan: KunciTeks } {
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
       return {
-        judul: "Halaman tidak ditemukan",
-        penjelasan: "Alamat yang Anda tuju mungkin salah ketik atau sudah dipindahkan.",
+        judul: "shell.kesalahan.takDitemukan.judul",
+        penjelasan: "shell.kesalahan.takDitemukan.penjelasan",
       };
     }
     if (error.status === 401 || error.status === 403) {
       return {
-        judul: "Anda belum bisa membuka halaman ini",
-        penjelasan: "Coba masuk lebih dulu, lalu buka kembali halaman ini.",
+        judul: "shell.kesalahan.perluMasuk.judul",
+        penjelasan: "shell.kesalahan.perluMasuk.penjelasan",
       };
     }
   }
 
   return {
-    judul: "Ada yang tidak berjalan semestinya",
-    penjelasan: "Ini bukan kesalahan Anda. Coba muat ulang halaman ini.",
+    judul: "shell.kesalahan.umum.judul",
+    penjelasan: "shell.kesalahan.umum.penjelasan",
   };
 }
 
 export function LayarKesalahan() {
   const error = useRouteError();
-  const { judul, penjelasan } = pesanUntuk(error);
+  const t = useTeks();
+  const { judul, penjelasan } = kunciUntuk(error);
 
   return (
     // `<main>` supaya halaman kesalahan tetap punya landmark — pengguna screen
@@ -45,8 +49,8 @@ export function LayarKesalahan() {
       {/* role="alert": layar ini menggantikan konten tanpa diminta, jadi
           kemunculannya harus diumumkan, bukan ditemukan sendiri. */}
       <div role="alert">
-        <h1>{judul}</h1>
-        <p>{penjelasan}</p>
+        <h1>{t(judul)}</h1>
+        <p>{t(penjelasan)}</p>
       </div>
 
       {/*
@@ -60,7 +64,7 @@ export function LayarKesalahan() {
         harapan yang berbeda.
       */}
       <button type="button" onClick={() => window.location.reload()}>
-        Muat ulang halaman
+        {t("shell.kesalahan.muatUlang")}
       </button>
 
       {/*
