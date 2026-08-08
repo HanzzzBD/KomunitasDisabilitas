@@ -259,7 +259,16 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 * [x] Integration Test (reuse family revoke) — PR-018a (PostgreSQL nyata)
 * [ ] E2E Test (login→refresh di PR-030)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi cookie di browser) — **sebagian terbukti 2026-08-08, sengaja belum dicentang.** Dari respons nyata KEDUA jalur masuk (OTP dan Google): `Max-Age=2591999` (tepat 30 hari), `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, dan `refreshToken` **tidak ada di body** untuk klien web. Access token nyata di-decode: `alg: RS256`, `exp − iat = 900` (tepat 15 menit), klaim `sub`/`role`/`ver`/`iss`/`aud` sesuai. Yang BELUM: flag `Secure` tidak pernah terlihat karena `boot.ts` melepasnya saat `NODE_ENV=development`, dan bukti di atas berasal dari header curl, bukan dari browser. Prosedur sisanya: jalankan ulang dengan `NODE_ENV=production` (browser memperlakukan `localhost` sebagai origin terpercaya, jadi HTTPS tidak diperlukan) lalu periksa cookie di DevTools.
+* [x] Manual Verification (inspeksi cookie) — **selesai 2026-08-08**, dijalankan pada instance ber-`NODE_ENV=production` sehingga `boot.ts` tidak lagi melepas `Secure`. Kelima flag terlihat utuh dalam satu respons nyata:
+
+  ```
+  Set-Cookie: nawasena_refresh=…; Max-Age=2591999; Path=/api/v1/auth;
+              Expires=Mon, 07 Sep 2026 14:02:00 GMT; HttpOnly; Secure; SameSite=Strict
+  ```
+
+  Diperoleh lewat `POST /auth/refresh`, bukan login baru — endpoint itu menerbitkan cookie yang sama dan tidak memakai kuota OTP. Sekaligus membuktikan **rotasi** (token lama → token baru yang berbeda) dan bahwa `refreshToken` **tidak ada di body** untuk klien web. Access token nyata di-decode: `alg: RS256`, `exp − iat = 900` (tepat 15 menit), klaim `sub`/`role`/`ver`/`iss`/`aud` sesuai; dari KEDUA jalur masuk (OTP dan Google).
+
+  **Batas bukti, dicatat apa adanya:** verifikasi dilakukan pada header respons, bukan di DevTools. Yang karena itu tidak ikut terbukti hanyalah bahwa *browser* mau menyimpan cookie ber-`Secure` di `http://localhost` — perilaku browser, bukan keluaran kode kita. Seluruh yang menjadi tanggung jawab server sudah terlihat.
 
 **Deliverables:**
 
@@ -277,7 +286,7 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 
 * [x] Reuse refresh token lama → seluruh family dicabut + audit (test). — PR-018a
 * [x] Access kedaluwarsa 15 menit; refresh 30 hari (assert klaim). — PR-018a
-* [x] `ver` bump menolak semua access lama. — PR-018a
+* [x] `ver` bump menolak semua access lama. — PR-018a; **terbukti di deployment nyata 2026-08-08**, bukan hanya di test: `POST /auth/logout-all` → `204`, `users.token_version` 0→1, dan access token yang **belum kedaluwarsa** (`exp` masih belasan menit lagi) langsung ditolak `401 SESI_TIDAK_VALID`. Kill-switch bekerja pada token hidup, bukan sekadar mempercepat token yang memang akan mati.
 * [x] Cookie web ber-flag lengkap (snapshot header). — PR-018b
 * [x] api-client 401→refresh→retry bekerja end-to-end (mock). — PR-018b
 
@@ -302,6 +311,7 @@ RB-Std; `ver` bump global tersedia sebagai kill-switch sesi.
 * 2026-08-04 — PR-018a selesai (token service RS256, rotasi + reuse detection, `ver` bump, migrasi `token_version`, gerbang boot kunci sesi). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018a--token-service-rs256-rotasi--reuse-detection).
 * 2026-08-04 — PR-018b selesai (endpoint `POST /auth/refresh`, cookie web ber-flag lengkap, integrasi OTP/Google → pasangan JWT, hook refresh api-client single-flight). **Seluruh AC PR-018 terpenuhi.** Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018b--endpoint-refresh-cookie-web--integrasi-login).
 * 2026-08-04 — PR-018c selesai (`POST /auth/logout` + `/auth/logout-all`, migrasi `revoked_reason`, reuse detection kini membedakan logout dari rotasi). **FR-1.3 tertutup penuh.** Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-018c--logout-logout-all--revoked_reason).
+* 2026-08-08 — Manual Verification sesi dijalankan pada instance `NODE_ENV=production`: kelima flag cookie terlihat (termasuk `Secure`), rotasi terbukti, dan `logout-all` mencabut seluruh sesi dengan `revoked_reason = logout_all` + `ver` bump yang menolak access token hidup. Lihat [Bukti sesi di mode produksi](log/implementation_log_phase02.md#bukti-sesi-di-mode-produksi--cookie-lengkap-rotasi-dan-ver-kill-switch).
 
 
 ### PR-019 - RBAC Middleware + Route Registry

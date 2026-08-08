@@ -1623,3 +1623,48 @@ Kotak Manual Verification PR-018 **tetap tidak dicentang**: `Secure` belum perna
 Butir "CI hijau penuh" hijau **di atas fitur yang rusak**. Endpoint OTP menjawab 500 di lingkungan nyata sementara 671 test lulus, karena tidak satu pun menjalankan Redis nyata melalui `createRedisClients()`.
 
 Verifikasi manual bukan formalitas sisa di akhir checklist. Ia satu-satunya lapisan yang menjalankan perakitan sungguhan terhadap dunia luar — dan ia menemukan bug pada kesempatan pertama ia dijalankan.
+
+
+## Bukti sesi di mode produksi — cookie lengkap, rotasi, dan `ver` kill-switch
+
+2026-08-08, menutup kotak Manual Verification terakhir PR-018 dan sekaligus menjadi verifikasi tangan pertama untuk PR-018c.
+
+### Urutannya bukan kebetulan
+
+Lihat cookie **dulu**, cabut sesi **sesudah**. Terbalik, tidak akan ada sesi tersisa untuk memperlihatkan cookie-nya — dan kuota kirim OTP sedang habis, jadi login baru bukan pilihan.
+
+Jalannya lewat `POST /auth/refresh`, bukan login: endpoint itu menerbitkan cookie yang sama persis, tidak memakai kuota, dan sekaligus membuktikan rotasi.
+
+### Cookie di `NODE_ENV=production`
+
+```
+Set-Cookie: nawasena_refresh=…; Max-Age=2591999; Path=/api/v1/auth;
+            Expires=Mon, 07 Sep 2026 14:02:00 GMT; HttpOnly; Secure; SameSite=Strict
+```
+
+`Secure` muncul karena `boot.ts` hanya melepasnya saat `NODE_ENV=development`. Ini satu-satunya flag yang selama ini tidak pernah terlihat di lingkungan dev, dan alasan kotak itu tidak bisa ditutup lebih awal.
+
+Ikut terbukti pada respons yang sama: token **berotasi** (nilai lama ≠ nilai baru) dan `refreshToken` **tidak ada di body** untuk klien web.
+
+### `logout-all` dan `ver` sebagai kill-switch
+
+`POST /auth/logout-all` → `204`, dengan cookie dikosongkan (`Expires=Thu, 01 Jan 1970`, flag tetap lengkap).
+
+| Yang diperiksa | Sebelum | Sesudah |
+|---|---|---|
+| `refresh_tokens` aktif | 1 | **0** |
+| `revoked_reason` | `(aktif)`, `rotated` | **`logout_all`**, `rotated` |
+| `users.token_version` | 0 | **1** |
+| Access token lama (`ver: 0`) | — | **`401 SESI_TIDAK_VALID`** |
+
+Baris terakhir yang paling berarti: access token itu **belum kedaluwarsa** — `exp`-nya masih belasan menit lagi — dan tetap ditolak. Kill-switch bekerja pada token yang hidup, bukan sekadar mempercepat token yang memang akan mati sendiri. `revoked_reason` membedakan `logout_all` dari `rotated`, jadi retensi berjenjang PR-024a tetap bisa memisahkan bukti insiden dari sampah rotasi.
+
+Sesi akun Google tidak tersentuh — `logout-all` berlaku per-pengguna, dan itu diverifikasi bersamaan.
+
+### Batas bukti
+
+Verifikasi dilakukan pada **header respons**, bukan di DevTools. Yang karena itu tidak ikut terbukti hanyalah bahwa browser mau menyimpan cookie ber-`Secure` di `http://localhost` — perilaku browser, bukan keluaran kode kita. Seluruh yang menjadi tanggung jawab server sudah terlihat, jadi kotaknya ditutup dengan batas ini tertulis alih-alih dibiarkan menggantung tanpa alasan yang jelas.
+
+### Konteks: kenapa ini dijalankan sama sekali
+
+Pemicunya bukan checklist. Sebuah refresh token nyata telanjur tertempel di percakapan kerja, dan `logout-all` adalah cara mencabutnya. Remediasi kebocoran kredensial dan verifikasi manual PR-018c ternyata pekerjaan yang sama persis — dijalankan sekali, memenuhi keduanya.
