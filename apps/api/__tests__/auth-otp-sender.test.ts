@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { loadEnv, EnvError } from "../src/core/config/env.js";
 import {
+  alasanAmanUntukLog,
   buildOtpMessage,
   createFallbackOtpSender,
   createOtpSenderFromEnv,
@@ -240,5 +241,75 @@ describe("perakitan dari env", () => {
     expect(env.FONNTE_BASE_URL).toBe("https://api.fonnte.com");
     expect(env.TWILIO_BASE_URL).toBe("https://api.twilio.com");
     expect(env.OTP_SEND_TIMEOUT_MS).toBe(10_000);
+  });
+});
+
+describe("alasanAmanUntukLog — keterangan kegagalan yang aman dicatat", () => {
+  it("meredaksi nomor HP yang dikutip balik provider", () => {
+    const err = new OtpSenderError("fonnte", "invalid target 6289637037236");
+    const { alasan } = alasanAmanUntukLog(err);
+    expect(alasan).not.toContain("6289637037236");
+    expect(alasan).toContain("[angka]");
+  });
+
+  it("meredaksi kode OTP bila provider mengutip balik isi pesan", () => {
+    // Skenario nyata: provider menolak lalu menyertakan message yang dikirim.
+    // Tanpa redaksi, kode masuk log — dan log bertahan jauh lebih lama daripada
+    // TTL 5 menit kodenya.
+    const err = new OtpSenderError("fonnte", `gagal: ${buildOtpMessage(KODE)}`);
+    const { alasan } = alasanAmanUntukLog(err);
+    expect(alasan).not.toContain(KODE);
+  });
+
+  it("TIDAK meredaksi kode status HTTP — itu keterangan berguna, bukan rahasia", () => {
+    const err = new OtpSenderError("fonnte", "Fonnte menolak permintaan (HTTP 502)");
+    expect(alasanAmanUntukLog(err).alasan).toBe("Fonnte menolak permintaan (HTTP 502)");
+  });
+
+  it("error di luar OtpSenderError dilaporkan sebatas NAMA kelasnya", () => {
+    // Pesan Error sembarang bisa memuat URL berparameter atau isi body; tidak
+    // satu pun kita kendalikan, jadi tidak satu pun boleh masuk log.
+    const err = new TypeError("fetch failed: https://api.fonnte.com/send?target=6289637037236");
+    const hasil = alasanAmanUntukLog(err);
+    expect(hasil).toEqual({ provider: "tidak diketahui", alasan: "TypeError" });
+    expect(JSON.stringify(hasil)).not.toContain("6289637037236");
+  });
+
+  it("lemparan yang bukan Error tetap menghasilkan keterangan, bukan crash", () => {
+    expect(alasanAmanUntukLog("aneh")).toEqual({
+      provider: "tidak diketahui",
+      alasan: "kesalahan tidak dikenal",
+    });
+  });
+
+  it("keterangan panjang dipotong (provider bisa mengembalikan teks besar)", () => {
+    const err = new OtpSenderError("fonnte", "x".repeat(500));
+    expect(alasanAmanUntukLog(err).alasan).toHaveLength(200);
+  });
+
+  it("log rantai fallback tidak memuat nomor maupun kode", async () => {
+    const baris: unknown[] = [];
+    const logger = { warn: (obj: unknown) => void baris.push(obj) };
+    const gagalDenganKutipan: OtpSender = {
+      name: "fonnte",
+      send: () =>
+        Promise.reject(
+          new OtpSenderError("fonnte", `tolak target ${PESAN.phone}: ${buildOtpMessage(KODE)}`),
+        ),
+    };
+    const cadangan: OtpSender = { name: "twilio", send: () => Promise.resolve() };
+
+    await createFallbackOtpSender([gagalDenganKutipan, cadangan], logger).send(PESAN);
+
+    // Tanpa baris ini, ketiga assertion di bawah lulus meski logger tidak
+    // pernah dipanggil sama sekali — lulus secara hampa.
+    // Dua baris, bukan satu: kegagalan fonnte, lalu "terkirim lewat cadangan".
+    expect(baris).toHaveLength(2);
+
+    const teks = JSON.stringify(baris);
+    expect(teks).not.toContain(KODE);
+    expect(teks).not.toContain(PESAN.phone);
+    // Tetap berguna: nama provider dan fakta masih ada cadangan tetap tercatat.
+    expect(teks).toContain("fonnte");
   });
 });
