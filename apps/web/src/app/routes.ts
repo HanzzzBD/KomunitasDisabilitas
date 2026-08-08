@@ -5,33 +5,69 @@
 // `createBrowserRouter`, test terpaksa merakit daftarnya sendiri — dan daftar
 // kedua itu bebas menyimpang tanpa ada yang tahu.
 import type { RouteObject } from "react-router";
+import { TataLetak } from "./tata-letak.js";
+import { LayarKesalahan } from "./kesalahan.js";
 
 /**
- * Tiap route memakai `lazy`, dan itu yang menghasilkan chunk terpisah — AC
- * PR-025 "Route ter-code-split". `import()` dinamis di dalamnya harus berupa
- * literal statis: bundler tidak bisa memecah apa yang jalurnya baru diketahui
- * saat runtime, dan mengubahnya menjadi variabel akan diam-diam mengembalikan
- * semuanya ke satu bundel.
+ * Satu route INDUK membungkus semuanya, dengan dua alasan yang keduanya soal
+ * "tidak bisa lupa":
  *
- * Dijaga `cek-budget.ts`: nol chunk lazy membuat CI merah.
+ * 1. `Component: TataLetak` — banner luring hadir di setiap halaman tanpa tiap
+ *    halaman perlu mengingatnya.
+ * 2. `errorElement` di induk menangkap kegagalan SELURUH anaknya. Dipasang per
+ *    halaman, ia akan terlewat pada halaman yang ditambahkan belakangan — dan
+ *    yang muncul di sana adalah layar bawaan React Router berbahasa Inggris
+ *    lengkap dengan jejak tumpukan.
+ *
+ * Induk ini SENGAJA tidak lazy: ia bagian dari shell yang selalu dibutuhkan,
+ * dan memuatnya lazy hanya menambah satu perjalanan bolak-balik sebelum apa pun
+ * bisa tampil.
  */
 export const ruteApp: RouteObject[] = [
   {
     path: "/",
-    lazy: async () => {
-      const { Beranda } = await import("../routes/beranda.js");
-      return { Component: Beranda };
-    },
-  },
-  {
-    // Halaman login diisi PR-030. Ada di sini sejak sekarang karena
-    // `http://localhost:5173/masuk/google` SUDAH terdaftar sebagai redirect URI
-    // di Google Cloud Console — jalur URL-nya bagian dari kontrak yang sudah
-    // disepakati pihak luar, bukan sesuatu yang bebas dipilih belakangan.
-    path: "/masuk",
-    lazy: async () => {
-      const { Masuk } = await import("../routes/masuk.js");
-      return { Component: Masuk };
-    },
+    Component: TataLetak,
+    // `ErrorBoundary` (komponen), bukan `errorElement` (elemen JSX): berkas ini
+    // tetap `.ts` murni data, tanpa satu pun markup.
+    ErrorBoundary: LayarKesalahan,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { Beranda } = await import("../routes/beranda.js");
+          return { Component: Beranda };
+        },
+      },
+      {
+        // Halaman login diisi PR-030. Ada di sini sejak sekarang karena
+        // `http://localhost:5173/masuk/google` SUDAH terdaftar sebagai redirect
+        // URI di Google Cloud Console — jalur URL-nya bagian dari kontrak yang
+        // sudah disepakati pihak luar, bukan sesuatu yang bebas dipilih
+        // belakangan.
+        path: "masuk",
+        lazy: async () => {
+          const { Masuk } = await import("../routes/masuk.js");
+          return { Component: Masuk };
+        },
+      },
+      {
+        // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
+        // bawaan React Router alih-alih pesan kita.
+        //
+        // Melempar Response 404, BUKAN merender LayarKesalahan langsung: layar
+        // itu membaca `useRouteError()`, yang kosong bila dirender sebagai
+        // halaman biasa — hasilnya pesan umum "ada yang tidak berjalan
+        // semestinya", padahal yang terjadi jelas "halaman tidak ditemukan".
+        // Dilempar sebagai error, ia sampai ke ErrorBoundary induk dengan
+        // status yang benar.
+        //
+        // Halaman 404 yang sesungguhnya — dengan jalan pulang yang jelas —
+        // milik PR-032.
+        path: "*",
+        loader: () => {
+          throw new Response("Tidak ditemukan", { status: 404 });
+        },
+      },
+    ],
   },
 ];

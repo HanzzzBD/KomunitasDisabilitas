@@ -43,6 +43,11 @@ module.exports = {
     // "warn" bawaannya: dependensi efek yang tertinggal adalah sumber bug
     // stale-state yang tidak menimbulkan gejala sampai timing-nya kebetulan
     // berubah — persis jenis kegagalan yang tidak boleh lolos review.
+    // KONSEKUENSI PENAMAAN yang berlaku ke seluruh proyek: hook kustom WAJIB
+    // berawalan `use` (`useStatusJaringan`, bukan `gunakanStatusJaringan`).
+    // Bukan karena bahasa Inggris lebih baik — `use` di sini bukan kata, ia
+    // PENANDA PROTOKOL yang dibaca React dan aturan ini untuk mengenali bahwa
+    // sebuah fungsi boleh memanggil hook lain. Kata domainnya tetap Indonesia.
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
   },
