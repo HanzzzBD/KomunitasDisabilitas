@@ -406,6 +406,7 @@ Setelah sebuah task PR-XXX **selesai** (implementasi + test + `pnpm lint`/`typec
    - Branch PR **dihapus otomatis** di remote setelah merge oleh `.github/workflows/hapus-branch-pr.yml`. Karena itu `--prune` bukan kosmetik: tanpa itu, ref remote yang sudah hilang tetap menumpuk di lokal. Hapus juga branch lokalnya (`git branch -d <nama>`) — workflow hanya menjangkau remote.
    - **Branch `phase-*` sengaja TIDAK ikut terhapus**, termasuk saat `phase-XX → main` di-merge: ia rujukan historis per phase dan titik cabang bila phase dibuka kembali. Inilah alasan setelan repo "Automatically delete head branches" **tidak** dipakai — ia tidak bisa mengecualikan pola nama.
    - PR yang ditutup **tanpa** merge tidak dihapus: branch-nya bisa memuat kerja yang belum ada di mana pun.
+   - Workflow-nya bertrigger `pull_request`, jadi ia hanya berjalan bila berkasnya ikut ada di branch PR — otomatis terpenuhi untuk branch yang dicabang dari phase yang sudah memuatnya. Phase berikutnya (dicabang dari `main`) baru ikut terjaga setelah `phase-03 → main`; sampai saat itu, hapus branch-nya manual.
 8. **Larangan keras:** JANGAN pernah membuat PR atau merge apa pun ke `main`. `phase-XX → main` hanya terjadi setelah SELURUH PR phase selesai (Exit Criteria terpenuhi) **dan** atas perintah eksplisit owner.
 
 ---
