@@ -324,3 +324,70 @@ id-simple  : "Sebentar, halaman sedang dibuka…"  (33) ← lebih PANJANG
 * **PR-026** — store preferensi a11y; sambungkan mode bahasa ke `data-lang-mode`.
 * **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
 * **Manual Verification PR-029** (*review bahasa sederhana oleh non-engineer*) kini punya rujukan yang bisa dipakai peninjau.
+
+---
+## PR-025d — Fondasi PWA (manifest + service worker aset statis)
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-025---appsweb-bootstrap)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai. Menutup celah antara ADR-009 dan backlog.
+
+### Kenapa PR ini ada
+
+**ADR-009 menuntutnya, dan backlog tidak memilikinya.** Pencarian `pwa|manifest|service worker` di **seluruh 19 dokumen phase** menghasilkan nol hasil relevan, sementara ADR-009 menulisnya di bagian **Decision**:
+
+> *"Fondasi PWA (manifest + service worker untuk cache aset statis saja) tetap dipasang sejak MVP agar peningkatan ke offline dasar pada Fase 2 tidak merombak arsitektur."*
+
+dan mengulanginya sebagai salah satu dari **tiga Mitigasi** untuk konsekuensi negatif online-only. Alternatif yang dipilih pun bernama *"Online-only **dengan fondasi PWA**"*.
+
+Tidak mengerjakannya sama dengan mencabut satu mitigasi tanpa merevisi ADR-nya. Diangkat ke owner; owner memilih mengerjakan sekarang (2026-08-09).
+
+### Ringkasan hasil
+
+Manifest, ikon, service worker yang **hanya** menyimpan aset build ber-hash, dan pendaftaran yang hanya aktif di produksi. Bundel awal 77,5 KB dari 200 KB; `sw.js` 0,97 KB (dibangun terpisah, di luar hitungan bundel halaman).
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **107 test** (dari 83), `apps/api` 683 lulus. 576 baris — sedikit di atas target 500, lihat catatan ukuran.
+
+### Keputusan teknis
+
+* **Logika cache dipisah sebagai fungsi MURNI** (`strategi-cache.ts`), terpisah dari service worker-nya. Service worker yang keliru menyimpan sesuatu akan menyajikannya berulang kali kepada pengguna yang sama, tanpa batas waktu, dan tanpa cara mudah membatalkannya dari server. Aturan seperti itu harus bisa diuji tanpa browser.
+* **Bawaan MENOLAK.** Jalur yang belum terpikirkan tidak ikut tersimpan; aturan baru harus ditambahkan sadar.
+* **HTML tidak pernah disimpan.** `index.html` satu-satunya berkas yang namanya tidak ber-hash — menyimpannya berarti pengguna bisa terkunci pada rujukan bundel lama tanpa cara memaksa pembaruan. Ini kegagalan service worker yang paling sering terjadi.
+* **`skipWaiting()` TIDAK dipanggil.** Ia membuat service worker baru mengambil alih tab yang sedang terbuka, sehingga aset lama dan baru bercampur di satu halaman berjalan — sumber galat "chunk gagal dimuat" tepat setelah deploy.
+* **"lewati" berarti tidak memanggil `respondWith` sama sekali**, bukan "teruskan ke `fetch()`". Yang kedua tetap melewati kita dan bisa mengubah perilaku streaming, kredensial, serta pelaporan galat jaringan.
+* **Pendaftaran hanya di produksi.** Di dev, service worker menyimpan aset lalu menyajikannya kembali — perubahan kode tampak "tidak berpengaruh" dan pengembang menelusuri bug yang tidak ada.
+* **Kegagalan pendaftaran tidak menjatuhkan aplikasi.** Service worker peningkatan, bukan prasyarat.
+* **Tipe konteks SW dideklarasikan seperlunya**, bukan `/// <reference lib="webworker" />` — lib itu menabrakkan `self`/`location`/`fetch` dengan lib DOM yang dipakai seluruh `apps/web`, dan jalan keluarnya tsconfig terpisah: mesin baru demi satu berkas. Yang dipakai hanya lima anggota.
+* **Build kedua terpisah** (`vite.sw.config.ts`): `format: "iife"` (modul SW belum merata didukung Safari), nama tetap `sw.js` tanpa hash (cakupan SW ditentukan jalurnya), `emptyOutDir: false` (menumpang `dist` yang sama).
+* **`sw.js` dikecualikan dari hitungan chunk lazy** di `cek-budget.ts`. Tanpa itu, penjaga code-splitting tetap hijau meski seluruh route ter-inline — satu berkas asing sudah cukup memenuhi syarat "> 0".
+
+### Temuan uji mutasi yang mengubah test
+
+**Mencabut penolakan `/api/` membuat NOL test merah.** `/api/v1/me` tetap jatuh ke `return "lewati"` bawaan, jadi test perilaku memeriksa hasil yang kebetulan sama — bukan aturannya.
+
+Dengan aturan hari ini tidak ada URL yang bisa sekaligus berawalan `/api/` dan `/assets/`, sehingga penolakan itu memang belum menanggung beban. Ia ada untuk perubahan yang belum terjadi: begitu seseorang melonggarkan langkah terakhir (mis. *"cache semua GET asal sendiri"*), baris itulah satu-satunya yang menahan respons ber-sesi ikut tersimpan.
+
+Perilaku tidak bisa membedakannya hari ini; **keberadaannya bisa**. Ditambahkan penjaga sumber, lalu mutasi diulang → merah. Tanpa uji mutasi, test itu akan hidup sebagai jaminan palsu.
+
+Penjaga sumber juga sempat menangkap **komentar sendiri** (`skipWaiting()` dalam kalimat yang menjelaskan mengapa ia tidak dipakai) — komentar dibuang dulu sebelum dipindai, pola yang sama dengan `soft-delete-jangkauan.test.ts` (PR-021a). Pemindai yang menghukum dokumentasi mengajari orang berhenti mendokumentasikan.
+
+### Penjaga struktur menangkap penulisnya sendiri
+
+Berkas PWA semula ditaruh di `src/pwa/` — folder **kelima**, yang ditolak `struktur-folder.test.ts` (PR-025a). Dipindahkan ke `src/shared/pwa/`, dan itu memang tempatnya: logika ini bebas domain, sesuai aturan yang tertulis di `shared/README.md`. Tidak perlu mengubah SDD §4.1.
+
+### Utang yang dicatat
+
+* **Ikon masih sementara.** SVG netral (huruf awal di latar solid), sengaja bukan identitas visual. Ikon sesungguhnya perlu **desainer**, dan perlu varian **PNG 192/512** — iOS belum menerima SVG di manifest. Ini aset desain, bukan rekayasa.
+* **Tidak ada fallback luring.** Disengaja: MVP online-only (ADR-009). Menambahkannya sekarang berarti mengirim fitur yang belum diputuskan bentuknya. Fondasi ini membuat penambahannya di Fase 2 menjadi penambahan aturan, bukan penulisan ulang — persis yang dijanjikan ADR-009.
+* **Belum diuji di browser sungguhan.** Perilaku SW (pendaftaran, cakupan, siklus update) hanya terverifikasi lewat unit test dan pemindaian sumber.
+
+### Catatan ukuran
+
+576 baris, sedikit di atas target <500. Tidak dipecah dengan sengaja: memecah fondasi PWA menjadi dua PR akan meninggalkan service worker setengah terkonfigurasi ter-merge di antaranya — dan service worker setengah jadi lebih berbahaya daripada 76 baris tambahan.
+
+### Next steps
+
+* **PR-026** — store preferensi a11y; sambungkan mode bahasa ke `data-lang-mode`.
+* **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
+* **Ikon produk** — perlu desainer; PNG 192/512 untuk iOS.
+* **Verifikasi browser** untuk siklus update SW, layak digabung ke Manual Verification PR-032 (viewport mobile).

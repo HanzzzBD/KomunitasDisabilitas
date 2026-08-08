@@ -5,6 +5,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App.js";
+import { daftarkanServiceWorker } from "./shared/pwa/daftar.js";
 
 const wadah = document.getElementById("root");
 
@@ -19,3 +20,8 @@ createRoot(wadah).render(
     <App />
   </StrictMode>,
 );
+
+// Fondasi PWA (ADR-009). Dipanggil SETELAH render, tanpa `await`: pendaftaran
+// service worker tidak boleh menunda apa pun yang dilihat pengguna, dan
+// kegagalannya tidak boleh menjatuhkan aplikasi.
+void daftarkanServiceWorker({ produksi: import.meta.env.PROD });

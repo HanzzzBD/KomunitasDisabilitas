@@ -103,6 +103,7 @@ RB-Std.
 > **PR-025a** — bootstrap Vite + React 18, preset ESLint React (`base.cjs` murni Node, jadi `.tsx` sebelumnya tidak bisa di-lint sama sekali), harness Vitest jsdom, struktur folder, budget bundle di CI — *selesai* (AC 4–5).
 > **PR-025b** — React Router v7 lazy per route + provider stack (`networkMode: 'online'`, staleTime 60 s, retry 2 backoff) — *selesai* (AC 2).
 > **PR-025c** — error boundary aksesibel, banner luring `role="alert"`, penanda `aria-busy` — *selesai* (AC 1, 3). **Seluruh AC PR-025 kini terpenuhi.**
+> **PR-025d** — fondasi PWA (manifest + service worker aset statis) — *selesai*. **Tambahan di luar AC**, lahir dari celah antara ADR-009 dan backlog; lihat Risks.
 
 #### Dependencies
 
@@ -112,7 +113,7 @@ RB-Std.
 #### Risks
 
 * Budget JS terlampaui sejak awal. Mitigasi: CI size-check sejak PR ini. — **ditutup di PR-025a**, dipasang selagi bundelnya masih 44,8 KB. Penjaga yang lahir setelah bundelnya gemuk hanya mengesahkan keadaan yang sudah terlanjur.
-* **Fondasi PWA tidak dikerjakan, dan itu menyimpang dari SDD §4.4.** SDD menuntut manifest + service worker aset statis dipasang sejak MVP *"agar upgrade ke offline dasar di Fase 2 tidak merombak arsitektur"*, tetapi Scope PR-025 di dokumen ini tidak menyebutnya — dan file phase yang jadi acuan. Dicatat sebagai keputusan tertunda, bukan kelalaian: memasangnya jauh lebih murah sekarang daripada setelah puluhan halaman lahir.
+* ~~**Fondasi PWA tidak dikerjakan.**~~ **Ditutup di PR-025d (keputusan owner 2026-08-09).** Bukan sekadar prosa SDD: ADR-009 menuliskannya di bagian **Decision** dan mengulanginya sebagai salah satu dari **tiga Mitigasi** untuk konsekuensi negatif online-only; alternatif yang dipilih pun bernama *"Online-only **dengan fondasi PWA**"*. Pencarian `pwa|manifest|service worker` di **seluruh 19 dokumen phase** menghasilkan nol hasil — celah nyata antara ADR yang sudah Accepted dan rencana eksekusi, bukan sekadar scope yang tidak disebut. Membiarkannya sama dengan mencabut satu mitigasi tanpa merevisi ADR-nya.
 
 #### Log Implementasi
 
@@ -423,6 +424,7 @@ RB-Std.
 
 * 2026-08-08 — PR-029a selesai (mesin i18n dua varian, fallback berlapis, interpolasi aman, katalog shell, integrasi 16 string). AC 1, 3, 5 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-029a--mesin-i18n-dua-varian--katalog-shell).
 * 2026-08-08 — PR-029b selesai (penjaga salinan mentah dua arah, penjaga struktur per fitur, panduan menulis bahasa sederhana). AC 2 & 4 terpenuhi — **PR-029 tuntas**. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-029b--penjaga-katalog--panduan-bahasa-sederhana).
+* 2026-08-09 — PR-025d selesai (fondasi PWA: manifest, ikon sementara, service worker aset statis, pendaftaran khusus produksi). Menutup celah ADR-009 ↔ backlog. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-025d--fondasi-pwa-manifest--service-worker-aset-statis).
 
 
 ### PR-030 - Web Auth Pages

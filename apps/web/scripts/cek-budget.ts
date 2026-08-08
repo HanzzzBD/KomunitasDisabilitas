@@ -79,7 +79,12 @@ export function daftarJsDi(akarDist: string, prefix = ""): string[] {
  */
 export function chunkLazy(semuaJs: readonly string[], asetAwal: readonly string[]): string[] {
   const awal = new Set(asetAwal);
-  return semuaJs.filter((j) => !awal.has(j));
+  // `sw.js` (PR-025d) ada di `dist` tetapi BUKAN chunk aplikasi: ia dibangun
+  // terpisah, berjalan di konteks service worker, dan tidak pernah diunduh
+  // sebagai bagian dari halaman. Menghitungnya sebagai "chunk lazy" akan
+  // membuat penjaga code-splitting tetap hijau meski seluruh route ter-inline —
+  // satu berkas asing sudah cukup memenuhi syarat "> 0".
+  return semuaJs.filter((j) => !awal.has(j) && j !== "/sw.js");
 }
 
 export interface UkuranAset {
