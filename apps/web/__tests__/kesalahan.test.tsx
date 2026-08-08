@@ -9,6 +9,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { LayarKesalahan } from "../src/app/kesalahan.js";
+import { PenyediaI18n } from "../src/shared/i18n/index.js";
 
 function renderDenganError(lempar: () => never) {
   const router = createMemoryRouter(
@@ -22,7 +23,11 @@ function renderDenganError(lempar: () => never) {
     ],
     { initialEntries: ["/"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <PenyediaI18n>
+      <RouterProvider router={router} />
+    </PenyediaI18n>,
+  );
 }
 
 describe("LayarKesalahan", () => {

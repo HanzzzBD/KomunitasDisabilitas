@@ -5,8 +5,11 @@
 // terlupakan di salah satunya.
 import { Outlet, useNavigation } from "react-router";
 import { BannerLuring } from "./banner-luring.js";
+import { useTeks } from "../shared/i18n/index.js";
 
 export function TataLetak() {
+  const t = useTeks();
+
   // Route dimuat lazy, jadi berpindah halaman memakan waktu yang bisa terasa
   // di jaringan lambat. Tanpa penanda, layar tampak beku dan pengguna menekan
   // tautannya berulang kali.
@@ -31,7 +34,7 @@ export function TataLetak() {
         {sedangMemuat ? (
           // Teks, bukan animasi berputar: pengguna dengan `prefers-reduced-motion`
           // tetap terlayani, dan teksnya terbaca screen reader apa adanya.
-          <p>Memuat halaman…</p>
+          <p>{t("shell.memuat")}</p>
         ) : null}
         <Outlet />
       </div>

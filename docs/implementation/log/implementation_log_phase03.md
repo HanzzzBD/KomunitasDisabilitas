@@ -218,3 +218,54 @@ Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **55 test**. Test D
 * **PR-029** — i18n dua varian; seluruh string di PR ini masih hardcoded satu varian.
 * **PR-032** — halaman 404 sesungguhnya + landmark/skip-link final.
 * Angkat keputusan **fondasi PWA** (SDD §4.4) ke owner.
+
+---
+## PR-029a — Mesin i18n dua varian + katalog shell
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-029---i18n-catalog-id--id-simple)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai (bagian pertama dari PR-029; penjaga kelengkapan & panduan bahasa sederhana = PR-029b)
+
+### Ringkasan hasil
+
+Seluruh 16 string kerangka aplikasi berpindah dari hardcoded ke katalog dua varian (`id`, `id-simple`), dan mode bisa ditukar tanpa memuat ulang. Menutup AC **1** (toggle tanpa reload), **3** (fallback tampil kunci, bukan blank), **5** (interpolasi aman).
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **74 test** (dari 55), `apps/api` 683 lulus, total workspace **806**. Bundel awal 77,4 KB dari 200 KB.
+
+### Keputusan teknis
+
+* **Kelengkapan varian ditegakkan TIPE, bukan aturan lint.** AC menulis *"key tanpa varian simple → lint warning terdaftar"*; `EntriTeks = { [M in ModeBahasa]: string }` membuatnya **lebih keras**: varian yang hilang adalah `typecheck` MERAH, bukan peringatan yang bisa diabaikan. Aturan ESLint kustom (~200 LOC) untuk sesuatu yang bisa dijamin tipe hanya menambah kode yang harus dirawat. Diverifikasi mutasi: menghapus satu `id-simple` → `TS2741`.
+* **Kunci diturunkan dari katalog** (`KunciTeks = keyof typeof katalog`), sehingga salah ketik kunci = typecheck merah, bukan teks aneh yang baru ketahuan di layar pengguna.
+* **`useTeks` GAGAL KERAS di luar provider.** Fallback diam-diam ke bahasa bawaan akan membuat komponen yang lupa dibungkus tetap "bekerja" — sampai seseorang mengubah mode dan menemukan satu sudut layar yang tidak ikut berubah. Terbukti berguna seketika: penjaga ini menangkap dua berkas test yang belum dibungkus saat i18n dipasang.
+* **Placeholder tanpa nilai DIBIARKAN terlihat** (`{nama}`), bukan dikosongkan. Kalimat yang kehilangan satu kata diam-diam terbaca wajar tetapi salah; `{nama}` di layar langsung memberi tahu ada yang lupa dikirim.
+* **`Object.hasOwn`, bukan `params[nama] !== undefined`** — yang kedua ikut membaca rantai prototipe, sehingga `{constructor}` mencetak teks fungsi ke layar pengguna. Diuji.
+* **Interpolasi mengembalikan STRING BIASA dan tidak pernah menyentuh HTML.** Tidak ada varian "rich text" — begitu ada, seseorang akan memakainya untuk teks yang berasal dari pengguna. Nilai di dalam hasil juga tidak diproses ulang, menutup penggantian berantai.
+* **Sintaks interpolasi sengaja minimal** (`{nama}` saja). Pluralisasi dan format tanggal menggoda, tetapi setiap kemampuan tambahan harus ditulis DUA KALI oleh penerjemah, dan yang salah tulis menjadi teks rusak di layar.
+* **Satu berkas katalog per fitur.** Katalog terpusat adalah tempat setiap PR fitur bertabrakan saat merge, dan tempat kunci mati menumpuk tanpa ada yang berani menghapusnya.
+* **`PenyediaI18n` di DALAM `QueryClientProvider`**: pesan kesalahan dari lapisan data kelak perlu diterjemahkan. Kebalikannya tidak pernah dibutuhkan — teks tidak butuh cache query.
+
+### Batas yang diketahui
+
+**Mode belum tersambung ke preferensi pengguna.** Objective PR-029 menyebut *"switch `data-lang-mode`"*, tetapi atribut itu ditulis store aksesibilitas milik **PR-026**, yang belum lahir karena urutannya ditukar. Mode karena itu dibuat bisa dikendalikan dari luar (`modeAwal` + `useModeBahasa`), sehingga PR-026 tinggal menyambungkannya tanpa membongkar apa pun. Tidak ada kerja yang terbuang.
+
+### Konvensi yang menegaskan diri sendiri
+
+Aturan "hook kustom wajib berawalan `use`" (ditetapkan PR-025c) langsung menangkap helper internal PR ini: `gunakanKonteks` → `useKonteks`. Fungsi yang memanggil hook **adalah** hook menurut definisi React, termasuk yang tidak diekspor.
+
+Juga tercatat: `// eslint-disable-next-line` hanya berlaku untuk SATU baris berikutnya. Komentar dua baris membuat targetnya lolos dari cakupan — perlu `/* ... */`.
+
+### Verifikasi
+
+* **Uji mutasi tipe:** `id-simple` dihapus dari satu kunci → `TS2741: Property '"id-simple"' is missing`. Typecheck merah, bukan peringatan.
+* Test toggle memeriksa **dua string berbeda** ikut berubah — kalau hanya satu, konteksnya tidak benar-benar merender ulang pohonnya.
+* Test keamanan: `<img src=x onerror="alert(1)">` sebagai nilai parameter tetap menjadi karakter biasa; `{constructor}` dan `{toString}` tidak tersentuh.
+
+### Catatan alat
+
+`turbo run test` bisa **memutar ulang hasil cache** dari run saat Docker mati, sehingga melaporkan 122 test DB "skipped" padahal kontainer sedang hidup. Ketersediaan DB bukan bagian dari kunci cache Turbo. Di CI tidak berdampak (selalu fresh), tetapi lokal: jalankan `pnpm --filter @nawasena/api test` langsung bila angka skip terlihat janggal.
+
+### Next steps
+
+* **PR-029b** — penjaga kelengkapan katalog per fitur + **panduan menulis `id-simple`** (mitigasi yang diminta Risks: *"Varian simple ditulis asal"*).
+* **PR-026** — sambungkan mode ke store preferensi + `data-lang-mode`.
+* **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.

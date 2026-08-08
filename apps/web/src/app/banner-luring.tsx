@@ -7,10 +7,12 @@
 // penantian yang tidak dijelaskan tidak bisa dibedakan dari aplikasi yang macet.
 import { useQueryClient } from "@tanstack/react-query";
 import { useStatusJaringan } from "../shared/status-jaringan.js";
+import { useTeks } from "../shared/i18n/index.js";
 
 export function BannerLuring() {
   const { daring, periksaUlang } = useStatusJaringan();
   const queryClient = useQueryClient();
+  const t = useTeks();
 
   // Dirender bersyarat, BUKAN disembunyikan dengan CSS. `role="alert"`
   // diumumkan saat elemennya MASUK ke DOM; elemen yang selalu ada lalu
@@ -33,13 +35,10 @@ export function BannerLuring() {
     // dilakukan pengguna SEKARANG, jadi menundanya sampai jeda bicara
     // berikutnya berarti mereka terus mencoba hal yang tidak akan berhasil.
     <div role="alert">
-      {/* Bahasa sederhana: menyebut keadaan, akibatnya, lalu apa yang terjadi
-          selanjutnya. Tanpa istilah teknis ("jaringan", "koneksi terputus")
-          dan tanpa menyalahkan pengguna. */}
-      <p>Anda sedang tidak terhubung ke internet.</p>
-      <p>Perubahan yang Anda buat akan dikirim setelah terhubung kembali.</p>
+      <p>{t("shell.luring.judul")}</p>
+      <p>{t("shell.luring.penjelasan")}</p>
       <button type="button" onClick={cobaLagi}>
-        Coba lagi
+        {t("shell.luring.cobaLagi")}
       </button>
     </div>
   );

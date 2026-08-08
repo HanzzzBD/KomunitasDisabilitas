@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BannerLuring } from "../src/app/banner-luring.js";
 import { createQueryClient } from "../src/app/query-client.js";
+import { PenyediaI18n } from "../src/shared/i18n/index.js";
 
 /**
  * jsdom melaporkan `onLine: true`; nilainya harus disetel manual.
@@ -24,8 +25,13 @@ function renderBanner(queryClient = createQueryClient()) {
   return {
     queryClient,
     ...render(
+      // Dibungkus PenyediaI18n karena `useTeks` sengaja gagal keras di luar
+      // provider — fallback diam-diam akan membuat komponen yang lupa dibungkus
+      // tetap "bekerja" sampai seseorang mengubah mode bahasa.
       <QueryClientProvider client={queryClient}>
-        <BannerLuring />
+        <PenyediaI18n>
+          <BannerLuring />
+        </PenyediaI18n>
       </QueryClientProvider>,
     ),
   };
