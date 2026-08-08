@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  `lang="id"` bukan detail kosmetik: screen reader memilih pengucapan dari
+  atribut ini. Salah bahasa berarti teks Indonesia dibacakan dengan fonem
+  Inggris — tidak bisa dipahami, meski secara teknis "terbaca".
+-->
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      `maximum-scale` dan `user-scalable=no` SENGAJA TIDAK dipakai: keduanya
+      memblokir zoom, dan WCAG 2.2 (1.4.4 Resize Text) menuntut teks bisa
+      diperbesar sampai 200%. Ini kesalahan paling lazim di template Vite/HTML
+      mana pun, jadi ditulis di sini supaya tidak "dirapikan" kelak.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Nawasena — ekosistem karier inklusif untuk penyandang disabilitas." />
+    <title>Nawasena</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

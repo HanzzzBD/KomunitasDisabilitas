@@ -2,17 +2,36 @@
   "name": "@nawasena/web",
   "version": "0.0.0",
   "private": true,
-  "description": "React 18 + Vite web app. Placeholder — bootstrap menyusul di phase Web Platform.",
+  "description": "React 18 + Vite web app (SDD §4.1).",
   "type": "module",
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src __tests__ scripts --ext .ts,.tsx,.mjs --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "cek:budget": "tsx scripts/cek-budget.ts"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@vitejs/plugin-react": "4.3.4",
     "eslint": "8.57.1",
+    "eslint-plugin-react": "7.37.2",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "jsdom": "25.0.1",
+    "tsx": "4.19.2",
     "typescript": "5.7.2",
+    "vite": "5.4.21",
     "vitest": "2.1.8"
   }
 }

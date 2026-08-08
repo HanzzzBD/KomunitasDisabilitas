@@ -73,11 +73,11 @@ Bisnis: fondasi pengalaman online-only yang jujur (ADR-009). Teknis: React Route
 
 **Testing Checklist:**
 
-* [ ] Unit Test (error boundary, offline store)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (shell render + offline sim)
-* [ ] Accessibility Test (axe shell)
-* [ ] Manual Verification (matikan network di devtools)
+* [ ] Unit Test (error boundary, offline store) — PR-025c. **19 test sudah ada dari PR-025a**: harness render, penjaga budget (11), penjaga struktur folder (7).
+* [x] Integration Test (N/A)
+* [ ] E2E Test (shell render + offline sim) — harness E2E baru lahir di PR-031b
+* [ ] Accessibility Test (axe shell) — gerbangnya baru menyala di PR-031a
+* [ ] Manual Verification (matikan network di devtools) — butuh banner offline (PR-025c)
 
 **Deliverables:**
 
@@ -93,11 +93,16 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Offline → banner alert; mutasi tertahan, tidak gagal senyap.
-* [ ] Route ter-code-split (bukti bundle analyzer).
-* [ ] Error boundary menampilkan pesan sederhana + tombol muat ulang.
-* [ ] Budget JS awal < 200 KB gzip (CI check).
-* [ ] Struktur folder sesuai SDD §4.1.
+* [ ] Offline → banner alert; mutasi tertahan, tidak gagal senyap. — PR-025c
+* [ ] Route ter-code-split (bukti bundle analyzer). — PR-025b
+* [ ] Error boundary menampilkan pesan sederhana + tombol muat ulang. — PR-025c
+* [x] Budget JS awal < 200 KB gzip (CI check). — **PR-025a.** `scripts/cek-budget.ts` dipanggil `pr.yml` setelah `vite build`; build nyata melaporkan **44,8 KB / 200 KB**. Menghitung dari `dist/index.html` (script modul + `modulepreload`), BUKAN menyapu `dist/assets/*.js` — sapuan folder ikut menghitung chunk lazy dan akan membuat budget merah justru karena code-splitting berhasil. Diverifikasi mutasi: ambang diturunkan ke 10 KB → keluar dengan status 1.
+* [x] Struktur folder sesuai SDD §4.1. — **PR-025a.** `app/ routes/ features/ shared/`, masing-masing ber-README yang menuliskan apa yang boleh dan tidak boleh masuk. Dijaga `struktur-folder.test.ts`: folder yang hilang **dan** folder kelima yang lahir diam-diam (`utils/`, `components/`, `lib/`) sama-sama membuat build merah.
+
+> **Dipecah jadi tiga PR (persetujuan owner 2026-08-08):** scope utuh terukur ≈ 965 LOC, hampir dua kali batas <500 — pola yang sama dengan PR-016/017/018 di Phase 02. Batas pemecahan ditaruh pada **makna**, bukan jumlah baris, sehingga tiap potongan menutup AC yang utuh.
+> **PR-025a** — bootstrap Vite + React 18, preset ESLint React (`base.cjs` murni Node, jadi `.tsx` sebelumnya tidak bisa di-lint sama sekali), harness Vitest jsdom, struktur folder, budget bundle di CI — *selesai* (AC 4–5).
+> **PR-025b** — React Router v7 lazy per route + provider stack (`networkMode: 'online'`, staleTime 60 s, retry 2 backoff) — *belum* (AC 2).
+> **PR-025c** — error boundary aksesibel, banner offline `role="alert"`, skeleton `aria-busy` — *belum* (AC 1, 3).
 
 #### Dependencies
 
@@ -106,7 +111,12 @@ RB-Std.
 
 #### Risks
 
-* Budget JS terlampaui sejak awal. Mitigasi: CI size-check sejak PR ini.
+* Budget JS terlampaui sejak awal. Mitigasi: CI size-check sejak PR ini. — **ditutup di PR-025a**, dipasang selagi bundelnya masih 44,8 KB. Penjaga yang lahir setelah bundelnya gemuk hanya mengesahkan keadaan yang sudah terlanjur.
+* **Fondasi PWA tidak dikerjakan, dan itu menyimpang dari SDD §4.4.** SDD menuntut manifest + service worker aset statis dipasang sejak MVP *"agar upgrade ke offline dasar di Fase 2 tidak merombak arsitektur"*, tetapi Scope PR-025 di dokumen ini tidak menyebutnya — dan file phase yang jadi acuan. Dicatat sebagai keputusan tertunda, bukan kelalaian: memasangnya jauh lebih murah sekarang daripada setelah puluhan halaman lahir.
+
+#### Log Implementasi
+
+* 2026-08-08 — PR-025a selesai (bootstrap Vite + React, preset ESLint React, harness Vitest jsdom, struktur folder SDD §4.1 berpenjaga, budget bundle di CI). AC 4–5 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-025a--bootstrap-appsweb-vite--react-preset-eslint-react-harness-test-budget-bundle).
 
 
 ### PR-026 - packages/a11y — Store Preferensi + CSS Custom Properties

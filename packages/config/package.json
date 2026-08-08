@@ -13,6 +13,7 @@
     "./prettier": "./prettier/index.js",
     "./eslint": "./eslint/base.cjs",
     "./eslint/boundaries": "./eslint/boundaries.cjs",
+    "./eslint/react": "./eslint/react.cjs",
     "./tsconfig/base": "./tsconfig/base.json",
     "./tsconfig/node": "./tsconfig/node.json",
     "./tsconfig/react": "./tsconfig/react.json"
@@ -24,12 +25,14 @@
     "test:cov": "vitest run --coverage"
   },
   "devDependencies": {
+    "@types/eslint": "8.56.12",
     "@types/node": "22.10.2",
     "@typescript-eslint/eslint-plugin": "8.18.1",
     "@typescript-eslint/parser": "8.18.1",
-    "@types/eslint": "8.56.12",
     "eslint": "8.57.1",
     "eslint-plugin-boundaries": "5.0.1",
+    "eslint-plugin-react": "7.37.2",
+    "eslint-plugin-react-hooks": "5.1.0",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   },
