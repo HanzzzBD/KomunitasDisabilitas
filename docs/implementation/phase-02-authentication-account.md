@@ -77,7 +77,8 @@ Bisnis: login tanpa password — hambatan terbesar bagi banyak pengguna disabili
 * [x] Integration Test (alur penuh + lockout, sender mock) — 11 test HTTP `auth-otp-http.test.ts` (server Express nyata, termasuk alur penuh saat Fonnte mati dan Twilio mengambil alih), 4 test Redis nyata `auth-otp-redis.test.ts`, 4 test PostgreSQL nyata `auth-user-db.test.ts`, 18 test adapter/rantai `auth-otp-sender.test.ts` (PR-016b).
 * [ ] E2E Test (di PR-030)
 * [x] Accessibility Test (N/A — tidak ada perubahan frontend)
-* [ ] Manual Verification (kirim OTP nyata ke nomor uji di staging) — **butuh kredensial Fonnte/Twilio nyata + staging; belum bisa dilakukan agent.** Prosedur: isi `FONNTE_TOKEN` (dan trio `TWILIO_*`) di env staging, `POST /api/v1/auth/otp/request` ke nomor uji, cek pesan WhatsApp masuk, lalu matikan token Fonnte sementara untuk membuktikan SMS Twilio menggantikan.
+* [x] Manual Verification — **kirim OTP nyata lewat Fonnte** (2026-08-08). Dijalankan terhadap `FONNTE_TOKEN` sungguhan, bukan staging melainkan localhost: adapter hanya memanggil HTTP **keluar**, jadi URL publik tidak pernah menjadi syarat. `POST /api/v1/auth/otp/request` → `202`, pesan WhatsApp diterima di nomor uji, `POST /api/v1/auth/otp/verify` → `200` dengan `isNewUser: true` dan pasangan token. Diperiksa langsung di Redis nyata: kunci `otp:code:f6258b7c…` memakai **sidik HMAC** (daftar key bukan daftar nomor), TTL 268 dtk dari 300, dan isinya **hash** (`fe59823212ddf103…`), bukan 6 angka — dua AC teratas terbukti di luar test. Kuota kirim menjawab `retryAfterSeconds: 1073` setelah kiriman ketiga. **Menemukan bug produksi yang lolos dari 671 test** — lihat Log Implementasi.
+* [ ] Manual Verification — **fallback Twilio** (matikan token Fonnte, buktikan SMS menggantikan). **Terhalang: akun Twilio belum tersedia.** Rantai fallback-nya sendiri sudah teruji di CI terhadap provider tiruan (termasuk kekhasan Fonnte HTTP 200 ber-`{"status": false}`), jadi yang belum terbukti adalah perilaku *Twilio*, bukan logika kita. Prosedur: isi trio `TWILIO_*`, aktifkan Geo Permissions Indonesia, kosongkan `FONNTE_TOKEN`, lalu ulangi alur di atas.
 
 **Deliverables:**
 
@@ -119,7 +120,8 @@ RB-Std.
 * 2026-08-03 — PR-016a selesai (store OTP Redis, limiter & lockout, endpoint request/verify, find-or-create). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-016a--otp-core-store-redis-limiter-lockout-endpoint-requestverify).
 * 2026-08-03 — PR-016b selesai (adapter Fonnte + Twilio, rantai fallback otomatis, env provider). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-016b--adapter-fonnte--twilio-di-balik-otpsender--fallback-otomatis).
 * 2026-08-03 — Perbaikan dua kegagalan test yang lolos dari CI: gerbang fail-fast boot dilangkahi dotenv milik Prisma (regresi keamanan) + `db-seed` terkontaminasi test paralel. Lihat [Tambahan PR-016](log/implementation_log_phase02.md#tambahan-pr-016--dua-kegagalan-test-yang-lolos-dari-ci).
-* 2026-08-03 — Pemuatan `.env` dev dibuat eksplisit lewat `--env-file-if-exists` pada script `dev` (keputusan owner); fail-fast `FIELD_KEY_V*` tetap berjalan, `start`/produksi tidak memuat `.env`. Lihat [Tambahan PR-016 — Pemuatan .env dev](log/implementation_log_phase02.md#tambahan-pr-016--pemuatan-env-dev-yang-eksplisit-env-file).
+* 2026-08-03 — Pemuatan `.env` dev dibuat eksplisit lewat `--env-file-if-exists` pada script `dev` (keputusan owner); fail-fast `FIELD_KEY_V*` tetap berjalan, `start`/produksi tidak memuat `.env`. Lihat [Tambahan PR-016 — Pemuatan .env dev](log/implementation_log_phase02.md#tambahan-pr-016--pemuatan-env-dev-yang-eksplisit---env-file).
+* 2026-08-08 — Manual Verification Fonnte dijalankan; alur OTP nyata berhasil ujung ke ujung. Prosesnya **menemukan bug produksi**: klien Redis tidak pernah tersambung sehingga `POST /auth/otp/request` menjawab 500 di lingkungan nyata sementara CI hijau. Diperbaiki di PR terpisah. Lihat [Perbaikan — klien Redis tidak pernah tersambung](log/implementation_log_phase02.md#perbaikan--klien-redis-tidak-pernah-tersambung-temuan-1--3) dan [Hasil verifikasi manual](log/implementation_log_phase02.md#hasil-verifikasi-manual-pr-016--pr-017-terhadap-provider-nyata).
 
 
 ### PR-017 - Auth Google OAuth (PKCE)
@@ -163,7 +165,7 @@ Bisnis: login satu ketuk (PRD FR-1.1). Teknis: authorization code + PKCE (mobile
 * [x] Integration Test (mock JWKS) — JWKS dilayani server HTTP lokal berisi kunci RSA nyata; token ditandatangani RS256 sungguhan, jadi yang diuji adalah jalur verifikasi sebenarnya (bukan stub library). 18 test HTTP `auth-google-http.test.ts` (PR-017b): server Express nyata + token endpoint Google tiruan + JWKS tiruan, mencakup seluruh AC. 7 test PostgreSQL nyata `auth-google-db.test.ts` untuk find-or-create/link.
 * [ ] E2E Test (di PR-030)
 * [x] Accessibility Test (N/A — tidak ada perubahan frontend)
-* [ ] Manual Verification (akun Google uji di staging) — **butuh OAuth client nyata + staging; belum bisa dilakukan agent.** Prosedur: buat OAuth 2.0 Client ID di Google Cloud Console, isi `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` di env staging, jalankan alur consent dengan PKCE, lalu `POST /api/v1/auth/google` dengan `code` + `codeVerifier` hasilnya.
+* [x] Manual Verification (akun Google uji) — **selesai 2026-08-08**, terhadap OAuth client sungguhan di localhost (`redirect_uri` datang dari body permintaan, bukan env, jadi staging tidak pernah menjadi syarat). Alur consent PKCE dijalankan di browser, `code` ditukar lewat `POST /api/v1/auth/google` → `200`, `isNewUser: true`, cookie refresh ber-flag lengkap. Yang baru terbukti di sini dan tidak bisa dibuktikan Google tiruan: penukaran ke **token endpoint Google asli** dan verifikasi `id_token` lewat **JWKS Google asli**. Diverifikasi di PostgreSQL nyata bahwa baris yang lahir memegang `google_id` + `email` ber-`email_verified = true`, dan **tidak ada satu pun kolom** yang bisa menyimpan `access_token`/`refresh_token` Google.
 
 **Deliverables:**
 
@@ -205,6 +207,7 @@ RB-Std.
 
 * 2026-08-04 — PR-017a selesai (verifikasi id_token JWKS, validator klaim, find-or-create/link `google_id`, kontrak audit & env). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-017a--verifikasi-id_token-google-jwks--linking-akun).
 * 2026-08-04 — PR-017b selesai (penukaran code + PKCE, endpoint `POST /api/v1/auth/google`, audit sukses/gagal, OpenAPI). Seluruh AC PR-017 terpenuhi kecuali Manual Verification staging. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-017b--endpoint-post-apiv1authgoogle-exchange--pkce).
+* 2026-08-08 — Manual Verification dijalankan terhadap OAuth client Google sungguhan; berhasil. **Seluruh checklist PR-017 kini tertutup penuh** — kalimat "kecuali Manual Verification staging" di baris atas tidak lagi berlaku. Lihat [Hasil verifikasi manual](log/implementation_log_phase02.md#hasil-verifikasi-manual-pr-016--pr-017-terhadap-provider-nyata).
 
 
 ### PR-018 - JWT RS256 + Rotating Refresh + Reuse Detection
@@ -256,7 +259,7 @@ Bisnis: sesi aman tanpa mengorbankan kenyamanan (login jarang diulang). Teknis: 
 * [x] Integration Test (reuse family revoke) — PR-018a (PostgreSQL nyata)
 * [ ] E2E Test (login→refresh di PR-030)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi cookie di browser) — PR-018b siap diuji; butuh browser + staging
+* [ ] Manual Verification (inspeksi cookie di browser) — **sebagian terbukti 2026-08-08, sengaja belum dicentang.** Dari respons nyata KEDUA jalur masuk (OTP dan Google): `Max-Age=2591999` (tepat 30 hari), `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, dan `refreshToken` **tidak ada di body** untuk klien web. Access token nyata di-decode: `alg: RS256`, `exp − iat = 900` (tepat 15 menit), klaim `sub`/`role`/`ver`/`iss`/`aud` sesuai. Yang BELUM: flag `Secure` tidak pernah terlihat karena `boot.ts` melepasnya saat `NODE_ENV=development`, dan bukti di atas berasal dari header curl, bukan dari browser. Prosedur sisanya: jalankan ulang dengan `NODE_ENV=production` (browser memperlakukan `localhost` sebagai origin terpercaya, jadi HTTPS tidak diperlukan) lalu periksa cookie di DevTools.
 
 **Deliverables:**
 
@@ -471,7 +474,7 @@ RB-Std.
 
 #### Log Implementasi
 
-* 2026-08-06 — PR-020 selesai (modul `users`, `GET/PUT /api/v1/me`, kontrak zod bersama, audit perubahan email, migrasi 06 unique parsial email). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020--users--getput-me).
+* 2026-08-06 — PR-020 selesai (modul `users`, `GET/PUT /api/v1/me`, kontrak zod bersama, audit perubahan email, migrasi 06 unique parsial email). Seluruh AC terpenuhi. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020--users-getput-me).
 * 2026-08-06 — PR-020a selesai (migrasi 07 `email_verified`, penyaring penautan Google, perbaikan 500 → 409, koreksi klaim keamanan PR-020). Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-020a--email_verified-koreksi-lubang-penautan-akun).
 
 
