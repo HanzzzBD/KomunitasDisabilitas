@@ -1413,3 +1413,88 @@ file migrasi.
 * **Phase 06 / Phase 11** — pindahkan kebijakan `ai_usage` dan `match_scores` ke modul pemiliknya.
 * **PR-103** — ubah `remaining` menjadi metrik supaya backlog yang tumbuh terlihat tanpa membaca log.
 * **PR-104** — backup harian; prasyarat rollback strategy PR ini dan PR-023.
+
+## PR-024b — Job expiry & bus event domain
+
+> **Phase:** [02 - Authentication & Account](../phase-02-authentication-account.md#pr-024---retention-jobs-match_scoresai_usagetranskripjob-expiryrefresh_tokens)
+> **Tanggal:** 2026-08-08
+> **Status:** Selesai — AC terakhir PR-024 terpenuhi
+> **Branch:** `pr-024b-job-expiry` → `phase-02-authentication-account`
+
+### Ringkasan hasil
+
+Lowongan yang melewati `expires_at` ditutup otomatis oleh cron retensi yang
+sudah ada, dan menerbitkan event domain `job.closed`.
+
+Dua hal baru lahir bersamanya: **`core/events`** (bus event in-process — pola
+yang disebut CLAUDE.md §3.2 sejak awal tetapi belum pernah diimplementasikan)
+dan **modul `jobs`** dengan lapisan service saja.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **671 lulus** (naik dari 647; 23 test baru), 1 skip.
+`check:openapi` sinkron.
+
+### Bus event dengan nol pelanggan — dan kenapa itu tetap benar
+
+`job.closed` hari ini tidak didengar siapa pun. Tidak ada modul notifikasi,
+tidak ada cache feed, tidak ada analitik.
+
+Nilainya bukan pesan yang dikirim, melainkan **momennya**. Penerbit pertama baru
+saja lahir; tanpa bus, tiap pelanggan yang menyusul akan masuk sebagai panggilan
+langsung di dalam service expiry. Setelah tiga pelanggan, service itu tahu
+tentang notifikasi, cache, dan analitik sekaligus — persis kopling yang dilarang
+ADR-001, dan dibongkar belakangan dengan biaya jauh lebih besar.
+
+Tiga batas ditulis di kepala `core/events/index.ts` supaya tidak ditemukan nanti:
+
+1. **Satu proses.** Penerbitnya worker; pelanggan di proses API tidak akan
+   mendengar apa pun. Event lintas proses adalah pekerjaan antrean, bukan bus ini.
+2. **Tanpa persistensi, retry, atau urutan.** Event yang terbit saat proses mati
+   memang hilang. Ia pemberitahuan, bukan janji.
+3. **Pelanggan tidak pernah menjatuhkan penerbit.** Saat `job.closed` terbit,
+   lowongannya SUDAH tertutup di database.
+
+### Scope yang selesai
+
+* **`core/events/index.ts`** (baru) — `DomainEvents`, `createEventBus`, langganan yang bisa dibatalkan, isolasi kegagalan pelanggan (sinkron maupun async).
+* **`modules/jobs`** (baru, service saja) — `createJobExpiryService`: pilih, tutup berbatch, terbitkan event, laporkan, audit.
+* **`packages/schemas/src/jobs.ts`** — kerangka kosongnya akhirnya terisi: `jobCloseReasonSchema`, `jobClosedEventSchema`.
+* **`packages/schemas/src/audit.ts`** — aksi `JOB_AUTO_CLOSED` + meta; katalog audit diperbarui.
+* **`apps/worker`** — bus dirakit di composition root; processor retensi memanggil expiry setelah kebijakan.
+* **Test** — 23 baru: `events.test.ts` (12), `jobs-expiry-db.test.ts` (11).
+
+### Keputusan teknis
+
+1. **`UPDATE … RETURNING id`, bukan `updateMany` lalu emit dari daftar id yang dipilih.** `updateMany` hanya mengembalikan jumlah, jadi menerbitkan event dari id yang dipilih SEBELUM update berarti mengumumkan penutupan yang mungkin dilakukan orang lain — atau tidak dilakukan sama sekali. `RETURNING` membuat event-nya jujur secara struktural, bukan karena kebetulan tidak ada penulis lain hari ini.
+
+2. **`updated_at` disetel manual.** `@updatedAt` Prisma tidak berlaku pada raw SQL. Diuji tersendiri — tanpa test itu, kolomnya akan diam-diam basi pada setiap baris yang ditutup job ini.
+
+3. **Hanya `published` yang tersentuh.** `draft` yang kedaluwarsa dibiarkan: ia belum pernah terbit, jadi menutupnya berarti mengarang transisi status yang tidak pernah terjadi — dan riwayat status adalah hal yang dibaca orang saat menyelidiki. Diverifikasi mutasi: menghapus penyaringnya membuat tiga test merah.
+
+4. **Aksi audit baru `JOB_AUTO_CLOSED`, bukan `ADMIN_RESOURCE_CHANGED`.** Yang kedua sudah punya `operation: "close"` dan tergoda dipakai ulang — tetapi namanya berkata ADMIN sementara pelakunya sistem. Audit yang menamai pelaku dengan salah lebih buruk daripada audit yang bertambah satu baris.
+
+5. **Audit per RUN, bukan per lowongan** (berbeda dari `DATA_PURGED`). Yang ditutup adalah data platform, bukan data seseorang — tidak ada subjek yang perlu bisa membuktikan apa yang terjadi pada barisnya sendiri.
+
+6. **Menumpang cron retensi yang sudah ada.** Keduanya kebersihan harian; jadwal kedua hanya menambah satu hal lagi yang bisa menyimpang tanpa alasan. Laporannya tetap terpisah — "berapa baris dihapus" dan "berapa lowongan ditutup" dua pertanyaan berbeda.
+
+7. **Payload event TIDAK memuat isi lowongan.** Event yang membawa salinan data akan basi begitu barisnya berubah, dan pelanggan yang mempercayai salinan itu bekerja dengan keadaan yang sudah tidak ada. Yang dikirim hanya `jobId`, `closedAt`, `reason`.
+
+8. **`reason` sebagai enum meski hari ini hanya satu nilai.** Saat penutupan manual lahir (Phase 08), pelanggan perlu bisa membedakan keduanya — dan menambah field wajib belakangan akan membuat setiap pelanggan lama ikut berubah.
+
+9. **`jobClosedEventSchema` sengaja tanpa `.openapi({ ref })`.** Ia event domain, bukan kontrak HTTP; menandainya sebagai komponen OpenAPI akan menempatkannya di dokumen yang dibaca klien sebagai janji API, padahal tidak ada endpoint yang mengembalikannya.
+
+10. **Langganan didaftarkan di composition root**, bukan di dalam service. Hari ini belum ada satu pun; begitu modul notifikasi lahir, ia mendaftar di sana dan penerbitnya tidak berubah sedikit pun.
+
+### Risiko yang ditemukan
+
+* **Bus tidak menjangkau proses API.** Bila kelak ada pelanggan yang harus hidup di API (mis. invalidasi cache in-memory), ia tidak akan menerima apa pun dari penerbit di worker. Yang benar untuk kasus itu adalah antrean, dan pilihan itu harus diambil sadar — bukan ditemukan lewat bug.
+* **Event hilang saat proses mati.** Tidak ada persistensi. Apa pun yang tidak boleh hilang (mis. memberi tahu pelamar bahwa lowongannya ditutup) TIDAK boleh mengandalkan bus ini; ia butuh antrean.
+* **Modul `jobs` setengah jadi.** Hanya service, tanpa repository — expiry menulis SQL langsung dari service. Saat Phase 08 melahirkan repository-nya, query ini harus pindah ke sana; kalau tidak, modul `jobs` punya dua jalur akses data dengan aturan berbeda.
+* **Belum ada pengujian bahwa langganan benar-benar terpasang di produksi.** `jumlahPelanggan` ada untuk itu, tetapi worker belum menuliskannya ke log boot. Pantas ditambahkan saat pelanggan pertama lahir.
+
+### Next steps
+
+* **Phase 07 (notifikasi)** — pelanggan pertama `job.closed`. Perhatikan risiko "event hilang saat proses mati": memberi tahu pelamar kemungkinan besar harus lewat antrean, bukan bus.
+* **Phase 08 (jobs)** — lengkapi modul: repository, router, controller. Pindahkan SQL expiry ke repository.
+* **Phase 10** — tabel transkrip cv-chat; daftarkan kebijakan retensi 30 hari.
+* **PR-103** — `remaining` (retensi dan lowongan) jadi metrik, bukan hanya baris log.

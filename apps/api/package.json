@@ -12,7 +12,9 @@
     "./core/db": "./src/core/db/index.ts",
     "./core/audit": "./src/core/audit/index.ts",
     "./modules/users": "./src/modules/users/index.ts",
-    "./modules/auth": "./src/modules/auth/index.ts"
+    "./modules/auth": "./src/modules/auth/index.ts",
+    "./core/events": "./src/core/events/index.ts",
+    "./modules/jobs": "./src/modules/jobs/index.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",

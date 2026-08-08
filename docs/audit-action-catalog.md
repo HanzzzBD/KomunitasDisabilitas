@@ -15,6 +15,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `ACCOUNT_DELETED` | Konfirmasi hapus akun ditolak/diterima, dan selesainya penghapusan | `stage`, `method`, `revokedCount` |
 | `DATA_PURGED` | Purge/anonimisasi terjadwal akun terhapus > 30 hari | `dryRun`, `accounts`, `deleted`, `anonymized`, `records` |
 | `DATA_RETAINED` | Penghapusan terjadwal menurut kebijakan retensi (SDD §6.4) | `dryRun`, `policy`, `deleted`, `remaining`, `monthsAggregated` |
+| `JOB_AUTO_CLOSED` | Lowongan ditutup otomatis karena melewati `expires_at` | `dryRun`, `closed`, `remaining` |
 
 Jangan masukkan nama, telepon, email, nilai disabilitas, kebutuhan akomodasi, token, atau nilai field sensitif lain ke `meta`. Katalog dipetakan pada PR modul terkait; baca massal dicatat per-job, bukan per-record.
 

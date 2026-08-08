@@ -46,6 +46,7 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
     deleted: 12,
     remaining: 0,
   },
+  [AUDIT_ACTION.JOB_AUTO_CLOSED]: { dryRun: false, closed: 3, remaining: 0 },
 };
 
 function createOptions(append: (entry: AuditEntry) => Promise<void>): {

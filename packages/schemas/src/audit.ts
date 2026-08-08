@@ -35,6 +35,12 @@ export const AUDIT_ACTION = {
    *  dibuktikan berjalan, terutama untuk `refresh_tokens` yang ambangnya
    *  adalah jendela deteksi reuse, bukan setelan storage. */
   DATA_RETAINED: "DATA_RETAINED",
+  /** PR-024b: lowongan ditutup otomatis karena melewati `expires_at`.
+   *  SENGAJA tidak memakai ADMIN_RESOURCE_CHANGED yang sudah punya
+   *  `operation: "close"` — namanya berkata ADMIN, sementara pelakunya sistem.
+   *  Audit yang menamai pelaku dengan salah lebih buruk daripada audit yang
+   *  bertambah satu baris. */
+  JOB_AUTO_CLOSED: "JOB_AUTO_CLOSED",
 } as const;
 
 export const auditActionSchema = z.enum([
@@ -51,6 +57,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.ACCOUNT_DELETED,
   AUDIT_ACTION.DATA_PURGED,
   AUDIT_ACTION.DATA_RETAINED,
+  AUDIT_ACTION.JOB_AUTO_CLOSED,
 ]);
 
 export type AuditAction = z.infer<typeof auditActionSchema>;
@@ -177,6 +184,15 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     remaining: z.number().int().min(0),
     /** Hanya pada ringkasan: bulan ai_usage yang difinalkan ke agregat. */
     monthsAggregated: z.number().int().min(0).optional(),
+  }),
+  // Ringkasan per run, bukan per lowongan: yang ditutup adalah data PLATFORM
+  // (lowongan), bukan data seseorang, jadi tidak ada subjek yang perlu bisa
+  // membuktikan apa yang terjadi pada barisnya sendiri. `remaining` ikut
+  // dicatat dengan alasan yang sama seperti DATA_RETAINED.
+  [AUDIT_ACTION.JOB_AUTO_CLOSED]: z.object({
+    dryRun: z.boolean(),
+    closed: z.number().int().min(0),
+    remaining: z.number().int().min(0),
   }),
   [AUDIT_ACTION.ACCOUNT_DELETED]: z.object({
     stage: z.enum(["requested", "rejected", "completed"]),

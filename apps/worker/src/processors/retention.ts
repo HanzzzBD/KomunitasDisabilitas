@@ -10,12 +10,15 @@ import type { AuditLog } from "@nawasena/api/core/audit";
 import type { AppPrisma } from "@nawasena/api/core/db";
 import type { Env } from "@nawasena/api/core/config";
 import type { Logger } from "@nawasena/api/core/logger";
+import type { EventBus } from "@nawasena/api/core/events";
 import { createRefreshTokenPolicies, createRefreshTokenRepository } from "@nawasena/api/modules/auth";
 import { createOrphanPolicies, createRetentionService } from "@nawasena/api/modules/users";
+import { createJobExpiryService } from "@nawasena/api/modules/jobs";
 
 export interface RetentionProcessorDeps {
   prisma: AppPrisma;
   auditLog: AuditLog;
+  events: EventBus;
   logger: Pick<Logger, "info" | "warn">;
   env: Pick<
     Env,
@@ -53,9 +56,24 @@ export function createRetentionProcessor(deps: RetentionProcessorDeps): JobProce
     auditLog: deps.auditLog,
   });
 
+  // Penutupan lowongan kedaluwarsa (PR-024b) menumpang cron yang SAMA: keduanya
+  // kebersihan harian, dan jadwal kedua hanya menambah satu hal lagi yang bisa
+  // menyimpang tanpa alasan. Laporannya tetap terpisah — "berapa baris dihapus"
+  // dan "berapa lowongan ditutup" adalah dua pertanyaan berbeda.
+  const expiry = createJobExpiryService({
+    prisma,
+    events: deps.events,
+    auditLog: deps.auditLog,
+    limits: { batchSize: env.RETENTION_BATCH_SIZE, maxPerRun: env.RETENTION_MAX_PER_RUN },
+  });
+
   return async (payload) => {
     const { dryRun } = retentionJobSchema.parse(payload ?? {});
     const laporan = await service.run({ dryRun });
+    // SETELAH retensi: penutupan menulis ke `jobs`, yang tidak disentuh
+    // kebijakan mana pun — urutannya bebas, dan yang dipilih adalah yang
+    // membuat log terbaca sesuai urutan sebab-akibat.
+    const lowongan = await expiry.run({ dryRun });
 
     deps.logger.info(
       {
@@ -66,6 +84,8 @@ export function createRetentionProcessor(deps: RetentionProcessorDeps): JobProce
         // Rincian per kebijakan: "refresh_tokens berkurang 40.000 baris" tidak
         // memberi tahu apakah yang hilang sampah rotasi atau bukti insiden.
         policies: laporan.policies,
+        jobsClosed: lowongan.closed,
+        jobsRemaining: lowongan.remaining,
       },
       dryRun ? "Dry-run retensi selesai" : "Retensi selesai",
     );
@@ -81,6 +101,6 @@ export function createRetentionProcessor(deps: RetentionProcessorDeps): JobProce
       );
     }
 
-    return laporan;
+    return { ...laporan, jobs: lowongan };
   };
 }

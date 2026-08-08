@@ -817,7 +817,7 @@ Restore backup; pause via config.
 #### Acceptance Criteria
 
 * [x] Tiap kebijakan teruji dengan clock fast-forward. — Berlaku untuk tiga kebijakan yang substratnya ada; lihat catatan pemecahan.
-* [ ] Job kedaluwarsa → status closed + event `job.closed`. — **PR-024b.** Tidak ada event bus in-process di repo: CLAUDE.md §3.2 menyebutnya sebagai pola resmi, tetapi implementasinya belum pernah dibuat. Bentuknya akan menentukan seluruh komunikasi antar-modul setelahnya — keputusan yang layak PR dan review sendiri.
+* [x] Job kedaluwarsa → status closed + event `job.closed`. — **PR-024b.** Hanya `published` yang tersentuh; `draft` yang kedaluwarsa dibiarkan (belum pernah terbit — menutupnya berarti mengarang transisi status). `UPDATE … RETURNING id` membuat event hanya terbit untuk lowongan yang BENAR-BENAR berubah. Diverifikasi mutasi: menghapus penyaring `status = 'published'` membuat tiga test merah.
 * [x] Agregat bulanan ai_usage terbentuk sebelum purge. — Tabel `ai_usage_monthly` (migrasi 08), difinalkan per bulan LENGKAP dan tidak pernah dihitung ulang.
 * [x] Config durasi via env (bukan hardcode). — Tujuh variabel `RETENTION_*`, semuanya opsional dengan default SDD §6.4. Nilai `0` ditolak saat boot.
 * [x] Run ter-audit. — `DATA_RETAINED` per kebijakan + ringkasan run, ditulis bahkan saat nol baris tersentuh.
@@ -832,7 +832,11 @@ Restore backup; pause via config.
 >
 > Yang dikerjakan **PR-024a**: `refresh_tokens` berjenjang (90/180/730), `match_scores` 7 hari, `ai_usage` 90 hari + agregat bulanan, beserta antrean `maintenance-retention`, konfigurasi env, dry-run, DELETE berbatch, metrik sisa, dan audit. **Seluruh AC keamanan masuk di sini**, sebab semuanya memang tentang `refresh_tokens`.
 >
-> **PR-024b** mengambil job-expiry + event bus. Transkrip menyusul di Phase 10, mendaftar lewat registry kebijakan yang sama.
+> **PR-024b** (selesai 2026-08-08) mengambil job-expiry + event bus. Transkrip menyusul di Phase 10, mendaftar lewat registry kebijakan yang sama.
+>
+> **Bus event in-process lahir di `core/events`** (CLAUDE.md §3.2 akhirnya punya implementasi). Nilainya bukan pelanggan hari ini — `job.closed` punya **nol pelanggan** — melainkan momennya: membangun saat penerbit pertama lahir mencegah service expiry menumpuk panggilan langsung ke notifikasi, cache, dan analitik saat ketiganya lahir satu per satu. Tiga batasnya ditulis di kepala berkas: **satu proses**, **tanpa persistensi/retry/urutan**, dan **pelanggan tidak pernah menjatuhkan penerbit**.
+>
+> **Modul `jobs` lahir dengan lapisan service saja.** Ia ada di daftar 13 modul resmi, jadi ini modul yang belum lengkap — bukan modul karangan. Router/controller/repository menyusul di Phase 08.
 >
 > **Kebijakan dimiliki modul pemilik tabelnya.** `refresh_tokens` hidup di `modules/auth`, bukan di berkas retensi umum: ambang 180 hari **adalah jendela deteksi reuse** (§8.1), dan alasan sepenting itu harus duduk di sebelah `session.service.ts` yang bergantung padanya. Di berkas maintenance, ia akan dibaca sebagai angka yang boleh dikecilkan demi menghemat disk.
 
@@ -844,6 +848,7 @@ Restore backup; pause via config.
 #### Log Implementasi
 
 * 2026-08-08 — PR-024a selesai (antrean `maintenance-retention`, tiga kebijakan bertabel, migrasi 08 `ai_usage_monthly` + BRIN, config env, dry-run, audit). Tujuh dari delapan AC terpenuhi; job-expiry menunggu event bus di PR-024b. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-024a--retention-jobs-refresh_tokens-match_scores-ai_usage).
+* 2026-08-08 — PR-024b selesai (bus event in-process `core/events`, modul `jobs` lapisan service, penutupan otomatis lowongan kedaluwarsa + event `job.closed`). **Seluruh AC PR-024 kini terpenuhi**; transkrip cv-chat tetap menunggu tabelnya di Phase 10. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-024b--job-expiry--bus-event-domain).
 * PR-018c (kolom `revoked_reason`) — terpenuhi
 
 #### Risks
