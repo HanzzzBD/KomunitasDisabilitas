@@ -1565,3 +1565,61 @@ Lubang ini sudah tercatat saat tinjauan Exit Criteria beberapa jam sebelumnya ("
 
 * **PR-105** — rate limit; pertimbangkan sekalian menambah service `redis-cache` di `pr.yml`.
 * **Kanal pemberitahuan hapus akun (PR-021b)** memakai transport yang sama dan hanya mencatat nama provider. Aman hari ini, tetapi bila kelak ia mencatat alasan, pakai `alasanAmanUntukLog()` — jangan menulis versi kedua. Tidak disentuh di sini karena di luar scope.
+
+
+## Hasil verifikasi manual PR-016 & PR-017 terhadap provider nyata
+
+2026-08-08. Tiga kotak *Manual Verification* Phase 02 selama ini tertulis "butuh kredensial nyata + staging; belum bisa dilakukan agent". Dua di antaranya ternyata **tidak pernah membutuhkan staging** — dan menjalankannya menemukan bug produksi.
+
+### Staging bukan prasyarat — koreksi asumsi
+
+* **Fonnte/Twilio** hanya panggilan HTTP **keluar**. Tidak ada webhook masuk, jadi URL publik tidak pernah menjadi syarat; OTP sampai ke HP penguji, bukan ke server.
+* **Google** memakai `redirectUri` dari **body permintaan** (`packages/schemas/src/auth.ts`), bukan dari env. Google Cloud Console menerima `http://localhost` untuk client dev.
+
+Yang tertulis "staging" pada ketiga kotak itu adalah asumsi saat AC ditulis, bukan tuntutan teknis. Konsekuensinya nyata: verifikasi ini tertunda berminggu-minggu menunggu sesuatu yang tidak pernah dibutuhkan.
+
+### PR-016 — OTP lewat Fonnte (selesai)
+
+`POST /auth/otp/request` → `202` + WhatsApp diterima; `POST /auth/otp/verify` → `200`, `isNewUser: true`, pasangan token terbit.
+
+Diperiksa langsung di Redis nyata, bukan lewat test:
+
+| Yang diperiksa | Hasil |
+|---|---|
+| Bentuk kunci | `otp:code:f6258b7c…` — sidik HMAC nomor, daftar key bukan daftar nomor |
+| TTL kode | 268 dtk dari 300 (SDD §8.1) |
+| Isi kode | `fe59823212ddf103…` — hash, bukan 6 angka |
+| Kuota kirim | `retryAfterSeconds: 1073` setelah kiriman ketiga |
+
+**Fallback Twilio belum terbukti** — akun Twilio belum tersedia. Kotaknya dipecah dua supaya yang selesai tidak menyandera yang tertunda, dan supaya tidak ada yang membaca satu centang sebagai bukti dua hal.
+
+### PR-017 — Google OAuth (selesai penuh)
+
+Alur consent PKCE dijalankan di browser terhadap OAuth client sungguhan; `code` ditukar lewat `POST /auth/google` → `200`, `isNewUser: true`.
+
+Yang **baru** terbukti di sini dan mustahil dibuktikan Google tiruan: penukaran ke token endpoint Google asli, dan verifikasi `id_token` lewat JWKS Google asli.
+
+### Temuan sampingan yang penting: dua akun, bukan satu
+
+Baris `users` sesudahnya (tanpa PII):
+
+| Akun | phone | email | google_id | email_verified |
+|---|---|---|---|---|
+| Google | — | ✓ | ✓ | true |
+| OTP | ✓ | — | — | false |
+
+**Tidak tertaut, dan itu benar.** Penautan lewat email menuntut `email_verified = true` (PR-020a); akun OTP lahir tanpa email sehingga tidak ada yang bisa dicocokkan. Risiko yang tercatat di file phase ("Pengguna OTP tidak lagi tertaut otomatis ke Google") kini terlihat wujudnya di data nyata, bukan hanya sebagai catatan.
+
+Ini memperkuat alasan follow-up **penautan akun eksplisit** (`POST /me/link/google`): tanpa itu, pengguna yang mendaftar lewat OTP lalu memakai Google akan memiliki dua akun terpisah tanpa cara menyatukannya sendiri.
+
+### AC PR-018 yang ikut terbukti di luar test
+
+Dari respons nyata **kedua** jalur masuk: `Max-Age=2591999` (tepat 30 hari), `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, `refreshToken` tidak ada di body untuk klien web. Access token di-decode: `alg: RS256`, `exp − iat = 900` (tepat 15 menit), klaim `sub`/`role`/`ver`/`iss`/`aud` sesuai.
+
+Kotak Manual Verification PR-018 **tetap tidak dicentang**: `Secure` belum pernah terlihat (dilepas saat `NODE_ENV=development`), dan buktinya dari header curl, bukan browser.
+
+### Pelajaran untuk Exit Criteria
+
+Butir "CI hijau penuh" hijau **di atas fitur yang rusak**. Endpoint OTP menjawab 500 di lingkungan nyata sementara 671 test lulus, karena tidak satu pun menjalankan Redis nyata melalui `createRedisClients()`.
+
+Verifikasi manual bukan formalitas sisa di akhir checklist. Ia satu-satunya lapisan yang menjalankan perakitan sungguhan terhadap dunia luar — dan ia menemukan bug pada kesempatan pertama ia dijalankan.
