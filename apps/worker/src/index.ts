@@ -12,6 +12,7 @@ import { loadEnv, EnvError } from "@nawasena/api/core/config";
 import { createLogger } from "@nawasena/api/core/logger";
 import { createAuditLog, createPrismaAuditWriter } from "@nawasena/api/core/audit";
 import { createPrismaClient } from "@nawasena/api/core/db";
+import { createEventBus } from "@nawasena/api/core/events";
 import {
   createDlqHandler,
   createRawQueuePool,
@@ -68,10 +69,22 @@ const auditLog = createAuditLog({
   metrics: { increment: (name) => logger.warn({ metric: name }, "Metrik audit bertambah") },
 });
 
+// Bus event domain (PR-024b). Langganan didaftarkan DI SINI, di composition
+// root — bukan di dalam service. Hari ini belum ada satu pun; begitu modul
+// notifikasi lahir, ia mendaftar di sini dan penerbitnya tidak berubah
+// sedikit pun. Itulah seluruh gunanya.
+const events = createEventBus({ logger });
+
 /** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
 const PROCESSORS: ProcessorMap = {
   [QUEUE_NAME.MAINTENANCE_PDP_PURGE]: createPdpPurgeProcessor({ prisma, auditLog, logger }),
-  [QUEUE_NAME.MAINTENANCE_RETENTION]: createRetentionProcessor({ prisma, auditLog, logger, env }),
+  [QUEUE_NAME.MAINTENANCE_RETENTION]: createRetentionProcessor({
+    prisma,
+    auditLog,
+    events,
+    logger,
+    env,
+  }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
