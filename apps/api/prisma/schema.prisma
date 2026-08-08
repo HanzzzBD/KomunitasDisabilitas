@@ -111,6 +111,16 @@ model RefreshToken {
 
   @@index([userId])
   @@index([familyId])
+  // BRIN untuk job retensi (PR-024a, SDD §6.4). Kedua kolom append-mostly dan
+  // berkorelasi waktu — kasus pemakaian BRIN (SDD §6.2): indeksnya kecil
+  // (kilobyte, bukan megabyte) dan tabel ini tumbuh terus. Tanpa keduanya,
+  // purge harian men-seq-scan seluruh tabel setiap malam.
+  //
+  // Dideklarasikan di schema, BUKAN hanya raw SQL — mengikuti pelajaran
+  // `audit_logs_created_at_brin` (PR-010): index yang hanya ada di file migrasi
+  // dianggap drift oleh migrasi berikutnya, yang lalu men-generate DROP INDEX.
+  @@index([revokedAt], map: "refresh_tokens_revoked_at_brin", type: Brin)
+  @@index([expiresAt], map: "refresh_tokens_expires_at_brin", type: Brin)
   @@map("refresh_tokens")
 }
 
@@ -467,6 +477,30 @@ model AiUsage {
   /// Kuota harian per fitur (SDD §6.3).
   @@index([userId, feature, createdAt])
   @@map("ai_usage")
+}
+
+/// Agregat bulanan pemakaian AI (PR-024a, SDD §6.4: "agregat bulanan
+/// dipertahankan"). SENGAJA tanpa `user_id`: agregat yang memuat PII akan ikut
+/// terhapus saat purge, dan justru ketiadaan itulah yang membuatnya selamat —
+/// angka bulanan tetap utuh meski setiap pemiliknya menghapus akunnya.
+///
+/// Satu bulan difinalkan SEKALI, setelah bulannya berakhir dan jauh sebelum
+/// baris mentahnya mencapai umur retensi. Tidak pernah dihitung ulang:
+/// menghitung ulang bulan yang sebagian barisnya sudah terhapus akan membuat
+/// agregat menyusut diam-diam setiap hari.
+model AiUsageMonthly {
+  /// Hari pertama bulan ybs (UTC) — `date_trunc('month', created_at)`.
+  month     DateTime  @db.Date
+  feature   AiFeature
+  provider  String
+  /// Jumlah panggilan yang teragregasi ke baris ini.
+  requests  Int       @default(0)
+  tokensIn  BigInt    @default(0) @map("tokens_in")
+  tokensOut BigInt    @default(0) @map("tokens_out")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([month, feature, provider])
+  @@map("ai_usage_monthly")
 }
 
 model Notification {

@@ -9,6 +9,14 @@
 // (core/crypto memvalidasi panjang/format kunci saat boot).
 import { z } from "zod";
 
+/** Umur retensi dalam hari — minimal 1; lihat catatan di blok RETENTION_*. */
+const hariRetensi = (bawaan: number) =>
+  z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 hari — nilai 0 akan mengosongkan tabel" })
+    .default(bawaan);
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"], {
@@ -111,6 +119,34 @@ const envSchema = z.object({
   // Opsional sebagai GRUP: tanpa keduanya, penerbitan sesi mati (503).
   JWT_PRIVATE_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   JWT_PUBLIC_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  // --- Retensi data (PR-024a, SDD §6.4) ---
+  //
+  // Semua punya DEFAULT dari tabel SDD §6.4, jadi `.env` lama tetap valid dan
+  // kebijakannya tetap berjalan tanpa satu pun variabel di-set. Yang bisa
+  // di-override hanya ANGKANYA — bahwa kebijakannya ada tidak bisa dimatikan
+  // lewat env, sebab retensi yang bisa dimatikan diam-diam bukan kebijakan.
+  //
+  // Nilai 0 SENGAJA ditolak (min 1): `RETENTION_..._DAYS=0` akan menghapus
+  // seluruh isi tabel pada run berikutnya, dan salah ketik yang menghapus
+  // segalanya tidak boleh terlihat seperti konfigurasi yang sah.
+  RETENTION_REFRESH_EXPIRED_DAYS: hariRetensi(90),
+  RETENTION_REFRESH_REVOKED_DAYS: hariRetensi(180),
+  RETENTION_REFRESH_REUSE_DAYS: hariRetensi(730),
+  RETENTION_MATCH_SCORES_DAYS: hariRetensi(7),
+  RETENTION_AI_USAGE_DAYS: hariRetensi(90),
+  /** Baris per DELETE. Batch besar mengunci lama & menggelembungkan WAL. */
+  RETENTION_BATCH_SIZE: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1" })
+    .max(10_000, { message: "maksimal 10000" })
+    .default(1_000),
+  /** Batas baris per kebijakan per run; sisanya diambil run berikutnya. */
+  RETENTION_MAX_PER_RUN: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1" })
+    .default(50_000),
   // --- Endpoint internal (PR-015b) ---
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.

@@ -40,6 +40,12 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
     anonymized: 0,
     records: 4,
   },
+  [AUDIT_ACTION.DATA_RETAINED]: {
+    dryRun: false,
+    policy: "refresh_tokens.reuse",
+    deleted: 12,
+    remaining: 0,
+  },
 };
 
 function createOptions(append: (entry: AuditEntry) => Promise<void>): {

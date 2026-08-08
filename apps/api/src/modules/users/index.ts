@@ -83,3 +83,10 @@ export {
   TABEL_DIHAPUS,
   type PurgeService,
 } from "./services/purge.service.js";
+export {
+  createOrphanPolicies,
+  createRetentionService,
+  type RetentionLimits,
+  type RetentionPolicy,
+  type RetentionService,
+} from "./services/retention.service.js";

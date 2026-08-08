@@ -28,6 +28,14 @@ export interface RefreshTokenRow {
   revokedReason: RefreshRevokedReason | null;
 }
 
+/**
+ * Kategori retensi `refresh_tokens` (PR-024a, SDD §6.4). Ambangnya BERBEDA
+ * karena maknanya berbeda: `revoked` bukan setelan kebersihan storage
+ * melainkan JENDELA DETEKSI REUSE, dan `reuse` disamakan dengan `audit_logs`
+ * (2 tahun) sebab baris DB dan baris auditnya dua paruh bukti yang sama.
+ */
+export type RetentionKategori = "expired" | "revoked" | "reuse";
+
 export interface RefreshTokenInsert {
   userId: string;
   tokenHash: string;
@@ -158,6 +166,73 @@ export function createRefreshTokenRepository(prisma: AppPrisma) {
         data: { revokedAt: now, revokedReason: reason },
       });
       return hasil.count;
+    },
+
+    /**
+     * Baris yang memenuhi syarat hapus untuk satu kategori retensi (PR-024a).
+     *
+     * Ketiga predikat di bawah SALING LEPAS — sebuah baris tidak mungkin masuk
+     * dua kategori. Itu bukan kerapian melainkan syarat kebenaran: kalau
+     * `expired` juga menjaring baris yang DICABUT, token yang seharusnya
+     * bertahan 180 hari akan hilang pada hari ke-90, dan reuse detection
+     * (§8.1) berhenti bisa membedakan token curian dari token tak dikenal —
+     * tanpa satu pun gejala.
+     */
+    async countRetention(kategori: RetentionKategori, cutoff: Date): Promise<number> {
+      switch (kategori) {
+        case "expired":
+          return prisma.refreshToken.count({
+            // `revokedAt: null` WAJIB: hanya token yang MATI SENDIRI karena
+            // kedaluwarsa, tidak pernah dicabut, tidak membawa bukti apa pun.
+            where: { revokedAt: null, expiresAt: { lt: cutoff } },
+          });
+        case "revoked":
+          return prisma.refreshToken.count({
+            where: {
+              revokedAt: { not: null, lt: cutoff },
+              // NULL diperlakukan sebagai `rotated` — satu-satunya sebab yang
+              // mungkin sebelum kolomnya ada (PR-018a).
+              NOT: { revokedReason: "reuse" },
+            },
+          });
+        case "reuse":
+          return prisma.refreshToken.count({
+            where: { revokedReason: "reuse", revokedAt: { lt: cutoff } },
+          });
+      }
+    },
+
+    /**
+     * Hapus paling banyak `batas` baris kategori tsb. Berbatch lewat subquery
+     * `LIMIT` karena `deleteMany` Prisma tidak punya `take` — dan DELETE tanpa
+     * batas pada tabel yang terus tumbuh mengunci lama serta menggelembungkan
+     * WAL (SDD §6.4 catatan operasional).
+     */
+    async deleteRetentionBatch(kategori: RetentionKategori, cutoff: Date, batas: number): Promise<number> {
+      switch (kategori) {
+        case "expired":
+          return prisma.$executeRaw`
+            DELETE FROM "refresh_tokens" WHERE "id" IN (
+              SELECT "id" FROM "refresh_tokens"
+              WHERE "revoked_at" IS NULL AND "expires_at" < ${cutoff}
+              LIMIT ${batas}
+            )`;
+        case "revoked":
+          return prisma.$executeRaw`
+            DELETE FROM "refresh_tokens" WHERE "id" IN (
+              SELECT "id" FROM "refresh_tokens"
+              WHERE "revoked_at" IS NOT NULL AND "revoked_at" < ${cutoff}
+                AND ("revoked_reason" IS NULL OR "revoked_reason" <> 'reuse')
+              LIMIT ${batas}
+            )`;
+        case "reuse":
+          return prisma.$executeRaw`
+            DELETE FROM "refresh_tokens" WHERE "id" IN (
+              SELECT "id" FROM "refresh_tokens"
+              WHERE "revoked_reason" = 'reuse' AND "revoked_at" < ${cutoff}
+              LIMIT ${batas}
+            )`;
+      }
     },
 
     /** Cabut semua sesi milik satu pengguna (logout semua perangkat). */

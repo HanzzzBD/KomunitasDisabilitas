@@ -796,11 +796,11 @@ Syarat yang menyertainya:
 
 **Testing Checklist:**
 
-* [ ] Unit Test (selector per kebijakan)
-* [ ] Integration Test (fast-forward)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (dry-run staging)
+* [x] Unit Test (selector per kebijakan) — 14 test `retention.test.ts`: batching, batas run, dry-run, audit, dan ambang per kategori.
+* [x] Integration Test (fast-forward) — 15 test PostgreSQL nyata `retention-db.test.ts` dengan `clock` fast-forward, termasuk kedua penjaga reuse detection dan `EXPLAIN` BRIN.
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (dry-run staging) — diotomatiskan sebagai test DB; dry-run tetap tersedia (`{ "dryRun": true }`).
 
 **Deliverables:**
 
@@ -816,19 +816,34 @@ Restore backup; pause via config.
 
 #### Acceptance Criteria
 
-* [ ] Tiap kebijakan teruji dengan clock fast-forward.
-* [ ] Job kedaluwarsa → status closed + event `job.closed`.
-* [ ] Agregat bulanan ai_usage terbentuk sebelum purge.
-* [ ] Config durasi via env (bukan hardcode).
-* [ ] Run ter-audit.
-* [ ] **Penjaga reuse detection:** baris `refresh_tokens` yang dicabut, lebih tua dari ambang *expired* tetapi lebih muda dari ambang *revoked*, **tetap selamat** (test eksplisit). Ini persis bug yang akan membutakan reuse detection tanpa menimbulkan gejala apa pun.
-* [ ] Baris ber-`revoked_reason = 'reuse'` bertahan melewati ambang 180 hari.
-* [ ] Indeks BRIN terpasang; purge harian tidak men-seq-scan `refresh_tokens` (EXPLAIN di test/manual).
+* [x] Tiap kebijakan teruji dengan clock fast-forward. — Berlaku untuk tiga kebijakan yang substratnya ada; lihat catatan pemecahan.
+* [ ] Job kedaluwarsa → status closed + event `job.closed`. — **PR-024b.** Tidak ada event bus in-process di repo: CLAUDE.md §3.2 menyebutnya sebagai pola resmi, tetapi implementasinya belum pernah dibuat. Bentuknya akan menentukan seluruh komunikasi antar-modul setelahnya — keputusan yang layak PR dan review sendiri.
+* [x] Agregat bulanan ai_usage terbentuk sebelum purge. — Tabel `ai_usage_monthly` (migrasi 08), difinalkan per bulan LENGKAP dan tidak pernah dihitung ulang.
+* [x] Config durasi via env (bukan hardcode). — Tujuh variabel `RETENTION_*`, semuanya opsional dengan default SDD §6.4. Nilai `0` ditolak saat boot.
+* [x] Run ter-audit. — `DATA_RETAINED` per kebijakan + ringkasan run, ditulis bahkan saat nol baris tersentuh.
+* [x] **Penjaga reuse detection:** baris `refresh_tokens` yang dicabut, lebih tua dari ambang *expired* tetapi lebih muda dari ambang *revoked*, **tetap selamat** (test eksplisit). — Diuji terhadap PostgreSQL nyata, dan **diverifikasi dengan mutasi**: menghapus `revoked_at IS NULL` dari predikat `expired` membuat test ini merah.
+* [x] Baris ber-`revoked_reason = 'reuse'` bertahan melewati ambang 180 hari. — Diuji; ikut merah pada mutasi yang sama.
+* [x] Indeks BRIN terpasang; purge harian tidak men-seq-scan `refresh_tokens` (EXPLAIN di test/manual). — Kedua index diperiksa di `pg_indexes` (`USING brin`), dan `EXPLAIN` dengan `enable_seqscan = off` membuktikan planner bisa memakainya untuk predikat retensi.
+
+> **Pemecahan scope (keputusan owner 2026-08-08).** PR-024 sebagaimana ditulis melebihi target 500 LOC dan **dua dari lima kebijakannya tidak punya substrat**:
+>
+> * **Transkrip cv-chat 30 hari** — tidak ada tabelnya. `cv_chat` hanya nilai enum `AiFeature`; tabel transkrip lahir bersama modul AI CV builder (Phase 10).
+> * **Job expiry → event `job.closed`** — tidak ada event bus sama sekali.
+>
+> Yang dikerjakan **PR-024a**: `refresh_tokens` berjenjang (90/180/730), `match_scores` 7 hari, `ai_usage` 90 hari + agregat bulanan, beserta antrean `maintenance-retention`, konfigurasi env, dry-run, DELETE berbatch, metrik sisa, dan audit. **Seluruh AC keamanan masuk di sini**, sebab semuanya memang tentang `refresh_tokens`.
+>
+> **PR-024b** mengambil job-expiry + event bus. Transkrip menyusul di Phase 10, mendaftar lewat registry kebijakan yang sama.
+>
+> **Kebijakan dimiliki modul pemilik tabelnya.** `refresh_tokens` hidup di `modules/auth`, bukan di berkas retensi umum: ambang 180 hari **adalah jendela deteksi reuse** (§8.1), dan alasan sepenting itu harus duduk di sebelah `session.service.ts` yang bergantung padanya. Di berkas maintenance, ia akan dibaca sebagai angka yang boleh dikecilkan demi menghemat disk.
 
 #### Dependencies
 
 * PR-015
 * PR-011
+
+#### Log Implementasi
+
+* 2026-08-08 — PR-024a selesai (antrean `maintenance-retention`, tiga kebijakan bertabel, migrasi 08 `ai_usage_monthly` + BRIN, config env, dry-run, audit). Tujuh dari delapan AC terpenuhi; job-expiry menunggu event bus di PR-024b. Lihat [log/implementation_log_phase02.md](log/implementation_log_phase02.md#pr-024a--retention-jobs-refresh_tokens-match_scores-ai_usage).
 * PR-018c (kolom `revoked_reason`) — terpenuhi
 
 #### Risks
