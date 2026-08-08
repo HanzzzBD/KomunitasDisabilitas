@@ -19,6 +19,7 @@ import {
 } from "./auth.js";
 import { deleteAccountSchema } from "./auth.js";
 import { updateMeSchema, meResponseSchema } from "./users.js";
+import { dataExportResponseSchema } from "./export.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -276,6 +277,30 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "400": errorResponse("Input tidak valid"),
             "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
             "409": errorResponse("Email tidak bisa dipakai"),
+            "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
+      // Ekspor data pribadi (PR-022, hak portabilitas UU PDP §8.7). Tidak ada
+      // parameter apa pun dengan sengaja: pemiliknya datang dari access token,
+      // jadi tidak ada saluran untuk menyebut pengguna lain.
+      "/me/export": {
+        get: {
+          operationId: "exportMyData",
+          tags: ["users"],
+          summary: "Unduh seluruh data pribadi sendiri",
+          description:
+            "Mengembalikan seluruh data milik pengguna yang sedang masuk dalam satu berkas " +
+            "JSON ber-versi. `formatVersion` naik hanya saat bentuknya berubah dengan cara " +
+            "yang tidak aditif — bagian baru yang ditambahkan kelak tidak menaikkannya. " +
+            "Dibatasi 3 kali per 24 jam per pengguna, dan setiap ekspor tercatat di audit.",
+          responses: {
+            "200": {
+              description: "Berkas ekspor",
+              content: { "application/json": { schema: dataExportResponseSchema } },
+            },
+            "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
+            "429": errorResponse("Kuota unduh harian habis — lihat header Retry-After"),
             "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
           },
         },

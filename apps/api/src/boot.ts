@@ -119,6 +119,9 @@ export async function startApi(options: BootOptions): Promise<void> {
       app.use(
         createUsersModule({
           prisma,
+          // Kuota ekspor PDP (PR-022) — cache, bukan queue: batasnya harian dan
+          // kehilangannya saat evict hanya mengembalikan jatah, bukan merusak.
+          redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
         }),

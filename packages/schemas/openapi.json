@@ -576,6 +576,58 @@
           }
         }
       }
+    },
+    "/me/export": {
+      "get": {
+        "operationId": "exportMyData",
+        "tags": [
+          "users"
+        ],
+        "summary": "Unduh seluruh data pribadi sendiri",
+        "description": "Mengembalikan seluruh data milik pengguna yang sedang masuk dalam satu berkas JSON ber-versi. `formatVersion` naik hanya saat bentuknya berubah dengan cara yang tidak aditif — bagian baru yang ditambahkan kelak tidak menaikkannya. Dibatasi 3 kali per 24 jam per pengguna, dan setiap ekspor tercatat di audit.",
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataExportResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota unduh harian habis — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -995,6 +1047,116 @@
           "fullName"
         ],
         "description": "Perbarui profil akun sendiri"
+      },
+      "DataExportResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataExport"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DataExport": {
+        "type": "object",
+        "properties": {
+          "formatVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "account": {
+            "$ref": "#/components/schemas/ExportAccount"
+          }
+        },
+        "required": [
+          "formatVersion",
+          "exportedAt",
+          "account"
+        ],
+        "additionalProperties": false,
+        "description": "Berkas ekspor data pribadi"
+      },
+      "ExportAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254,
+            "description": "Alamat email pengguna",
+            "example": "rina@contoh.id"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\+62\\d{8,13}$",
+            "description": "Nomor HP Indonesia, format E.164",
+            "example": "+6281234567890"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "seeker",
+              "admin",
+              "employer"
+            ],
+            "description": "Peran pengguna",
+            "example": "seeker"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "authMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "otp",
+                "google"
+              ],
+              "description": "Cara masuk yang tersedia untuk akun ini"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "emailVerified",
+          "phone",
+          "role",
+          "createdAt",
+          "authMethods"
+        ],
+        "description": "Data identitas akun"
       }
     }
   }

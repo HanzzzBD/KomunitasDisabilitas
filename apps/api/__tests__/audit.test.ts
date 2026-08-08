@@ -30,7 +30,7 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: { from: "viewed", to: "interview" },
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },
-  [AUDIT_ACTION.DATA_EXPORTED]: { format: "json" },
+  [AUDIT_ACTION.DATA_EXPORTED]: { format: "json", formatVersion: 1, sections: ["account"] },
   [AUDIT_ACTION.ACCOUNT_EMAIL_CHANGED]: { hadPreviousEmail: true, cleared: false },
   [AUDIT_ACTION.ACCOUNT_DELETED]: { stage: "completed", method: "otp", revokedCount: 2 },
 };
@@ -112,7 +112,11 @@ describe("createAuditLog", () => {
     const auditLog = createAuditLog(options);
 
     const startedAt = performance.now();
-    auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, { format: "json" });
+    auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, {
+      format: "json",
+      formatVersion: 1,
+      sections: ["account"],
+    });
     const elapsedMs = performance.now() - startedAt;
 
     expect(append).toHaveBeenCalledOnce();
@@ -126,6 +130,8 @@ describe("createAuditLog", () => {
 
     auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, {
       format: "json",
+      formatVersion: 1,
+      sections: ["account"],
       phone: "nomor-dummy",
     });
     await new Promise((resolve) => setImmediate(resolve));

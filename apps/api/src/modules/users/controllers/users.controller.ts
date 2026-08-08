@@ -10,6 +10,7 @@ import type { Request, Response } from "express";
 import type { UpdateMe } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import type { UsersActor, UsersService } from "../services/users.service.js";
+import type { ExportService } from "../services/export.service.js";
 
 /** requestId dari pino-http; fallback bila middleware logger tidak terpasang. */
 function actorOf(req: Request): UsersActor {
@@ -19,7 +20,7 @@ function actorOf(req: Request): UsersActor {
   };
 }
 
-export function createUsersController(service: UsersService) {
+export function createUsersController(service: UsersService, exportService: ExportService) {
   return {
     /** GET /api/v1/me → 200 profil sendiri. */
     async me(req: Request, res: Response): Promise<void> {
@@ -30,6 +31,18 @@ export function createUsersController(service: UsersService) {
     async updateMe(req: Request, res: Response): Promise<void> {
       const body = req.body as UpdateMe;
       res.status(200).json({ data: await service.updateMe(actorOf(req), body) });
+    },
+
+    /**
+     * GET /api/v1/me/export → 200 berkas ekspor PDP.
+     *
+     * `Content-Disposition: attachment` sengaja TIDAK dipasang: envelope
+     * `{ data }` membuatnya konsisten dengan endpoint lain, dan tombol unduh
+     * adalah urusan FE (PR-033). Endpoint yang berperilaku ganda — kadang
+     * response API, kadang berkas — lebih sulit dipakai keduanya.
+     */
+    async exportMe(req: Request, res: Response): Promise<void> {
+      res.status(200).json({ data: await exportService.exportMe(actorOf(req)) });
     },
   };
 }

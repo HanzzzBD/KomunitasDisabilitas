@@ -160,6 +160,13 @@ async function boot(options: { sessionKeys?: typeof SESSION_KEYS } = {}) {
       app.use(
         createUsersModule({
           prisma,
+          // Kuota ekspor (PR-022) tidak diuji di file ini — pencacah yang selalu
+          // 1 membuatnya tidak pernah ikut campur pada endpoint profil.
+          redis: {
+            incr: () => Promise.resolve(1),
+            expire: () => Promise.resolve(1),
+            ttl: () => Promise.resolve(-2),
+          },
           routes: registry.forModule("/api/v1"),
           auditLog: (_actor, action, _entity, _entityId, meta) => {
             audit.push({ action, meta });

@@ -25,5 +25,9 @@ export function createUsersRouter(controller: UsersController, routes: RouteRegi
     validate({ body: updateMeSchema }),
     asyncHandler(controller.updateMe),
   );
+  // Ekspor PDP (PR-022). Tanpa `validate`: tidak ada input sama sekali —
+  // pemiliknya datang dari sesi, dan endpoint ini sengaja tidak menerima
+  // parameter apa pun yang bisa dipakai menyebut pengguna lain.
+  routes.get("/me/export", access.authenticated(), asyncHandler(controller.exportMe));
   return routes.router;
 }
