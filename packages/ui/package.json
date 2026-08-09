@@ -2,7 +2,7 @@
   "name": "@nawasena/ui",
   "version": "0.0.0",
   "private": true,
-  "description": "Design system aksesibel (Tailwind v4 + Radix seperlunya). Form primitives (PR-027) + Dialog (PR-028a); Toast, Skeleton, Tabs, Card menyusul PR-028b/c.",
+  "description": "Design system aksesibel (Tailwind v4 + Radix seperlunya). Form primitives (PR-027), Dialog (PR-028a), Toast & Kerangka (PR-028b); Tabs & Card menyusul PR-028c.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -33,6 +33,7 @@
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",
     "@radix-ui/react-select": "2.3.7",
+    "@radix-ui/react-toast": "1.2.23",
     "clsx": "2.1.1",
     "tailwind-merge": "3.6.0"
   },
