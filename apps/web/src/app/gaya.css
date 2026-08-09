@@ -1,0 +1,73 @@
+/*
+  Lembar gaya akar aplikasi.
+
+  Urutan di berkas ini penting: nilai bawaan token ditulis SEBELUM Tailwind,
+  supaya kelas apa pun yang membacanya sudah punya nilai — termasuk pada
+  render pertama, dan termasuk bila skrip pra-paint gagal.
+*/
+
+:root {
+  /*
+    Nilai bawaan token aksesibilitas (PR-026).
+
+    Ditulis di sini, bukan hanya diandalkan dari skrip pra-paint: skrip itu bisa
+    gagal di lingkungan yang memblokir localStorage, dan `var(--font-scale)`
+    tanpa nilai akan membuat `calc()` batal — teksnya kehilangan ukuran sama
+    sekali, bukan sekadar kembali normal.
+
+    Nilai di sini SENGAJA sama dengan ACCESSIBILITY_DEFAULTS di
+    packages/schemas. Dijaga `token-bawaan.test.ts`.
+  */
+  --font-scale: 1;
+  --touch-target-min: 44px;
+
+  /* Font sistem — SDD §4.5 "tanpa webfont": webfont menunda teks pertama
+     tergambar, dan pada 3G penundaan itu terasa sebagai halaman yang macet. */
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+    Cincin fokus TIDAK PERNAH dihapus.
+
+    `@tailwind base` (Preflight) menghapus outline bawaan browser, jadi tanpa
+    aturan ini seluruh aplikasi kehilangan penanda fokus — dan navigasi
+    keyboard menjadi menebak-nebak. Ini kegagalan aksesibilitas paling umum
+    yang lahir dari CSS reset.
+
+    `:focus-visible`, bukan `:focus`: pengguna tetikus tidak melihat cincin saat
+    mengeklik, pengguna keyboard selalu melihatnya.
+  */
+  :focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /*
+    Hormati permintaan mengurangi gerak — lewat ATRIBUT, bukan media query.
+
+    Atribut sudah memperhitungkan pilihan eksplisit pengguna yang boleh menimpa
+    setelan OS (ADR-008). `@media (prefers-reduced-motion)` hanya tahu OS, dan
+    akan mengabaikan pengguna yang sengaja menyalakan animasi di aplikasi ini.
+
+    `0.01ms`, bukan `0s`: durasi nol membuat sebagian browser melewatkan event
+    `transitionend`, dan kode yang menunggunya menggantung selamanya.
+  */
+  [data-motion="reduced"] *,
+  [data-motion="reduced"] *::before,
+  [data-motion="reduced"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

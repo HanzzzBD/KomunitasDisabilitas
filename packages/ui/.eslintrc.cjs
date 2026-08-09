@@ -1,1 +1,1 @@
-module.exports = require("@nawasena/config/eslint");
+module.exports = require("@nawasena/config/eslint/react");

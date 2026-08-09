@@ -274,6 +274,13 @@ RB-Std.
 * [ ] Target sentuh ≥ 44px (≥ 56px saat large_touch_targets).
 * [ ] Keyboard interaksi Select sesuai pola WAI-ARIA.
 
+> **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1270 LOC.
+> **PR-027a** — preset Tailwind di `packages/config` + CSS akar + bootstrap `packages/ui` — *selesai*. Tidak menutup AC sendiri, tetapi membuka ketiganya.
+> **PR-027b** — Button & Input — *belum* (AC 1, 4).
+> **PR-027c** — FormField & Select — *belum* (AC 2, 3, 5).
+>
+> **Celah dokumen yang ditutup PR-027a:** setup Tailwind **tidak punya pemilik** di backlog. SDD menyebutnya tiga kali — termasuk §107 (*"packages/config: eslint, tsconfig, tailwind preset"*) dan §189 (*"seluruh Tailwind preset membaca token ini"*) — tetapi tidak ada satu pun PR yang membuatnya, sementara PR-027 menulis *"Radix + Tailwind membaca token a11y"* seolah presetnya sudah ada. Berbeda dari celah PWA (PR-025d), yang ini **memblokir**: membangun komponen dengan CSS biasa berarti mengubah keputusan tech stack.
+
 #### Dependencies
 
 * PR-026
@@ -281,6 +288,12 @@ RB-Std.
 #### Risks
 
 * Kustomisasi berlebihan merusak perilaku ARIA Radix. Mitigasi: styling-only di atas primitive.
+* **Preflight Tailwind menghapus outline fokus bawaan browser.** Ditutup PR-027a: `:focus-visible` dipulihkan di `@layer base` dengan tebal 3px. Tanpa itu, SELURUH aplikasi kehilangan penanda fokus — kegagalan aksesibilitas paling umum yang lahir dari CSS reset, dan ia tidak akan terlihat oleh siapa pun yang memakai tetikus.
+* **Pilihan Tailwind v3, bukan v4** (v4 meniadakan konsep "preset" yang SDD §107 sebut namanya). Layak ditinjau ulang sebelum Phase 04, selagi belum ada komponen yang bergantung padanya.
+
+#### Log Implementasi
+
+* 2026-08-09 — PR-027a selesai (preset Tailwind membaca token a11y, CSS akar + pemulihan cincin fokus, bootstrap `packages/ui`, `gabungKelas`). Menutup celah SDD §107. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027a--fondasi-styling-preset-tailwind--paket-ui).
 
 
 ### PR-028 - packages/ui Batch 2 — Overlay & Feedback
