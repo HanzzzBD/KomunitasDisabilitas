@@ -4,14 +4,16 @@
 // tempat setiap PR fitur bertabrakan saat merge, dan tempat kunci yang sudah
 // tidak dipakai menumpuk tanpa ada yang berani menghapusnya.
 import { katalogShell } from "./shell.js";
+import { katalogAuth } from "./auth.js";
 
 /**
  * Katalog gabungan. Tiap fitur menyumbang kuncinya sendiri di sini.
  *
- * Berikutnya: `auth` (PR-030), `pengaturan` (PR-033), `lowongan` (Phase 08).
+ * Berikutnya: `pengaturan` (PR-033), `lowongan` (Phase 08).
  */
 export const katalog = {
   ...katalogShell,
+  ...katalogAuth,
 } as const;
 
 /**
@@ -24,7 +26,10 @@ export const katalog = {
  * menuntut kedua daftar memuat kunci yang persis sama, jadi fitur yang
  * ditambahkan ke salah satunya saja membuat CI merah.
  */
-export const fiturKatalog = [{ nama: "shell", entri: katalogShell }] as const;
+export const fiturKatalog = [
+  { nama: "shell", entri: katalogShell },
+  { nama: "auth", entri: katalogAuth },
+] as const;
 
 /**
  * Seluruh kunci yang sah, diturunkan dari katalog — bukan ditulis ulang.

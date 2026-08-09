@@ -27,7 +27,22 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "shell.merek": "Nama produk — tidak diterjemahkan dan tidak disederhanakan.",
   "shell.aksi.masuk": "Satu kata sehari-hari; tidak ada bentuk yang lebih sederhana.",
   "shell.luring.cobaLagi": "Label tombol dua kata, sudah memakai kata sehari-hari.",
-  "shell.masuk.judul": "Judul satu kata, sama dengan label aksinya.",
+
+  // --- auth (PR-030b) ---
+  // Sebagian besar di sini adalah LABEL, bukan kalimat. Label yang panjangnya
+  // dua-tiga kata sehari-hari tidak punya bentuk yang lebih sederhana, dan
+  // mengarang perbedaan hanya membuat kedua varian tidak konsisten satu sama
+  // lain — pengguna yang berpindah mode akan menyangka tombolnya berubah.
+  "auth.judul": "Nama produk plus dua kata sehari-hari.",
+  "auth.nomor.label": "Label dua kata; 'Nomor HP' adalah sebutan sehari-harinya.",
+  "auth.nomor.kirim": "Label tombol dua kata sehari-hari.",
+  "auth.nomor.mengirim": "Kalimat penanda tunggu, sudah sependek mungkin.",
+  "auth.kode.label": "Label yang sudah menyebut bentuknya secara harfiah ('6 angka').",
+  "auth.kode.takValid":
+    "Kalimat empat kata; menyederhanakannya hanya mengubah kata tanpa menambah kejelasan.",
+  "auth.kode.masuk": "Satu kata sehari-hari, sama dengan label aksi di shell.",
+  "auth.kode.memeriksa": "Kalimat penanda tunggu, sudah sependek mungkin.",
+  "auth.kode.terkirim": "Kalimat empat kata dengan kata sehari-hari.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<
