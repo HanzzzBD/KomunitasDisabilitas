@@ -714,12 +714,12 @@ RB-Std.
 * [x] Lighthouse perf ≥ 80 pada 3G throttling. — **PR-032a.** Gerbang BARU (`lighthouserc-3g.json`), bukan penyetelan yang lama: yang lama memakai preset desktop, dan halaman yang sehat di sana bisa gagal total di ponsel pada jaringan lambat. Throttling ditulis EKSPLISIT (RTT 300 ms, 700 kbps, CPU 4×) alih-alih memakai preset `mobile` bawaan Lighthouse — preset itu mensimulasikan *Slow 4G* (150 ms / 1.638 kbps), lebih cepat daripada 3G, dan namanya tidak memberi tahu siapa pun bahwa angka yang dijanjikan AC ini tidak sedang diuji. Terukur: **perf 82, a11y 100** (FCP 3,0 s; LCP 3,9 s; TBT 0 ms). Marginnya tipis dan dicatat sebagai risiko.
 * [x] Struktur heading & landmark benar (axe + manual). — **PR-032a.** SATU `<main>` untuk seluruh aplikasi, dipindahkan dari tiap halaman ke `TataLetak`; halaman yang menulis `<main>` sendiri kini menghasilkan landmark ganda yang ditangkap test. Tautan lompat ke konten dipasang sebagai elemen fokusabel pertama, dengan sasaran `tabindex="-1"` — tanpa itu sebagian peramban hanya menggulir tanpa memindahkan fokus. Urutan tingkat heading dijaga mesin (tidak boleh melompat), dan tiap `<section>` bernama lewat `aria-labelledby`. **Verifikasi manual NVDA tetap utang** — tidak ada gerbang yang bisa menggantikannya.
 * [x] CTA daftar → login/onboarding. — **PR-032a.** Dua ajakan (hero + penutup), keduanya `<Link>` ke `/masuk`, bukan tombol: hanya tautan yang bisa dibuka di tab baru, disalin alamatnya, dan ditelusuri perayap — dan screen reader mengumumkan "tautan" dan "tombol" secara berbeda. Dijaga test yang memeriksa PERAN-nya, bukan sekadar keberadaan teksnya.
-* [ ] 404 memberi jalan pulang yang jelas. — **PR-032b.**
-* [ ] Konten tersedia dalam id + id-simple. — **landing selesai di PR-032a** (katalog `beranda`, 16 kunci, dijaga penjaga salinan mentah PR-029b); ditutup penuh di PR-032b bersama teks 404 & empty state.
+* [x] 404 memberi jalan pulang yang jelas. — **PR-032b.** Aksi layar kesalahan dibuat **per-keadaan**, dan itu koreksi bukan kerapian: "Muat ulang halaman" pada 404 adalah saran yang PASTI gagal — ia memuat ulang alamat yang memang tidak ada, dan pengguna yang menurutinya mendarat di layar yang sama lalu menyimpulkan aplikasinya rusak. 404 → tautan ke beranda; 401/403 → tautan ke masuk; umum → muat ulang (di sana ia memang benar). Tepat SATU aksi per keadaan, dijaga test. Jalan pulangnya diperiksa dengan **ditempuh**, bukan dengan membaca `href`-nya.
+* [x] Konten tersedia dalam id + id-simple. — **PR-032a** menutup landing (katalog `beranda`, 16 kunci); **PR-032b** menutup teks jalan pulang. Keduanya melewati penjaga salinan mentah PR-029b — setiap entri yang varian sederhananya identik wajib terdaftar beserta alasannya. Pola empty state tidak menyumbang kunci: teksnya datang dari pemakainya, sebab komponen `packages/ui` tidak boleh tahu katalog milik aplikasi web.
 
 > **Dipecah jadi dua PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 700–750 LOC, di atas target <500. Diusulkan **sebelum** implementasi.
-> **PR-032a** — landing + landmark/skip-link final + meta SEO + gerbang Lighthouse 3G — *selesai* (AC 1, 2, 3).
-> **PR-032b** — 404 berjalan pulang + pola empty state — AC 4, dan penutup AC 5.
+> **PR-032a** — landing + landmark/skip-link final + meta SEO + gerbang Lighthouse 3G — *selesai* (AC 1, 2, 3). Mendarat **825 LOC** (447 sumber + 378 test), di atas target <500 dan di atas perkiraan ≈430; selisihnya dilaporkan di log.
+> **PR-032b** — 404 berjalan pulang + pola empty state — *selesai* (AC 4, 5). **PR-032 tuntas.**
 >
 > **Keputusan bentuk 404 (owner 2026-08-09):** memperkuat `LayarKesalahan` yang sudah ada, BUKAN membuat route 404 tersendiri. Tombol "Muat ulang halaman" pada 404 justru salah — ia memuat ulang halaman yang memang tidak ada — jadi aksinya dibuat per-keadaan. Route tersendiri akan melahirkan DUA layar 404 (yang ini, dan cabang `takDitemukan` untuk 404 yang dilempar loader fitur kelak), dan keduanya bebas menyimpang.
 
@@ -735,6 +735,7 @@ RB-Std.
 #### Log Implementasi
 
 * 2026-08-09 — PR-032a selesai (landing publik tanpa gambar, `<main>` tunggal + tautan lompat ke konten di `TataLetak`, judul dokumen per halaman, meta Open Graph, gerbang Lighthouse 3G di CI, katalog i18n `beranda`). AC 1, 2, 3 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-032a--landing-landmarkskip-link-final--gerbang-lighthouse-3g).
+* 2026-08-09 — PR-032b selesai (aksi layar kesalahan per-keadaan sehingga 404 punya jalan pulang, `KeadaanKosong` di `packages/ui` dengan live region sopan dan tingkat heading terikat tipe). AC 4 & 5 terpenuhi — **PR-032 tuntas**. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-032b--404-berjalan-pulang--pola-empty-state).
 
 
 ### PR-033 - Web Settings Shell (Akun & Data Saya)

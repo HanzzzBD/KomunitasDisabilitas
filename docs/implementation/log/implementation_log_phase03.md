@@ -1679,3 +1679,98 @@ Ini dilaporkan, bukan disembunyikan di balik pemecahan yang sudah disetujui: per
 
 * **PR-032b** — perkuat `LayarKesalahan` dengan aksi per-keadaan (404 → beranda, 401/403 → masuk, umum → muat ulang), komponen empty state, penutup AC 5.
 * **PR-033** — settings + Data Saya.
+
+---
+
+## PR-032b — 404 berjalan pulang & pola empty state
+
+**Tanggal:** 2026-08-09
+**Branch:** `pr-032b-404-empty-state` → `phase-03-web-platform-base`
+**AC tertutup:** PR-032 nomor **4** dan **5** — **PR-032 tuntas.**
+
+### Ringkasan
+
+Layar kesalahan berhenti menawarkan satu saran untuk tiga keadaan yang berbeda, dan `packages/ui` mendapat pola keadaan kosong. Keduanya kecil; keduanya menutup jalan buntu yang tidak terlihat di layar.
+
+### Aksi "Muat ulang halaman" pada 404 adalah saran yang PASTI gagal
+
+Sampai PR ini, ketiga keadaan layar kesalahan — 404, 401/403, dan kegagalan tak terduga — menawarkan tombol yang sama: *Muat ulang halaman*. Untuk keadaan ketiga itu benar: keadaan aplikasi sudah terbukti rusak, dan pemuatan ulang penuh satu-satunya cara yang pasti membersihkannya.
+
+Untuk dua keadaan pertama ia **tidak pernah bisa berhasil**. Memuat ulang alamat yang tidak ada menghasilkan halaman yang tidak ada, persis sama. Memuat ulang halaman terkunci menghasilkan halaman terkunci yang sama. Dan yang menuruti saran itu tidak menyimpulkan "sarannya salah" — ia menyimpulkan **aplikasinya rusak**, lalu pergi.
+
+Aksinya karena itu diturunkan dari keadaan:
+
+| Keadaan | Aksi | Alasan |
+|---|---|---|
+| 404 | tautan → `/` | satu-satunya yang mengubah keadaan: pergi ke alamat yang ada |
+| 401 / 403 | tautan → `/masuk` | satu-satunya yang membuka kuncinya |
+| tak terduga | tombol muat ulang | di sini ia memang benar |
+
+**Tepat SATU aksi per keadaan**, dan itu dijaga test. Dua saran yang bersaing pada layar yang sudah membingungkan hanya menambah keputusan yang harus diambil pengguna — dan salah satunya selalu yang tidak akan berhasil.
+
+Jalan pulangnya diperiksa dengan **ditempuh** (`userEvent.click` lalu menunggu heading beranda), bukan dengan membaca `href`-nya: tautan yang menunjuk route yang tidak ada tetap punya `href` yang tampak benar.
+
+### Satu layar untuk semua 404 (keputusan owner 2026-08-09)
+
+Alternatifnya — route `*` yang merender halaman 404 tersendiri — ditolak sebelum ditulis. Route `*` bukan satu-satunya sumber 404: loader fitur kelak akan melemparkannya juga ("lowongan ini sudah ditutup"). Halaman terpisah berarti **dua layar** yang menjawab keadaan yang sama, dan keduanya bebas menyimpang — yang satu diperbaiki, yang lain tidak, dan tidak ada yang tahu mana yang dilihat pengguna.
+
+Akibat sampingannya bagus: `router.test.tsx` yang mengunci "catch-all melempar 404, bukan merender layar langsung" tetap berlaku apa adanya, tanpa satu baris pun diubah.
+
+### `KeadaanKosong`: live region yang tidak perlu diputuskan pemakainya
+
+Pertanyaan yang tampak butuh prop — "apakah keadaan kosong ini harus diumumkan?" — ternyata tidak butuh, dan jawabannya datang dari cara kerja live region itu sendiri: **isi yang sudah ada saat region dipasang tidak diumumkan**, hanya perubahan sesudahnya.
+
+Jadi `role="status"` yang selalu menyala berperilaku persis seperti yang diinginkan di kedua kasus:
+
+* keadaan kosong yang ada sejak halaman dibuka → **diam** (pengguna akan membacanya sendiri);
+* keadaan kosong yang muncul karena pencarian tidak menemukan apa pun → **terdengar**.
+
+Yang kedua itulah kasus yang paling sering terlupakan: pengguna menekan "Cari", tidak ada yang berubah di telinganya, dan ia menekan lagi. Sebuah prop `umumkan` hanya akan memindahkan kesempatan lupa itu ke setiap pemakai.
+
+`status` (polite), bukan `alert` (assertive): layar kosong bukan keadaan darurat, dan menyela demi mengabarkan ketiadaan justru mengusir pengguna dari kalimat yang sedang ia dengarkan. Diuji terpisah dari keberadaan region-nya.
+
+`aria-atomic` bawaan `status` membuat judul, penjelasan, dan aksinya dibacakan sebagai **satu kesatuan** — karena itu aksinya harus berada DI DALAM wilayah. Aksi yang diletakkan di luar tidak ikut terbaca, sehingga pengguna mendengar "Belum ada lamaran" tanpa pernah tahu ada tombol yang bisa mengubahnya. Dijaga test yang memeriksa hubungan elemennya (`toContainElement`), bukan sekadar keberadaannya.
+
+### Dua kewajiban yang dinaikkan ke tingkat TIPE
+
+* **`tingkatJudul` wajib** — alasan yang sama dengan `Kartu` (PR-028c): tingkat yang benar hanya diketahui di tempat pemakaian, dan komponen yang selalu menulis `<h3>` merusak kerangka halaman begitu ia dipakai di kedalaman lain.
+* **`children` (penjelasan) wajib** — layar kosong tanpa penjelasan meninggalkan pengguna menebak apakah ia salah memakai aplikasinya, salah memfilter, atau memang belum punya apa-apa. Yang ketiga menenangkan; dua yang pertama membuat orang berhenti mencoba. Karena tidak ada nilai bawaan yang benar, ia diminta.
+
+Keduanya dijaga `@ts-expect-error` yang membuat `tsc --noEmit` merah bila ikatannya dilonggarkan — **diverifikasi mutasi**: kedua prop dijadikan opsional → `TS2578: Unused '@ts-expect-error' directive` pada dua baris.
+
+### Uji mutasi
+
+* `tingkatJudul` dan `children` dijadikan opsional → `typecheck` merah di dua tempat (`TS2578`).
+* Aksi 404 dikembalikan menjadi tombol muat ulang → **dua** test merah (jalan pulangnya hilang; menempuhnya gagal). Test "tepat satu aksi" **tetap hijau**, dan memang seharusnya begitu: mutasi ini menukar aksinya, bukan menggandakannya. Dicatat karena berguna — ia menunjukkan ketiga test itu menjaga hal yang berbeda, bukan hal yang sama tiga kali.
+* Aksi diletakkan di luar `role="status"` → test `toContainElement` merah.
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` | hijau (9 task) |
+| `pnpm typecheck` | hijau (9 task) |
+| `pnpm test` | hijau — web **302** (+4), ui **157** (+7) |
+| `playwright test` | hijau — 10 test |
+| `lhci` desktop | perf **100**, a11y **100** |
+| `lhci` 3G | perf **82**, a11y **100** |
+| budget bundel | 101,5 KB / 200 KB gzip |
+
+### Ukuran
+
+**375 LOC** (102 sumber + 79 sambungan/test yang diubah, ditambah dua berkas baru 194 baris) — **di bawah target <500.**
+
+### Batas yang jujur
+
+* **`KeadaanKosong` belum punya satu pun pemakai nyata.** Ia pola, dan pola yang belum dipakai belum terbukti pas. Pemakai pertamanya lahir di PR fitur (daftar lamaran, hasil pencarian lowongan); kalau ternyata bentuknya tidak cocok, ia harus berubah di sana — bukan dipaksakan.
+* **Perilaku live region tidak diuji dengan screen reader.** Yang diuji adalah atribut dan hubungan elemennya. Bahwa NVDA benar-benar membacakannya pada saat yang tepat tetap menuntut manusia — menumpuk bersama utang NVDA dari PR-027/028/030/032a.
+* **Keadaan 401/403 belum bisa dicapai pengguna sungguhan.** Tidak ada loader yang melemparnya hari ini; jalurnya diuji dengan error yang ditanam test. Ia akan benar-benar terpakai saat route terlindungi punya loader (Phase 05+).
+
+### Out of scope
+
+* Pemakaian `KeadaanKosong` di halaman fitur → PR fitur masing-masing.
+* Pengiriman detail kesalahan ke observability → PR-103.
+
+### Next steps
+
+* **PR-033** — settings + Data Saya. Ia PR terakhir Phase 03; sesudahnya Exit Criteria phase bisa diperiksa.

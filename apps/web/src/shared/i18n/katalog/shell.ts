@@ -64,6 +64,12 @@ export const katalogShell = {
     id: "Alamat yang Anda tuju mungkin salah ketik atau sudah dipindahkan.",
     "id-simple": "Mungkin alamatnya salah ketik. Coba periksa lagi.",
   },
+  "shell.kesalahan.takDitemukan.pulang": {
+    id: "Kembali ke beranda",
+    // "Beranda" sudah lazim, tetapi ia tetap istilah aplikasi. "Halaman awal"
+    // menyebut tempatnya, bukan namanya.
+    "id-simple": "Buka halaman awal",
+  },
   "shell.kesalahan.perluMasuk.judul": {
     id: "Anda belum bisa membuka halaman ini",
     "id-simple": "Halaman ini terkunci",
@@ -71,6 +77,10 @@ export const katalogShell = {
   "shell.kesalahan.perluMasuk.penjelasan": {
     id: "Coba masuk lebih dulu, lalu buka kembali halaman ini.",
     "id-simple": "Masuk dulu. Setelah itu halaman ini bisa dibuka.",
+  },
+  "shell.kesalahan.perluMasuk.masuk": {
+    id: "Masuk ke akun Anda",
+    "id-simple": "Masuk ke akun Anda",
   },
   "shell.kesalahan.umum.judul": {
     id: "Ada yang tidak berjalan semestinya",

@@ -15,13 +15,18 @@ function renderDenganError(lempar: () => never) {
   const router = createMemoryRouter(
     [
       {
-        path: "/",
+        // Kesalahan dilempar dari route ANAK, bukan dari "/" — supaya tautan
+        // "Kembali ke beranda" punya tujuan yang benar-benar ada dan bisa
+        // ditempuh test.
+        path: "/gagal",
         loader: lempar,
         Component: () => null,
         ErrorBoundary: LayarKesalahan,
       },
+      { path: "/", element: <h1>Beranda</h1> },
+      { path: "/masuk", element: <h1>Masuk ke Nawasena</h1> },
     ],
-    { initialEntries: ["/"] },
+    { initialEntries: ["/gagal"] },
   );
   return render(
     <PenyediaI18n>
@@ -81,6 +86,73 @@ describe("LayarKesalahan", () => {
     // mendarat di ketiadaan.
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
+  });
+
+  it("404 memberi JALAN PULANG, dan tidak menawarkan muat ulang", async () => {
+    // AC PR-032 nomor 4. "Muat ulang halaman" di sini adalah saran yang PASTI
+    // gagal: ia memuat ulang alamat yang memang tidak ada, dan pengguna yang
+    // menurutinya mendarat di layar yang sama persis lalu menyimpulkan
+    // aplikasinya rusak.
+    renderDenganError(() => {
+      throw new Response("", { status: 404 });
+    });
+    await screen.findByRole("heading", { level: 1 });
+
+    const pulang = screen.getByRole("link", { name: "Kembali ke beranda" });
+    expect(pulang).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("button", { name: "Muat ulang halaman" })).toBeNull();
+  });
+
+  it("jalan pulang benar-benar sampai ke beranda", async () => {
+    // Diperiksa dengan MENEMPUHNYA, bukan dengan membaca href-nya. Tautan yang
+    // menunjuk route yang tidak ada tetap punya href yang tampak benar.
+    renderDenganError(() => {
+      throw new Response("", { status: 404 });
+    });
+    await screen.findByRole("heading", { level: 1 });
+
+    await userEvent.click(screen.getByRole("link", { name: "Kembali ke beranda" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Beranda" })).toBeInTheDocument();
+  });
+
+  it("401/403 menawarkan MASUK, bukan muat ulang", async () => {
+    // Memuat ulang halaman terkunci menghasilkan halaman terkunci yang sama.
+    // Yang mengubah keadaan hanyalah masuk.
+    renderDenganError(() => {
+      throw new Response("", { status: 403 });
+    });
+    await screen.findByRole("heading", { level: 1 });
+
+    expect(screen.getByRole("link", { name: "Masuk ke akun Anda" })).toHaveAttribute(
+      "href",
+      "/masuk",
+    );
+    expect(screen.queryByRole("button", { name: "Muat ulang halaman" })).toBeNull();
+  });
+
+  it("setiap keadaan menawarkan TEPAT SATU aksi", async () => {
+    // Dua saran yang bersaing pada layar yang sudah membingungkan hanya
+    // menambah keputusan yang harus diambil pengguna — dan salah satunya
+    // selalu yang tidak akan berhasil.
+    for (const lempar of [
+      () => {
+        throw new Response("", { status: 404 });
+      },
+      () => {
+        throw new Response("", { status: 403 });
+      },
+      () => {
+        throw new Error("boom");
+      },
+    ] as Array<() => never>) {
+      const { unmount } = renderDenganError(lempar);
+      await screen.findByRole("heading", { level: 1 });
+
+      const aksi = [...screen.queryAllByRole("link"), ...screen.queryAllByRole("button")];
+      expect(aksi).toHaveLength(1);
+      unmount();
+    }
   });
 
   it("tombol muat ulang benar-benar memuat ulang halaman", async () => {

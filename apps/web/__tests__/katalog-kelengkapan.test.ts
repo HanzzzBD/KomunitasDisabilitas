@@ -53,6 +53,11 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "Label tautan tiga kata sehari-hari, dan 'daftar'/'masuk' harus SAMA di kedua varian — " +
     "keduanya muncul lagi di halaman masuk, dan pengguna mencocokkan kata yang tadi ia tekan.",
 
+  // --- shell (PR-032b) ---
+  "shell.kesalahan.perluMasuk.masuk":
+    "Label aksi empat kata sehari-hari. 'Masuk' harus SAMA dengan label di " +
+    "halaman tujuan — pengguna mencocokkan kata yang tadi ia tekan.",
+
   // --- shell (PR-032a) ---
   "shell.judulDokumen":
     "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +
