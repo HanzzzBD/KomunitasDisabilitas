@@ -1460,3 +1460,100 @@ Pemecahan chunk berubah bentuk: `@nawasena/ui` kini dipakai dua route lazy, jadi
 
 * Sisa Phase 03: **PR-031b**, **PR-032**, **PR-033**.
 * Utang yang harus dijadwalkan sebelum Exit Criteria: **NVDA sampling** (lima komponen PR-027/028 + tiga halaman auth), **verifikasi OTP terhadap API dev**, dan **verifikasi Google dengan akun uji**.
+
+---
+
+## PR-031b — Gerbang a11y di peramban (axe + Lighthouse)
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-031b-gate-a11y` · **AC ditutup:** PR-031 nomor 2, 3, 5 — **PR-031 tuntas**
+
+### Ringkasan
+
+Registry halaman, axe atas hasil build di Chromium sungguhan, Lighthouse CI (a11y = 100, perf ≥ 80), dan job `a11y` di CI yang akhirnya menyala. Lapis ketiga dari tiga.
+
+### Utang `TAK_BISA_DI_JSDOM` DIBAYAR, bukan dipindahkan
+
+Sejak PR-031a, tiga aturan tercatat sebagai tidak bisa diperiksa tanpa peramban: `color-contrast`, `target-size`, `scrollable-region-focusable`. Keduanya yang pertama kini **LULUS** di halaman nyata — dan test-nya menuntut `passes`, bukan sekadar "dijalankan".
+
+Bedanya penting: aturan yang berakhir `incomplete` (axe tidak bisa memutuskan) tidak menjaga apa pun, dan menghitungnya sebagai keberhasilan persis mengulang kesalahan yang dihindari lapis kedua. Inilah yang akhirnya mengukur klaim PR-027 — kontras 17,4:1 dan target sentuh ≥ 44 px — dalam warna dan piksel, bukan dalam nama kelas.
+
+`scrollable-region-focusable` berstatus `inapplicable`: belum ada wilayah yang menggulir di halaman mana pun. Ia berjalan tanpa pernah benar-benar diuji — itu keadaan, bukan cakupan, dan disebut apa adanya.
+
+### Tiga keputusan yang menentukan bentuk gerbang ini
+
+**Menguji HASIL BUILD, bukan server dev.** Server dev menyajikan CSS lewat injeksi JavaScript dan tidak menjalankan pemangkasan kelas Tailwind. Kelas yang hilang dari produksi karena tidak ikut terpindai (`@source`) justru tampak baik-baik saja di sana — dan itu persis jenis cacat yang gerbang ini harus tangkap. Kekhawatiran itu bukan hipotetis: seluruh `packages/ui` bergantung pada satu baris `@source` di `gaya.css`.
+
+**Jaringan dipalsukan.** Gerbang ini memeriksa tampilan, bukan integrasi. Menggantungkannya pada API yang berjalan berarti pipeline butuh Postgres + Redis + worker hanya untuk memeriksa kontras warna; kegagalan jaringan terbaca sebagai pelanggaran aksesibilitas; dan keadaan halaman ikut berubah mengikuti isi basis data. **Gerbang yang kadang merah karena sebab lain akan diabaikan orang, dan gerbang yang diabaikan tidak menjaga apa pun.**
+
+Ini ditemukan saat menjalankannya: halaman "masuk — langkah kode" gagal karena `vite preview` tidak punya `/api/v1`. Jawaban yang benar bukan membuang halaman itu dari registry — melainkan memalsukan jaringannya, sehingga keadaan yang paling banyak memuat pengumuman galat justru ikut dijaga.
+
+**Job terpisah yang berjalan paralel.** Bukan langkah tambahan di `checks`: peramban tidak ada gunanya bagi lint/typecheck/unit, dan job paralel membuat tambahan durasi pipeline mendekati nol.
+
+### Registry: yang mudah ditambah juga mudah ditambah SALAH
+
+Satu daftar dipakai axe DAN Lighthouse — dua daftar akan menyimpang, dan yang menyimpang berarti sebuah halaman dijaga separuh gerbang tanpa ada yang tahu separuh mana.
+
+`registry-halaman.test.ts` berjalan di vitest (murah, tanpa peramban) dan menuntut: nama unik, jalur diawali `/`, jalur menunjuk route yang benar-benar ada, dan alasan tertulis untuk tiap pengecualian aturan. Yang paling menahan erosi adalah arah sebaliknya: **setiap route produksi wajib punya entri**, sehingga halaman baru tidak bisa lahir tanpa penjagaan. Dua test lagi memeriksa `pr.yml` — bahwa job `a11y` tidak lagi `if: false`, dan bahwa ia benar-benar menjalankan keduanya.
+
+Yang terakhir itu menjaga bentuk kegagalan yang paling mahal: gerbang yang ditulis, disebut di dokumen, dan tidak pernah berjalan.
+
+### Bukti bahwa gerbangnya bisa MERAH
+
+Dua-duanya diverifikasi, bukan diasumsikan:
+
+* **axe** — test permanen menanam teks `#eeeeee` di atas `#ffffff` lalu menuntut `color-contrast` muncul sebagai pelanggaran. Cacat itu sengaja jenis yang lolos lint DAN lolos lapis jsdom.
+* **Lighthouse** — `<img>` tanpa `alt` ditanam ke `dist/index.html`, `lhci` keluar status 1: `categories.accessibility failure for minScore assertion, expected: >=1`. Verifikasi sekali jalan, tidak dijadikan test permanen — menjalankan Lighthouse dua kali menggandakan bagian termahal pipeline demi bukti yang tidak berubah.
+
+Skor sekarang: **a11y 100, performance 100**, best-practices 96, SEO 100.
+
+### Uji mutasi
+
+Tujuh mutasi ditanam, **tujuh tertangkap**:
+
+| # | Mutasi | Merah |
+|---|--------|-------|
+| M1 | Seluruh entri `/masuk` dibuang dari registry | 1 |
+| M2 | Dua entri bernama sama | 1 |
+| M3 | Jalur tidak diawali `/` | 2 |
+| M4 | Registry dikosongkan | 2 |
+| M5 | Pengecualian aturan tanpa alasan | 1 |
+| M6 | Job `a11y` dimatikan lagi (`if: false`) | 1 |
+| M7 | Job `a11y` tidak menjalankan Lighthouse | 1 |
+
+M1 mula-mula tampak lolos — tetapi mutasi pertamanya hanya membuang SATU dari dua entri yang menunjuk `/masuk`, sehingga route-nya masih tercakup. Penjaganya benar; mutasinya yang tidak bermakna. Diulang dengan membuang keduanya, lalu merah sebagaimana mestinya.
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (web **280** test, dari 272; total repo 1.247). Gerbang lapis ketiga: **7 test Playwright hijau** atas 5 halaman terdaftar.
+
+Durasi terukur lokal: build 3 s + axe 10 s + Lighthouse 41 s = **54 s**. Di CI ditambah `pnpm install` dan unduhan chromium, tetapi job-nya paralel dengan `lint-typecheck-test` (± 2 m 10 s) — tambahan durasi pipeline mendekati nol.
+
+**476 LOC** (386 berkas baru, 90 sambungan; lock file tidak dihitung) — **di bawah target <500**, pertama kali sejak PR-028a.
+
+### Koreksi atribusi utang
+
+Log PR-027/PR-028 menunda beberapa hal ke "PR-031b" yang sebenarnya **bukan** pekerjaan gerbang ini, dan tetap terbuka sesudahnya:
+
+* perilaku pada zoom 200 % (`max-h` Dialog, penempatan popper Pilihan);
+* typeahead, penguncian scroll, dan `aria-hidden` pada sisa halaman saat Dialog terbuka;
+* pintasan F8 Toast, jeda hitung mundur saat hover/fokus, gerakan geser.
+
+Semuanya butuh e2e per **komponen**, bukan pemindaian aturan per halaman — dan wajarnya lahir bersama halaman fitur yang benar-benar memakai komponen itu. Menuliskannya sebagai "PR-031b" membuatnya tampak terjadwal padahal tidak.
+
+### Batas yang jujur
+
+* **axe ≠ WCAG penuh.** Aturan otomatis menangkap sekitar sepertiga kriteria; sisanya menuntut penilaian manusia. Audit manual tetap gerbang rilis (PR-110), dan **NVDA sampling masih menumpuk** — kini lima komponen PR-027/028 plus tiga halaman auth.
+* **Satu peramban.** Hanya Chromium. Perbedaan perilaku screen reader di Firefox/Safari tidak terjaga.
+* **Satu ukuran layar.** `Desktop Chrome`. Tata letak sempit dan zoom besar belum diperiksa — padahal keduanya jalur yang paling sering merusak target sentuh.
+* **Lighthouse a11y 100 bukan berarti aksesibel.** Skornya tersusun dari aturan otomatis yang sama; ia menahan kemunduran, bukan membuktikan kelayakan.
+* **`chromeFlags: --no-sandbox`** dipakai supaya berjalan di runner. Wajar untuk CI, tetapi disebut agar tidak tersalin ke tempat lain tanpa berpikir.
+
+### Out of scope
+
+* Slot `e2e` (alur pengguna end-to-end) sengaja **tetap mati**. Ia bukan bagian AC PR-031, dan menyalakannya tanpa isi hanya menambah check hijau yang tidak menguji apa pun.
+* Audit manusia (PR-110).
+
+### Next steps
+
+* Sisa Phase 03: **PR-032** (landing + 404 + empty state), **PR-033** (settings + Data Saya).
+* Setiap halaman yang lahir di keduanya WAJIB menambah entri di `e2e/halaman.ts` — kini ditegakkan test, bukan ingatan.

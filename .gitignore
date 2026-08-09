@@ -45,3 +45,12 @@ temp/
 # Docker local volumes
 /docker-data/
 /docker/volumes/
+
+# Artefak gerbang aksesibilitas (PR-031b) — laporan, jejak, dan hasil Lighthouse.
+# Semuanya dihasilkan ulang tiap jalan; yang di CI diunggah sebagai artefak job.
+/apps/web/playwright-report/
+/apps/web/test-results/
+/apps/web/.lighthouseci/
+
+# Berkas sementara Vite saat config-nya di-bundle ulang (muncul saat `vite preview`).
+*.timestamp-*.mjs

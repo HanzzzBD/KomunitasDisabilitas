@@ -68,5 +68,11 @@ export default defineConfig({
     // Sejajar dengan apps/api: berkas test berjalan berurutan supaya kegagalan
     // bisa dibaca tanpa menebak test mana yang berbenturan.
     fileParallelism: false,
+    // `e2e/` milik Playwright, bukan vitest (PR-031b). Keduanya memakai nama
+    // `test`/`expect` yang mirip tetapi dari pustaka berbeda; tanpa batas ini
+    // vitest ikut memungut spec Playwright dan gagal dengan pesan yang tidak
+    // menyebut sebabnya. Registry-nya sendiri TETAP diuji vitest lewat
+    // `__tests__/registry-halaman.test.ts` — yang murah dan tidak butuh peramban.
+    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
   },
 });

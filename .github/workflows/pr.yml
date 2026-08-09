@@ -164,11 +164,67 @@ jobs:
     if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Slot e2e — diaktifkan PR-031 (Playwright)."
+      - run: echo "Slot e2e — alur pengguna end-to-end; masih slot (lihat catatan PR-031b)."
 
+  # Gerbang aksesibilitas LAPIS KETIGA (PR-031b) — axe + Lighthouse atas halaman
+  # nyata di peramban nyata.
+  #
+  # JOB TERPISAH, bukan langkah tambahan di `checks`, dengan dua alasan:
+  #   1. Ia butuh peramban (± 1 menit unduhan + dependensi sistem) yang tidak
+  #      ada gunanya bagi lint/typecheck/unit.
+  #   2. Berjalan PARALEL, sehingga tambahan durasi pipeline mendekati nol —
+  #      AC PR-031 nomor 5 ("< 5 menit").
+  #
+  # TIDAK membutuhkan Postgres/Redis: jaringannya dipalsukan di dalam test
+  # (lihat `palsukanApi` di e2e/aksesibilitas.spec.ts). Gerbang tampilan yang
+  # bergantung pada basis data akan merah karena sebab yang bukan aksesibilitas
+  # — dan gerbang yang merah karena sebab lain akan diabaikan orang.
   a11y:
-    name: a11y (slot — aktif di PR-031)
-    if: ${{ false }}
+    name: a11y (axe + Lighthouse)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - run: echo "Slot a11y — diaktifkan PR-031 (axe-core + Lighthouse CI)."
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Setup Node 20 + cache pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Hanya chromium: axe dan Lighthouse sama-sama berjalan di atasnya, dan
+      # menambah Firefox/WebKit melipatgandakan durasi tanpa menambah satu pun
+      # aturan yang diperiksa.
+      - name: Install Playwright chromium
+        run: pnpm --filter @nawasena/web exec playwright install --with-deps chromium
+
+      # Gerbang menguji HASIL BUILD, bukan server dev — kelas Tailwind yang
+      # hilang dari produksi tampak baik-baik saja di server dev.
+      - name: Build web
+        run: pnpm --filter @nawasena/web build
+
+      - name: axe atas halaman terdaftar
+        run: pnpm --filter @nawasena/web test:a11y
+
+      - name: Lighthouse (a11y = 100, perf >= 80)
+        run: pnpm --filter @nawasena/web test:lighthouse
+
+      # Laporan hanya diunggah saat merah: yang membaca artefak ini adalah orang
+      # yang sedang memperbaiki kegagalan, bukan orang yang PR-nya hijau.
+      - name: Unggah laporan kegagalan
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laporan-a11y
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+            apps/web/.lighthouseci/
+          retention-days: 7
