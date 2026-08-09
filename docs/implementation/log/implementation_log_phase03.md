@@ -626,3 +626,66 @@ Penegakan PR ini menumpang langkah `Lint` dan `Unit test` yang sudah ada — ked
 * **PR-027/028** — pustaka komponen lahir DENGAN gerbang sudah menyala. Pakai `harusLolosAksesibilitas()` di test tiap komponen.
 * **PR-031b** — registry halaman + axe di browser sungguhan (menutup `TAK_BISA_DI_JSDOM`) + Lighthouse (a11y=100, perf≥80), AC 2, 3, 5.
 * **PR-110** — audit manusia tetap gerbang rilis. Tidak satu pun lapisan otomatis menggantikannya.
+
+---
+## PR-027a — Fondasi styling: preset Tailwind & paket UI
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-027---packagesui-batch-1--form-primitives)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai (bagian pertama dari tiga; Button & Input = PR-027b, FormField & Select = PR-027c)
+
+### Celah dokumen yang ditutup
+
+**Setup Tailwind tidak punya pemilik di backlog.** SDD menyebutnya tiga kali — termasuk **§107: "packages/config: eslint, tsconfig, tailwind preset"** dan **§189: "seluruh Tailwind preset membaca token ini"** — tetapi pencarian `tailwind` di seluruh 19 dokumen phase hanya menemukan **rujukan**, bukan satu pun PR yang membuatnya.
+
+Bedanya dengan celah PWA (PR-025d): yang ini **memblokir**. PR-027 menulis *"primitives Radix + Tailwind membaca token a11y"* seolah presetnya sudah ada. Membangun komponen dengan CSS biasa bukan pilihan — itu mengubah keputusan tech stack di CLAUDE.md dan SDD.
+
+Diangkat ke owner; owner memilih mengerjakannya di dalam PR-027a.
+
+### Ringkasan hasil
+
+Preset Tailwind di `packages/config` yang menjadikan token aksesibilitas **satu-satunya jalan** menulis ukuran, CSS akar `apps/web`, dan `packages/ui` yang berhenti jadi placeholder.
+
+Tidak menutup AC PR-027 sendiri, tetapi **membuka ketiganya**.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9. `@nawasena/config` **23 test** (dari 11), `@nawasena/ui` **8** (dari nol), `@nawasena/web` **140** (dari 134). Bundel JS awal **tetap 97,9 KB / 200 KB**.
+
+### Keputusan teknis
+
+* **Token dijadikan satu-satunya jalan menulis ukuran.** `text-*` mengalikan `--font-scale` lewat `calc()`; `min-h-sentuh`/`min-w-sentuh` membaca `--touch-target-min`. Selama preferensi hanya bisa dipakai lewat kelas Tailwind biasa, **tidak ada komponen yang bisa "lupa" menghormatinya** — jauh lebih kuat daripada mengandalkan setiap penulis mengingatnya.
+* **Nilai cadangan wajib** (`var(--font-scale, 1)`). Tanpa cadangan, `calc()` batal bila token belum tertulis — teksnya kehilangan ukuran sama sekali, bukan sekadar kembali normal. Itu bisa terjadi bila skrip pra-paint gagal di lingkungan yang memblokir localStorage.
+* **Varian membaca ATRIBUT, bukan media query.** `kontras-tinggi:`, `gerak-minimal:`, `bahasa-sederhana:` memetakan ke `[data-*]`. Media query hanya tahu setelan OS; atribut sudah memperhitungkan pilihan eksplisit pengguna yang boleh **menimpa** OS (ADR-008). Memakai `motion-reduce:` bawaan Tailwind akan mengabaikan pilihan itu.
+* **Cincin fokus dipulihkan di `@layer base`.** Preflight Tailwind **menghapus** outline bawaan browser; tanpa aturan pengganti, seluruh aplikasi kehilangan penanda fokus dan navigasi keyboard menjadi menebak-nebak. Ini kegagalan aksesibilitas paling umum yang lahir dari CSS reset. Tebal 3px, bukan 2px — 2px hilang di antara piksel pada kontras rendah dan layar kecil.
+* **Durasi animasi `0.01ms`, bukan `0s`.** Durasi nol membuat sebagian browser melewatkan event `transitionend`, dan kode yang menunggunya menggantung selamanya.
+* **`gabungKelas` memakai `twMerge`, bukan penyambungan string.** Tailwind menghasilkan kelas yang saling menimpa, dan pemenangnya ditentukan urutan di **lembar gaya** — bukan urutan di atribut `class`. Tanpa penggabungan yang benar, `className` dari pemakai berlaku di sebagian kasus dan diam-diam gagal di sebagian lain. Kelas kustom (`min-h-sentuh`) didaftarkan ke `twMerge`, jika tidak ia tidak dikenali sebagai anggota grup yang sama.
+* **`packages/ui` dipindai `content` Tailwind `apps/web`.** Kelas yang hanya muncul di sana akan dibuang bila jalurnya tidak disebut — dan gejalanya komponen tanpa gaya sama sekali **di produksi**, tetapi normal saat dev.
+
+### Pilihan versi Tailwind: v3, bukan v4
+
+v4 memindahkan konfigurasi ke CSS (`@theme`) dan **meniadakan konsep "preset"** yang SDD §107 sebut namanya. Repo ini juga menahan versi secara sadar di tempat lain (React 18, Vite 5).
+
+Ditulis di kepala preset sebagai keputusan yang bisa ditinjau ulang: bila kelak v4 dipilih, arsitektur berkas itu berubah bentuk — itu keputusan owner, bukan detail yang boleh berpindah diam-diam.
+
+### Verifikasi
+
+**Preset diuji dengan MENJALANKAN Tailwind**, bukan dengan memeriksa isi objek konfigurasinya. Konfigurasi yang "terlihat benar" bisa menghasilkan CSS yang salah — kunci keliru sarang, nilai tak dikenali, varian yang tidak pernah terpakai. Yang dipakai pengguna adalah CSS-nya.
+
+* **Uji mutasi 1:** skala teks diubah menjadi angka mati → **dua test merah**.
+* **Uji mutasi 2:** varian `gerak-minimal` diubah memakai `@media prefers-reduced-motion` → **dua test merah**.
+* Ada test yang membuktikan penyaring `content` benar-benar bekerja — tanpa itu, seluruh test lain akan lulus atas CSS yang selalu memuat segalanya.
+* Build nyata: CSS keluar dengan `--font-scale`, `--touch-target-min`, `:focus-visible`, dan tiga selektor `data-motion`.
+
+**Penjaga baru `token-bawaan.test.ts`**: nilai `:root` di `gaya.css` wajib setuju dengan `ACCESSIBILITY_DEFAULTS`. Dua tempat menyatakan "seperti apa tampilan pengguna yang belum mengubah apa pun", dan bila keduanya berbeda, pengguna baru melihat satu tampilan sebelum React hidup dan tampilan lain sesudahnya — kedipan yang sama dengan yang dicegah PR-026c, hanya saja sumbernya kesalahan angka.
+
+### Pemindai vs komentar — untuk ketiga kalinya
+
+`token-bawaan.test.ts` sempat merah karena `gaya.css` **menyebut** `prefers-reduced-motion` di dalam kalimat yang menjelaskan mengapa ia tidak dipakai. Komentar dibuang sebelum dipindai.
+
+Pola yang sama sudah muncul di `soft-delete-jangkauan` (PR-021a) dan `pwa-fondasi` (PR-025d). Cukup sering untuk pantas diingat: **pemindai teks apa pun atas kode kita sendiri harus membuang komentar lebih dulu**, sebab kode yang didokumentasikan dengan baik justru paling mungkin menyebut hal yang dilarangnya.
+
+### Next steps
+
+* **PR-027b** — Button & Input. AC 1 (fokus ring) & 4 (target sentuh).
+* **PR-027c** — FormField & Select. AC 2, 3, 5.
+* Komponen wajib melewati `harusLolosAksesibilitas()` (PR-031a) — gerbangnya sudah menyala sebelum komponen pertama lahir.
+* **Pilihan Tailwind v3** layak ditinjau ulang sebelum Phase 04, selagi belum ada komponen yang bergantung padanya.

@@ -4,6 +4,9 @@
 // nyata — dan agar berkas ini tidak menjadi tempat sampah global.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+// Gaya diimpor di entry, sebelum apa pun dirender: Vite menyuntikkannya ke
+// <head> saat build, sehingga halaman tidak pernah tergambar tanpa gaya.
+import "./app/gaya.css";
 import { App } from "./app/App.js";
 import { daftarkanServiceWorker } from "./shared/pwa/daftar.js";
 
