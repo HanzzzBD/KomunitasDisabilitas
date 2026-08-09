@@ -26,6 +26,7 @@ Sumber kebenaran hulu: PRD (kebutuhan bisnis) dan SDD (keputusan teknis).
 | [ADR-016](ADR-016-github-actions-cicd.md) | GitHub Actions CI/CD dengan Accessibility sebagai Quality Gate | Accepted | Infrastruktur |
 | [ADR-017](ADR-017-observability-hemat.md) | Observability Hemat: Sentry + Uptime Kuma + pino/Dozzle | Accepted | Infrastruktur |
 | [ADR-018](ADR-018-postgres-fts-search.md) | PostgreSQL FTS + pg_trgm untuk Pencarian Lowongan | Accepted | Database |
+| [ADR-019](ADR-019-tailwind-v4-styling-web.md) | Tailwind CSS v4 sebagai Styling Framework Web | Accepted | Frontend |
 
 ## Pemetaan dari SDD §21 (penomoran lama v1.0/v1.1 → resmi)
 

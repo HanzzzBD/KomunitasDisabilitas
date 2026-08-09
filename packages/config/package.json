@@ -15,7 +15,7 @@
     "./eslint": "./eslint/base.cjs",
     "./eslint/boundaries": "./eslint/boundaries.cjs",
     "./eslint/react": "./eslint/react.cjs",
-    "./tailwind": "./tailwind/preset.cjs",
+    "./tailwind": "./tailwind/tema.css",
     "./tsconfig/base": "./tsconfig/base.json",
     "./tsconfig/node": "./tsconfig/node.json",
     "./tsconfig/react": "./tsconfig/react.json"
@@ -27,6 +27,7 @@
     "test:cov": "vitest run --coverage"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
     "@types/eslint": "8.56.12",
     "@types/node": "22.10.2",
     "@typescript-eslint/eslint-plugin": "8.18.1",
@@ -36,8 +37,8 @@
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.2",
     "eslint-plugin-react-hooks": "5.1.0",
-    "postcss": "8.4.49",
-    "tailwindcss": "3.4.17",
+    "postcss": "8.5.26",
+    "tailwindcss": "4.3.3",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   },
@@ -45,7 +46,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "prettier": "^3.3.0",
-    "tailwindcss": "^3.4.0",
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.5.0"
   }
 }

@@ -11,6 +11,10 @@
 // PR ini, jadi yang disamakan adalah Vite-nya.
 import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
+// Tailwind v4 masuk sebagai plugin Vite (ADR-019), bukan lewat PostCSS.
+// Konsekuensinya `postcss.config.cjs` dan `tailwind.config.cjs` hilang: v4
+// tidak punya berkas konfigurasi JS, dan autoprefixer sudah bawaan.
+import tailwindcss from "@tailwindcss/vite";
 import { SKRIP_PRA_PAINT } from "./src/shared/a11y/skrip-pra-paint.js";
 
 /**
@@ -42,7 +46,7 @@ function suntikSkripPraPaint(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), suntikSkripPraPaint()],
+  plugins: [react(), tailwindcss(), suntikSkripPraPaint()],
   server: {
     // 5173 adalah default Vite dan SUDAH terdaftar sebagai Authorized redirect
     // URI di Google Cloud Console (http://localhost:5173/masuk/google).

@@ -689,3 +689,78 @@ Pola yang sama sudah muncul di `soft-delete-jangkauan` (PR-021a) dan `pwa-fondas
 * **PR-027c** — FormField & Select. AC 2, 3, 5.
 * Komponen wajib melewati `harusLolosAksesibilitas()` (PR-031a) — gerbangnya sudah menyala sebelum komponen pertama lahir.
 * **Pilihan Tailwind v3** layak ditinjau ulang sebelum Phase 04, selagi belum ada komponen yang bergantung padanya.
+
+---
+## PR-027a (revisi) — Migrasi ke Tailwind v4 & ADR-019
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-027---packagesui-batch-1--form-primitives)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai. Menggantikan pilihan v3 dari PR-027a, sebelum satu komponen pun bergantung padanya.
+
+### Kenapa direvisi
+
+PR-027a memperkenalkan Tailwind `3.4.17` dan menyajikannya seolah keputusan yang sudah diambil. Tinjauan atas repo membuktikan sebaliknya:
+
+* **Nol ADR menyebut Tailwind.** Tidak ada ADR tentang styling sama sekali.
+* SDD menyebutnya **tiga kali, semuanya di dalam diagram ASCII** (§103, §107, §189) — inventaris deskriptif, bukan pernyataan normatif. Kata "preset" hanya muncul di §107 dan §189.
+* Pin 3.4.17 masuk repo lewat commit `a96f34d` **hari itu juga**, oleh agent.
+* Alasan yang ditulis saat itu — *"repo menahan versi secara sadar (React 18, Vite 5)"* — **tidak tahan diperiksa**: Vite 5 dipaksa vitest 2.1.8 (kendala teknis), React 18 memang ditulis SDD:99 dan CLAUDE.md (keputusan terdokumentasi). Keduanya punya sebab spesifik; tidak satu pun menetapkan kebijakan menahan versi.
+
+Sementara **ADR-008** — satu-satunya pernyataan normatif tentang token — menetapkan mekanismenya sebagai *"CSS custom properties dan atribut data pada `<html>`"*, **tanpa menyebut framework CSS apa pun**.
+
+v4 menjadikan custom property sebagai tema itu sendiri, jadi mekanisme ADR-008 terwakili **langsung**. Di v3 kita menempuhnya lewat objek JS yang menghasilkan CSS yang membaca custom property — satu lapisan yang tidak menambah apa pun.
+
+Keputusan diambil owner, dan dituangkan sebagai **ADR-019** — sebab cacat yang sesungguhnya bukan versinya, melainkan bahwa pilihan stack ini tidak punya ADR sama sekali.
+
+### Yang berubah
+
+| Sebelum (v3) | Sesudah (v4) |
+|---|---|
+| `packages/config/tailwind/preset.cjs` + `preset.d.cts` | `packages/config/tailwind/tema.css` (`@theme` + `@custom-variant`) |
+| `apps/web/tailwind.config.cjs` | *(hilang — v4 tanpa config JS)* |
+| `apps/web/postcss.config.cjs` + `postcss` + `autoprefixer` | plugin `@tailwindcss/vite` (autoprefix bawaan) |
+| `tailwind-merge` 2.6.0 | `tailwind-merge` 3.6.0 |
+| `tailwindcss` 3.4.17 | `tailwindcss` 4.3.3 |
+
+Berkurang **tiga berkas konfigurasi dan dua dependensi**.
+
+### Kontrak token TIDAK berubah
+
+Syarat yang dipegang: migrasi versi tidak boleh mengubah perilaku token. Dibuktikan lewat kompilasi CSS nyata, bukan pembacaan konfigurasi:
+
+* `var(--font-scale, 1)` — cadangan utuh;
+* `var(--touch-target-min, 44px)` — cadangan utuh, dan rantainya sampai ke token runtime, tidak berhenti di variabel tema;
+* ketiga atribut (`data-contrast`, `data-motion`, `data-lang-mode`) menghasilkan selektor yang sama;
+* `prefers-reduced-motion` tetap **tidak** muncul di keluaran.
+
+Nilai bawaan `:root` sengaja **tidak** dipindah ke dalam `@theme`: itu nilai RUNTIME yang ditulis ulang JavaScript saat pengguna mengubah preferensi. `@theme` untuk nilai desain yang tetap; mencampurnya akan membuat token pengguna terlihat seperti bagian tema yang tidak boleh berubah.
+
+### Dua jebakan yang ditemukan saat menguji
+
+**1. Versi 4.0.0 tidak bisa dipakai.** Kompilasi gagal dengan `Missing field 'negated' on ScannerOptions.sources` — ketidakcocokan antar-paket internal. Naik ke 4.3.3 menyelesaikannya. `^4` sempat tertahan lockfile di 4.0.0; versinya harus dipin eksplisit, konsisten dengan gaya repo.
+
+**2. Test sempat menguji hal yang salah — dua kali.**
+
+Pertama, plugin PostCSS Tailwind meng-cache compiler & scanner berdasarkan jalur `from`; dengan jalur sama, kandidat kelas antar-pemanggilan **menumpuk**.
+
+Kedua — dan ini yang lebih penting — v4 **memindai berkas di sekitar `from` secara otomatis**, termasuk **berkas test itu sendiri**. String `min-h-sentuh` yang ditulis di dalam assertion ikut menjadi kandidat kelas, sehingga CSS memuat utilitas yang tidak pernah diminta.
+
+Akibatnya test *"kelas yang tidak diminta tidak ikut dihasilkan"* merah — dan assertion lain **bisa lulus karena alasan yang salah**. Ditutup dengan `@import "tailwindcss" source(none)` dan `from` unik per panggilan. Tanpa test negatif itu, kebocoran ini tidak akan pernah terlihat.
+
+### Verifikasi
+
+* **Uji mutasi 1:** skala teks → angka mati = **dua test merah**.
+* **Uji mutasi 2:** varian → `@media prefers-reduced-motion` = **dua test merah**.
+* **Integrasi Vite 5.4.21 + Vitest 2.1.8**: build produksi nyata berhasil; skrip pra-paint tetap tersuntik ke `<head>`; CSS memuat token bawaan, `:focus-visible`, dan tiga aturan `data-motion`.
+* `tailwind-merge` 3.6.0 lolos **tanpa perubahan konfigurasi** — 8 test grup kelas kustom hijau apa adanya.
+* Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, seluruh paket hijau (config 22, ui 8, a11y 74, web 140, schemas 14, api 683, api-client 24). **Bundel JS awal tetap 97,9 KB / 200 KB.**
+
+### Utang yang dicatat
+
+* **SDD:107 masih menulis "tailwind preset"**, yang di v4 bukan lagi objek JS. Maksudnya (tema bersama di `packages/config`) tidak berubah, jadi tidak disunting di PR ini — dicatat di ADR-019 §Consequences agar ikut diperbaiki saat SDD berikutnya disunting.
+* Dokumentasi dan contoh Tailwind di internet masih banyak v3; penulis komponen PR-027b/c perlu memastikan rujukannya.
+
+### Next steps
+
+* **PR-027b** — Button & Input, kini di atas fondasi v4. AC 1 & 4.
+* **PR-027c** — FormField & Select. AC 2, 3, 5.
