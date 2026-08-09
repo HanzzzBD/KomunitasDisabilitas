@@ -764,3 +764,72 @@ Akibatnya test *"kelas yang tidak diminta tidak ikut dihasilkan"* merah — dan 
 
 * **PR-027b** — Button & Input, kini di atas fondasi v4. AC 1 & 4.
 * **PR-027c** — FormField & Select. AC 2, 3, 5.
+
+---
+
+## PR-027b — Tombol & Masukan
+
+**Tanggal:** 2026-08-09
+**Branch:** `pr-027b-button-input` → `phase-03-web-platform-base`
+**Menutup:** PR-027 AC **1** (fokus ring selalu terlihat di semua varian) dan AC **4** (target sentuh ≥ 44px, ≥ 56px saat `largeTouchTargets`).
+
+### Yang dibangun
+
+* `packages/ui/src/tombol.tsx` — `Tombol`, tiga varian (`utama`, `sekunder`, `hening`) × dua ukuran (`sedang`, `kecil`).
+* `packages/ui/src/masukan.tsx` — `Masukan`, dengan prop `bermasalah`.
+* Keduanya diekspor dari `packages/ui/src/index.ts` berikut tipenya.
+
+### Keputusan: TIDAK memakai primitive Radix
+
+Dokumen phase menulis *"primitives Radix + Tailwind"*, dan itu benar — untuk Select (PR-027c), yang polanya rumit dan tidak punya padanan natif yang memadai.
+
+Untuk Button dan Input, `<button>` dan `<input>` natif **sudah** memenuhi seluruh pola WAI-ARIA-nya: peran, aktivasi Enter/Space, keadaan disabled, partisipasi form, dan integrasi dengan teknologi bantu. Membungkusnya dengan primitive tidak menambah **satu pun** perilaku, hanya berat — sementara tiap lapisan tambahan adalah kesempatan baru merusak semantik yang sudah benar.
+
+Itu justru menempuh mitigasi Risks PR-027 (*"kustomisasi berlebihan merusak perilaku ARIA"*) lebih jauh daripada *styling-only di atas primitive*: tidak ada perilaku yang bisa rusak kalau tidak ada yang menggantikannya. Test aktivasi keyboard tetap ditulis — bukan karena perilaku natif meragukan, melainkan sebagai penjaga bila kelak ada yang menggantinya dengan `<div role="button">`.
+
+### Tiga cacat yang dijaga secara eksplisit
+
+**1. `type="button"` sebagai bawaan.** Bawaan HTML adalah `"submit"`, sehingga tombol apa pun di dalam form mengirim form itu saat ditekan — termasuk tombol "Batal". Ini paling menimpa pengguna keyboard, yang menekan Enter jauh lebih sering daripada pengguna tetikus. Bisa ditimpa (`type="submit"`), tetapi harus disengaja.
+
+**2. Tidak ada `outline-none` di mana pun.** Cara paling umum cincin fokus mati adalah seseorang mengganti outline dengan `ring-*` lalu lupa satu varian — dan kegagalannya tak terlihat oleh siapa pun yang memakai tetikus. Aturan `:focus-visible` global (PR-027a) sudah memberi outline `currentColor` 3px yang ikut berubah bersama warna teks tiap varian, jadi tidak ada yang perlu diganti. Dijaga test per varian.
+
+**3. `bermasalah` menulis `aria-invalid` DAN warna sekaligus.** Kolom yang *terlihat* merah tetapi tidak *menyatakan* `aria-invalid` tidak terbaca sebagai galat oleh screen reader — cacat yang hanya menimpa pengguna yang paling bergantung padanya. Karena satu prop menulis keduanya, keduanya tidak bisa menyimpang. Saat normal atributnya **absen**, bukan `"false"`: sebagian screen reader lawas tetap menyebut `aria-invalid="false"`.
+
+Ukuran `kecil` hanya merapatkan padding; tingginya tetap dikunci `min-h-sentuh`. **Target sentuh bukan gaya yang boleh dipilih** — ia batas bawah, dan itu dijaga test tersendiri.
+
+`Masukan` sengaja **tidak mengurus label**; itu tugas FormField (PR-027c). Menaruhnya di sini akan melahirkan dua cara melabeli kolom yang sama, dan yang kedua selalu menjadi yang lupa diperbarui. Yang disediakan hanyalah kait yang dibutuhkan FormField: `id`, `aria-describedby`, `aria-invalid` — dan sebuah test yang memastikan kolom **tanpa** label tetap ditangkap axe sampai PR-027c datang.
+
+### Verifikasi
+
+**Uji mutasi — enam mutasi, semua tertangkap:**
+
+| Mutasi | Hasil |
+|---|---|
+| `min-h-sentuh min-w-sentuh` → `h-10` di Tombol | **4 test merah** |
+| `outline-none` diselundupkan ke varian `hening` | **1 test merah** |
+| bawaan `type="button"` dihapus | **1 test merah** |
+| `aria-invalid` dihapus dari Masukan (warna saja) | **1 test merah** |
+| `aria-invalid` selalu ditulis (`"false"` saat normal) | **1 test merah** |
+| `min-h-sentuh` hilang dari Masukan | **1 test merah** |
+
+**Gerbang axe (PR-031a) tidak lulus secara hampa:** dua test negatif membuktikannya — tombol ikon tanpa `aria-label` gagal dengan `button-name`, dan `Masukan` tanpa label gagal dengan aturan label.
+
+**Kelas benar-benar sampai ke CSS produksi.** `packages/ui` bukan tempat Tailwind memindai secara bawaan; ia masuk lewat `@source` di `gaya.css`. Diperiksa pada build nyata, bukan diasumsikan — keluaran `dist/assets/index-*.css` memuat `min-h-sentuh`, `min-w-sentuh`, `border-red-700`, varian `placeholder:`, dan `[data-motion=reduced] .gerak-minimal\:transition-none`.
+
+**Gate:** `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 (ui 41 test, sebelumnya 8). Build produksi hijau; **bundel JS awal 325,20 kB / gzip 100,23 kB** — komponen belum dipakai halaman mana pun, jadi angkanya belum berubah oleh PR ini.
+
+### Batas yang jujur
+
+Yang **tidak** bisa dibuktikan test di jsdom, dan sengaja tidak diklaim:
+
+* **Piksel target sentuh.** jsdom tidak melakukan tata letak; yang diuji adalah kelasnya ada dan rantai tokennya benar (`min-h-sentuh` → `var(--spacing-sentuh)` → `var(--touch-target-min, 44px)`, diuji di `packages/config`). Pengukuran 44px/56px yang sesungguhnya milik **PR-031b** di browser.
+* **Rasio kontras.** Angka yang ditulis di komentar (17,4:1 untuk `utama`, 12,6:1 untuk `sekunder`, 4,6:1 untuk placeholder) dihitung dari nilai palet Tailwind, bukan diukur dari piksel yang dirender. Verifikasinya juga milik PR-031b.
+* **Cincin fokus yang benar-benar terlihat.** Yang dijaga di sini adalah ia tidak dimatikan. Bahwa ia tampak dan kontrasnya cukup — PR-031b.
+
+### Out of scope
+
+FormField & Select (PR-027c); overlay/feedback (PR-028); varian React Native (PR-089); halaman yang memakai komponen ini.
+
+### Next steps
+
+* **PR-027c** — FormField & Select (Radix). AC 2, 3, 5.
