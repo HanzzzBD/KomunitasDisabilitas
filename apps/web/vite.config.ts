@@ -9,11 +9,40 @@
 // menolak plugin bertipe Vite 6 dengan galat identitas tipe sepanjang halaman.
 // Menaikkan vitest adalah perubahan lintas seluruh workspace — di luar scope
 // PR ini, jadi yang disamakan adalah Vite-nya.
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { SKRIP_PRA_PAINT } from "./src/shared/a11y/skrip-pra-paint.js";
+
+/**
+ * Menyuntikkan skrip anti-flash ke `<head>` saat build DAN saat dev.
+ *
+ * Disuntik dari sini alih-alih ditulis tangan di `index.html` supaya sumbernya
+ * satu: berkas TypeScript yang bisa diuji. Skrip yang hidup sebagai teks di
+ * dalam HTML tidak pernah punya test, dan tidak pernah ikut berubah saat
+ * aturan tokennya berubah.
+ *
+ * Ditempatkan sebagai skrip INLINE, bukan berkas terpisah: berkas eksternal
+ * menambah satu perjalanan jaringan sebelum halaman boleh tergambar — persis
+ * penundaan yang hendak kita hindari.
+ */
+function suntikSkripPraPaint(): Plugin {
+  return {
+    name: "nawasena-pra-paint",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "script",
+          attrs: { "data-nawasena": "pra-paint" },
+          children: SKRIP_PRA_PAINT,
+          injectTo: "head-prepend",
+        },
+      ];
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), suntikSkripPraPaint()],
   server: {
     // 5173 adalah default Vite dan SUDAH terdaftar sebagai Authorized redirect
     // URI di Google Cloud Console (http://localhost:5173/masuk/google).

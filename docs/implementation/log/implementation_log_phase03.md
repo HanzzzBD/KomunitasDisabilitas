@@ -496,3 +496,67 @@ Komentar dibuang sebelum dipindai — berkas inti MENYEBUT `localStorage` dan `d
 ### Next steps
 
 * **PR-026c** — panggil `hubungkanKeDom()` dari `apps/web`, sambungkan `simpleLanguage` ke mode i18n (jalur masuk sudah ada sejak PR-029a), skrip anti-flash pra-paint, dan dokumentasi token untuk Tailwind preset.
+
+---
+## PR-026c — Integrasi aplikasi, anti-flash & dokumentasi token
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-026---packagesa11y--store-preferensi--css-custom-properties)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai. **PR-026 tuntas** — seluruh 5 AC terpenuhi.
+
+### Ringkasan hasil
+
+`apps/web` akhirnya **memakai** preferensi: store tersambung ke `<html>`, `simpleLanguage` menggerakkan mode i18n, dan skrip pra-paint menulis token sebelum halaman tergambar.
+
+Menutup AC **4** (dokumentasi token) dan **5** (tanpa flash), sekaligus membuat AC 1 & 2 berlaku di aplikasi — bukan hanya di paket.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **128 test** (dari 107), `@nawasena/a11y` **57** (dari 49). Bundel awal **97,9 KB / 200 KB**.
+
+### Anti-flash: masalah dan bentuk pemecahannya
+
+React baru berjalan setelah bundelnya diunduh, diurai, dan dieksekusi. Sampai saat itu halaman **sudah tergambar** dengan gaya bawaan. Pengguna yang memilih kontras tinggi atau teks 200% akan melihat kilasan tampilan yang justru **tidak bisa mereka baca** — tepat pada orang yang paling membutuhkan setelan itu. Kedipan ini bukan cacat kosmetik.
+
+Pemecahannya skrip inline di `<head>`, disuntikkan lewat `transformIndexHtml` dari berkas TypeScript — bukan ditulis tangan di `index.html`. Skrip yang hidup sebagai teks di dalam HTML tidak pernah punya test, dan tidak pernah ikut berubah saat aturan tokennya berubah.
+
+**Duplikasi logika di sini tak terhindarkan** — skrip berjalan sebelum modul apa pun dimuat, jadi tidak bisa mengimpor `rekonsiliasi()` maupun `tokenDari()`. Yang bisa dihindari adalah duplikasi yang **menyimpang**: `skrip-pra-paint.test.ts` MENJALANKAN skripnya di jsdom lalu membandingkan DOM hasilnya dengan keluaran fungsi aslinya, untuk matriks sepuluh kombinasi preferensi. Bukan perbandingan teks — perbandingan **perilaku**.
+
+Seluruh isi skrip dibungkus `try/catch`: skrip yang melempar di `<head>` **menghentikan penguraian dokumen** — layar kosong, bukan sekadar preferensi yang gagal dimuat.
+
+### Keputusan teknis
+
+* **Arah sambungan bahasa SATU: preferensi → i18n.** Mode bahasa bukan sumber kebenaran kedua, ia turunan. Menyambungkannya dua arah akan melahirkan dua tempat yang sama-sama mengklaim tahu bahasa mana yang sedang dipakai. Dikunci test.
+* **`SambungkanBahasa` komponen terpisah yang merender `null`** — ia harus berada di dalam `PenyediaI18n` (memakai `useModeBahasa`), sementara store-nya dibuat di luar. Memisahkannya membuat urutan provider tidak bisa salah tanpa terdeteksi typecheck.
+* **Bandingkan sebelum `setMode`.** Tanpa itu, setiap perubahan preferensi apa pun — termasuk yang tidak ada hubungannya dengan bahasa — merender ulang seluruh pohon.
+* **`localStorage` dibungkus `try/catch` di tiga operasinya.** Mode privat sebagian browser MELEMPAR saat `localStorage` disentuh; preferensi yang gagal disimpan tidak boleh menghalangi aplikasi terbuka.
+* **`PenyimpananA11y` diekspor dari `@nawasena/a11y`.** Ditemukan lewat typecheck: `apps/web` terpaksa mengimpor `zustand/middleware` hanya untuk menyebut tipe argumen. Bahwa store-nya kebetulan Zustand adalah detail implementasi — dan detail implementasi yang bocor ke `package.json` pemakainya berhenti bisa diganti.
+* **Kunci penyimpanan DISALIN ke skrip pra-paint, tidak diimpor.** Vite memuat config lewat loader Node yang tidak bisa memetakan `.js` ke `.ts` untuk paket workspace bersumber TypeScript; impornya menggagalkan seluruh build DAN seluruh test dengan `ERR_MODULE_NOT_FOUND`. Salinannya dijaga test.
+
+### `matchMedia` tidak ada di jsdom
+
+Bukan "ada tapi selalu false" — tidak diimplementasikan sama sekali. Ditambahkan polyfill di `setup.ts` yang melaporkan `matches: false` untuk semua kueri, dengan `media` dikembalikan apa adanya (bukan `"not all"`) supaya kueri dianggap **dikenali**. Mengembalikan `"not all"` akan membuat seluruh sinyal terbaca `undefined` dan diam-diam mematikan jalur rekonsiliasi OS di setiap test.
+
+### Dokumentasi token (AC 4)
+
+[docs/token-aksesibilitas.md](../../token-aksesibilitas.md) — lima token, contoh CSS beserta **nilai cadangan**, alasan atribut dihapus alih-alih disetel "mati", dan dua preferensi yang sengaja tanpa token.
+
+Penjaganya menurunkan daftar token dari **KODE**, bukan dari daftar tulisan tangan: daftar tulisan tangan adalah sumber kebenaran kedua yang bebas menyimpang, dan penjaga yang membandingkan dua salinan usang selalu hijau. Ia juga menuntut **nilai** atributnya ikut disebut — nama saja tidak cukup bagi penulis CSS.
+
+### Verifikasi
+
+* **Uji mutasi 1:** token baru ditambahkan tanpa dokumentasi → penjaga dokumentasi **merah**.
+* **Uji mutasi 2:** skrip pra-paint diubah 56 menjadi 60 px → **dua test kesetaraan merah**.
+* Build nyata: skrip pra-paint terbukti ada di `<head>` `dist/index.html`, memuat kunci penyimpanan yang benar.
+* Test integrasi: preferensi tersimpan tampak di `<html>` saat render, perubahan setelah render langsung terlihat, dan `simpleLanguage` benar-benar mengganti teks yang tampil.
+
+### Risiko yang ditemukan
+
+* **Bundel awal naik 77,5 ke 97,9 KB** (zustand + paket a11y). Sisa 102 KB, dan pustaka komponen (PR-027/028) belum masuk sama sekali. Angka ini perlu dilihat tiap PR FE.
+* **Kesetaraan skrip pra-paint dijaga test, bukan oleh satu sumber.** Bila kelak ada token yang aturannya jauh lebih rumit, pertimbangkan membangkitkan skrip itu dari TypeScript saat build alih-alih menyalinnya.
+* **Belum ada verifikasi di browser sungguhan** bahwa kedipan benar-benar hilang. jsdom tidak menggambar apa pun. Layak digabung ke Manual Verification PR-032.
+
+### Next steps
+
+* **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
+* **PR-027/028** — komponen membaca `--touch-target-min` dan `data-*`; dokumentasi tokennya sudah siap dipakai.
+* **PR-034** — endpoint sinkron server; bawaan klien dan `@default` Prisma perlu dijaga agar tidak menyimpang.
+* **PR-036** — panel preferensi; `dipilihPengguna()` sudah tersedia untuk menampilkan "mengikuti setelan perangkat".
