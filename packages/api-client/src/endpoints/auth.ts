@@ -7,12 +7,16 @@ import {
   verifyOtpResponseSchema,
   refreshSessionSchema,
   refreshSessionResponseSchema,
+  googleAuthSchema,
+  googleAuthResponseSchema,
   type RequestOtp,
   type RequestOtpResponse,
   type VerifyOtp,
   type VerifyOtpResponse,
   type RefreshSession,
   type RefreshSessionResponse,
+  type GoogleAuth,
+  type GoogleAuthResponse,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
@@ -51,6 +55,27 @@ export async function verifyOtp(client: ApiClient, input: VerifyOtp): Promise<Ve
     method: "POST",
     body,
     responseSchema: verifyOtpResponseSchema,
+  });
+}
+
+/**
+ * POST /auth/google — tukar authorization code Google (PKCE) dengan sesi.
+ *
+ * Alur authorization code + PKCE, BUKAN implicit: klien publik tidak bisa
+ * menyimpan rahasia, jadi pembuktiannya adalah `codeVerifier` yang hanya
+ * dipegang klien dan tidak pernah melewati jaringan sampai penukaran ini.
+ * `redirectUri` harus SAMA PERSIS dengan yang dipakai saat meminta `code` —
+ * Google menolak bila berbeda, dan pesannya tidak menyebutkan sebabnya.
+ */
+export async function googleAuth(
+  client: ApiClient,
+  input: GoogleAuth,
+): Promise<GoogleAuthResponse> {
+  const body = googleAuthSchema.parse(input);
+  return client.request("/auth/google", {
+    method: "POST",
+    body,
+    responseSchema: googleAuthResponseSchema,
   });
 }
 

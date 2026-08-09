@@ -88,6 +88,44 @@ export const katalogAuth = {
     "id-simple": "Kode baru sudah dikirim.",
   },
 
+  // --- Masuk dengan Google (PR-030c) ---
+  "auth.google.tombol": {
+    id: "Masuk dengan Google",
+    "id-simple": "Masuk pakai akun Google",
+  },
+  "auth.google.atau": {
+    id: "atau",
+    "id-simple": "atau",
+  },
+  "auth.google.sedangMemeriksa": {
+    id: "Sedang menyelesaikan masuk dengan Google…",
+    "id-simple": "Sebentar, kami selesaikan masuk Anda.",
+  },
+  "auth.google.judulGagal": {
+    id: "Masuk dengan Google tidak selesai",
+    "id-simple": "Masuk dengan Google gagal",
+  },
+  "auth.google.gagalUmum": {
+    id: "Masuk dengan Google tidak berhasil. Coba ulangi dari halaman masuk.",
+    "id-simple": "Masuk dengan Google gagal. Coba lagi dari awal.",
+  },
+  "auth.google.gagalKedaluwarsa": {
+    id: "Tautan masuk ini sudah dipakai atau kedaluwarsa. Ulangi dari halaman masuk.",
+    "id-simple": "Tautan ini sudah tidak bisa dipakai. Coba lagi dari awal.",
+  },
+  "auth.google.gagalTidakCocok": {
+    id: "Permintaan masuk ini tidak berasal dari perangkat Anda. Demi keamanan, kami hentikan. Ulangi dari halaman masuk.",
+    "id-simple": "Permintaan ini tidak aman. Kami hentikan. Coba lagi dari awal.",
+  },
+  "auth.google.dibatalkan": {
+    id: "Anda membatalkan masuk dengan Google.",
+    "id-simple": "Anda batal masuk dengan Google.",
+  },
+  "auth.google.kembali": {
+    id: "Kembali ke halaman masuk",
+    "id-simple": "Kembali ke halaman masuk",
+  },
+
   // --- Kegagalan yang punya varian sederhana ---
   //
   // API sudah mengirim `message` + `hint` dalam Bahasa Indonesia (SDD §11), dan

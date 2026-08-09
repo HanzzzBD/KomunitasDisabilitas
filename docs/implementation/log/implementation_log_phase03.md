@@ -1365,3 +1365,98 @@ Chunk `/masuk` **34,50 kB (11,35 kB gzip)** — lazy, tidak diunduh di awal, dan
 ### Next steps
 
 * **PR-030c** — Login Google (PKCE). AC 2, sisa AC 3.
+
+---
+
+## PR-030c — Login Google (PKCE)
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-030c-login-google` · **AC ditutup:** PR-030 nomor 3 (nomor 2 terbangun, sisa verifikasi manual)
+
+### Ringkasan
+
+PKCE S256, `state` anti-login-CSRF, titipan sekali pakai, halaman kembalian `/masuk/google`, tombol di halaman masuk, dan `googleAuth` di `@nawasena/api-client`. **PR-030 tuntas kecuali dua verifikasi manual.**
+
+### Pengalihan membuang seluruh memori halaman
+
+Itu yang membuat alur ini rumit — bukan OAuth-nya. Antara menekan tombol dan kembali dari Google, aplikasinya dimuat ulang dari nol: state React hilang, dan yang tersisa hanya URL kembalian plus apa pun yang sempat dititipkan ke penyimpanan peramban.
+
+Ada **tiga** hal yang harus selamat menyeberang, dan melupakan salah satunya tidak menggagalkan alurnya secara mencolok — ia hanya membuatnya salah:
+
+* `verifier` — tanpa ini penukaran ditolak;
+* `state` — tanpa ini alurnya bisa dibajak;
+* `tujuan` — tanpa ini pengguna mendarat di beranda alih-alih halaman yang tadi ingin ia buka. Ini yang paling mudah terlupakan: `?tujuan=` yang tadi ada di URL sudah tidak ada di mana pun setelah kembali dari Google, sebab query di alamat kembalian milik Google.
+
+Dititipkan di `sessionStorage`, bukan `localStorage`: isinya hanya berguna selama satu perjalanan, dan `localStorage` bertahan berbulan-bulan — meninggalkan verifier menganggur di perangkat bersama.
+
+### `state`: satu-satunya yang menahan pembajakan
+
+Tanpa pemeriksaan `state`, penyerang bisa memancing korban membuka alamat kembalian yang membawa authorization code **milik penyerang**. Korban tidak melihat kejanggalan apa pun: ia mendarat di aplikasi yang benar dan tampak sudah masuk — tetapi ke akun penyerang. Segala yang ia tulis sesudah itu (CV, riwayat kerja, nomor HP) masuk ke akun yang bukan miliknya, dan penyerang tinggal membukanya.
+
+Di platform ini akibatnya adalah kebocoran data pribadi yang paling sensitif — data disabilitas dan kebutuhan akomodasi. Karena itu kembalian yang `state`-nya tidak cocok **tidak pernah ditukarkan sama sekali**, bukan sekadar ditandai.
+
+Titipannya dihapus lebih dulu, apa pun hasilnya: alamat kembalian bisa dibuka ulang (tombol kembali, riwayat, tab dipulihkan), dan verifier yang masih tersimpan berarti percobaan kedua memakai rahasia yang sama.
+
+### Tombol yang tidak ada lebih baik daripada tombol yang pasti gagal
+
+`VITE_GOOGLE_CLIENT_ID` kosong → tombol Google **tidak ditampilkan**. Menampilkannya berarti pengguna menekan, gagal, mengira dirinya yang salah, mencoba berulang, lalu menyerah — padahal jalur OTP di atasnya terbuka penuh. Sikap yang sama dipakai API, yang menjawab 503 berikut saran jalan masuk lain ketimbang berpura-pura endpoint-nya tidak ada.
+
+### Bug NYATA yang ditemukan test, bukan review
+
+**Pemulihan sesi mencabut sesi yang baru saja terbentuk.**
+
+`pulihkanSesi` (PR-030a) berjalan sejak aplikasi dipasang. Di `/masuk/google`, penukaran code dimulai segera setelah halaman dimuat — jadi keduanya berlomba. Pemulihan itu **wajar gagal**: pengunjung yang baru mau masuk memang belum punya cookie. Dan saat gagal ia memanggil `keluar()` — sesudah penukaran berhasil.
+
+Akibatnya: pengguna berhasil masuk lewat Google, lalu terlempar keluar sepersekian detik kemudian, tanpa satu pun pesan kesalahan. Di produksi ini akan terbaca sebagai "login Google tidak pernah berhasil", dan sebabnya ada di berkas yang sama sekali lain.
+
+Ditutup dengan penjaga di `pulihkanSesi`: hasilnya **hanya berlaku bila status masih `memulihkan`**. Bila sesuatu yang lain sudah memutuskan, pemulihan tidak menyentuh apa pun — baik saat gagal maupun saat berhasil terlambat (token pulih yang lebih tua tidak boleh menimpa token yang lebih baru). Keduanya dijaga test regresi di `klien-api.test.ts`.
+
+### Uji mutasi
+
+Dua belas mutasi ditanam, **sebelas tertangkap, satu tidak bisa dibunuh di lingkungan ini**:
+
+| # | Mutasi | Merah |
+|---|--------|-------|
+| M1 | `state` tidak diperiksa (login-CSRF) | 2 + 2 |
+| M2 | Titipan tidak dihapus (bisa dipakai ulang) | 2 |
+| M3 | `tujuan` tidak dibersihkan saat dibaca | 1 |
+| M4 | `tujuan` tidak dibersihkan saat ditulis | 1 |
+| M5 | Metode PKCE jadi `plain` | 1 |
+| M6 | Challenge = verifier apa adanya | 2 |
+| M7 | Acak diganti nilai tetap | 3 |
+| M8 | Hapus penjaga efek ganda StrictMode | **0 — lihat di bawah** |
+| M9 | Abaikan parameter `error` (pembatalan dianggap sukses) | 1 |
+| M10 | `tujuan` diabaikan, selalu ke beranda | 1 |
+| M11 | Pemulihan sesi menimpa keputusan lain (race) | 2 |
+| M12 | Tombol Google muncul walau clientId kosong | 1 |
+
+**M8 tidak bisa dibunuh, dan itu disebut apa adanya.** Penjaga `sudahJalan` menahan efek ganda React 18 StrictMode. Efek ganda itu **tidak bisa direproduksi di jsdom/vitest ini**: dibungkus `<StrictMode>` sekalipun, efeknya tetap berjalan sekali — dibuktikan lewat probe (jumlah penukaran tetap 1, tidak ada alert). Jadi penjaga itu bertahan atas dasar alasan, bukan bukti.
+
+Versi pertama test saya menuliskan judul "meski efek berjalan dua kali" tanpa pernah membuatnya berjalan dua kali — test hampa yang tidak bisa gagal. Perkakas StrictMode-nya dibuang dan judulnya dikoreksi menjadi yang benar-benar dibuktikan; batasnya ditulis di dalam test itu sendiri.
+
+Yang sesungguhnya menahan penukaran ganda adalah **titipan sekali pakai**, dan itu terjaga (M2).
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (web **272** test, dari 228; total repo 1.239). Build produksi hijau.
+
+Pemecahan chunk berubah bentuk: `@nawasena/ui` kini dipakai dua route lazy, jadi Rollup mengeluarkannya menjadi chunk BERSAMA (`google-*.js`, 29,99 kB) yang **tetap di luar unduhan awal** — `index.html` hanya merujuk `index-*.js`. `masuk` menyusut 34,50 → 5,13 kB, `masuk-google` 2,05 kB. Bundel awal 330,83 → **333,41 kB** (gzip 101,98 → 102,77 kB). Budget **100,4 dari 200 KB**, sisa 99,6 KB.
+
+**± 1.040 LOC** (557 test, 298 sumber, 188 sambungan) — di atas target <500 dan di atas perkiraan ≈420.
+
+### Batas yang jujur
+
+* **AC 2 belum benar-benar end-to-end.** Alur PKCE-nya terbangun dan teruji — termasuk terhadap vektor resmi RFC 7636 — tetapi belum pernah berhadapan dengan Google sungguhan. Yang hanya bisa dibuktikan di sana: apakah `redirect_uri` cocok dengan yang terdaftar di Cloud Console, dan apakah scope-nya cukup.
+* **Penjaga efek ganda tidak terjaga test** (M8, lihat di atas).
+* **`crypto.subtle` hanya ada di konteks aman.** Di HTTP non-localhost, penyiapan PKCE gagal; ditangkap dan dijelaskan, dan jalur OTP tetap terbuka — tetapi kegagalan itu belum pernah dilihat di peramban sungguhan.
+* NVDA sampling masih menumpuk — kini termasuk halaman kembalian, yang seluruh isinya adalah pengumuman.
+
+### Out of scope
+
+* Meneruskan header `Retry-After` di `@nawasena/api-client` (dicatat sejak PR-030b).
+* `googleReauth` untuk konfirmasi hapus akun (PR-021 sisi klien).
+* Onboarding pasca-masuk (PR-035); settings (PR-033).
+
+### Next steps
+
+* Sisa Phase 03: **PR-031b**, **PR-032**, **PR-033**.
+* Utang yang harus dijadwalkan sebelum Exit Criteria: **NVDA sampling** (lima komponen PR-027/028 + tiga halaman auth), **verifikasi OTP terhadap API dev**, dan **verifikasi Google dengan akun uji**.

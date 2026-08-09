@@ -53,6 +53,56 @@ describe("pemulihan sesi saat boot", () => {
     expect(useStoreSesi.getState().status).toBe("keluar");
   });
 
+  it("TIDAK mencabut sesi yang terbentuk selagi pemulihan berjalan", async () => {
+    // BUG NYATA, ditemukan test PR-030c. Pemulihan berjalan sejak aplikasi
+    // dipasang, sementara pengguna bisa menyelesaikan login di halaman yang
+    // sama sebelum jawabannya tiba — paling nyata di `/masuk/google`, yang
+    // menukarkan code segera setelah dimuat. Pemulihan yang GAGAL (wajar:
+    // pengunjung itu memang belum punya cookie) lalu memanggil `keluar()`
+    // sesudah penukaran berhasil, dan mencabut sesi yang baru saja terbentuk.
+    // Pengguna terlempar keluar tepat setelah berhasil masuk, tanpa satu pun
+    // pesan kesalahan.
+    let tolak: (sebab: Error) => void = () => {};
+    const fetchPalsu = vi.fn(
+      () =>
+        new Promise<Response>((_, r) => {
+          tolak = r;
+        }),
+    );
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    const berjalan = pulihkanSesi(klien);
+    // Tunggu fetch benar-benar dipanggil: penolaknya baru terpasang di dalam
+    // executor promise, dan `doFetch` menunggu `getAccessToken` lebih dulu.
+    await waitFor(() => expect(fetchPalsu).toHaveBeenCalled());
+    // Login lain selesai lebih dulu.
+    useStoreSesi.getState().masuk("token-dari-google");
+    tolak(new Error("tanpa cookie"));
+    await berjalan;
+
+    expect(useStoreSesi.getState().status).toBe("masuk");
+    expect(ambilTokenAkses()).toBe("token-dari-google");
+  });
+
+  it("TIDAK menimpa token yang lebih baru saat pemulihan berhasil terlambat", async () => {
+    let selesaikan: (r: Response) => void = () => {};
+    const fetchPalsu = vi.fn(
+      () =>
+        new Promise<Response>((res) => {
+          selesaikan = res;
+        }),
+    );
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    const berjalan = pulihkanSesi(klien);
+    await waitFor(() => expect(fetchPalsu).toHaveBeenCalled());
+    useStoreSesi.getState().masuk("token-dari-google");
+    selesaikan(jawabRefresh("token-pulih-basi"));
+    await berjalan;
+
+    expect(ambilTokenAkses()).toBe("token-dari-google");
+  });
+
   it("memanggil /auth/refresh pada base URL relatif", async () => {
     // Base URL absolut ke host lain berarti cookie HttpOnly tidak ikut
     // terkirim, dan sesi tidak pernah bisa dipulihkan.
