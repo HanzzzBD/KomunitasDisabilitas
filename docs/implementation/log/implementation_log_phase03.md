@@ -920,3 +920,86 @@ Overlay/feedback (PR-028); varian React Native (PR-089); halaman yang memakai ko
 ### Next steps
 
 * **PR-028** — packages/ui Batch 2: overlay & feedback.
+
+---
+
+## PR-028a — Dialog
+
+**Tanggal:** 2026-08-09
+**Branch:** `pr-028a-dialog` → `phase-03-web-platform-base`
+**Menutup:** PR-028 AC **1** (fokus masuk saat buka, kembali ke pemicu saat tutup); AC **5** untuk Dialog.
+
+### Pemecahan PR-028
+
+Scope utuh PR-028 (Dialog, Toast, Skeleton, Tabs, Card) terukur ≈ **1400 LOC** — hampir tiga kali target <500. Diusulkan ke owner **sebelum** implementasi dimulai, bukan sesudah seperti pada PR-027c. Owner memilih pemecahan tiga arah:
+
+* **PR-028a** — Dialog (AC 1)
+* **PR-028b** — Toast + Skeleton (AC 2, 4)
+* **PR-028c** — Tabs + Card (AC 3)
+
+### Yang dibangun
+
+* `packages/ui/src/dialog.tsx` — `Dialog` di atas `@radix-ui/react-dialog` 1.1.15, plus `TutupDialog` untuk menutup dari dalam isi.
+
+### Kenapa Radix di sini paling kuat alasannya
+
+Dari seluruh komponen sejauh ini, inilah yang paling jelas membutuhkan pustaka. Manajemen fokus adalah satu-satunya bagian aksesibilitas yang cacatnya **menjebak** pengguna alih-alih sekadar menyulitkannya:
+
+* fokus yang lolos ke belakang dialog membuat pengguna keyboard menjelajah halaman yang **tidak bisa ia lihat sedang tertutup**;
+* fokus yang tidak kembali saat dialog ditutup membuatnya mendarat di awal dokumen tanpa tahu ke mana perginya.
+
+Radix menangani jerat fokus, pengembalian fokus, Escape, klik di luar, dan `aria-hidden` pada sisa halaman. Berkas kita menata tampilan dan menegakkan satu hal yang tidak dijamin pustaka mana pun: bahwa dialognya punya judul.
+
+### Keputusan: `judul` adalah prop WAJIB, bukan komponen anak
+
+Saat dialog terbuka, screen reader mengumumkan namanya — dan nama itu datang dari judul. Dialog tanpa judul terumumkan sebagai *"dialog"* saja: pengguna tahu sesuatu terbuka, tetapi tidak tahu apa.
+
+Radix menyediakannya sebagai komponen anak (`Dialog.Title`), yang berarti bisa lupa dipasang, dan lebih buruk lagi bisa dirender **bersyarat**. Menjadikannya prop wajib memindahkan kegagalan itu dari runtime ke waktu kompilasi.
+
+### Keputusan: dialog bertumpuk DILARANG secara struktural
+
+Risks PR-028 menulis larangan ini sebagai *by-convention*. Konvensi tidak menahan apa pun di sini: yang menumpuk dialog biasanya **tidak sadar** sedang melakukannya, sebab dialog kedua lahir dari komponen yang dipakai ulang di tempat lain.
+
+Akibatnya bukan soal kerapian. Dua jerat fokus bersarang berarti pengguna keyboard terkurung **di dalam kurungan**: menutup dialog dalam mengembalikan fokus ke pemicu yang mungkin sudah tidak ada, dan `aria-hidden` yang terpasang dua kali bisa menyembunyikan dialog luar dari screen reader sementara ia masih tampak di layar.
+
+Jadi `Dialog` di dalam `Dialog` **melempar galat**. Melempar memang keras — tetapi `apps/web` punya `ErrorBoundary` di akar rute (`LayarKesalahan`, PR-025b), jadi yang muncul adalah layar galat berbahasa Indonesia, bukan halaman putih. Gagal saat pengembangan jauh lebih murah daripada mengurung pengguna di produksi. Dua dialog **berdampingan** tetap sah; yang dilarang bersarang.
+
+### Satu cacat zoom yang dijaga
+
+`max-h-[90vh]` + `overflow-y-auto`. Dialog `fixed` yang tingginya tidak dibatasi akan memanjang melewati layar pada zoom 200% (WCAG 2.2 §1.4.4), dan karena ia `fixed`, isinya tidak bisa digulir sama sekali — bagian bawahnya, **termasuk tombol aksi**, jadi mustahil dijangkau. Ini cacat yang tidak pernah terlihat pada layar penuh di mesin pengembang.
+
+Tombol tutup memakai `Tombol` (PR-027b), jadi target sentuh dan cincin fokusnya ikut aturan yang sama dengan tombol lain; `aria-label`-nya wajib sebab "×" tidak punya arti yang bisa dibacakan.
+
+### Verifikasi
+
+**Uji mutasi — lima mutasi, semua tertangkap:**
+
+| Mutasi | Hasil |
+|---|---|
+| penjaga dialog bertumpuk dilucuti | **1 test merah** |
+| `aria-label` tombol tutup dihapus | **5 test merah** |
+| `RadixDialog.Title` → `<div>` (dialog kehilangan nama) | **4 test merah** |
+| batas tinggi + `overflow-y-auto` dihapus | **1 test merah** |
+| `gerak-minimal:transition-none` dilepas dari panel | **1 test merah** |
+
+**Satu jebakan yang nyaris membuat gerbang axe hampa.** Isi dialog hidup di **portal pada `document.body`**, bukan di `container` milik `render()`. Memeriksa `container` akan lolos atas markup kosong — penjaga yang selalu hijau karena tidak memeriksa apa pun. Test memeriksa `document.body`, dan test negatifnya (dialog dengan `aria-labelledby` menunjuk id tidak ada) membuktikan gerbangnya benar-benar menangkap, dengan nama aturan `aria-dialog-name` ikut diperiksa agar tidak "lulus" gara-gara galat lain.
+
+Elemen palsu pada test negatif itu dibersihkan lewat `finally`: `cleanup()` hanya menyapu kontainer milik RTL, dan dialog cacat yang bertahan di `document.body` akan membuat test axe **lain** merah — kegagalan yang menuduh berkas yang salah.
+
+**Gate:** `pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (ui **87** test, dari 68). Build produksi hijau; CSS memuat `max-h-[90vh]`, `bg-black/50`, `overflow-y-auto`, `-translate-x-1/2`. **Bundel JS awal tetap 325,20 kB / gzip 100,23 kB** — Radix Dialog belum ikut masuk karena belum ada halaman yang mengimpornya. CSS 11,09 → 12,52 kB (gzip 3,17 → 3,50 kB).
+
+**440 LOC** (278 test, 162 sumber; lock file tidak dihitung) — di bawah target.
+
+### Batas yang jujur
+
+* **Verifikasi manual "skenario dialog bertumpuk"** yang diminta Testing Checklist PR-028 kini sebagian terjawab oleh penjaga struktural, tetapi **NVDA sampling belum dilakukan** — sama seperti PR-027c.
+* `aria-hidden` pada sisa halaman dan penguncian scroll body dikerjakan Radix di peramban; jsdom tidak bisa membuktikan efeknya. PR-031b.
+* Perilaku pada zoom 200% dijaga lewat kelasnya, bukan diukur — PR-031b.
+
+### Out of scope
+
+Toast & Skeleton (PR-028b); Tabs & Card (PR-028c); komponen domain seperti kartu lowongan (PR fitur).
+
+### Next steps
+
+* **PR-028b** — Toast + Skeleton. AC 2, 4.
