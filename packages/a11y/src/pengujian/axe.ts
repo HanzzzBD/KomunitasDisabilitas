@@ -30,6 +30,16 @@ import axe, { type AxeResults, type ElementContext, type RunOptions } from "axe-
  * Ditulis sebagai daftar, bukan dibiarkan diam-diam "incomplete", supaya
  * hilangnya cakupan ini terlihat oleh siapa pun yang membaca berkas ini —
  * dan supaya PR-031b punya daftar yang harus ia tutup.
+ *
+ * SUDAH DITUTUP (PR-031b): ketiganya kini dijalankan di peramban sungguhan oleh
+ * `apps/web/e2e/aksesibilitas.spec.ts`, dan test di sana menuntut `color-contrast`
+ * serta `target-size` benar-benar LULUS — bukan sekadar berjalan. Daftar ini
+ * tetap ada karena batas lapis KEDUA tidak berubah: yang membaca berkas ini
+ * harus tetap tahu apa yang tidak dijaga di sini.
+ *
+ * `scrollable-region-focusable` masih `inapplicable` di halaman yang ada
+ * sekarang (belum ada wilayah yang menggulir), jadi ia berjalan tanpa pernah
+ * benar-benar diuji. Itu keadaan, bukan cakupan.
  */
 export const TAK_BISA_DI_JSDOM = [
   "color-contrast",

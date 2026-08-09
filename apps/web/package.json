@@ -8,11 +8,13 @@
     "dev": "vite",
     "build": "vite build && vite build --config vite.sw.config.ts",
     "preview": "vite preview",
-    "lint": "eslint src __tests__ scripts --ext .ts,.tsx,.mjs --max-warnings=0",
+    "lint": "eslint src __tests__ scripts e2e --ext .ts,.tsx,.mjs --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
-    "cek:budget": "tsx scripts/cek-budget.ts"
+    "cek:budget": "tsx scripts/cek-budget.ts",
+    "test:a11y": "playwright test",
+    "test:lighthouse": "lhci autorun --config=lighthouserc.json"
   },
   "dependencies": {
     "@nawasena/a11y": "workspace:*",
@@ -26,7 +28,10 @@
     "zustand": "5.0.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@lhci/cli": "0.15.1",
     "@nawasena/config": "workspace:*",
+    "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.1.0",
