@@ -14,7 +14,8 @@
     "test:cov": "vitest run --coverage",
     "cek:budget": "tsx scripts/cek-budget.ts",
     "test:a11y": "playwright test",
-    "test:lighthouse": "lhci autorun --config=lighthouserc.json"
+    "test:lighthouse": "lhci autorun --config=lighthouserc.json",
+    "test:lighthouse:3g": "lhci autorun --config=lighthouserc-3g.json"
   },
   "dependencies": {
     "@nawasena/a11y": "workspace:*",

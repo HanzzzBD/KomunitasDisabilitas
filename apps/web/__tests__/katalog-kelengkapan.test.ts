@@ -45,6 +45,18 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "auth.kode.terkirim": "Kalimat empat kata dengan kata sehari-hari.",
   "auth.google.atau": "Satu kata penghubung; tidak ada bentuk yang lebih sederhana.",
   "auth.google.kembali": "Label tautan empat kata sehari-hari, sudah menyebut tujuannya.",
+
+  // --- beranda (PR-032a) ---
+  "beranda.hero.daftar": "Ajakan dua kata sehari-hari; label CTA tidak punya bentuk lebih sederhana.",
+  "beranda.cara.judul": "Judul bagian tiga kata, seluruhnya kata sehari-hari.",
+  "beranda.penutup.daftar":
+    "Label tautan tiga kata sehari-hari, dan 'daftar'/'masuk' harus SAMA di kedua varian — " +
+    "keduanya muncul lagi di halaman masuk, dan pengguna mencocokkan kata yang tadi ia tekan.",
+
+  // --- shell (PR-032a) ---
+  "shell.judulDokumen":
+    "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +
+    "keduanya sudah disederhanakan di kuncinya masing-masing.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<

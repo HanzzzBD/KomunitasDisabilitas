@@ -1557,3 +1557,125 @@ Semuanya butuh e2e per **komponen**, bukan pemindaian aturan per halaman — dan
 
 * Sisa Phase 03: **PR-032** (landing + 404 + empty state), **PR-033** (settings + Data Saya).
 * Setiap halaman yang lahir di keduanya WAJIB menambah entri di `e2e/halaman.ts` — kini ditegakkan test, bukan ingatan.
+
+---
+
+## PR-032a — Landing, landmark/skip-link final & gerbang Lighthouse 3G
+
+**Tanggal:** 2026-08-09
+**Branch:** `pr-032a-landing-skip-link` → `phase-03-web-platform-base`
+**AC tertutup:** PR-032 nomor **1, 2, 3**; nomor 5 tertutup untuk landing.
+
+### Ringkasan
+
+Halaman publik pertama Nawasena berhenti menjadi penampung sementara. Bersamanya, dua hal yang selama ini disalin per halaman dipindahkan ke kerangka — landmark `<main>` dan tautan lompat ke konten — dan satu gerbang baru menyala: Lighthouse pada throttling 3G.
+
+### Pemecahan PR (persetujuan owner 2026-08-09)
+
+Scope utuh PR-032 terukur ≈ 700–750 LOC, di atas target <500. Diusulkan **sebelum** implementasi, bukan sesudah. Owner memilih pecah dua:
+
+* **032a** (ini) — landing, landmark/skip-link, meta SEO, gerbang 3G.
+* **032b** — 404 berjalan pulang, pola empty state.
+
+Batas pemecahannya ditaruh pada **makna**: 032a menutup AC 1–3 utuh, 032b menutup AC 4 dan sisa AC 5. Tidak ada AC yang terbelah di antara keduanya.
+
+### Landmark: dipindahkan ke kerangka, bukan diingat per halaman
+
+Sampai PR ini, setiap halaman menulis `<main>`-nya sendiri. Itu bekerja selama halamannya tiga. Yang tidak bekerja adalah halaman keempat: `<main>` yang harus diingat setiap halaman adalah `<main>` yang suatu saat terlupakan di salah satunya — atau, lebih sering, **ditulis dua kali** ketika sebuah halaman dibungkus halaman lain.
+
+Landmark utama kini milik `TataLetak` seorang. Halaman mengembalikan `<div>`. Penjaganya dua arah: jumlah `<main>` harus tepat satu di tiap halaman, DAN tidak boleh ada `<main>` di dalam `<main>`.
+
+Satu akibat yang tidak terduga dan berguna: gerbang axe di jsdom langsung merah pada `masuk` dan `masuk/google`, dengan aturan `region` ("konten di luar landmark"). Halaman-halaman itu diuji **terlepas dari kerangkanya**, jadi harness-nya harus ikut menyediakan `<main>` — dan itu memaksa harness memodelkan produksi alih-alih memodelkan dirinya sendiri.
+
+### Tautan lompat: yang diuji jsdom bukan yang penting
+
+Seluruh guna tautan lompat ada pada satu hal yang **tidak bisa diperiksa jsdom**: menekannya benar-benar memindahkan FOKUS ke konten utama. jsdom tidak menjalankan navigasi fragmen sama sekali. Test jsdom karena itu hanya sanggup memeriksa syarat-syaratnya — tautannya ada, urutannya pertama, sasarannya ada dan `tabindex="-1"` — dan **tautan lompat yang tidak melompat lolos pemeriksaan itu dengan mulus.**
+
+Karena itu ia diuji di peramban: `e2e/lompat-ke-konten.spec.ts`, berjalan atas SETIAP halaman berkerangka dari registry yang sama dengan gerbang axe. Tab sekali → tautannya yang terfokus; ia **terlihat** (tinggi > 20 px, sebab tautan yang tetap 1×1 piksel saat difokus tidak menolong pengguna keyboard awas); Enter → `#konten-utama` terfokus.
+
+`tabindex="-1"` pada sasaran bukan hiasan: tanpanya sebagian peramban hanya menggulir tanpa memindahkan fokus, sehingga Tab berikutnya melanjutkan dari tautan lompat — pengguna melihat isi halaman, tetapi fokusnya masih di atas.
+
+### Gerbang 3G: berkas kedua, bukan penyetelan yang lama
+
+AC 1 menyebut throttling 3G secara khusus. Dua jebakan dihindari:
+
+1. **Mengganti `lighthouserc.json`** akan menukar satu jaminan dengan jaminan lain, bukan menambah. Yang lama (desktop) yang menjaga skor a11y 100 sejak PR-031b. Jadi lahir `lighthouserc-3g.json` berdampingan.
+2. **Memakai preset `mobile` bawaan Lighthouse** akan membuat CI menyebut "3G" sambil mensimulasikan *Slow 4G* (150 ms RTT, 1.638 kbps). Angkanya ditulis eksplisit: **RTT 300 ms, 700 kbps, CPU 4×** — profil *Regular 3G*.
+
+Skor aksesibilitas TIDAK diturunkan di konfigurasi ponsel: viewport sempit justru tempat target sentuh paling mudah gagal.
+
+Terukur lokal (3 run, konsisten): **perf 82, a11y 100** — FCP 3,0 s, LCP 3,9 s, TBT 0 ms, Speed Index 3,0 s. Desktop tetap **perf 100, a11y 100**.
+
+### Landing tanpa gambar
+
+Bukan kekurangan, melainkan konsekuensi AC 1 yang diambil sadar. Pada 3G, satu foto hero adalah selisih antara halaman yang terbaca di detik ketiga dan halaman yang masih kosong di detik kesepuluh — dan pengguna yang dituju produk ini justru yang paling mungkin berada di jaringan seperti itu. Ilustrasi boleh masuk kelak, tetapi harus membayar tempatnya sendiri di anggaran.
+
+Keputusan bentuk lain:
+
+* **`<h1>` bukan nama merek.** "Nawasena" tidak menjawab "halaman ini soal apa" bagi orang yang baru pertama mendengarnya — dan pengguna screen reader yang melompat ke `<h1>` mendarat tepat di sana.
+* **CTA berupa `<Link>`, bukan tombol.** Hanya tautan yang bisa dibuka di tab baru, disalin alamatnya, dan ditelusuri perayap — ketiganya penting untuk halaman akuisisi. Dijaga test yang memeriksa PERAN-nya.
+* **Nilai produk sebagai `<ul>`**, bukan tiga `<div>` bersebelahan: screen reader mengumumkan "daftar, 3 item" dan memberi nomor tiap butir.
+* **Nilai produk sebagai DATA**, bukan tiga blok JSX yang disalin — salinan menyimpang, dan yang ketiga biasanya yang lupa tingkat headingnya.
+
+### Judul dokumen: SEO yang sebenarnya soal aksesibilitas
+
+`useJudulHalaman` menyetel `document.title` per halaman. Pada aplikasi satu-halaman, judul yang tidak ikut berubah membuat dua hal gagal sekaligus: screen reader tidak mengumumkan bahwa perpindahan berhasil (pengguna menekan tautannya lagi), dan sepuluh entri riwayat bernama "Nawasena" tidak bisa dibedakan.
+
+Polanya `{halaman} · Nawasena` — nama halaman **di depan**, sebab tab yang menyempit menyisakan bagian depan, dan yang berguna di sana bukan merek yang sama di semua tab.
+
+Meta Open Graph ditulis di dokumen, bukan disuntik JavaScript: pratinjau tautan WhatsApp/Telegram membaca HTML pertama apa adanya — dan jalur akuisisi produk ini justru berbagi tautan di grup komunitas. `og:url` dan `canonical` **sengaja belum ada**: keduanya menuntut domain produksi yang belum ditetapkan, dan canonical yang salah lebih merusak daripada tidak ada (ia menyuruh mesin pencari mengabaikan halaman yang sesungguhnya).
+
+### Registry halaman
+
+Tidak ada route baru di PR ini — landing mengisi `/` yang sudah terdaftar sebagai `beranda`, dan 404 sudah terdaftar sebagai `404`. Penjaga dua arah `registry-halaman.test.ts` tetap hijau tanpa perubahan. Yang **ditambah** di sana adalah penjaga baru: job `a11y` wajib menjalankan `test:lighthouse:3g` — skrip yang ada di `package.json` tetapi tidak pernah dipanggil CI hanya menjaga mesin pengembang yang ingat menjalankannya.
+
+### Uji mutasi
+
+* `<main>` dikembalikan ke `masuk.tsx` → `tata-letak.test.tsx` merah di dua test (jumlah `<main>`, dan `<main>` bersarang).
+* `tabIndex={-1}` dilepas dari `<main>` → test jsdom merah **dan** e2e `lompat-ke-konten` merah (fokus tidak berpindah di peramban sungguhan).
+* Tautan lompat dipindah ke bawah `<BannerLuring>` → test "elemen fokusabel PERTAMA" merah.
+* `aria-labelledby` dilepas dari satu `<section>` → query `getByRole("region", { name })` gagal.
+* Ambang perf 3G dinaikkan ke 0,9 → `lhci` keluar dengan status 1 (skor 82).
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` | hijau (9 task) |
+| `pnpm typecheck` | hijau (9 task) |
+| `pnpm test` | hijau — **298 test**, 29 berkas (+18 test baru) |
+| `playwright test` | hijau — 10 test (6 axe + 3 lompat-ke-konten + 1 penjaga negatif) |
+| `lhci` desktop | perf **100**, a11y **100** |
+| `lhci` 3G | perf **82**, a11y **100** |
+| budget bundel | 101,3 KB / 200 KB gzip |
+
+### Ukuran — dan koreksi atas perkiraan sendiri
+
+Mendarat **825 LOC kode** (447 sumber + 378 test; dokumen 131 baris tidak dihitung) — **di atas target <500, dan di atas perkiraan ≈430** yang dipakai saat mengusulkan pemecahan kepada owner.
+
+Selisihnya tidak datang dari scope yang melebar, melainkan dari dua hal yang tidak masuk perkiraan: (1) memindahkan `<main>` ke kerangka ternyata menyentuh **lima berkas test yang sudah ada**, sebab harness-nya merender halaman terlepas dari kerangkanya; (2) berkas konfigurasi 3G membawa 40 baris alasan tertulis — angka throttling tanpa penjelasan adalah angka yang akan "dirapikan" seseorang kelak.
+
+Ini dilaporkan, bukan disembunyikan di balik pemecahan yang sudah disetujui: perkiraan yang meleset dan tidak disebut membuat pemecahan berikutnya diperkirakan dengan cara yang sama.
+
+### Risiko yang ditemukan
+
+* **Margin perf 3G tinggal 2 poin.** Landing-nya sendiri ringan (chunk 0,95 KB gzip); yang memakan anggaran adalah **bundel awal 101,3 KB gzip** — React Router, TanStack Query, Zustand, dan klien API ikut terunduh oleh pengunjung yang belum tentu masuk. Halaman publik pertama membayar biaya seluruh aplikasi. Gerbangnya sudah menyala, jadi penurunan berikutnya akan merah pada PR yang menyebabkannya; menaikkan marginnya menuntut memisahkan shell publik dari shell aplikasi — keputusan arsitektur, wajarnya bersama Phase 16.
+* **Test route lazy rentan flake di mesin sibuk.** Ditemukan saat menjalankan gate, bukan di CI: `findByRole` bawaan menunggu 1 detik, dan pemuatan chunk pertama kali di bawah beban paralel melampauinya — gagal karena mesinnya, bukan karena kodenya. Dinaikkan ke 5 detik di dua helper baru. Helper lama (`app.test.tsx`, `aksesibilitas.test.tsx`) **belum** dinaikkan; keduanya punya kerentanan yang sama.
+
+### Batas yang jujur
+
+* **Verifikasi manual belum dilakukan** untuk AC 2 bagian "manual": NVDA sampling atas struktur heading/landmark, dan viewport ponsel sungguhan (Lighthouse mengemulasi, tidak menyentuh perangkat). Keduanya menumpuk bersama utang NVDA dari PR-027/028/030.
+* **Tautan lompat diuji hanya di Chromium.** Perilaku fokus navigasi fragmen adalah persis area di mana peramban dulu berbeda — Firefox dan Safari tidak terjaga.
+* **Konten landing ditulis engineer.** "Konten marketing lengkap" memang Out of Scope PR-032 (tim non-eng), tetapi yang mendarat sekarang adalah teks yang belum pernah dibaca satu pun calon pengguna. Manual Verification PR-029 ("review bahasa sederhana oleh non-engineer") berlaku penuh untuk katalog `beranda`.
+* **Skor 3G diukur di satu mesin.** Runner CI berbeda; 82 bukan angka yang bisa dianggap stabil sampai ia berjalan beberapa kali di sana.
+
+### Out of scope
+
+* 404 berjalan pulang & pola empty state → **PR-032b**.
+* Pemisahan shell publik dari shell aplikasi (margin perf) → Phase 16.
+* `og:url` / `canonical` → menunggu domain produksi.
+
+### Next steps
+
+* **PR-032b** — perkuat `LayarKesalahan` dengan aksi per-keadaan (404 → beranda, 401/403 → masuk, umum → muat ulang), komponen empty state, penutup AC 5.
+* **PR-033** — settings + Data Saya.

@@ -157,7 +157,9 @@ export function Masuk() {
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-6 p-4">
+    // `<div>`, bukan `<main>`: landmark utama milik `TataLetak` sejak PR-032a —
+    // satu `<main>` untuk seluruh aplikasi.
+    <div className="mx-auto flex max-w-md flex-col gap-6 p-4">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">{t("auth.judul")}</h1>
         <p className="text-base text-gray-700">{t("auth.penjelasan")}</p>
@@ -274,6 +276,6 @@ export function Masuk() {
           </div>
         </form>
       )}
-    </main>
+    </div>
   );
 }

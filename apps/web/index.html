@@ -16,6 +16,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Nawasena — ekosistem karier inklusif untuk penyandang disabilitas." />
 
+    <!--
+      SEO dasar (PR-032a, Scope PR-032 "SEO dasar + meta").
+
+      Ditulis di dokumen, BUKAN disuntik JavaScript: sebagian besar perayap dan
+      SELURUH pratinjau tautan (WhatsApp, Telegram, Facebook) membaca HTML
+      pertama apa adanya dan tidak menunggu React selesai. Meta yang disuntik
+      belakangan hanya terlihat oleh alat yang menjalankan JavaScript — dan jalur
+      akuisisi produk ini justru berbagi tautan di grup komunitas.
+
+      `og:url` dan `<link rel="canonical">` SENGAJA BELUM ADA: keduanya menuntut
+      domain produksi yang belum ditetapkan, dan canonical yang menunjuk alamat
+      salah lebih merusak daripada tidak ada sama sekali — ia memberi tahu mesin
+      pencari untuk mengabaikan halaman yang sesungguhnya. Ditambahkan bersama
+      domainnya di Phase 16.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Nawasena" />
+    <meta property="og:locale" content="id_ID" />
+    <meta property="og:title" content="Cari kerja tanpa hambatan — Nawasena" />
+    <meta
+      property="og:description"
+      content="Nawasena menghubungkan penyandang disabilitas dengan perusahaan yang siap menerima, lengkap dengan informasi fasilitas yang tersedia."
+    />
+    <!-- Kartu ringkasan tanpa gambar: tidak ada aset pratinjau yang jujur untuk
+         dipakai sekarang, dan `summary_large_image` tanpa gambar menghasilkan
+         kartu kosong di sebagian klien. -->
+    <meta name="twitter:card" content="summary" />
+
     <!-- Fondasi PWA (ADR-009). Manifest membuat aplikasi bisa dipasang;
          service worker didaftarkan dari main.tsx, hanya di build produksi. -->
     <link rel="manifest" href="/manifest.webmanifest" />

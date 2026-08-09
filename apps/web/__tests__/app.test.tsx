@@ -13,14 +13,18 @@ describe("App shell", () => {
     // findBy*, bukan getBy*: route dimuat `import()` dinamis, jadi render
     // pertama sengaja belum memuat isinya. Memakai getBy di sini akan gagal —
     // dan kegagalannya justru bukti bahwa pemecahan chunk-nya nyata.
-    expect(await screen.findByRole("heading", { level: 1, name: "Nawasena" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Cari kerja tanpa hambatan" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
   });
 
   it("menyediakan tautan ke halaman masuk", async () => {
     render(<App />);
 
-    const tautan = await screen.findByRole("link", { name: "Masuk" });
+    // Sejak PR-032a ajakan utama landing berbunyi "Mulai sekarang" — kata kerja
+    // yang menyebut apa yang terjadi berikutnya, bukan nama halaman tujuan.
+    const tautan = await screen.findByRole("link", { name: "Mulai sekarang" });
     expect(tautan).toHaveAttribute("href", "/masuk");
   });
 });

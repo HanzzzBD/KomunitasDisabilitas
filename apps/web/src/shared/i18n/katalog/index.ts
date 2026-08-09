@@ -5,6 +5,7 @@
 // tidak dipakai menumpuk tanpa ada yang berani menghapusnya.
 import { katalogShell } from "./shell.js";
 import { katalogAuth } from "./auth.js";
+import { katalogBeranda } from "./beranda.js";
 
 /**
  * Katalog gabungan. Tiap fitur menyumbang kuncinya sendiri di sini.
@@ -14,6 +15,7 @@ import { katalogAuth } from "./auth.js";
 export const katalog = {
   ...katalogShell,
   ...katalogAuth,
+  ...katalogBeranda,
 } as const;
 
 /**
@@ -29,6 +31,7 @@ export const katalog = {
 export const fiturKatalog = [
   { nama: "shell", entri: katalogShell },
   { nama: "auth", entri: katalogAuth },
+  { nama: "beranda", entri: katalogBeranda },
 ] as const;
 
 /**

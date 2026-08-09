@@ -64,7 +64,9 @@ async function titipkan(tujuan = "/lamaran"): Promise<string> {
 function renderKembalian(klien: ApiClient, query: string) {
   const router = createMemoryRouter(
     [
-      { path: "/masuk/google", element: <MasukGoogle /> },
+      // `<main>` disediakan harness, bukan halaman — sejak PR-032a landmark
+      // utama milik `TataLetak`, satu untuk seluruh aplikasi.
+      { path: "/masuk/google", element: <main>{<MasukGoogle />}</main> },
       { path: "/masuk", element: <h1>Halaman masuk</h1> },
       { path: "/lamaran", element: <h1>Lamaran</h1> },
       { path: "/", element: <h1>Beranda</h1> },
