@@ -1091,3 +1091,87 @@ Catatan kebersihan: `@radix-ui/react-toast@1.2.23` sudah ada di `pnpm-lock.yaml`
 ### Next steps
 
 * **PR-028c** — Tabs + Card. AC 3.
+
+---
+
+## PR-028c — Tab & Kartu
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-028c-tabs-card` · **AC ditutup:** PR-028 nomor 3 & 5 — **PR-028 tuntas**
+
+### Ringkasan
+
+`Tab` di atas `@radix-ui/react-tabs` (baru, dipasang di PR ini), dan `Kartu` tanpa primitive apa pun. Dengan ini set komponen UI MVP lengkap.
+
+### AC 3 — dua keputusan yang membalik bawaan pustaka
+
+**API digerakkan DATA, bukan komponen anak.** Dua cacat paling lazim pada tab adalah tab yang `aria-controls`-nya menunjuk panel yang tidak ada, dan panel yang tidak dimiliki tab mana pun. Keduanya lahir dari menuliskan tab dan panelnya di dua tempat terpisah lalu salah satunya berubah. Dengan satu larik `daftar`, keduanya mustahil — bukan tidak dianjurkan.
+
+**Aktivasi bawaannya `manual`, berbeda dari Radix.** Ini bukan selera. Radix melepas panel tidak aktif dari DOM — `children: present && children`, diverifikasi langsung di sumbernya, bukan dari dokumentasi. Dengan aktivasi otomatis, menekan panah dari tab 1 ke tab 3 memasang lalu membongkar panel 2 di tengah jalan, beserta seluruh permintaan data yang dijalankannya. WAI-ARIA APG memang menganjurkan aktivasi otomatis, tetapi dengan syarat eksplisit: panelnya tampil "tanpa jeda yang terasa". Di aplikasi ini isi tab datang dari jaringan, jadi syarat itu tidak terpenuhi. `aktivasi="otomatis"` tersedia untuk isi yang benar-benar statis.
+
+Konsekuensi yang ikut terpikul: pada aktivasi manual, cincin fokus adalah **satu-satunya** yang membedakan "tab yang sedang disorot" dari "tab yang aktif". Karena itu larangan `outline-none` di sini bukan sekadar konsistensi dengan PR-027b — ia menopang pola interaksinya. Dijaga test atas ketiga tab.
+
+Keadaan aktif ditandai garis dan ketebalan huruf, bukan warna saja (WCAG 2.2 §1.4.1); garisnya transparan sejak awal supaya tab tidak bergeser saat dipilih — pergeseran tata letak di bawah kursor adalah cara mudah membuat pengguna kehilangan tempatnya.
+
+### AC 5 — Kartu, dan satu-satunya hal yang bisa dirusaknya
+
+Kartu tidak punya perilaku: tidak menerima fokus, tidak punya keadaan, tidak menangkap tombol. Karena itu tanpa primitive — membungkus wadah diam hanya menambah lapisan yang bisa merusak semantik isinya.
+
+Yang bisa dirusaknya satu: **kerangka heading halaman.** Pengguna screen reader menjelajah dengan melompat antar heading, dan urutan tingkat itulah kerangkanya. Kartu yang selalu menulis `<h3>` merusak kerangka begitu ia dipakai di dalam bagian dengan kedalaman lain. Tingkat yang benar hanya diketahui di tempat pemakaian, jadi ia diminta di sana — dan `judul` + `tingkatJudul` diikat sebagai pasangan **di tingkat tipe** (union terdiskriminasi), sehingga lupa memberinya menjadi galat kompilasi, bukan cacat diam.
+
+Ikatan tipe itu **dijaga**, bukan sekadar ditulis: sebuah `@ts-expect-error` di test membuat `tsc --noEmit` merah bila ikatannya dilonggarkan (mutasi M10 di bawah). Ini gerbang pertama di repo ini yang dijalankan typechecker alih-alih test runner.
+
+### Uji mutasi
+
+Sebelas mutasi ditanam, **sebelas tertangkap**:
+
+| # | Mutasi | Gerbang | Merah |
+|---|--------|---------|-------|
+| M1 | `aktivasi` jadi `"otomatis"` (bawaan Radix) | vitest | 1 |
+| M2 | Hapus `aria-label` pada tablist | vitest | 1 |
+| M3 | Orientasi selalu horizontal | vitest | 2 |
+| M4 | Hapus penanda aktif (garis + tebal) | vitest | 1 |
+| M5 | Hapus `border-transparent` (tab bergeser) | vitest | 1 |
+| M6 | Tambahkan `outline-none` | vitest | 1 |
+| M7 | Abaikan `nonaktif` | vitest | 1 |
+| M8 | Tingkat judul jadi `<h3>` mati | vitest | 2 |
+| M9 | Judul selalu dirender walau kosong | vitest | 1 |
+| M10 | Longgarkan tipe: judul boleh tanpa tingkat | **tsc** | 1 |
+| M11 | Hapus garis tepi kartu | vitest | 1 |
+
+### Tiga hal yang salah dulu sebelum benar
+
+* **Test roving tabindex saya merah atas komponen yang benar.** Saya periksa `tabindex` tiap tab dan menyimpulkan "tidak ada satu pun yang bisa difokus". Radix menaruh perhentian Tab-nya pada **wadah tablist**, yang lalu melimpahkan fokus ke tab yang sedang aktif. Perilakunya persis yang dituntut pola — satu perhentian untuk seluruh daftar — hanya letaknya bukan di tempat yang saya duga. Test-nya diganti menjadi pengujian perpindahan fokus sungguhan (Tab masuk mendarat di tab aktif, Tab berikutnya sudah meninggalkan daftar), yang lebih baik daripada versi semula karena ia menguji yang dirasakan pengguna, bukan cara pustaka mencapainya.
+* **`jsx-a11y` menolak penjaga negatif saya saat lint.** `<h2 />` kosong yang sengaja saya tulis untuk membuktikan gerbang axe tidak hampa ditolak lebih dulu oleh gerbang **lapis satu** (`jsx-a11y/heading-has-content`). Elemennya dirakit lewat DOM, bukan JSX. Kebetulan yang menyenangkan — dua lapis memang saling menutup — tetapi lapis dua tetap perlu dibuktikan, sebab heading kosong juga bisa lahir dari nilai runtime yang lint tak lihat.
+* **Verifikasi CSS pertama melaporkan tiga kelas hilang, padahal ada.** Skrip pemeriksa saya lupa meloloskan `=` sebagai karakter yang ikut di-escape Tailwind (`.data-\[state\=active\]\:…`). Ini kali ketiga escape CSS menjebak saya di proyek ini, setelah `\:` dan `\[`.
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (ui **150** test, dari 118; total repo 1.107). Build produksi hijau. Sembilan kelas baru diperiksa di CSS terkompilasi, termasuk ketiga penanda keadaan aktif:
+
+```
+.data-\[state\=active\]\:border-gray-900[data-state=active]{border-color:var(--color-gray-900)}
+.data-\[state\=active\]\:font-semibold[data-state=active]{--tw-font-weight:var(--font-weight-semibold);…}
+.data-\[state\=active\]\:text-gray-900[data-state=active]{color:var(--color-gray-900)}
+```
+
+CSS 13,23 → 14,28 kB (gzip 3,72 → 3,90 kB). **Bundel JS awal tetap 325,20 kB / gzip 100,23 kB** — Radix Tabs belum ikut masuk karena belum ada halaman yang mengimpornya.
+
+**615 LOC** (422 test, 187 sumber, 6 sambungan; lock file tidak dihitung) — di atas target <500. Pemecahan Tab/Kartu tersedia dan keduanya akan di bawah 500, tetapi tidak ditempuh: owner sudah dua kali memutuskan hal yang sama pada pertanyaan identik (PR-027c dan PR-028b), dan sumber yang harus ditinjau di sini hanya 187 baris.
+
+### Batas yang jujur
+
+* **NVDA sampling belum dilakukan** — kini menumpuk untuk LIMA komponen (Dialog, Toast, Kerangka, Tab, Kartu). Ini utang aksesibilitas terbesar Phase 03 yang masih terbuka, dan seluruh klaim "diumumkan" di ketiga log PR-028 bersandar pada struktur ARIA, bukan pendengaran alat sungguhan.
+* Pelimpahan fokus dari wadah tablist ke tab aktif diuji di jsdom; perilakunya di peramban sungguhan — termasuk `style="outline:none"` yang Radix pasang pada wadah itu — belum dilihat. PR-031b.
+* Kontras garis aktif (`gray-900` di atas putih) dan piksel target sentuh tidak terukur di jsdom — PR-031b.
+* `Kartu` sengaja tidak memilihkan elemen semantik (`<article>`, `<li>`). Kartu adalah wadah visual; semantiknya datang dari tempat ia dipasang. Bila kelak kartu lowongan perlu menjadi butir daftar, pembungkusnya milik PR fitur.
+
+### Out of scope
+
+* Komponen domain (kartu lowongan, kartu perusahaan) — dibangun DI ATAS `Kartu` di PR fitur, bukan ditambahkan ke `packages/ui`.
+* Adopsi di `apps/web` — konsisten dengan PR-028a dan PR-028b.
+* Varian React Native dari seluruh set ini — PR-089.
+
+### Next steps
+
+* **PR-029** sudah selesai lebih dulu (029a/b). Sisa Phase 03: **PR-030** (halaman login produksi-ready), **PR-031b**, **PR-032**, **PR-033**.
+* Utang yang harus dijadwalkan sebelum Exit Criteria Phase 03: **NVDA sampling** untuk lima komponen PR-027/PR-028.
