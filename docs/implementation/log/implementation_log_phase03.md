@@ -560,3 +560,69 @@ Penjaganya menurunkan daftar token dari **KODE**, bukan dari daftar tulisan tang
 * **PR-027/028** — komponen membaca `--touch-target-min` dan `data-*`; dokumentasi tokennya sudah siap dipakai.
 * **PR-034** — endpoint sinkron server; bawaan klien dan `@default` Prisma perlu dijaga agar tidak menyimpang.
 * **PR-036** — panel preferensi; `dipilihPengguna()` sudah tersedia untuk menampilkan "mengikuti setelan perangkat".
+
+---
+## PR-031a — Gerbang aksesibilitas: jsx-a11y & axe per komponen
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-031---a11y-gate-ci-axe--lighthouse)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai (bagian pertama dari dua; registry halaman + Lighthouse = PR-031b)
+
+### Kenapa PR ini didahulukan
+
+Menurut dependensi dokumen, PR-031 mendarat **setelah** PR-030 — artinya **enam PR frontend**, termasuk seluruh pustaka komponen (PR-027/028), lahir tanpa gerbang aksesibilitas. Padahal CLAUDE.md §5.2 menyebut gerbang itu *non-negotiable*.
+
+Konsekuensinya bukan teoretis: bila PR-031 kelak menemukan pelanggaran, yang diperbaiki adalah komponen yang sudah dianggap selesai, dan perbaikannya menyentuh **setiap pemakainya**.
+
+Penataan ulang disetujui owner di awal phase: bagian yang bisa berjalan tanpa halaman nyata (lint + axe per komponen) dimajukan ke sini; bagian yang butuh browser (registry halaman, Lighthouse) tetap menunggu di PR-031b.
+
+### Ringkasan hasil
+
+Dua lapis gerbang menyala: `jsx-a11y` **strict** di lint, dan `axe` per komponen lewat `@nawasena/a11y/pengujian`. Seluruh tampilan `apps/web` yang sudah ada kini melewatinya — termasuk keadaan kegagalan dan kombinasi preferensi ekstrem.
+
+Menutup AC **1** (pelanggaran fixture → CI merah, dengan bukti) dan **4** (laporan menyebut elemen + aturan) di tingkat komponen.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/web` **134 test** (dari 128), `@nawasena/a11y` **74** (dari 57). Bundel awal tetap **97,9 KB / 200 KB**.
+
+### Uji mutasi membuktikan kedua lapis MEMANG berbeda
+
+Ini temuan yang paling berguna dari PR ini, dan ia empiris — bukan klaim.
+
+| Mutasi | Lint (`jsx-a11y`) | `axe` per komponen |
+|---|---|---|
+| `<img>` tanpa `alt` | **tertangkap** sebelum test jalan | — |
+| Tombol ikon `<span aria-hidden>x</span>` | **LOLOS** (0 error) | **tertangkap**: `[button-name] Buttons must have discernible text` + URL rujukan |
+
+`jsx-a11y` adalah analisis **statis satu berkas**. Ia tidak bisa tahu bahwa `aria-hidden` pada satu-satunya anak membuat tombolnya kehilangan nama yang bisa dibaca. Kalau hanya lapis pertama yang dipasang, cacat itu ship — dan ia sepenuhnya tak terlihat bagi siapa pun yang melihat layar.
+
+### Keputusan teknis
+
+* **`plugin:jsx-a11y/strict`, bukan `recommended`.** `recommended` melonggarkan aturan yang punya pengecualian sah di aplikasi lama — dan proyek ini tidak punya kode lama. Melonggarkan sejak awal berarti memilih ambang lebih rendah tanpa satu pun pelanggaran yang menuntutnya. Terbukti: seluruh kode yang ada lolos `strict` tanpa satu perubahan.
+* **Helper axe ditulis sendiri, bukan memakai `jest-axe`/`vitest-axe`.** AC menuntut laporan yang menyebut **elemen + aturan**; menulis sendiri membuat bentuk laporannya bisa dijamin, bukan diharapkan. ± 110 baris, tanpa dependensi tambahan selain `axe-core`.
+* **Aturan yang butuh rendering DIMATIKAN eksplisit**, tidak dibiarkan "incomplete". Dibiarkan menyala, axe melaporkannya tidak-lulus-tidak-gagal — dan hilangnya cakupan itu tidak terlihat siapa pun. Dimatikan eksplisit, ia menjadi daftar (`TAK_BISA_DI_JSDOM`) yang bisa dibaca dan harus ditutup PR-031b.
+* **Pesan galat menyebut batasnya sendiri.** Setiap kegagalan mencantumkan aturan apa saja yang TIDAK ikut diperiksa. Gerbang yang diam soal batasnya melahirkan rasa aman palsu — persis risiko yang ditulis dokumen phase (*"axe ≠ WCAG penuh"*).
+* **Entry `./pengujian` terpisah dari inti dan adapter web.** `axe-core` berukuran ± 500 KB belum termampat — lebih besar daripada seluruh budget JS awal. Dijaga `pengujian-terpisah.test.ts`; penjaga budget `apps/web` jaring keduanya. Diverifikasi: bundel tetap 97,9 KB dengan **nol** rujukan axe.
+
+### Batas yang ditulis terang-terangan
+
+**jsdom tidak menggambar apa pun.** Tidak ada tata letak, tidak ada warna hasil kaskade, tidak ada ukuran elemen. Seluruh aturan yang bergantung pada rendering — kontras warna, ukuran target sentuh, elemen yang tertutup elemen lain — **tidak bisa** dijalankan.
+
+Ada test yang membuktikan lubang itu apa adanya: teks putih di atas latar putih **LOLOS** pemeriksaan ini. Ditulis sebagai test, bukan sebagai catatan, supaya tidak ada yang menyimpulkan lapisan ini lengkap.
+
+Lulus di lapisan ini berarti *"tidak melanggar aturan yang bisa diperiksa tanpa layar"* — bukan *"aksesibel"*.
+
+### Yang diperiksa hari ini
+
+Beranda, halaman masuk, halaman 404, **banner luring**, **layar kesalahan**, dan kombinasi preferensi ekstrem (teks 200% + kontras tinggi + bahasa sederhana + target sentuh besar).
+
+Dua di tengah sengaja dimasukkan: keadaan kegagalan jarang terlihat saat pengembangan, dan muncul tepat ketika pengguna paling butuh bisa membacanya.
+
+### Slot CI `a11y` sengaja belum dinyalakan
+
+Penegakan PR ini menumpang langkah `Lint` dan `Unit test` yang sudah ada — keduanya sudah wajib hijau. Slot `a11y` di `pr.yml` (`if: false`) diperuntukkan bagi Playwright + Lighthouse di PR-031b. Menyalakannya sekarang hanya akan menambah job yang tidak memeriksa apa pun.
+
+### Next steps
+
+* **PR-027/028** — pustaka komponen lahir DENGAN gerbang sudah menyala. Pakai `harusLolosAksesibilitas()` di test tiap komponen.
+* **PR-031b** — registry halaman + axe di browser sungguhan (menutup `TAK_BISA_DI_JSDOM`) + Lighthouse (a11y=100, perf≥80), AC 2, 3, 5.
+* **PR-110** — audit manusia tetap gerbang rilis. Tidak satu pun lapisan otomatis menggantikannya.

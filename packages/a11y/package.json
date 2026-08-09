@@ -8,7 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./web": "./src/web/index.ts"
+    "./web": "./src/web/index.ts",
+    "./pengujian": "./src/pengujian/index.ts"
   },
   "scripts": {
     "lint": "eslint src __tests__ --ext .ts,.tsx --max-warnings=0",
@@ -24,6 +25,7 @@
   },
   "dependencies": {
     "@nawasena/schemas": "workspace:*",
+    "axe-core": "4.10.2",
     "zustand": "5.0.2"
   }
 }

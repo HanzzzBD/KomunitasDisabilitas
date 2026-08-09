@@ -572,20 +572,28 @@ Gate dapat diturunkan ke warning via config darurat (dengan approval EM) — dic
 
 #### Acceptance Criteria
 
-* [ ] Pelanggaran axe fixture → CI merah (bukti).
-* [ ] Lighthouse a11y < 100 → CI merah.
-* [ ] Registry halaman mudah ditambah per PR fitur.
-* [ ] Laporan kegagalan menyebut elemen + aturan.
-* [ ] Durasi tambahan pipeline < 5 menit.
+* [x] Pelanggaran axe fixture → CI merah (bukti). — **PR-031a**, di tingkat komponen. Diverifikasi mutasi, dan hasilnya membuktikan DUA lapis memang berbeda: `<img>` tanpa `alt` tertangkap `jsx-a11y` sebelum test jalan, sementara tombol ikon `<span aria-hidden>x</span>` **LOLOS lint** (0 error) dan tertangkap axe (`[button-name]`). Analisis statis satu berkas tidak bisa tahu bahwa `aria-hidden` pada satu-satunya anak menghapus nama tombolnya. Fixture halaman di browser sungguhan menyusul di PR-031b.
+* [ ] Lighthouse a11y < 100 → CI merah. — PR-031b (butuh browser sungguhan).
+* [ ] Registry halaman mudah ditambah per PR fitur. — PR-031b.
+* [x] Laporan kegagalan menyebut elemen + aturan. — **PR-031a.** Helper ditulis sendiri (bukan `jest-axe`) justru supaya bentuk laporannya bisa **dijamin**, bukan diharapkan: id aturan, selektor elemen, ringkasan perbaikan, dan URL rujukan. Pesan galat juga menyebut **batasnya sendiri** — aturan mana yang TIDAK ikut diperiksa — sebab gerbang yang diam soal batasnya melahirkan rasa aman palsu.
+* [ ] Durasi tambahan pipeline < 5 menit. — PR-031b. Lapisan PR-031a menumpang langkah `Lint` dan `Unit test` yang sudah ada, jadi belum menambah job baru.
+
+> **Dipecah jadi dua PR (persetujuan owner 2026-08-08), DAN 031a didahulukan.** Menurut dependensi dokumen, PR-031 mendarat setelah PR-030 — artinya **enam PR frontend**, termasuk seluruh pustaka komponen (PR-027/028), lahir tanpa gerbang aksesibilitas, padahal CLAUDE.md §5.2 menyebutnya *non-negotiable*. Bila gerbangnya baru menyala belakangan, yang diperbaiki adalah komponen yang sudah dianggap selesai — dan perbaikannya menyentuh setiap pemakainya.
+> **PR-031a** — `jsx-a11y` strict + `axe` per komponen (`@nawasena/a11y/pengujian`), berjalan tanpa browser sehingga bisa mendahului PR-027 — *selesai* (AC 1, 4).
+> **PR-031b** — registry halaman + axe di browser sungguhan + Lighthouse — *belum* (AC 2, 3, 5). Di sanalah `TAK_BISA_DI_JSDOM` (kontras warna, ukuran target sentuh) ditutup.
 
 #### Dependencies
 
-* PR-030
+* PR-030 — hanya untuk PR-031b (butuh halaman login nyata). PR-031a hanya bergantung pada PR-025.
 * PR-003
 
 #### Risks
 
-* False sense of security (axe ≠ WCAG penuh). Mitigasi: audit manual tetap gate rilis (PR-110).
+* False sense of security (axe ≠ WCAG penuh). Mitigasi: audit manual tetap gate rilis (PR-110). — **diperkuat di PR-031a:** batas jsdom ditulis sebagai daftar `TAK_BISA_DI_JSDOM`, disebutkan di setiap pesan galat, dan dibuktikan oleh test yang memperlihatkan teks putih di atas latar putih **LOLOS** pemeriksaan ini. Lubangnya ditulis sebagai test, bukan sebagai catatan.
+
+#### Log Implementasi
+
+* 2026-08-09 — PR-031a selesai (`jsx-a11y` strict, helper axe per komponen, gerbang diterapkan ke seluruh tampilan yang ada termasuk keadaan kegagalan). AC 1 & 4 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-031a--gerbang-aksesibilitas-jsx-a11y--axe-per-komponen).
 
 
 ### PR-032 - Landing Page + Empty States (Gap G4)
