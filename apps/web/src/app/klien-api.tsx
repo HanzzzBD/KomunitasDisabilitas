@@ -63,15 +63,32 @@ export function buatKlienApi(opsi: { baseUrl?: string; fetch?: typeof globalThis
  * yang justru ingin kita hindari.
  */
 export async function pulihkanSesi(klien: ApiClient): Promise<void> {
-  const { masuk, keluar } = useStoreSesi.getState();
+  let hasil: string | null = null;
   try {
     const { data } = await refreshSession(klien);
-    masuk(data.accessToken);
+    hasil = data.accessToken;
   } catch {
     // Sebab penolakan tidak dibedakan: tidak ada cookie, kedaluwarsa, atau
     // dicabut — bagi pengguna ketiganya berarti "belum masuk".
-    keluar();
+    hasil = null;
   }
+
+  // HANYA berlaku bila belum ada yang memutuskan lebih dulu.
+  //
+  // Pemulihan ini berjalan sejak aplikasi dipasang, sementara pengguna bisa
+  // menyelesaikan login di halaman yang SAMA sebelum jawabannya tiba —
+  // paling nyata di `/masuk/google`, yang menukarkan code segera setelah
+  // dimuat. Tanpa penjaga ini, pemulihan yang gagal (wajar: pengunjung itu
+  // memang belum punya cookie) memanggil `keluar()` sesudah penukaran berhasil
+  // dan MENCABUT sesi yang baru saja terbentuk — pengguna terlempar keluar
+  // tepat setelah berhasil masuk, tanpa satu pun pesan kesalahan.
+  //
+  // Ditemukan oleh test PR-030c, bukan oleh review.
+  const { status, masuk, keluar } = useStoreSesi.getState();
+  if (status !== "memulihkan") return;
+
+  if (hasil === null) keluar();
+  else masuk(hasil);
 }
 
 const KonteksKlienApi = createContext<ApiClient | null>(null);

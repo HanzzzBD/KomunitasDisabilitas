@@ -51,6 +51,17 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Kembalian dari Google (PR-030c). Terdaftar SEBAGAI SAUDARA `masuk`,
+        // bukan anaknya: halaman ini menggantikan seluruh isi halaman masuk,
+        // dan sebagai route anak ia akan menuntut `<Outlet />` di sana —
+        // menyeret halaman masuk ikut dirender di belakang layar penukaran.
+        path: "masuk/google",
+        lazy: async () => {
+          const { MasukGoogle } = await import("../routes/masuk-google.js");
+          return { Component: MasukGoogle };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

@@ -11,6 +11,7 @@ export { queryKey, type QueryKey, type QueryParams } from "./query-keys.js";
 export {
   requestOtp,
   verifyOtp,
+  googleAuth,
   refreshSession,
   logout,
   logoutAll,

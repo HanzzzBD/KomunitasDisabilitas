@@ -43,6 +43,8 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "auth.kode.masuk": "Satu kata sehari-hari, sama dengan label aksi di shell.",
   "auth.kode.memeriksa": "Kalimat penanda tunggu, sudah sependek mungkin.",
   "auth.kode.terkirim": "Kalimat empat kata dengan kata sehari-hari.",
+  "auth.google.atau": "Satu kata penghubung; tidak ada bentuk yang lebih sederhana.",
+  "auth.google.kembali": "Label tautan empat kata sehari-hari, sudah menyebut tujuannya.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<

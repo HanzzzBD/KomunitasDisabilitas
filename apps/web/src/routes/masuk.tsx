@@ -7,8 +7,7 @@
 // tepat ke tempat yang harus diisi berikutnya.
 //
 // Jalur URL-nya sudah pasti sejak PR-025: `/masuk/google` adalah redirect URI
-// yang terdaftar di Google Cloud Console. Tombol Google-nya sendiri lahir di
-// PR-030c.
+// yang terdaftar di Google Cloud Console.
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { KolomForm, Masukan, Tombol } from "@nawasena/ui";
@@ -19,6 +18,7 @@ import { useStoreSesi } from "../shared/sesi/store.js";
 import { bacaTujuan } from "../shared/rute/tujuan.js";
 import { normalkanNomor } from "../features/auth/nomor-hp.js";
 import { pesanGalat } from "../features/auth/pesan-galat.js";
+import { clientIdGoogle, siapkanMasukGoogle } from "../features/auth/google.js";
 
 type Langkah = "nomor" | "kode";
 
@@ -100,6 +100,30 @@ export function Masuk() {
     }
   }
 
+  async function mulaiGoogle() {
+    const clientId = clientIdGoogle();
+    if (clientId === null) return;
+    setGalat(null);
+    setSibuk(true);
+    try {
+      const alamat = await siapkanMasukGoogle({
+        clientId,
+        asal: window.location.origin,
+        // Tujuan awal DITITIPKAN menyeberangi pengalihan: sesudah kembali dari
+        // Google, query di alamat kembalian milik Google, bukan milik kita —
+        // `?tujuan=` yang tadi ada di URL sudah tidak ada di mana pun.
+        tujuan: bacaTujuan(lokasi.search),
+      });
+      window.location.assign(alamat);
+    } catch {
+      // Menyiapkan PKCE bisa gagal di konteks tidak aman: `crypto.subtle` hanya
+      // tersedia di HTTPS dan localhost. Jalur OTP tetap terbuka, jadi
+      // halamannya tidak boleh berhenti — cukup katakan yang ini tidak jadi.
+      setGalat(t("auth.google.gagalUmum"));
+      setSibuk(false);
+    }
+  }
+
   function kirimNomor(e: React.FormEvent) {
     e.preventDefault();
     const e164 = normalkanNomor(nomor);
@@ -172,6 +196,26 @@ export function Masuk() {
           <Tombol type="submit" disabled={sibuk}>
             {sibuk ? t("auth.nomor.mengirim") : t("auth.nomor.kirim")}
           </Tombol>
+
+          {/*
+            Tombol Google hanya muncul bila client ID-nya ADA. Tombol yang pasti
+            gagal lebih buruk daripada tidak ada sama sekali: pengguna mengira
+            dirinya yang salah, mencoba berulang, lalu menyerah — padahal jalur
+            OTP di atasnya terbuka penuh. Sikap yang sama dipakai API, yang
+            menjawab 503 berikut saran jalan masuk lain ketimbang berpura-pura
+            endpoint-nya tidak ada.
+
+            Hanya di langkah nomor: sesudah kode terkirim, menawarkan alur lain
+            hanya membingungkan.
+          */}
+          {clientIdGoogle() !== null && (
+            <>
+              <p className="text-center text-sm text-gray-700">{t("auth.google.atau")}</p>
+              <Tombol varian="sekunder" disabled={sibuk} onClick={() => void mulaiGoogle()}>
+                {t("auth.google.tombol")}
+              </Tombol>
+            </>
+          )}
         </form>
       ) : (
         <form onSubmit={kirimKodeVerifikasi} noValidate className="flex flex-col gap-4">
