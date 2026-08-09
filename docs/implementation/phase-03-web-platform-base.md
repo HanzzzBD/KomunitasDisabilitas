@@ -268,15 +268,15 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Fokus ring selalu terlihat di semua varian.
+* [x] Fokus ring selalu terlihat di semua varian. *(PR-027b — tiga varian Tombol + dua keadaan Masukan dijaga tidak memakai `outline-none`/`outline-0`; outline `currentColor` datang dari `:focus-visible` global PR-027a.)*
 * [ ] Label terasosiasi programatik (axe pass per komponen).
 * [ ] Error field diumumkan (`aria-describedby` + `aria-invalid`).
-* [ ] Target sentuh ≥ 44px (≥ 56px saat large_touch_targets).
+* [x] Target sentuh ≥ 44px (≥ 56px saat large_touch_targets). *(PR-027b — komponen memakai `min-h-sentuh`/`min-w-sentuh`; rantai token sampai `var(--touch-target-min, 44px)` dibuktikan lewat kompilasi CSS nyata. **Piksel sesungguhnya** tidak terukur di jsdom — pengukurannya milik PR-031b.)*
 * [ ] Keyboard interaksi Select sesuai pola WAI-ARIA.
 
 > **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1270 LOC.
 > **PR-027a** — preset Tailwind di `packages/config` + CSS akar + bootstrap `packages/ui` — *selesai*. Tidak menutup AC sendiri, tetapi membuka ketiganya.
-> **PR-027b** — Button & Input — *belum* (AC 1, 4).
+> **PR-027b** — Button & Input — *selesai* (AC 1, 4).
 > **PR-027c** — FormField & Select — *belum* (AC 2, 3, 5).
 >
 > **Celah dokumen yang ditutup PR-027a:** setup Tailwind **tidak punya pemilik** di backlog. SDD menyebutnya tiga kali — termasuk §107 (*"packages/config: eslint, tsconfig, tailwind preset"*) dan §189 (*"seluruh Tailwind preset membaca token ini"*) — tetapi tidak ada satu pun PR yang membuatnya, sementara PR-027 menulis *"Radix + Tailwind membaca token a11y"* seolah presetnya sudah ada. Berbeda dari celah PWA (PR-025d), yang ini **memblokir**: membangun komponen dengan CSS biasa berarti mengubah keputusan tech stack.
@@ -287,7 +287,7 @@ RB-Std.
 
 #### Risks
 
-* Kustomisasi berlebihan merusak perilaku ARIA Radix. Mitigasi: styling-only di atas primitive.
+* Kustomisasi berlebihan merusak perilaku ARIA Radix. Mitigasi: styling-only di atas primitive. **PR-027b menempuh mitigasi yang lebih kuat untuk Button & Input: tidak memakai primitive sama sekali.** `<button>` dan `<input>` natif sudah memenuhi seluruh pola WAI-ARIA-nya (peran, aktivasi Enter/Space, keadaan disabled, partisipasi form), sehingga membungkusnya hanya menambah lapisan yang bisa merusak semantik yang sudah benar. Radix tetap dipakai untuk Select (PR-027c), yang polanya memang tidak punya padanan natif yang memadai.
 * **Preflight Tailwind menghapus outline fokus bawaan browser.** Ditutup PR-027a: `:focus-visible` dipulihkan di `@layer base` dengan tebal 3px. Tanpa itu, SELURUH aplikasi kehilangan penanda fokus — kegagalan aksesibilitas paling umum yang lahir dari CSS reset, dan ia tidak akan terlihat oleh siapa pun yang memakai tetikus.
 * ~~**Pilihan Tailwind v3, bukan v4.**~~ **Ditinjau ulang dan DIBALIK atas keputusan owner (2026-08-09), sebelum satu komponen pun bergantung padanya.** Tinjauan membuktikan v3 tidak pernah menjadi keputusan: nol ADR menyebut Tailwind, SDD hanya menyebutnya di dalam diagram, dan pinnya masuk repo hari itu juga lewat PR-027a. ADR-008 menetapkan mekanisme token sebagai CSS custom properties — yang di v4 adalah model aslinya. Dituangkan sebagai [ADR-019](../adr/ADR-019-tailwind-v4-styling-web.md).
 
@@ -295,6 +295,7 @@ RB-Std.
 
 * 2026-08-09 — PR-027a selesai (preset Tailwind membaca token a11y, CSS akar + pemulihan cincin fokus, bootstrap `packages/ui`, `gabungKelas`). Menutup celah SDD §107. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027a--fondasi-styling-preset-tailwind--paket-ui).
 * 2026-08-09 — PR-027a **direvisi ke Tailwind v4** (`@theme` CSS menggantikan preset JS, `@tailwindcss/vite` menggantikan PostCSS, tailwind-merge 3.x) berikut **ADR-019**. Kontrak token ADR-008 tidak berubah — dibuktikan lewat kompilasi CSS nyata. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027a-revisi--migrasi-ke-tailwind-v4--adr-019).
+* 2026-08-09 — PR-027b selesai (`Tombol` 3 varian × 2 ukuran, `Masukan` dengan keadaan bermasalah). Menutup AC 1 & 4. Di atas elemen natif, bukan primitive Radix. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027b--tombol--masukan).
 
 
 ### PR-028 - packages/ui Batch 2 — Overlay & Feedback
