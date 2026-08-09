@@ -356,14 +356,14 @@ RB-Std.
 #### Acceptance Criteria
 
 * [x] Dialog: fokus masuk saat buka, kembali ke pemicu saat tutup. *(PR-028a — diuji lewat tiga jalan tutup: Escape, tombol tutup, dan tombol aksi di dalam isi. Jerat fokus diuji dua arah, Tab dan Shift+Tab.)*
-* [ ] Toast diumumkan `aria-live="polite"` tanpa mencuri fokus.
+* [x] Toast diumumkan `aria-live="polite"` tanpa mencuri fokus. *(PR-028b — kedua tuntutan diuji terpisah, sebab cara termudah membuat toast "terdengar" adalah memindahkan fokus ke sana. Bawaan Radix `type="foreground"` justru `assertive`; komponen ini memetakannya ke `background` dan dijaga test.)*
 * [ ] Tabs keyboard sesuai pola WAI-ARIA.
-* [ ] Skeleton menandai wilayah `aria-busy`.
-* [ ] Semua komponen lolos jest-axe. *(Dialog: ✅ PR-028a. Sisanya menyusul 028b/c.)*
+* [x] Skeleton menandai wilayah `aria-busy`. *(PR-028b — `WilayahMemuat` menandai wilayah yang SEDANG diganti, dan menaruh pengumumannya DI LUAR wilayah itu; `aria-busy` menahan pembacaan live region di dalamnya. `Kerangka` sendiri murni visual dan selalu `aria-hidden`.)*
+* [ ] Semua komponen lolos jest-axe. *(Dialog ✅ PR-028a; Toast & Kerangka ✅ PR-028b. Tabs & Card menyusul 028c.)*
 
 > **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1400 LOC, hampir tiga kali target <500. Diusulkan **sebelum** implementasi, bukan sesudah.
-> **PR-028a** — Dialog — *selesai* (AC 1).
-> **PR-028b** — Toast & Skeleton — *belum* (AC 2, 4).
+> **PR-028a** — Dialog — *selesai* (AC 1). Mendarat 440 LOC.
+> **PR-028b** — Toast & Kerangka (Skeleton) — *selesai* (AC 2, 4). Mendarat **780 LOC**, di atas target <500 dan di atas perkiraan ≈480; dilaporkan ke owner berikut usulan pemecahan Toast/Kerangka yang nol kopling, dan owner memilih mendaratkannya utuh (2026-08-09). 465 baris di antaranya test.
 > **PR-028c** — Tabs & Card — *belum* (AC 3).
 > AC 5 (semua lolos axe) tertutup bertahap di ketiganya.
 
@@ -374,10 +374,14 @@ RB-Std.
 #### Risks
 
 * Focus management edge cases. Mitigasi: test eksplisit dialog-dalam-dialog dilarang by-convention. **PR-028a menaikkan larangan itu dari konvensi menjadi STRUKTURAL:** `Dialog` di dalam `Dialog` melempar galat, bukan sekadar tidak dianjurkan. Konvensi tidak menahan apa pun di sini — yang menumpuk dialog biasanya tidak sadar sedang melakukannya, sebab dialog kedua lahir dari komponen yang dipakai ulang di tempat lain. Dan akibatnya bukan kerapian: dua jerat fokus bersarang mengurung pengguna keyboard **di dalam kurungan**.
+* **Bawaan Radix Toast melanggar AC-nya sendiri.** Nama prop `type` bercerita tentang ASAL pesan, bukan cara mengumumkannya: `"foreground"` — dan itu bawaannya — menjadi `aria-live="assertive"`, `"background"` menjadi `polite`. Membiarkan bawaan berarti SETIAP toast menyela pembacaan yang sedang berjalan. PR-028b memetakannya lewat satu prop `mendesak` yang bawaannya `false`, dan menjaganya dengan test yang memeriksa atribut hasilnya, bukan prop masukannya.
+* **Toast beraksi yang berhitung mundur menghapus fungsinya karena waktu** (WCAG 2.2 §2.2.1). Yang paling dirugikan justru yang paling lambat menjangkaunya: pengguna keyboard yang harus menekan F8 dulu, dan pengguna screen reader yang baru mendengar tawarannya setelah kalimat sebelumnya selesai. PR-028b menjadikannya struktural — kehadiran `aksi` yang mematikan hitungan, sehingga tidak ada pemakaian yang bisa lupa.
+* **`aria-busy` menahan live region DI DALAMNYA.** Pengumuman "Memuat…" yang diletakkan di dalam wilayah sibuk baru terdengar setelah pemuatan usai — tepat saat ia tidak berguna lagi, dan bug ini tidak terlihat sama sekali di layar. PR-028b menaruh `role="status"` sebagai saudara di LUAR wilayah itu, dijaga test yang memeriksa hubungan kedua elemen (`contains`), bukan sekadar keberadaan atributnya.
 
 #### Log Implementasi
 
 * 2026-08-09 — PR-028a selesai (`Dialog` + `TutupDialog` di atas Radix Dialog; larangan dialog bertumpuk jadi struktural). Menutup AC 1. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-028a--dialog).
+* 2026-08-09 — PR-028b selesai (`PenyediaToast` + `Toast` di atas Radix Toast; `Kerangka` + `WilayahMemuat`). Menutup AC 2 & 4. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-028b--toast--kerangka-skeleton).
 
 
 ### PR-029 - i18n Catalog id / id-simple

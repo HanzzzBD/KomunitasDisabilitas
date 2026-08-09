@@ -1003,3 +1003,91 @@ Toast & Skeleton (PR-028b); Tabs & Card (PR-028c); komponen domain seperti kartu
 ### Next steps
 
 * **PR-028b** — Toast + Skeleton. AC 2, 4.
+
+---
+
+## PR-028b — Toast & Kerangka (Skeleton)
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-028b-toast-skeleton` · **AC ditutup:** PR-028 nomor 2 & 4 (nomor 5 bertambah)
+
+### Ringkasan
+
+`PenyediaToast` + `Toast` di atas `@radix-ui/react-toast`, dan `Kerangka` + `WilayahMemuat` tanpa primitive apa pun. Keduanya tidak berbagi satu baris kode.
+
+### AC 2 — dua tuntutan yang saling berlawanan
+
+"Diumumkan `aria-live="polite"` **tanpa mencuri fokus**" bukan satu syarat, melainkan dua yang saling menarik. Supaya pengguna screen reader tahu sesuatu terjadi, pesannya harus masuk live region; supaya ia tidak kehilangan tempatnya, fokus tidak boleh pindah. Cara paling lazim memenuhi yang pertama — memindahkan fokus ke toast — justru melanggar yang kedua. Karena itu keduanya diuji **terpisah**, bukan lewat satu test "toast muncul".
+
+Tiga hal yang tidak akan tertangkap tanpa membaca sumber Radix:
+
+* **Bawaan Radix melanggar AC-nya.** `type` bercerita tentang ASAL pesan, bukan cara mengumumkannya: `"foreground"` — dan itu bawaannya — menjadi `aria-live="assertive"`. Membiarkannya berarti setiap toast menyela pembacaan yang sedang berjalan. Dipetakan lewat `mendesak` yang bawaannya `false`; test memeriksa atribut hasilnya, bukan prop masukannya.
+* **Region harus ada sebelum isinya.** Live region hanya mengumumkan PERUBAHAN di dalam region yang sudah ada; region yang lahir bersama pesannya kerap tidak terdengar sama sekali. Radix menghindarinya dengan menyalin teks ke region tersembunyi terpisah, lalu membuangnya setelah satu detik agar tidak terbaca dua kali saat pengguna menjelajah halaman. Konsekuensinya untuk test: `findByRole("status")` saja **lolos atas region kosong** — helper `pengumumanBerisi()` menunggu isinya.
+* **Toast beraksi tidak pernah berhitung mundur** (WCAG 2.2 §2.2.1). Menghilangkan tombol karena waktu berarti fungsinya lenyap bagi yang paling lambat menjangkaunya: pengguna keyboard yang harus menekan F8 dulu, dan pengguna screen reader yang baru mendengar tawarannya setelah kalimat sebelumnya selesai. Aturannya struktural — kehadiran `aksi` yang mematikan hitungan, jadi tidak ada pemakaian yang bisa lupa.
+
+Durasi bawaan dinaikkan 5 → 8 detik (Radix menghentikannya saat toast disentuh atau menerima fokus, jadi itu batas bawah). `label` Provider dan Viewport di-Indonesia-kan — bawaannya "Notification"/"Notifications (F8)", dan bahasa Inggris di tengah kalimat Indonesia dilafalkan salah oleh screen reader. "(F8)" dipertahankan di nama viewport karena itu pintasan yang memindahkan fokus ke daftar toast: tanpanya, toast di ujung DOM praktis tidak terjangkau keyboard, dan tombol di dalamnya jadi hiasan bagi persona Sari. Penutup manual wajib ada — Radix memberi toast gerakan geser-untuk-menutup, dan WCAG 2.2 §2.5.7 menuntut setiap fungsi berbasis seret punya jalan lain dengan satu penunjuk.
+
+**Tidak ada animasi sama sekali, dan itu keputusan.** Toast lazim ditulis meluncur masuk dari tepi layar; gerak di sudut penglihatan justru yang paling sering memicu mual pada gangguan vestibular. Pengumumannya datang dari live region, bukan dari geraknya — jadi tidak ada yang hilang.
+
+### AC 4 — yang ditandai adalah WILAYAH, bukan bentuk abu-abunya
+
+Bunyi AC-nya spesifik dan bukan kerewelan istilah. `aria-busy` berarti "isi di sini belum final"; menaruhnya pada bentuk abu-abu — yang memang tidak punya isi — tidak memberi tahu apa pun. Karena itu `Kerangka` (bentuk, selalu `aria-hidden`) dipisah dari `WilayahMemuat` (penanda, yang menjadikan bentuk itu berarti).
+
+**Jebakan yang menentukan susunannya:** `aria-busy="true"` memerintahkan screen reader MENAHAN pembacaan perubahan di dalam wilayah itu. Live region yang diletakkan di dalamnya ikut tertahan — pengumuman "Memuat…" baru terdengar setelah pemuatannya usai, yaitu tepat saat ia sudah tidak berguna. Bug ini tidak terlihat sama sekali di layar, jadi ia bertahan lama. `role="status"` karena itu menjadi saudara **di luar** wilayah sibuk, dan test memeriksa hubungan kedua elemen (`contains`), bukan sekadar keberadaan atributnya. Region-nya juga selalu dirender, hanya kosong saat diam — alasan yang sama dengan toast.
+
+### Uji mutasi
+
+Sebelas mutasi ditanam, **sebelas tertangkap**:
+
+| # | Mutasi | Test merah |
+|---|--------|-----------|
+| M1 | `type` selalu `"foreground"` (bawaan Radix) | 1 |
+| M2 | Hapus `duration={aksi ? Infinity : …}` | 1 |
+| M3 | Hapus `aria-label` tombol tutup | 4 |
+| M4 | Hapus `label` Provider (jadi "Notification") | 1 |
+| M5 | Hapus `label` Viewport (hilang "(F8)") | 1 |
+| M6 | Pindahkan `role="status"` KE DALAM wilayah sibuk | 1 |
+| M7 | Render status hanya saat memuat | 1 |
+| M8 | Hapus `aria-busy` | 4 |
+| M9 | Hapus `aria-hidden` dari bentuk kerangka | 5 |
+| M10 | Hapus `gerak-minimal:animate-none` | 1 |
+| M11 | Hapus `kontras-tinggi:bg-gray-500` | 1 |
+
+M10 dan M11 lemah, dan disebut apa adanya: test-nya memeriksa string kelas, jadi ia menyalin baris yang dijaganya. Yang benar-benar dibuktikan hanyalah kelasnya sampai ke markup — bahwa kelas itu **punya aturan CSS** dibuktikan terpisah lewat kompilasi produksi (lihat Gate).
+
+### Dua kesalahan sendiri yang layak dicatat
+
+* **Test fokus pertama merah atas komponen yang benar.** `document.activeElement` jatuh ke `<body>`, bukan berpindah ke toast — tidak ada yang mencuri fokus. React membongkar-pasang ulang anaknya karena harness saya mengubah anak tunggal menjadi larik antara dua render, dan tombol yang dipasang ulang kehilangan fokus. Susunan pohonnya disamakan; hanya `terbuka` yang berpindah.
+* **Gerbang negatif pertama tidak bisa dipakai.** Cacat yang paling saya khawatirkan untuk `Kerangka` — elemen fokusable di balik `aria-hidden` — dilaporkan axe sebagai **`incomplete`, bukan violation**, sebab jsdom tidak punya tata letak untuk menilai keterfokusan. Artinya gerbang lapis kedua **tidak menjaga cacat itu**; tugasnya jatuh ke PR-031b. Penjaga negatifnya diganti `aria-busy` bernilai ngawur (`aria-valid-attr-value`) — cacat yang justru pas: atributnya terlihat ada di inspector, tetapi diabaikan diam-diam.
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (ui **118** test, dari 87; total repo 1.075). Build produksi hijau. Delapan kelas baru diperiksa langsung di CSS terkompilasi, termasuk kedua varian atribut ADR-008:
+
+```
+[data-motion=reduced] .gerak-minimal\:animate-none{animation:none}
+[data-contrast=high]  .kontras-tinggi\:bg-gray-500{background-color:var(--color-gray-500)}
+```
+
+CSS 12,52 → 13,23 kB (gzip 3,50 → 3,72 kB). **Bundel JS awal tetap 325,20 kB / gzip 100,23 kB** — Radix Toast belum ikut masuk karena belum ada halaman yang mengimpornya; ia baru terhitung saat PR fitur mengadopsinya, dan di situlah penjaga budget bundel bekerja.
+
+**780 LOC** (465 test, 299 sumber, 16 sambungan; lock file tidak dihitung) — di atas target <500 dan di atas perkiraan ≈480. Dilaporkan ke owner berikut usulan pemecahan Toast/Kerangka yang nol kopling; owner memilih mendaratkannya utuh (2026-08-09).
+
+Catatan kebersihan: `@radix-ui/react-toast@1.2.23` sudah ada di `pnpm-lock.yaml` tetapi **tidak** di `packages/ui/package.json` — sisa percobaan yang tidak tuntas. Keadaan itu membuat `pnpm install --frozen-lockfile` gagal di CI. Ditutup di PR ini.
+
+### Batas yang jujur
+
+* **NVDA sampling masih belum dilakukan** — menumpuk sejak PR-027c, kini untuk tiga komponen. Semua klaim "diumumkan" di atas bersandar pada atribut dan struktur ARIA, bukan pada pendengaran alat sungguhan.
+* Pintasan F8, penghentian hitungan saat hover/fokus, dan gerakan geser adalah perilaku peramban — jsdom tidak bisa membuktikannya. PR-031b.
+* Elemen fokusable di balik `aria-hidden` **tidak terjaga** gerbang lapis kedua (lihat di atas). PR-031b.
+* Durasi 8 detik adalah pertimbangan, bukan angka terukur. Tidak ada token ADR-008 untuk "perpanjang batas waktu"; bila kelak dibutuhkan, ia preferensi baru — bukan tambalan di komponen.
+* Kontras `bg-gray-200`/`gray-500` dan piksel target sentuh tidak terukur di jsdom — PR-031b.
+
+### Out of scope
+
+* **Antrean toast imperatif (`useToast()`/`tampilkanToast()`).** Sengaja tidak dibuat: itu state aplikasi (ADR-014, Zustand), bukan komponen. Lapisan yang ada sudah cukup dipakai secara deklaratif, dan antrean yang lahir tanpa pemakai sungguhan cenderung salah bentuk. Ia lahir bersama PR fitur pertama yang membutuhkannya.
+* **Adopsi di `apps/web`.** `tata-letak.tsx` masih memakai `aria-busy` buatan tangan dari PR-025; menggantinya menyentuh i18n dan halaman nyata. Sama seperti PR-028a yang tidak menyambungkan `Dialog` ke halaman mana pun.
+* Tabs & Card (PR-028c); komponen domain seperti kartu lowongan (PR fitur).
+
+### Next steps
+
+* **PR-028c** — Tabs + Card. AC 3.
