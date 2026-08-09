@@ -183,16 +183,16 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] `prefers-reduced-motion` OS dihormati bila user belum set eksplisit.
-* [ ] Perubahan store langsung mengubah token DOM (live).
+* [x] `prefers-reduced-motion` OS dihormati bila user belum set eksplisit. — **PR-026b.** Kueri yang TIDAK DIKENAL browser menghasilkan `undefined`, bukan `false`: browser menormalkan `media` jadi `"not all"`, dan tanpa pemeriksaan itu browser lama akan melaporkan "pengguna tidak mau kontras tinggi" padahal ia sama sekali tidak tahu. Memakai `prefers-contrast: more` (standar), bukan `high` (nilai lama yang tidak pernah masuk spesifikasi). **Mekanismenya lengkap dan teruji di `packages/a11y`; `apps/web` memanggilnya di PR-026c.**
+* [x] Perubahan store langsung mengubah token DOM (live). — **PR-026b.** Glue store→DOM ditaruh di dalam paket (bukan `apps/web`) karena `subscribe` Zustand bukan API React — sehingga AC ini bisa diuji **tanpa merender satu komponen pun**. Atribut **dihapus** saat preferensi dimatikan, bukan disetel nilai "mati". Diverifikasi mutasi: menyetel `"normal"` alih-alih menghapus membuat lima test merah. **Mekanismenya lengkap dan teruji; `apps/web` memanggilnya di PR-026c.**
 * [x] Persist selamat dari refresh + migrasi versi teruji. — **PR-026a.** State tersimpan divalidasi skema pada `migrate` DAN `merge` (yang pertama hanya berjalan saat versi berbeda, jadi tanpa yang kedua state hasil suntingan tangan pada versi terkini masuk tanpa diperiksa). Nilai rusak dibuang **per-field**, sisanya selamat. Versi tersimpan yang lebih BARU dibuang, bukan ditebak. Diverifikasi mutasi.
 * [ ] Semua token terdokumentasi untuk pemakaian Tailwind preset.
 * [ ] Tidak ada flash-of-wrong-theme saat load (init sebelum paint).
 
 > **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1100 LOC — lebih dari dua kali batas <500, PR terbesar sejauh ini.
 > **PR-026a** — kontrak zod tujuh preferensi, rekonsiliasi murni (pengguna > OS > bawaan), store Zustand ber-persist + migrasi versi, harness paket. Seluruhnya **bebas DOM** agar bisa dipakai mobile (SDD §4.2) — *selesai* (AC 3).
-> **PR-026b** — token ke `<html>`, listener `prefers-*`, integrasi `apps/web`, sambungan mode bahasa i18n — *belum* (AC 1, 2).
-> **PR-026c** — anti-flash pra-paint + dokumentasi token Tailwind — *belum* (AC 4, 5).
+> **PR-026b** — adapter web `@nawasena/a11y/web`: token ke elemen akar, listener `prefers-*`, dan glue store→DOM — *selesai* (AC 1, 2). Glue dipindah ke dalam paket (bukan `apps/web`) agar AC 2 dapat diuji tanpa merender komponen; integrasi aplikasi & sambungan mode bahasa ikut PR-026c.
+> **PR-026c** — integrasi `apps/web` (`hubungkanKeDom`), sambungan `simpleLanguage` → mode i18n, anti-flash pra-paint, dan dokumentasi token Tailwind — *belum* (AC 4, 5).
 >
 > **Selisih dokumen yang dicatat:** SDD §4.3 menyebut ENAM preferensi, tabel `accessibility_profiles` punya TUJUH (`screenReaderHint` tidak disebut SDD). CLAUDE.md §12 menetapkan Prisma sebagai sumber kebenaran skema, jadi ketujuhnya masuk kontrak.
 
@@ -207,6 +207,7 @@ RB-Std.
 #### Log Implementasi
 
 * 2026-08-09 — PR-026a selesai (kontrak zod tujuh preferensi, rekonsiliasi murni, store Zustand ber-persist + migrasi versi; `packages/a11y` berhenti jadi placeholder). AC 3 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-026a--kontrak-preferensi--store-bebas-dom).
+* 2026-08-09 — PR-026b selesai (adapter web: token SDD §4.3, pembacaan & pemantauan `matchMedia`, glue store→DOM, penjaga "inti bebas DOM"). AC 1 & 2 terpenuhi di tingkat mekanisme; `apps/web` menyambungkannya di PR-026c. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-026b--token-dom--setelan-os).
 
 
 ### PR-027 - packages/ui Batch 1 — Form Primitives
