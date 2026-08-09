@@ -114,6 +114,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@nawasena/a11y':
+        specifier: workspace:*
+        version: link:../../packages/a11y
       '@tanstack/react-query':
         specifier: 5.62.11
         version: 5.62.11(react@18.3.1)

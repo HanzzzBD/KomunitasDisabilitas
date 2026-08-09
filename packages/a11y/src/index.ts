@@ -15,6 +15,16 @@ export {
 
 export { rekonsiliasi, dipilihPengguna, type SinyalOS } from "./rekonsiliasi.js";
 
+/**
+ * Kontrak penyimpanan yang harus disediakan pemanggil.
+ *
+ * Diteruskan dari Zustand dengan nama sendiri supaya pemakai paket ini tidak
+ * perlu memasang zustand hanya untuk MENYEBUT tipe argumen. Bahwa store-nya
+ * kebetulan Zustand adalah detail implementasi — dan detail implementasi yang
+ * bocor ke `package.json` pemakainya berhenti bisa diganti.
+ */
+export type { StateStorage as PenyimpananA11y } from "zustand/middleware";
+
 // Diteruskan agar pemakai tidak perlu bergantung pada @nawasena/schemas hanya
 // untuk menyebut tipe preferensinya.
 export {
