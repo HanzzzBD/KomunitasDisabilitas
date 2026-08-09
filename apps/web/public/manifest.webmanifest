@@ -1,0 +1,20 @@
+{
+  "name": "Nawasena — Karier Inklusif",
+  "short_name": "Nawasena",
+  "description": "Cari kerja yang ramah untuk penyandang disabilitas.",
+  "lang": "id",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "icons": [
+    {
+      "src": "/ikon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

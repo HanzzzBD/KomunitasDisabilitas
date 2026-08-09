@@ -15,6 +15,13 @@
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Nawasena — ekosistem karier inklusif untuk penyandang disabilitas." />
+
+    <!-- Fondasi PWA (ADR-009). Manifest membuat aplikasi bisa dipasang;
+         service worker didaftarkan dari main.tsx, hanya di build produksi. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/ikon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1f2937" />
+
     <title>Nawasena</title>
   </head>
   <body>
