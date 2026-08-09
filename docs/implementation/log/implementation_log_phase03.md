@@ -445,3 +445,54 @@ Catatan desain yang menyertainya: `screenReaderHint` adalah **petunjuk, bukan de
 * **PR-026b** — tulis `--font-scale`, `--touch-target-min`, `data-contrast/motion/lang-mode` ke `<html>`; listener `prefers-*`; sambungkan mode bahasa i18n (jalur masuknya sudah disiapkan PR-029a).
 * **PR-026c** — anti-flash pra-paint + dokumentasi token.
 * **PR-034** — endpoint sinkron server; di sanalah bawaan klien dan `@default` Prisma perlu dijaga agar tidak menyimpang.
+
+---
+## PR-026b — Token DOM & setelan OS
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-026---packagesa11y--store-preferensi--css-custom-properties)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai (bagian kedua dari tiga; anti-flash & dokumentasi token = PR-026c)
+
+### Ringkasan hasil
+
+Adapter web `@nawasena/a11y/web`: menulis lima token SDD §4.3 ke elemen akar, membaca & memantau setelan OS lewat `matchMedia`, dan menyambungkan store ke DOM.
+
+Menutup AC **1** (OS dihormati bila pengguna belum set eksplisit) dan **2** (perubahan store langsung mengubah token DOM).
+
+**Batas yang harus dibaca bersama itu:** mekanismenya lengkap dan teruji di `packages/a11y`, tetapi **`apps/web` belum memanggilnya** — itu PR-026c. Aplikasi hari ini masih belum menerapkan preferensi apa pun ke layar.
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/a11y` **49 test** (dari 20).
+
+### Penyesuaian batas internal
+
+Glue store→DOM ditaruh **di dalam paket**, bukan di `apps/web` seperti rencana awal. `subscribe` milik Zustand bukan API React, jadi menaruhnya di paket membuat AC 2 bisa diuji **tanpa merender satu komponen pun** — dan integrasi web di 026c menjadi satu panggilan fungsi. Pemetaan AC tidak berubah.
+
+### Keputusan teknis
+
+* **Token di elemen akar, bukan prop yang diturunkan.** Preferensi aksesibilitas harus berlaku pada semua yang tampil, termasuk yang dirender di luar pohon React (portal, dialog native, konten pihak ketiga). Satu komponen yang lupa meneruskan prop adalah satu sudut layar yang mengabaikan pengguna.
+* **Atribut DIHAPUS saat tidak aktif, bukan disetel `"normal"`/`"false"`.** Selektor `[data-contrast="high"]` lebih mudah dibaca daripada `:not([data-contrast="normal"])`, dan atribut yang selalu ada mengundang orang menulis aturan untuk nilai "mati" yang seharusnya cukup jadi gaya bawaan.
+* **`tokenDari()` dipisah dari penulisannya**, supaya PR-026c bisa memakai fungsi yang SAMA untuk skrip anti-flash pra-paint yang berjalan sebelum React ada. Dua tempat yang menghitung token sendiri-sendiri akan menyimpang, dan gejalanya adalah kedipan yang hanya muncul di sebagian perangkat.
+* **Elemen adalah argumen, bukan diambil dari `document` global** — itu yang membuat fungsi ini bisa diuji terhadap elemen lepas, dan yang membuatnya tidak pernah diam-diam mengubah halaman saat dipanggil dari tempat yang salah.
+* **`prefers-contrast: more`, bukan `high`.** `high` nilai lama yang tidak pernah masuk standar.
+* **Kueri yang tidak dikenal browser → `undefined`, bukan `false`.** Browser menormalkan `media` menjadi `"not all"` untuk sintaks yang tak dikenal; tanpa pemeriksaan itu, browser lama akan melaporkan "pengguna tidak mau kontras tinggi" padahal ia sama sekali tidak tahu — dan rekonsiliasi memperlakukannya sebagai jawaban.
+* **Perubahan OS masuk lewat store, tidak ditulis langsung ke DOM.** Dua jalur penulisan bisa menghasilkan keadaan berbeda.
+* **`addListener` usang tetap disediakan sebagai cadangan** (Safari lama). Pengguna perangkat lama bagian dari audiens produk ini, bukan pengecualian.
+* **Dua preferensi sengaja tanpa token.** `prefersSignLanguage` dan `screenReaderHint` tidak mengubah tampilan — yang pertama memilih ada/tidaknya konten BISINDO, yang kedua mengubah teks bantuan. Ditulis di `TANPA_TOKEN` beserta alasannya, di tempat orang mencarinya.
+
+### Penjaga baru: inti bebas DOM
+
+`web-terpisah.test.ts` memindai setiap berkas `src/*.ts` tingkat atas dan menolak `document`, `window`, `localStorage`, `navigator`, `matchMedia`, `HTMLElement`.
+
+Alasannya spesifik: **seluruh test paket ini berjalan di jsdom**, jadi `document` selalu tersedia saat diuji. Pelanggaran tidak akan pernah terlihat di sini — ia baru muncul sebagai crash di perangkat mobile berbulan-bulan kemudian. Penjaga ini juga memeriksa arah sebaliknya (adapter `web/` memang menyentuh DOM), supaya pemisahannya tidak berubah menjadi folder kosong yang menciptakan ilusi arsitektur.
+
+Komentar dibuang sebelum dipindai — berkas inti MENYEBUT `localStorage` dan `document` dalam penjelasan tentang mengapa keduanya tidak dipakai.
+
+### Verifikasi
+
+* **Uji mutasi 1:** `typeof document` disisipkan ke berkas inti → penjaga bebas-DOM **merah**.
+* **Uji mutasi 2:** atribut disetel `"normal"` alih-alih dihapus → **lima test merah** di dua berkas.
+* 49 test mencakup: nilai token, penulisan & penghapusan atribut, pembacaan OS termasuk kueri tak dikenal, pemantauan perubahan di tengah sesi, dan pembatalan langganan.
+
+### Next steps
+
+* **PR-026c** — panggil `hubungkanKeDom()` dari `apps/web`, sambungkan `simpleLanguage` ke mode i18n (jalur masuk sudah ada sejak PR-029a), skrip anti-flash pra-paint, dan dokumentasi token untuk Tailwind preset.
