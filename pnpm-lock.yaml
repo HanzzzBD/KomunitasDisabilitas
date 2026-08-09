@@ -117,9 +117,15 @@ importers:
       '@nawasena/a11y':
         specifier: workspace:*
         version: link:../../packages/a11y
+      '@nawasena/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@nawasena/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@nawasena/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tanstack/react-query':
         specifier: 5.62.11
         version: 5.62.11(react@18.3.1)
@@ -132,6 +138,9 @@ importers:
       react-router:
         specifier: 7.1.1
         version: 7.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      zustand:
+        specifier: 5.0.2
+        version: 5.0.2(@types/react@18.3.18)(react@18.3.1)
     devDependencies:
       '@nawasena/config':
         specifier: workspace:*

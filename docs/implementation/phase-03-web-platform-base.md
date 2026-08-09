@@ -531,11 +531,18 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Login OTP end-to-end terhadap API dev (sender mock).
-* [ ] Login Google end-to-end (akun uji).
-* [ ] Seluruh alur selesai keyboard-only.
-* [ ] Error (OTP salah/kedaluwarsa) diumumkan screen reader.
-* [ ] Route terlindungi redirect ke login dengan kembali ke tujuan awal.
+* [ ] Login OTP end-to-end terhadap API dev (sender mock). *(PR-030b. **Butuh stack dev berjalan** — di luar jangkauan unit test; lihat catatan verifikasi di bawah.)*
+* [ ] Login Google end-to-end (akun uji). *(PR-030c. **Butuh kredensial OAuth nyata** — di luar jangkauan unit test.)*
+* [ ] Seluruh alur selesai keyboard-only. *(PR-030b & 030c.)*
+* [ ] Error (OTP salah/kedaluwarsa) diumumkan screen reader. *(PR-030b.)*
+* [x] Route terlindungi redirect ke login dengan kembali ke tujuan awal. *(PR-030a — guard bertiga keadaan: `memulihkan` mencegah pengguna yang SEDANG login terlempar ke halaman masuk pada milidetik pertama tiap reload. Tujuan awal dibawa lewat `?tujuan=` yang selalu dibersihkan dari open redirect, di sisi tulis MAUPUN sisi baca.)*
+
+> **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1440 LOC. Diusulkan **sebelum** implementasi.
+> **PR-030a** — Fondasi sesi & route guard — *selesai* (AC 5). Mendarat **± 860 LOC**, di atas target <500 dan di atas perkiraan ≈480; pemecahan lebih lanjut tidak ditempuh karena test guard membutuhkan tumpukan provider yang dirakit klien API — memisahkannya menghasilkan PR yang test-nya tidak bisa berjalan bermakna.
+> **PR-030b** — Login OTP — *belum* (AC 1, 4).
+> **PR-030c** — Login Google (PKCE) — *belum* (AC 2, 3).
+>
+> **Verifikasi yang TIDAK bisa ditutup unit test (keputusan owner 2026-08-09):** AC 1 menuntut alur nyata terhadap API dev dengan sender mock, AC 2 menuntut akun Google uji. Keduanya dicatat sebagai utang eksplisit, sama seperti NVDA sampling — dibangun dan diuji unit di sini, dijalankan owner saat stack dan kredensialnya siap.
 
 #### Dependencies
 
@@ -546,6 +553,13 @@ RB-Std.
 #### Risks
 
 * Input OTP tidak aksesibel (pola 6 kotak). Mitigasi: satu input dengan autocomplete="one-time-code".
+* **Guard dua keadaan melempar pengguna yang sedang login ke halaman masuk.** Sesi web dipulihkan dari cookie HttpOnly lewat satu perjalanan ke `/auth/refresh`; guard yang hanya mengenal "masuk" dan "keluar" membaca "keluar" sebelum jawabannya tiba. Cacatnya tak terlihat saat mengembangkan — kita jarang me-reload setelah login — dan muncul pada setiap pengguna. PR-030a menambah keadaan ketiga (`memulihkan`) sebagai nilai AWAL store, dan menjaganya lewat test yang membaca modul yang baru dimuat, bukan store yang sudah disentuh test lain.
+* **`?tujuan=` adalah open redirect bila dipakai apa adanya.** Alamat kiriman orang lain (`/masuk?tujuan=https://jahat.example`) mengirim pengguna ke situs asing TEPAT setelah ia berhasil masuk — saat ia paling percaya bahwa yang dilihatnya aplikasi ini. PR-030a membersihkannya di kedua sisi, dan menolak juga bentuk `//host` serta `/\host` yang lolos dari pemeriksaan "diawali `/`".
+* **Barrel `@nawasena/ui` menarik seluruh Radix ke setiap chunk yang menyentuhnya.** Terukur di PR-030a: mengimpor SATU komponen membuat chunk halaman melonjak 0,32 → 118,74 kB (40,20 kB gzip). Ditutup dengan `"sideEffects": false` pada `packages/ui` (turun ke 30,17 kB / 9,70 kB gzip, nol rujukan Radix), dan dijaga test — sebab hilangnya baris itu tidak menampakkan gejala apa pun selain halaman yang pelan.
+
+#### Log Implementasi
+
+* 2026-08-09 — PR-030a selesai (store sesi tanpa persistensi, klien API + pemulihan sesi saat boot, guard `Terlindungi` bertiga keadaan, pertahanan open redirect). Menutup AC 5. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-030a--fondasi-sesi--route-guard).
 
 
 ### PR-031 - A11y Gate CI (axe + Lighthouse)

@@ -88,7 +88,12 @@ describe("evaluasiBudget — kapan merah", () => {
 });
 
 describe("chunkLazy — bukti code-splitting (AC PR-025)", () => {
-  const SEMUA = ["/assets/index-A1.js", "/assets/vendor-D4.js", "/assets/beranda-Z9.js", "/assets/masuk-Y8.js"];
+  const SEMUA = [
+    "/assets/index-A1.js",
+    "/assets/vendor-D4.js",
+    "/assets/beranda-Z9.js",
+    "/assets/masuk-Y8.js",
+  ];
   const AWAL = ["/assets/index-A1.js", "/assets/vendor-D4.js"];
 
   it("mengembalikan chunk yang TIDAK diunduh di awal", () => {
@@ -120,5 +125,23 @@ describe("ringkas — laporan yang bisa ditindaklanjuti", () => {
     const teks = ringkas(evaluasiBudget([aset(BATAS_GZIP_BYTES + 1024)]));
     expect(teks).toContain("GAGAL");
     expect(teks).toContain("kelebihan");
+  });
+});
+
+describe("paket bersama harus bisa di-tree-shake", () => {
+  it("@nawasena/ui mendeklarasikan sideEffects: false", async () => {
+    // DIUKUR, bukan diduga (PR-030a). `@nawasena/ui` adalah barrel yang
+    // mengekspor ulang Radix Dialog, Select, Toast, dan Tabs. Tanpa deklarasi
+    // ini, mengimpor SATU komponen dari barrel-nya menarik seluruh Radix:
+    //
+    //   chunk beranda tanpa sideEffects : 118,74 kB (40,20 kB gzip), 31 rujukan radix
+    //   chunk beranda dengan sideEffects:  30,17 kB ( 9,70 kB gzip),  0 rujukan radix
+    //
+    // Selisihnya ± 30 kB gzip pada SETIAP chunk yang menyentuh design system —
+    // dan hilangnya baris ini tidak akan menampakkan gejala apa pun selain
+    // halaman yang pelan. Sisa 9,70 kB itu sebagian besar `tailwind-merge`,
+    // yang dipakai `gabungKelas`.
+    const pkg = await import("../../../packages/ui/package.json", { with: { type: "json" } });
+    expect(pkg.default.sideEffects).toBe(false);
   });
 });

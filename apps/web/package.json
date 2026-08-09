@@ -16,11 +16,14 @@
   },
   "dependencies": {
     "@nawasena/a11y": "workspace:*",
+    "@nawasena/api-client": "workspace:*",
     "@nawasena/schemas": "workspace:*",
+    "@nawasena/ui": "workspace:*",
     "@tanstack/react-query": "5.62.11",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router": "7.1.1"
+    "react-router": "7.1.1",
+    "zustand": "5.0.2"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",
