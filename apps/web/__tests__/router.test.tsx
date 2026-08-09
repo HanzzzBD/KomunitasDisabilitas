@@ -30,7 +30,9 @@ describe("ruteApp — halaman", () => {
 
   it("'/masuk' memuat halaman Masuk", async () => {
     renderDi("/masuk");
-    expect(await screen.findByRole("heading", { level: 1, name: "Masuk" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Masuk ke Nawasena" }),
+    ).toBeInTheDocument();
   });
 
   it("URL asing → pesan 404 kita, BUKAN layar bawaan React Router", async () => {

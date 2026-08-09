@@ -82,14 +82,4 @@ export const katalogShell = {
     // apa itu "sesi", apalagi apa artinya "dipulihkan".
     "id-simple": "Sebentar, kami cek dulu akun Anda.",
   },
-
-  // --- Halaman sementara ---
-  "shell.masuk.judul": {
-    id: "Masuk",
-    "id-simple": "Masuk",
-  },
-  "shell.masuk.sedangDisiapkan": {
-    id: "Halaman masuk sedang disiapkan.",
-    "id-simple": "Halaman ini belum siap.",
-  },
 } as const satisfies KatalogFitur;

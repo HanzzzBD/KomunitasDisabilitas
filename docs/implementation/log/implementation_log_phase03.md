@@ -1273,3 +1273,95 @@ Bundel JS awal 325,20 → **328,20 kB** (gzip 100,23 → 101,30 kB) — tambahan
 ### Next steps
 
 * **PR-030b** — Login OTP. AC 1, 4.
+
+---
+
+## PR-030b — Login OTP
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-030b-login-otp` · **AC ditutup:** PR-030 nomor 4 (nomor 1 & 3 terbangun, sisa verifikasi manual)
+
+### Ringkasan
+
+Halaman `/masuk` dua langkah (nomor → kode), katalog i18n `auth`, normalisasi nomor HP, dan pemetaan kegagalan API menjadi kalimat yang dibacakan. Adopsi nyata pertama `KolomForm`, `Masukan`, dan `Tombol` (PR-027) di halaman produksi.
+
+### Dua langkah dalam SATU halaman
+
+Bukan dua alamat. Pindah halaman di tengah alur berarti fokus keyboard kembali ke awal dokumen dan pengguna screen reader mendengar seluruh kerangka halaman diulang sebelum sampai ke kotak isian. Di sini yang berganti hanya isi form-nya, dan fokus dipindahkan tepat ke kotak yang harus diisi berikutnya — sebab tombol "Kirim kode" yang dilepas dari DOM membawa fokus bersamanya.
+
+### Nomor yang ditulis manusia bukan E.164
+
+`phoneNumberSchema` menuntut `+62` diikuti 8–13 angka. Yang ditulis orang Indonesia hampir selalu `0812…`, kadang berspasi atau bertanda hubung, kadang `62812…` karena disalin dari kontak WhatsApp.
+
+Menolak semua bentuk itu secara teknis benar dan secara produk salah. Pengguna yang ditolak di kotak PERTAMA tidak menyalahkan formatnya — ia menyimpulkan aplikasinya tidak bisa dipakai, lalu pergi. Dan yang paling dirugikan justru yang paling sulit mengetik ulang: persona Sari (motorik terbatas) dan pengguna yang mengetik lewat suara.
+
+Normalisasinya memvalidasi dengan **skema yang sama** dengan server, bukan regex kedua. Aturan panjang yang ditulis dua kali adalah aturan yang akan berbeda — dan bedanya muncul sebagai form yang menerima isian lalu gagal tanpa penjelasan.
+
+### Galat: server sudah berbahasa Indonesia
+
+`ERROR_CATALOG` (SDD §11) memuat `message` + `hint` yang memang ditulis untuk dibacakan apa adanya. Jadi pemetaan di klien BUKAN penerjemah — ia hanya menambah yang tidak bisa datang dari server: varian `id-simple`.
+
+Karena itu pemetaannya sengaja **pendek**: hanya lima kode yang paling sering ditemui pengguna. Sisanya memakai pesan server, lengkap dengan `hint`-nya — sebab di sanalah "apa yang harus saya lakukan" berada, bagian yang paling berguna dan paling sering dibuang saat hanya `message` yang ditampilkan. Memetakan semua kode berarti menyalin katalog server ke klien: dua daftar yang akan menyimpang, dan yang menyimpang di sini muncul sebagai pesan salah pada saat pengguna paling butuh pesan yang benar.
+
+Tidak pernah mengembalikan string kosong. Kolom bermasalah tanpa pesan menampilkan garis merah tanpa keterangan — yang melihatnya tahu ada yang salah tetapi tidak tahu apa, dan pengguna screen reader tidak tahu apa pun.
+
+### Hitung mundur yang tidak menenggelamkan
+
+Angka detik "kirim ulang" sengaja **tidak** berada di dalam live region: region yang isinya berubah tiap detik membuat screen reader membacakan hitungan mundur tanpa henti. Angkanya hidup di label tombol (yang juga nonaktif selama hitungan), dan live region hanya menerima SATU kalimat saat hitungannya habis.
+
+### Uji mutasi
+
+Dua belas mutasi ditanam, **dua belas tertangkap**:
+
+| # | Mutasi | Merah |
+|---|--------|-------|
+| M1 | Nomor dikirim mentah tanpa normalisasi | 22 |
+| M2 | Hapus `autocomplete="one-time-code"` | 1 |
+| M3 | Fokus tidak kembali ke kotak kode setelah galat | 1 |
+| M4 | Fokus tidak pindah saat langkah berganti | 1 |
+| M5 | `tujuan` dipakai mentah (open redirect) | 1 |
+| M6 | Hitungan detik masuk ke live region | 1 |
+| M7 | Normalisasi lewati validasi skema | 3 |
+| M8 | Tolak bentuk `0` di depan | 6 |
+| M9 | Tidak membuang spasi/tanda hubung | 4 |
+| M10 | Galat tak dikenal → string kosong | 1 |
+| M11 | `hint` dibuang dari pesan | 1 |
+| M12 | Galat non-`ApiError` diteruskan mentah | 1 |
+
+M8 mula-mula **gagal terpasang** (escaping backtick di template literal). Penjaga "berhenti bila berkasnya tidak berubah" — yang dipasang setelah pelajaran PR-030a — menangkapnya dan mencegah laporan "lolos" yang palsu. Diulang dengan sasaran lain, lalu merah sebagaimana mestinya.
+
+### Satu bug yang ditemukan uji, bukan review
+
+**Fokus tidak pernah kembali ke kotak kode setelah galat.** Versi pertama memanggil `kotakKode.current?.focus()` di dalam blok `catch` — dan di sana kotaknya masih `disabled`, sebab `sibuk` baru turun di `finally` dan pembaruan state React tidak menyentuh DOM di tengah handler. **Elemen yang sedang nonaktif menolak fokus tanpa bersuara**, jadi kodenya terlihat benar dan gagal dalam diam: pengguna keyboard tetap terdampar setelah salah memasukkan kode. Diperbaiki menjadi efek yang menunggu kotaknya hidup lagi.
+
+Juga ditemukan saat menulis: komentar kepala berkas sempat menjanjikan "fokus dipindahkan tepat ke tempat yang harus diisi berikutnya" sementara kodenya belum melakukannya sama sekali. Klaim yang hanya hidup di komentar bukan klaim yang dijaga — sama seperti temuan PR-027c.
+
+### Kebersihan katalog
+
+`shell.masuk.judul` dan `shell.masuk.sedangDisiapkan` (kerangka PR-025) **dihapus**: keduanya sudah tidak dipakai siapa pun. Kunci mati yang dibiarkan menumpuk membuat katalog berhenti bisa dipercaya sebagai daftar teks yang benar-benar tampil. Penjaga "daftar pengecualian tidak menyimpan entri basi" ikut dibersihkan.
+
+Sembilan entri `auth` yang varian `id-simple`-nya memang identik didaftarkan beserta alasannya — sebagian besar LABEL dua-tiga kata sehari-hari. Mengarang perbedaan pada label hanya membuat kedua varian tidak konsisten: pengguna yang berpindah mode akan menyangka tombolnya berubah.
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (web **228** test, dari 187; total repo 1.195). Build produksi hijau.
+
+Chunk `/masuk` **34,50 kB (11,35 kB gzip)** — lazy, tidak diunduh di awal, dan **nol rujukan Radix** berkat `sideEffects: false` dari PR-030a. Bundel JS awal 328,20 → **330,83 kB** (gzip 101,30 → 101,98 kB). Budget **99,6 dari 200 KB**, sisa 100,4 KB.
+
+**± 920 LOC** (455 test, 430 sumber, 26 sambungan) — di atas target <500 dan di atas perkiraan ≈540.
+
+### Batas yang jujur
+
+* **AC 1 belum benar-benar end-to-end.** Alurnya terbangun dan teruji terhadap klien palsu; menjalankannya terhadap API dev dengan sender mock adalah utang tercatat (keputusan owner 2026-08-09).
+* **Anti-enumeration belum diperiksa dari sisi klien.** Security Considerations PR-030 menuntut pesan generik untuk nomor tak terdaftar. Halaman ini menampilkan apa pun yang dikirim server, jadi jaminannya ada di API — dan belum ada test lintas-lapis yang membuktikan server memang tidak membedakan keduanya.
+* **Hitung mundur belum diuji melewati waktu sungguhan.** Yang diuji keadaan awalnya (tombol mati, angka di luar live region) dan pengumuman saat habis; jalannya interval per detik tidak dipercepat dengan fake timer.
+* NVDA sampling masih menumpuk — kini termasuk halaman masuk, yaitu tempat klaim "diumumkan" paling penting.
+
+### Out of scope
+
+* Tombol dan callback Google (PR-030c) — termasuk `googleAuth` di `@nawasena/api-client`.
+* Meneruskan header `Retry-After` di `@nawasena/api-client` (lihat Risks).
+* Onboarding pasca-masuk (PR-035); settings (PR-033).
+
+### Next steps
+
+* **PR-030c** — Login Google (PKCE). AC 2, sisa AC 3.
