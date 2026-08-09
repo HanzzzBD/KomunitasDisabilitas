@@ -96,4 +96,24 @@ describe("gerbangnya benar-benar terpasang di CI", () => {
     expect(blokA11y).toContain("test:a11y");
     expect(blokA11y).toContain("test:lighthouse");
   });
+
+  it("nama check-nya PERSIS 'a11y' — tanpa spasi atau tanda kurung", () => {
+    // Required status check di ruleset dicocokkan sebagai STRING, dan GitHub
+    // tidak menghubungkan nama lama dengan nama baru. Mengganti nama job —
+    // bahkan sekadar merapikan tanda baca — akan diam-diam melepas
+    // kewajibannya: yang tersisa adalah aturan yang menunggu check yang tidak
+    // pernah lagi dilaporkan, dan PR yang menggantung tanpa sebab terlihat.
+    //
+    // Penjaga ini menahan penyuntingan itu di tempat yang murah, bukan di
+    // PR orang lain yang tiba-tiba tidak bisa di-merge.
+    const blokA11y = alurKerja.slice(alurKerja.indexOf("\n  a11y:"));
+    const baris = /^\s{4}name:\s*(.+?)\s*$/m.exec(blokA11y);
+
+    expect(baris?.[1], "job a11y kehilangan field `name:`").toBeDefined();
+    expect(
+      baris?.[1],
+      "nama check a11y berubah — ruleset `required_status_checks` harus ikut diperbarui, " +
+        "atau kewajibannya lepas tanpa gejala",
+    ).toBe("a11y");
+  });
 });

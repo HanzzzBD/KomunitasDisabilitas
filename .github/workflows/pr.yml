@@ -180,7 +180,19 @@ jobs:
   # bergantung pada basis data akan merah karena sebab yang bukan aksesibilitas
   # — dan gerbang yang merah karena sebab lain akan diabaikan orang.
   a11y:
-    name: a11y (axe + Lighthouse)
+    # NAMA CHECK SENGAJA POLOS: `a11y`, tanpa spasi maupun tanda kurung.
+    #
+    # Required status check dicocokkan sebagai STRING. Nama sebelumnya
+    # ("a11y (axe + Lighthouse)") memang lebih deskriptif di daftar check,
+    # tetapi setiap penyuntingan namanya — bahkan sekadar merapikan tanda
+    # baca — akan DIAM-DIAM melepas kewajibannya di ruleset: GitHub tidak
+    # menghubungkan keduanya, jadi yang tersisa adalah aturan yang menunggu
+    # check bernama lama yang tidak pernah lagi dilaporkan, dan PR yang
+    # menggantung tanpa sebab yang terlihat.
+    #
+    # Nama pendek yang tidak menyimpan detail implementasi (axe? Lighthouse?
+    # keduanya?) tidak punya alasan untuk berubah saat isinya berubah.
+    name: a11y
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
