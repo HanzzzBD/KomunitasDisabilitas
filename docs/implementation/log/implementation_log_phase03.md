@@ -1175,3 +1175,101 @@ CSS 13,23 → 14,28 kB (gzip 3,72 → 3,90 kB). **Bundel JS awal tetap 325,20 kB
 
 * **PR-029** sudah selesai lebih dulu (029a/b). Sisa Phase 03: **PR-030** (halaman login produksi-ready), **PR-031b**, **PR-032**, **PR-033**.
 * Utang yang harus dijadwalkan sebelum Exit Criteria Phase 03: **NVDA sampling** untuk lima komponen PR-027/PR-028.
+
+---
+
+## PR-030a — Fondasi sesi & route guard
+
+**Tanggal:** 2026-08-09 · **Branch:** `pr-030a-fondasi-sesi` · **AC ditutup:** PR-030 nomor 5
+
+### Ringkasan
+
+Store sesi (Zustand), klien API terangkai dengan hook refresh, pemulihan sesi saat boot, dan guard `Terlindungi`. `apps/web` kini bergantung pada `@nawasena/api-client`, `@nawasena/ui`, dan `zustand` — ketiganya masuk di PR ini.
+
+### Di mana token BOLEH berada
+
+Security Considerations PR-030 menulis "tidak menyimpan access token persisten". Dua tempat ditolak, dan yang kedua tidak disebut dokumen mana pun:
+
+* **Bukan di `localStorage`.** Berbeda dari store preferensi aksesibilitas (PR-026) yang memang harus selamat dari reload. Token di sana bisa dibaca skrip mana pun yang berhasil masuk ke halaman, dan bertahan lama setelah tab ditutup. Yang menyeberangi reload adalah refresh token di cookie HttpOnly — yang justru tidak terbaca JavaScript.
+* **Bukan di state reaktif.** Token hidup di variabel modul, bukan di dalam store. Tiga alasan: ia tidak pernah dirender sehingga reaktivitasnya tidak membeli apa pun; setiap pembaca reaktif adalah tempat ia bisa bocor (React DevTools, pencatat kesalahan yang men-serialisasi state); dan refresh mengganti token tiap ~15 menit, sehingga menaruhnya di state berarti merender ulang seluruh pelanggan demi nilai yang tidak ditampilkan siapa pun.
+
+Yang mencegah keduanya menyimpang: hanya aksi store yang boleh menulis token — tidak ada setter terpisah yang diekspor. "Status keluar tetapi token masih ada" tidak punya jalan untuk terjadi.
+
+### Keadaan ketiga yang membuat guard benar
+
+Guard yang hanya mengenal `masuk` dan `keluar` akan membaca `keluar` pada milidetik pertama setiap kali halaman dimuat — sebelum jawaban `/auth/refresh` tiba — lalu melempar pengguna yang SEDANG login ke halaman masuk. Cacatnya tidak muncul saat mengembangkan, sebab kita jarang me-reload setelah login; ia muncul pada setiap pengguna sungguhan.
+
+`memulihkan` karena itu adalah nilai AWAL store, bukan keadaan tambahan yang dipasang belakangan. Selama itu guard menampilkan `WilayahMemuat` (PR-028b) — adopsi nyata pertama komponen PR-028 — sehingga menunggunya diumumkan lewat teks, bukan lewat layar diam yang terbaca sebagai halaman rusak.
+
+### `?tujuan=` adalah open redirect sampai dibuktikan bukan
+
+Nilai `tujuan` datang dari URL, dan URL datang dari siapa saja. Alamat kiriman orang lain (`/masuk?tujuan=https://jahat.example`) mengirim pengguna ke situs asing TEPAT setelah ia berhasil masuk — yaitu saat ia paling percaya bahwa yang dilihatnya adalah aplikasi ini; halaman tiruan di seberang tinggal meminta apa pun.
+
+Dibersihkan di **kedua sisi** (saat menulis tautan dan saat membaca query), sebab URL-nya tidak pernah kita yang membuat. Yang ditolak melampaui "harus diawali `/`":
+
+* `//jahat.example` — protocol-relative; browser membacanya sebagai host lain meski tanpa skema. Ini bentuk yang paling sering lolos.
+* `/\jahat.example` — sebagian browser memperlakukan `\` seperti `/`.
+
+### Temuan bundel yang tidak diduga, dan terukur
+
+`@nawasena/ui` adalah barrel yang mengekspor ulang Radix Dialog, Select, Toast, dan Tabs. Mengimpor **satu** komponen (`WilayahMemuat`) darinya membuat chunk halaman melonjak:
+
+| | ukuran chunk | gzip | rujukan `radix` |
+|---|---|---|---|
+| tanpa `sideEffects` | 118,74 kB | 40,20 kB | 31 |
+| dengan `sideEffects: false` | 30,17 kB | 9,70 kB | 0 |
+
+Selisihnya ± 30 kB gzip pada **setiap** chunk yang menyentuh design system — pada aplikasi yang menargetkan jaringan lambat. Ditutup dengan `"sideEffects": false` di `packages/ui` (aman: tidak ada satu pun modul di sana yang punya efek samping — tanpa impor CSS, tanpa registrasi global), dan **dijaga test**, sebab hilangnya baris itu tidak menampakkan gejala apa pun selain halaman yang pelan. Sisa 9,70 kB sebagian besar `tailwind-merge` yang dipakai `gabungKelas`.
+
+Pengukurannya dilakukan dengan probe yang benar-benar MERENDER guard. Probe pertama hanya menulis `void Terlindungi;` — dan dengan `sideEffects: false` impor yang tak terpakai itu dibuang seluruhnya, sehingga angkanya membuktikan hal yang salah.
+
+### Uji mutasi
+
+Sepuluh mutasi ditanam, **sepuluh tertangkap** — dua di antaranya baru setelah diperbaiki:
+
+| # | Mutasi | Merah |
+|---|--------|-------|
+| M1 | Loloskan `//host` dan `/\host` | 4 |
+| M2 | Hapus syarat "diawali `/`" | 5 |
+| M3 | `bacaTujuan` tidak membersihkan | 1 |
+| M4 | Guard perlakukan `memulihkan` seperti `keluar` | 6 |
+| M5 | Hapus `replace` pada `Navigate` | 1 |
+| M6 | Guard abaikan tujuan (selalu `/masuk` polos) | 2 |
+| M7 | Token ikut masuk ke state reaktif | 1 |
+| M8 | `keluar` tidak membersihkan token | 1 |
+| M9 | Status awal `keluar`, bukan `memulihkan` | 1 (setelah test diperbaiki) |
+| M10 | Hapus `sideEffects` dari `packages/ui` | 1 |
+
+### Dua kesalahan sendiri, keduanya tentang penjaga yang berbohong
+
+* **M1 mula-mula dilaporkan LOLOS — padahal mutasinya tidak pernah terpasang.** Pola `perl` saya tidak cocok karena escape backslash, jadi berkasnya tidak berubah dan test-nya wajar saja hijau. Sesaat saya nyaris mencatat lubang keamanan yang sebenarnya tidak ada. Pelajarannya berlaku umum: **uji mutasi yang tidak memverifikasi bahwa mutasinya benar-benar terpasang adalah penjaga hampa untuk penjaga.** Sejak temuan ini, tiap mutasi memeriksa berkasnya berubah lebih dulu dan berhenti bila tidak.
+* **M9 menangkap test hampa yang saya tulis sendiri.** Test "dimulai dari `memulihkan`" memanggil `setState({status: "memulihkan"})` lalu memeriksa hasilnya — yang hanya membuktikan `setState` bekerja, dan tetap hijau meski nilai awalnya diubah jadi `keluar`. Nilai awal itu justru satu-satunya hal yang membuat guard benar. Diperbaiki dengan `vi.resetModules()` + impor ulang, sehingga yang dibaca adalah store yang belum disentuh siapa pun.
+
+### Gate
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (web **187** test, dari 172; total repo 1.154). Build produksi hijau.
+
+Bundel JS awal 325,20 → **328,20 kB** (gzip 100,23 → 101,30 kB) — tambahan `@nawasena/api-client` + `zustand` + store sesi, yang kini benar-benar terjangkau dari entry lewat `Providers`. Budget: **98,9 KB dari 200 KB**, sisa 101,1 KB. `@nawasena/ui` belum ikut masuk: guard-nya belum dipakai route mana pun.
+
+**± 860 LOC** (472 test, 311 sumber, 78 sambungan; lock file tidak dihitung) — di atas target <500 dan di atas perkiraan ≈480. Pemecahan lebih lanjut tidak ditempuh: test guard membutuhkan tumpukan provider yang dirakit klien API, sehingga memisahkan keduanya menghasilkan PR yang test-nya tidak bisa berjalan bermakna.
+
+### Perubahan yang menyentuh test lain
+
+`apps/web/__tests__/setup.ts` kini (a) menolak `fetch` sebagai bawaan dan (b) mengembalikan status sesi sesudah tiap test. Keduanya konsekuensi langsung dari `Providers` yang memulihkan sesi saat dipasang: tanpa (a) setiap test yang merendernya benar-benar mencoba menghubungi localhost — lambat, dan hasilnya berbeda antara laptop dan CI; tanpa (b) status yang ditulis satu test terbawa ke test berikutnya.
+
+### Batas yang jujur
+
+* **AC 1 & 2 tidak tersentuh di sini dan memang tidak bisa** — keduanya menuntut stack dev berjalan dan kredensial Google. Dicatat sebagai utang atas keputusan owner (2026-08-09).
+* **Pemulihan sesi belum pernah dijalankan terhadap server sungguhan.** Yang diuji adalah perakitannya (`fetch` palsu): jalur cookie HttpOnly, `SameSite`, dan CORS hanya bisa dibuktikan di peramban terhadap API nyata.
+* **Satu permintaan yang gagal bagi pengunjung yang belum pernah masuk.** Biaya sadar dari pemulihan saat boot. Alternatifnya menyimpan penanda "pernah masuk" di localStorage — memindahkan sebagian keadaan sesi ke tempat yang justru ingin dihindari.
+* `Terlindungi` belum dipakai route mana pun: belum ada halaman yang perlu dilindungi. Konsisten dengan PR-028 yang juga tidak menyambungkan komponennya ke halaman.
+* NVDA sampling masih menumpuk (lima komponen PR-027/PR-028, kini plus guard).
+
+### Out of scope
+
+* **Identitas pengguna (`userId`) di store — DITUNDA DENGAN SENGAJA.** `POST /auth/refresh` hanya mengembalikan token, tanpa identitas; sesi yang dipulihkan dari cookie tahu bahwa pengguna masuk, tetapi tidak tahu siapa. Menjawabnya berarti memilih antara membaca klaim `sub` dari JWT tanpa memverifikasinya, atau satu permintaan tambahan ke `/users/me` — dan pilihan itu bergantung pada apa yang halaman pertama benar-benar butuhkan. AC 5 hanya perlu `status`. Ia lahir bersama halaman pertama yang menampilkan identitas (PR-033).
+* Halaman login OTP (PR-030b); Google PKCE (PR-030c); onboarding (PR-035); settings (PR-033).
+
+### Next steps
+
+* **PR-030b** — Login OTP. AC 1, 4.

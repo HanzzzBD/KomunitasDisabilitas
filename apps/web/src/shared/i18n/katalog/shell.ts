@@ -75,6 +75,14 @@ export const katalogShell = {
     "id-simple": "Buka ulang halaman",
   },
 
+  // --- Sesi ---
+  "shell.sesi.memulihkan": {
+    id: "Memeriksa apakah Anda masih masuk…",
+    // "Memulihkan sesi" adalah istilah teknis: pengguna tidak punya gambaran
+    // apa itu "sesi", apalagi apa artinya "dipulihkan".
+    "id-simple": "Sebentar, kami cek dulu akun Anda.",
+  },
+
   // --- Halaman sementara ---
   "shell.masuk.judul": {
     id: "Masuk",

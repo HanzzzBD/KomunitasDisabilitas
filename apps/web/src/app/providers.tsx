@@ -7,6 +7,8 @@
 import { useState, type ReactNode } from "react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import type { A11yStore } from "@nawasena/a11y";
+import type { ApiClient } from "@nawasena/api-client";
+import { PenyediaKlienApi } from "./klien-api.js";
 import { createQueryClient } from "./query-client.js";
 import { PenyediaI18n } from "../shared/i18n/index.js";
 import type { ModeBahasa } from "../shared/i18n/index.js";
@@ -24,9 +26,17 @@ export interface ProvidersProps {
   modeBahasaAwal?: ModeBahasa;
   /** Disuntik test; produksi merakit sendiri di atas localStorage. */
   a11yStore?: A11yStore;
+  /** Disuntik test; produksi merakit sendiri di atas fetch bawaan. */
+  klienApi?: ApiClient;
 }
 
-export function Providers({ children, queryClient, modeBahasaAwal, a11yStore }: ProvidersProps) {
+export function Providers({
+  children,
+  queryClient,
+  modeBahasaAwal,
+  a11yStore,
+  klienApi,
+}: ProvidersProps) {
   // useState dengan initializer malas, BUKAN `?? createQueryClient()` langsung
   // di JSX: bentuk itu membuat klien baru pada SETIAP render, dan setiap klien
   // baru membawa cache kosong. Gejalanya menyesatkan — data seolah-olah tidak
@@ -41,14 +51,20 @@ export function Providers({ children, queryClient, modeBahasaAwal, a11yStore }: 
   //     kelak perlu diterjemahkan. Kebalikannya tidak pernah dibutuhkan.
   //   - `SambungkanBahasa` DI DALAM PenyediaI18n, sebab ia memakai `useModeBahasa`.
   //   - `PenyediaA11y` boleh di mana saja; ia hanya menyentuh <html>.
+  //   - `PenyediaKlienApi` DI DALAM QueryClientProvider: pemanggilan data kelak
+  //     dibungkus TanStack Query, jadi klien harus sudah tersedia saat query
+  //     pertama dijalankan. Ia juga yang memicu pemulihan sesi saat boot,
+  //     sehingga harus membungkus `children` — bukan bersebelahan dengannya.
   return (
     <QueryClientProvider client={klien}>
-      <PenyediaA11y store={a11y}>
-        <PenyediaI18n modeAwal={modeBahasaAwal}>
-          <SambungkanBahasa store={a11y} />
-          {children}
-        </PenyediaI18n>
-      </PenyediaA11y>
+      <PenyediaKlienApi klien={klienApi}>
+        <PenyediaA11y store={a11y}>
+          <PenyediaI18n modeAwal={modeBahasaAwal}>
+            <SambungkanBahasa store={a11y} />
+            {children}
+          </PenyediaI18n>
+        </PenyediaA11y>
+      </PenyediaKlienApi>
     </QueryClientProvider>
   );
 }

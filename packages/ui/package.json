@@ -4,6 +4,7 @@
   "private": true,
   "description": "Design system aksesibel (Tailwind v4 + Radix seperlunya). Set komponen MVP lengkap: form primitives (PR-027), Dialog (PR-028a), Toast & Kerangka (PR-028b), Tab & Kartu (PR-028c).",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
