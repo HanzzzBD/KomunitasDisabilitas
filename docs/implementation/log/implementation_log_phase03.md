@@ -833,3 +833,90 @@ FormField & Select (PR-027c); overlay/feedback (PR-028); varian React Native (PR
 ### Next steps
 
 * **PR-027c** — FormField & Select (Radix). AC 2, 3, 5.
+
+---
+
+## PR-027c — KolomForm & Pilihan (Select)
+
+**Tanggal:** 2026-08-09
+**Branch:** `pr-027c-formfield-select` → `phase-03-web-platform-base`
+**Menutup:** PR-027 AC **2** (label terasosiasi programatik), **3** (galat diumumkan lewat `aria-describedby` + `aria-invalid`), **5** (keyboard Select sesuai pola WAI-ARIA). **PR-027 tuntas.**
+
+### Yang dibangun
+
+* `packages/ui/src/konteks-kolom.ts` — kait antara kolom dan kontrol di dalamnya.
+* `packages/ui/src/kolom-form.tsx` — `KolomForm`: label, bantuan, galat, penanda wajib.
+* `packages/ui/src/pilihan.tsx` — `Pilihan` di atas `@radix-ui/react-select` 2.3.7.
+* `Masukan` (PR-027b) kini membaca konteks; prop eksplisit tetap menang.
+
+### Keputusan: id dibagikan lewat konteks, bukan diketik pemakai
+
+AC 2 dan 3 bisa dipenuhi dengan menuliskan `id` dan `aria-describedby` di tiap pemakaian. Itu bekerja — sampai satu kolom terlewat. Dan yang terlewat di sini bukan "kolomnya jadi kurang rapi": pengguna screen reader tidak pernah tahu ada yang salah dengan isiannya, sementara semua orang lain melihat tepi merah.
+
+Karena itu `KolomForm` yang **membagikan** id-nya lewat konteks React, dan kontrol yang **mengambilnya**. Tidak ada yang perlu diingat siapa pun. `useId` dipakai supaya dua kolom dengan label sama di satu halaman tidak bertabrakan — `aria-describedby` yang menunjuk id ganda mengumumkan deskripsi yang salah.
+
+Konteks yang tidak ada bernilai `null`, bukan objek kosong: memakai kontrol di luar `KolomForm` itu sah (mis. dropdown pengurut dengan `aria-label` sendiri), dan menyamarkan keduanya akan membuat kontrol yang lepas dari kolomnya tampak seolah tersambung.
+
+### Keputusan: Select MEMANG memakai Radix
+
+Berbeda dari PR-027b, di sini primitive-nya dipakai — dan alasannya bukan sekadar "dokumen phase menyebut Radix".
+
+Pola listbox tidak punya elemen natif yang bisa **ditata**: `<option>` bawaan tidak menerima gaya. Sementara pola ARIA-nya menuntut belasan perilaku yang saling terkait — roving focus, typeahead, Home/End, penguncian scroll, pengembalian fokus saat tutup, penutupan saat klik di luar. Menulis ulang itu persis yang diperingatkan PRD R9 (*"pakai komponen headless teruji, bukan bangun dari nol"*).
+
+Perilakunya datang **sepenuhnya** dari Radix; berkas kita hanya menata tampilan dan menyambungkannya ke `KolomForm`. Itu mitigasi Risks PR-027 apa adanya: *styling-only di atas primitive*. Test yang ditulis karena itu tidak menguji ulang Radix — ia menguji bahwa perilaku Radix **sampai ke pengguna setelah kita menatanya**, sebab penataan itulah satu-satunya risiko yang memang milik kita.
+
+Dua penyimpangan sadar dari contoh Radix yang lazim beredar:
+
+* **`position="popper"`.** Mode bawaan Radix menyelaraskan item terpilih tepat di atas pemicu; pada zoom 200% (WCAG 2.2 §1.4.4) daftarnya mudah terdorong keluar layar.
+* **Sorotan membalik warna (17,4:1), bukan `bg-*-100` + `outline-none`.** Pasangan itu ada di hampir semua contoh Radix di internet. Abu muda di atas putih hanya ± 1,1:1 — jauh di bawah 3:1 yang dituntut WCAG 2.2 §1.4.11 — sehingga begitu outline-nya dimatikan, penanda fokus keyboard praktis hilang. Dijaga test.
+
+### Tiga cacat lain yang dijaga eksplisit
+
+1. **Penanda wajib punya teks, bukan hanya bintang.** Bintang hanya bermakna bagi yang melihatnya, dan artinya harus ditebak. Teks `(wajib diisi)` masuk ke nama kolom lewat `sr-only`; bintangnya `aria-hidden`.
+2. **Bantuan dibacakan sebelum galat.** Urutan id di `aria-describedby` menentukan urutan pengumuman. *"Apa yang salah"* tanpa *"apa yang diminta"* tidak bisa ditindaklanjuti.
+3. **`role="alert"` pada pesan galat.** Tanpa live region, galat yang lahir setelah submit hanya *terlihat* — pengguna screen reader tidak tahu ada yang berubah sampai ia menjelajah ulang formnya.
+
+### Verifikasi
+
+**Uji mutasi — sepuluh mutasi:**
+
+| Mutasi | Hasil |
+|---|---|
+| `<label>` kehilangan `htmlFor` | **7 test merah** |
+| urutan `aria-describedby` dibalik (galat sebelum bantuan) | **2 test merah** |
+| `role="alert"` dihapus dari pesan galat | **1 test merah** |
+| teks `sr-only` "wajib diisi" dihapus (bintang saja) | **1 test merah** |
+| prop `id` pemakai ditimpa konteks | **1 test merah** |
+| `aria-describedby` tidak diteruskan ke pemicu Select | **1 test merah** |
+| `min-h-sentuh` hilang dari item opsi | **1 test merah** |
+| sorotan → `bg-gray-100` + `outline-none` (pola lazim Radix) | **1 test merah** |
+| `ItemIndicator` (centang) dihapus | **awalnya LOLOS** → lihat di bawah |
+| `aria-hidden` dilepas dari centang | **lolos — mutan setara**, lihat di bawah |
+
+**Mutasi kesembilan mula-mula tidak tertangkap sama sekali.** Komentar di berkas mengklaim keadaan terpilih ditandai bentuk dan bukan warna semata (WCAG 2.2 §1.4.1), tetapi tidak ada satu pun test yang menjaganya — menghapus tanda centang membuat nol test merah. Test ditambahkan (`terpilih.textContent` memuat `✓`, yang lain tidak), dan mutasinya kini tertangkap. Klaim yang hanya hidup di komentar bukan klaim yang dijaga.
+
+**Mutasi kesepuluh lolos, dan itu benar.** Radix menamai item lewat `aria-labelledby` yang menunjuk `ItemText`, jadi teks centang tidak pernah ikut ke nama aksesibel — dengan atau tanpa `aria-hidden`. Mutan setara: tidak ada pengguna yang bisa membedakannya. Dicatat, bukan ditutup dengan test hampa.
+
+**Gerbang axe tidak lulus hampa:** dua test negatif — kontrol di luar `KolomForm` gagal aturan label; `Pilihan` tanpa label apa pun gagal `select-name`/`button-name`.
+
+**Tambalan jsdom.** Radix Select memakai Pointer Capture, `scrollIntoView`, dan `ResizeObserver` — ketiganya tidak ada di jsdom, dan tanpa tambalan komponennya melempar sebelum satu assertion pun berjalan. Yang ditambal seluruhnya soal tata letak dan penunjuk; tidak satu pun menyentuh peran, id, atau penanganan keyboard. Artinya test yang lolos benar-benar menguji perilaku Radix, bukan menguji tambalannya.
+
+**Gate:** `pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 (ui 68 test, dari 41). Build produksi hijau; CSS memuat `data-highlighted`, `.sr-only`, dan `--radix-select-trigger-width`. **Bundel JS awal tetap 325,20 kB / gzip 100,23 kB** — Radix tidak ikut masuk karena belum ada halaman yang mengimpor komponen ini. CSS 9,59 → 11,09 kB (gzip 2,76 → 3,17 kB).
+
+### Ukuran PR
+
+**708 LOC** (389 test, 319 sumber; lock file tidak dihitung) — **di atas target <500**. Dilaporkan ke owner berikut usulan pemecahan 027c (KolomForm, ≈327) / 027d (Pilihan, ≈384); owner memilih mendaratkannya utuh.
+
+### Batas yang jujur
+
+* **Verifikasi manual NVDA** yang diminta Testing Checklist PR-027 **belum dilakukan.** jsdom membuktikan sambungan `aria-*` benar; ia tidak membuktikan bagaimana bunyinya. Masuk daftar tindak lanjut.
+* Rasio kontras (17,4:1 sorotan, 4,6:1 placeholder) dihitung dari nilai palet, bukan diukur dari piksel — PR-031b.
+* Perilaku Radix di **peramban sungguhan** (typeahead, penguncian scroll, penempatan popper pada zoom 200%) tidak terjangkau jsdom — PR-031b.
+
+### Out of scope
+
+Overlay/feedback (PR-028); varian React Native (PR-089); halaman yang memakai komponen ini; Textarea, Checkbox, Radio (tidak disebut PR-027).
+
+### Next steps
+
+* **PR-028** — packages/ui Batch 2: overlay & feedback.
