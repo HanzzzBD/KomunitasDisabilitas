@@ -5,23 +5,36 @@
 // `no-console` tetap berlaku sama di seluruh workspace. Yang ditambahkan hanya
 // yang benar-benar khas React.
 //
-// `eslint-plugin-jsx-a11y` SENGAJA TIDAK di sini. Ia lahir bersama gerbang
-// aksesibilitas (PR-031a) supaya penyalaannya menjadi satu keputusan yang
-// terlihat, bukan efek samping dari PR bootstrap. Menyelipkannya sekarang
-// berarti gerbang a11y "sudah menyala sebagian" tanpa ada yang memutuskan
-// ambangnya — dan setengah gerbang lebih menyesatkan daripada tidak ada.
+// `eslint-plugin-jsx-a11y` MENYALA sejak PR-031a — sengaja ditunda dari
+// PR-025a agar penyalaannya menjadi satu keputusan yang terlihat, bukan efek
+// samping PR bootstrap.
+//
+// Dipakai preset `strict`, bukan `recommended`. Bedanya: `recommended`
+// melonggarkan beberapa aturan yang punya pengecualian sah di aplikasi lama —
+// dan proyek ini tidak punya kode lama. Melonggarkan sejak awal berarti
+// memilih ambang yang lebih rendah tanpa satu pun pelanggaran yang menuntutnya.
+//
+// BATAS YANG HARUS DIKETAHUI: jsx-a11y adalah analisis STATIS. Ia melihat
+// markup di satu berkas, bukan halaman yang sudah dirakit. Ia tidak bisa
+// melihat kontras warna, urutan fokus, maupun label yang datang dari komponen
+// lain. Lapisan keduanya `axe` per komponen (PR-031a, lihat
+// @nawasena/a11y/pengujian), dan ketiganya axe+Lighthouse atas halaman nyata
+// (PR-031b). Gerbang ini nyata, tetapi tidak lengkap sendirian.
 const base = require("./base.cjs");
 
 /** @type {import("eslint").Linter.Config} */
 module.exports = {
   ...base,
-  plugins: [...base.plugins, "react", "react-hooks"],
+  plugins: [...base.plugins, "react", "react-hooks", "jsx-a11y"],
   extends: [
     ...base.extends,
     "plugin:react/recommended",
     // Menonaktifkan aturan yang menuntut `import React` — proyek ini memakai
     // JSX transform baru (tsconfig react: "jsx": "react-jsx").
     "plugin:react/jsx-runtime",
+    // Gerbang aksesibilitas lapis pertama (PR-031a). `strict`, bukan
+    // `recommended` — lihat catatan di kepala berkas.
+    "plugin:jsx-a11y/strict",
   ],
   parserOptions: {
     ...base.parserOptions,
