@@ -1,22 +1,39 @@
 /*
-  Lembar gaya akar aplikasi.
+  Lembar gaya akar aplikasi (Tailwind v4 — ADR-019).
 
-  Urutan di berkas ini penting: nilai bawaan token ditulis SEBELUM Tailwind,
-  supaya kelas apa pun yang membacanya sudah punya nilai — termasuk pada
-  render pertama, dan termasuk bila skrip pra-paint gagal.
+  Urutan berkas ini penting dan tidak boleh ditukar:
+    1. Tailwind & tema bersama;
+    2. sumber pemindaian kelas;
+    3. nilai bawaan token;
+    4. aturan dasar yang tidak boleh hilang.
 */
+
+@import "tailwindcss";
+@import "@nawasena/config/tailwind";
+
+/*
+  Komponen packages/ui ikut dipindai. Kelas yang hanya muncul di sana akan
+  dibuang bila jalurnya tidak disebut — dan gejalanya adalah komponen tanpa
+  gaya sama sekali DI PRODUKSI, tetapi normal saat dev.
+*/
+@source "../../../../packages/ui/src";
 
 :root {
   /*
-    Nilai bawaan token aksesibilitas (PR-026).
+    Nilai bawaan token aksesibilitas (PR-026, ADR-008).
 
     Ditulis di sini, bukan hanya diandalkan dari skrip pra-paint: skrip itu bisa
     gagal di lingkungan yang memblokir localStorage, dan `var(--font-scale)`
     tanpa nilai akan membuat `calc()` batal — teksnya kehilangan ukuran sama
     sekali, bukan sekadar kembali normal.
 
-    Nilai di sini SENGAJA sama dengan ACCESSIBILITY_DEFAULTS di
-    packages/schemas. Dijaga `token-bawaan.test.ts`.
+    SENGAJA di blok `:root` biasa, BUKAN di dalam `@theme`: ini nilai RUNTIME
+    yang ditulis ulang JavaScript saat pengguna mengubah preferensi. `@theme`
+    untuk nilai desain yang tetap; mencampurnya akan membuat token pengguna
+    terlihat seperti bagian tema yang tidak boleh berubah.
+
+    Nilainya SAMA dengan ACCESSIBILITY_DEFAULTS di packages/schemas —
+    dijaga `token-bawaan.test.ts`.
   */
   --font-scale: 1;
   --touch-target-min: 44px;
@@ -31,21 +48,20 @@
     sans-serif;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @layer base {
   /*
     Cincin fokus TIDAK PERNAH dihapus.
 
-    `@tailwind base` (Preflight) menghapus outline bawaan browser, jadi tanpa
-    aturan ini seluruh aplikasi kehilangan penanda fokus — dan navigasi
-    keyboard menjadi menebak-nebak. Ini kegagalan aksesibilitas paling umum
-    yang lahir dari CSS reset.
+    Preflight Tailwind menghapus outline bawaan browser, jadi tanpa aturan ini
+    seluruh aplikasi kehilangan penanda fokus — dan navigasi keyboard menjadi
+    menebak-nebak. Ini kegagalan aksesibilitas paling umum yang lahir dari CSS
+    reset, dan ia tidak akan terlihat oleh siapa pun yang memakai tetikus.
 
     `:focus-visible`, bukan `:focus`: pengguna tetikus tidak melihat cincin saat
     mengeklik, pengguna keyboard selalu melihatnya.
+
+    3px, bukan 2px: pada kontras rendah dan layar kecil, 2px hilang di antara
+    piksel.
   */
   :focus-visible {
     outline: 3px solid currentColor;
@@ -56,8 +72,8 @@
     Hormati permintaan mengurangi gerak — lewat ATRIBUT, bukan media query.
 
     Atribut sudah memperhitungkan pilihan eksplisit pengguna yang boleh menimpa
-    setelan OS (ADR-008). `@media (prefers-reduced-motion)` hanya tahu OS, dan
-    akan mengabaikan pengguna yang sengaja menyalakan animasi di aplikasi ini.
+    setelan OS (ADR-008). Media query hanya tahu OS, dan akan mengabaikan
+    pengguna yang sengaja menyalakan animasi di aplikasi ini.
 
     `0.01ms`, bukan `0s`: durasi nol membuat sebagian browser melewatkan event
     `transitionend`, dan kode yang menunggunya menggantung selamanya.

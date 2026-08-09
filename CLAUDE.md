@@ -54,7 +54,7 @@
 - **Library:** React 18+ (via Vite)
 - **State Management:** Zustand (global) + TanStack Query (server state)
 - **UI Components:** Custom components dengan focus accessibility-first
-- **Styling:** Tailwind CSS (strict WCAG 2.2 AA compliance)
+- **Styling:** Tailwind CSS **v4** (ADR-019) — tema bersama sebagai CSS `@theme` di `packages/config/tailwind`, membaca token aksesibilitas ADR-008; strict WCAG 2.2 AA
 - **Accessibility Checks:** axe-core (axe devtools), jsx-a11y (ESLint), Lighthouse
 - **Type Checking:** TypeScript strict
 
@@ -211,6 +211,7 @@ Database (PostgreSQL)
 | **ADR-016** | GitHub Actions CI/CD | PR checks: lint, typecheck, unit; deploy via `deploy.sh --rollback` |
 | **ADR-017** | Observability Hemat | Structured JSON logs; minimal stack MVP (Fase 2: centralized logging) |
 | **ADR-018** | PostgreSQL FTS + pg_trgm | Job search: native FTS, tidak external search engine MVP |
+| **ADR-019** | Tailwind CSS v4 (styling web) | `@theme` CSS menggantikan preset JS; mekanisme token ADR-008 terwakili langsung |
 
 ---
 

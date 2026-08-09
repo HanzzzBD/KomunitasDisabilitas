@@ -17,6 +17,10 @@ import { extendTailwindMerge } from "tailwind-merge";
  * `twMerge` perlu diberi tahu kelas kustom kita, jika tidak ia tidak akan
  * mengenali `min-h-sentuh` sebagai anggota grup yang sama dengan `min-h-*`
  * bawaan — dan dua kelas yang bertabrakan akan sama-sama lolos.
+ *
+ * `tailwind-merge` 3.x menargetkan Tailwind v4 (ADR-019). Pendaftaran grup di
+ * bawah berjalan tanpa perubahan saat naik dari 2.x — diverifikasi test, bukan
+ * diasumsikan.
  */
 const gabung = extendTailwindMerge({
   extend: {

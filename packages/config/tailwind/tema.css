@@ -1,0 +1,72 @@
+/*
+  Tema Tailwind bersama — SDD §107 ("packages/config: eslint, tsconfig,
+  tailwind preset") dan SDD §189 ("seluruh Tailwind preset membaca token ini").
+
+  TUGASNYA SATU, dan tidak berubah sejak versi JS-nya: menjadikan token
+  aksesibilitas (PR-026, ADR-008) sebagai satu-satunya jalan menulis ukuran.
+  Selama preferensi hanya bisa dipakai lewat kelas Tailwind biasa, tidak ada
+  komponen yang bisa "lupa" menghormatinya.
+
+  KENAPA CSS, BUKAN OBJEK JS (ADR-019). Tailwind v4 menjadikan custom property
+  sebagai tema itu sendiri. ADR-008 menetapkan mekanisme token sebagai "CSS
+  custom properties dan atribut data pada <html> yang dikonsumsi seluruh design
+  system" — di v4 itu model aslinya, sementara di v3 kita menempuhnya lewat
+  objek JS yang MENGHASILKAN CSS yang membaca custom property. Satu lapisan
+  yang tidak menambah apa pun.
+
+  Dipakai dengan:
+      @import "tailwindcss";
+      @import "@nawasena/config/tailwind";
+*/
+
+@theme {
+  /*
+    Skala teks MENGALIKAN --font-scale.
+
+    calc(), bukan angka mati: pengguna yang memilih teks 200% harus melihat
+    SELURUH teks membesar, termasuk yang ditulis dengan kelas ukuran tetap.
+
+    Nilai cadangan `1` WAJIB — skrip pra-paint (PR-026c) bisa gagal di
+    lingkungan yang memblokir localStorage, dan calc() tanpa nilai akan batal:
+    teksnya kehilangan ukuran sama sekali, bukan sekadar kembali normal.
+  */
+  --text-xs: calc(0.75rem * var(--font-scale, 1));
+  --text-xs--line-height: 1.5;
+  --text-sm: calc(0.875rem * var(--font-scale, 1));
+  --text-sm--line-height: 1.5;
+  --text-base: calc(1rem * var(--font-scale, 1));
+  --text-base--line-height: 1.6;
+  --text-lg: calc(1.125rem * var(--font-scale, 1));
+  --text-lg--line-height: 1.6;
+  --text-xl: calc(1.25rem * var(--font-scale, 1));
+  --text-xl--line-height: 1.4;
+  --text-2xl: calc(1.5rem * var(--font-scale, 1));
+  --text-2xl--line-height: 1.3;
+  --text-3xl: calc(1.875rem * var(--font-scale, 1));
+  --text-3xl--line-height: 1.2;
+
+  /*
+    Tinggi baris ≥ 1.5 pada teks isi mengikuti WCAG 2.2 §1.4.12 (Text Spacing).
+    Ditaruh menyatu dengan ukurannya, bukan sebagai kelas terpisah, supaya ia
+    ikut secara bawaan alih-alih harus diingat.
+  */
+
+  /*
+    Satu-satunya cara menulis ukuran target sentuh. Komponen memakai
+    `min-h-sentuh`/`min-w-sentuh`, dan nilainya ikut preferensi pengguna tanpa
+    komponen itu tahu apa pun tentang preferensi.
+  */
+  --spacing-sentuh: var(--touch-target-min, 44px);
+}
+
+/*
+  Varian yang membaca ATRIBUT token (PR-026b).
+
+  Memakai atribut, BUKAN @media (prefers-*): media query hanya tahu setelan OS,
+  sementara atribut sudah memperhitungkan pilihan eksplisit pengguna yang boleh
+  MENIMPA OS (ADR-008). Memakai `motion-reduce:` bawaan Tailwind akan
+  mengabaikan pilihan itu.
+*/
+@custom-variant kontras-tinggi ([data-contrast="high"] &);
+@custom-variant gerak-minimal ([data-motion="reduced"] &);
+@custom-variant bahasa-sederhana ([data-lang-mode="simple"] &);

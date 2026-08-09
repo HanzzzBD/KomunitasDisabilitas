@@ -289,11 +289,12 @@ RB-Std.
 
 * Kustomisasi berlebihan merusak perilaku ARIA Radix. Mitigasi: styling-only di atas primitive.
 * **Preflight Tailwind menghapus outline fokus bawaan browser.** Ditutup PR-027a: `:focus-visible` dipulihkan di `@layer base` dengan tebal 3px. Tanpa itu, SELURUH aplikasi kehilangan penanda fokus — kegagalan aksesibilitas paling umum yang lahir dari CSS reset, dan ia tidak akan terlihat oleh siapa pun yang memakai tetikus.
-* **Pilihan Tailwind v3, bukan v4** (v4 meniadakan konsep "preset" yang SDD §107 sebut namanya). Layak ditinjau ulang sebelum Phase 04, selagi belum ada komponen yang bergantung padanya.
+* ~~**Pilihan Tailwind v3, bukan v4.**~~ **Ditinjau ulang dan DIBALIK atas keputusan owner (2026-08-09), sebelum satu komponen pun bergantung padanya.** Tinjauan membuktikan v3 tidak pernah menjadi keputusan: nol ADR menyebut Tailwind, SDD hanya menyebutnya di dalam diagram, dan pinnya masuk repo hari itu juga lewat PR-027a. ADR-008 menetapkan mekanisme token sebagai CSS custom properties — yang di v4 adalah model aslinya. Dituangkan sebagai [ADR-019](../adr/ADR-019-tailwind-v4-styling-web.md).
 
 #### Log Implementasi
 
 * 2026-08-09 — PR-027a selesai (preset Tailwind membaca token a11y, CSS akar + pemulihan cincin fokus, bootstrap `packages/ui`, `gabungKelas`). Menutup celah SDD §107. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027a--fondasi-styling-preset-tailwind--paket-ui).
+* 2026-08-09 — PR-027a **direvisi ke Tailwind v4** (`@theme` CSS menggantikan preset JS, `@tailwindcss/vite` menggantikan PostCSS, tailwind-merge 3.x) berikut **ADR-019**. Kontrak token ADR-008 tidak berubah — dibuktikan lewat kompilasi CSS nyata. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-027a-revisi--migrasi-ke-tailwind-v4--adr-019).
 
 
 ### PR-028 - packages/ui Batch 2 — Overlay & Feedback
