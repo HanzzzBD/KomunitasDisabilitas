@@ -97,6 +97,15 @@ describe("gerbangnya benar-benar terpasang di CI", () => {
     expect(blokA11y).toContain("test:lighthouse");
   });
 
+  it("Lighthouse 3G ikut berjalan — AC PR-032 nomor 1", () => {
+    // Skrip yang ada di package.json tetapi tidak pernah dipanggil CI adalah
+    // gerbang yang hanya menjaga mesin pengembang yang ingat menjalankannya.
+    // AC-nya menyebut throttling 3G secara khusus justru karena halaman yang
+    // sehat di desktop bisa gagal total di ponsel pada jaringan lambat.
+    const blokA11y = alurKerja.slice(alurKerja.indexOf("\n  a11y:"));
+    expect(blokA11y).toContain("test:lighthouse:3g");
+  });
+
   it("nama check-nya PERSIS 'a11y' — tanpa spasi atau tanda kurung", () => {
     // Required status check di ruleset dicocokkan sebagai STRING, dan GitHub
     // tidak menghubungkan nama lama dengan nama baru. Mengganti nama job —

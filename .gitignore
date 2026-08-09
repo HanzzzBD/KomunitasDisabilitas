@@ -51,6 +51,7 @@ temp/
 /apps/web/playwright-report/
 /apps/web/test-results/
 /apps/web/.lighthouseci/
+/apps/web/.lighthouseci-3g/
 
 # Berkas sementara Vite saat config-nya di-bundle ulang (muncul saat `vite preview`).
 *.timestamp-*.mjs

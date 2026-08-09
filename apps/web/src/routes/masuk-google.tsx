@@ -82,7 +82,8 @@ export function MasukGoogle() {
 
   if (galat !== null) {
     return (
-      <main className="mx-auto flex max-w-md flex-col gap-4 p-4">
+      // `<div>`, bukan `<main>`: landmark utama milik `TataLetak` sejak PR-032a.
+      <div className="mx-auto flex max-w-md flex-col gap-4 p-4">
         <h1 className="text-2xl font-semibold">{t("auth.google.judulGagal")}</h1>
         {/* `role="alert"`: pengguna mendarat di halaman ini tanpa memintanya,
             jadi ia tidak sedang membaca apa pun yang layak dilindungi dari
@@ -94,15 +95,15 @@ export function MasukGoogle() {
         <Tombol onClick={() => navigate("/masuk", { replace: true })}>
           {t("auth.google.kembali")}
         </Tombol>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-md p-4">
+    <div className="mx-auto max-w-md p-4">
       <WilayahMemuat memuat label={t("auth.google.sedangMemeriksa")}>
         {null}
       </WilayahMemuat>
-    </main>
+    </div>
   );
 }

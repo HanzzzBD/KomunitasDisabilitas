@@ -25,7 +25,11 @@ const halaman = anak.filter((r) => r !== catchAll);
 describe("ruteApp — halaman", () => {
   it("'/' memuat Beranda", async () => {
     renderDi("/");
-    expect(await screen.findByRole("heading", { level: 1, name: "Nawasena" })).toBeInTheDocument();
+    // Sejak PR-032a, <h1> landing adalah kalimat yang menjawab "halaman ini soal
+    // apa" — bukan nama merek, yang tidak berarti apa pun bagi pengunjung baru.
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Cari kerja tanpa hambatan" }),
+    ).toBeInTheDocument();
   });
 
   it("'/masuk' memuat halaman Masuk", async () => {

@@ -228,6 +228,16 @@ jobs:
       - name: Lighthouse (a11y = 100, perf >= 80)
         run: pnpm --filter @nawasena/web test:lighthouse
 
+      # AC PR-032 nomor 1: perf >= 80 pada throttling 3G (ponsel).
+      #
+      # Jalan TERPISAH dari langkah di atas, bukan menggantikannya. Desktop di
+      # jaringan cepat menjawab "apakah halamannya sehat"; ponsel di 3G menjawab
+      # "apakah halamannya bisa dipakai orang yang benar-benar datang ke sini".
+      # Halaman yang sama bisa lulus yang pertama dan gagal yang kedua — dan
+      # yang kedua itulah keadaan sebagian besar pengguna yang dituju produk ini.
+      - name: Lighthouse 3G (perf >= 80 pada ponsel)
+        run: pnpm --filter @nawasena/web test:lighthouse:3g
+
       # Laporan hanya diunggah saat merah: yang membaca artefak ini adalah orang
       # yang sedang memperbaiki kegagalan, bukan orang yang PR-nya hijau.
       - name: Unggah laporan kegagalan
@@ -239,4 +249,5 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/
             apps/web/.lighthouseci/
+            apps/web/.lighthouseci-3g/
           retention-days: 7

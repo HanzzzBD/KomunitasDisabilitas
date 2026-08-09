@@ -30,7 +30,7 @@ Fondasi web SPA: bootstrap Vite, paket a11y (global state preferensi), design sy
 * **PR-029** - Infrastruktur i18n dua varian
 * **PR-030** - Halaman login produksi-ready
 * **PR-031** - Gate a11y aktif untuk semua PR FE berikutnya
-* **PR-032** - Landing + 404 + pola empty state
+* **PR-032** - Landing + 404 + pola empty state (dipecah: 032a landing/landmark/3G, 032b 404/empty state)
 * **PR-033** - Settings + Data Saya
 
 ## Pull Requests
@@ -711,11 +711,17 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Lighthouse perf ≥ 80 pada 3G throttling.
-* [ ] Struktur heading & landmark benar (axe + manual).
-* [ ] CTA daftar → login/onboarding.
-* [ ] 404 memberi jalan pulang yang jelas.
-* [ ] Konten tersedia dalam id + id-simple.
+* [x] Lighthouse perf ≥ 80 pada 3G throttling. — **PR-032a.** Gerbang BARU (`lighthouserc-3g.json`), bukan penyetelan yang lama: yang lama memakai preset desktop, dan halaman yang sehat di sana bisa gagal total di ponsel pada jaringan lambat. Throttling ditulis EKSPLISIT (RTT 300 ms, 700 kbps, CPU 4×) alih-alih memakai preset `mobile` bawaan Lighthouse — preset itu mensimulasikan *Slow 4G* (150 ms / 1.638 kbps), lebih cepat daripada 3G, dan namanya tidak memberi tahu siapa pun bahwa angka yang dijanjikan AC ini tidak sedang diuji. Terukur: **perf 82, a11y 100** (FCP 3,0 s; LCP 3,9 s; TBT 0 ms). Marginnya tipis dan dicatat sebagai risiko.
+* [x] Struktur heading & landmark benar (axe + manual). — **PR-032a.** SATU `<main>` untuk seluruh aplikasi, dipindahkan dari tiap halaman ke `TataLetak`; halaman yang menulis `<main>` sendiri kini menghasilkan landmark ganda yang ditangkap test. Tautan lompat ke konten dipasang sebagai elemen fokusabel pertama, dengan sasaran `tabindex="-1"` — tanpa itu sebagian peramban hanya menggulir tanpa memindahkan fokus. Urutan tingkat heading dijaga mesin (tidak boleh melompat), dan tiap `<section>` bernama lewat `aria-labelledby`. **Verifikasi manual NVDA tetap utang** — tidak ada gerbang yang bisa menggantikannya.
+* [x] CTA daftar → login/onboarding. — **PR-032a.** Dua ajakan (hero + penutup), keduanya `<Link>` ke `/masuk`, bukan tombol: hanya tautan yang bisa dibuka di tab baru, disalin alamatnya, dan ditelusuri perayap — dan screen reader mengumumkan "tautan" dan "tombol" secara berbeda. Dijaga test yang memeriksa PERAN-nya, bukan sekadar keberadaan teksnya.
+* [ ] 404 memberi jalan pulang yang jelas. — **PR-032b.**
+* [ ] Konten tersedia dalam id + id-simple. — **landing selesai di PR-032a** (katalog `beranda`, 16 kunci, dijaga penjaga salinan mentah PR-029b); ditutup penuh di PR-032b bersama teks 404 & empty state.
+
+> **Dipecah jadi dua PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 700–750 LOC, di atas target <500. Diusulkan **sebelum** implementasi.
+> **PR-032a** — landing + landmark/skip-link final + meta SEO + gerbang Lighthouse 3G — *selesai* (AC 1, 2, 3).
+> **PR-032b** — 404 berjalan pulang + pola empty state — AC 4, dan penutup AC 5.
+>
+> **Keputusan bentuk 404 (owner 2026-08-09):** memperkuat `LayarKesalahan` yang sudah ada, BUKAN membuat route 404 tersendiri. Tombol "Muat ulang halaman" pada 404 justru salah — ia memuat ulang halaman yang memang tidak ada — jadi aksinya dibuat per-keadaan. Route tersendiri akan melahirkan DUA layar 404 (yang ini, dan cabang `takDitemukan` untuk 404 yang dilempar loader fitur kelak), dan keduanya bebas menyimpang.
 
 #### Dependencies
 
@@ -724,6 +730,11 @@ RB-Std.
 #### Risks
 
 * Minim.
+* **Margin perf 3G hanya 2 poin (82 dari ambang 80).** Bukan halaman landing-nya yang berat — ia tanpa gambar, tanpa webfont, dan chunk-nya 0,95 KB gzip. Yang memakan anggaran adalah **bundel awal 101,3 KB gzip**: React Router, TanStack Query, Zustand, dan klien API ikut terunduh oleh pengunjung yang belum tentu masuk. Halaman publik pertama membayar biaya seluruh aplikasi. Penjaganya sudah menyala sejak sekarang (CI merah bila turun di bawah 80), jadi penurunannya akan ketahuan pada PR yang menyebabkannya — tetapi menaikkan marginnya menuntut memisahkan shell publik dari shell aplikasi, dan itu keputusan arsitektur yang wajarnya diambil bersama Phase 16.
+
+#### Log Implementasi
+
+* 2026-08-09 — PR-032a selesai (landing publik tanpa gambar, `<main>` tunggal + tautan lompat ke konten di `TataLetak`, judul dokumen per halaman, meta Open Graph, gerbang Lighthouse 3G di CI, katalog i18n `beranda`). AC 1, 2, 3 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-032a--landing-landmarkskip-link-final--gerbang-lighthouse-3g).
 
 
 ### PR-033 - Web Settings Shell (Akun & Data Saya)

@@ -27,6 +27,19 @@ export const katalogShell = {
     id: "Memuat halaman…",
     "id-simple": "Sebentar, halaman sedang dibuka…",
   },
+  "shell.lompatKeKonten": {
+    id: "Lompat ke konten utama",
+    // "Konten" adalah kata yang dipakai pembuat situs, bukan pembacanya.
+    "id-simple": "Langsung ke isi halaman",
+  },
+  "shell.judulDokumen": {
+    // Judul tab: nama halaman lebih dulu, merek belakangan. Di tab yang menyempit
+    // karena belasan tab terbuka, yang tersisa terbaca adalah bagian DEPAN — dan
+    // yang berguna di sana adalah nama halamannya, bukan merek yang sama di
+    // semua tab.
+    id: "{halaman} · Nawasena",
+    "id-simple": "{halaman} · Nawasena",
+  },
 
   // --- Banner luring ---
   "shell.luring.judul": {

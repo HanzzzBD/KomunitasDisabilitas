@@ -54,7 +54,11 @@ const OK_VERIFIKASI = {
 function renderMasuk(klien: ApiClient, jalur = "/masuk") {
   const router = createMemoryRouter(
     [
-      { path: "/masuk", element: <Masuk /> },
+      // `<main>` disediakan harness, bukan halaman — sejak PR-032a landmark
+      // utama milik `TataLetak`, satu untuk seluruh aplikasi. Tanpa dibungkus
+      // di sini, gerbang axe akan melaporkan "konten di luar landmark" atas
+      // keadaan yang TIDAK PERNAH terjadi di produksi.
+      { path: "/masuk", element: <main>{<Masuk />}</main> },
       { path: "/", element: <h1>Beranda</h1> },
       { path: "/lamaran", element: <h1>Lamaran</h1> },
     ],
@@ -371,7 +375,7 @@ describe("gerbang aksesibilitas", () => {
     const { container } = render(
       <Providers queryClient={createQueryClient()} klienApi={klien}>
         <RouterProvider
-          router={createMemoryRouter([{ path: "/masuk", element: <Masuk /> }], {
+          router={createMemoryRouter([{ path: "/masuk", element: <main>{<Masuk />}</main> }], {
             initialEntries: ["/masuk"],
           })}
         />

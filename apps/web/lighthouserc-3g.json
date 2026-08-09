@@ -1,0 +1,63 @@
+{
+  "_catatan": [
+    "AC PR-032 nomor 1: 'Lighthouse perf >= 80 pada 3G throttling'.",
+    "",
+    "BERKAS TERPISAH dari lighthouserc.json, bukan penggantinya. Keduanya",
+    "menjawab pertanyaan yang berbeda dan keduanya harus tetap dijawab:",
+    "  lighthouserc.json     — preset desktop, jaringan cepat. Ia yang menjaga",
+    "                          skor aksesibilitas 100 (gerbang PR-031b).",
+    "  lighthouserc-3g.json  — ponsel di jaringan lambat. Ia yang menjawab",
+    "                          pertanyaan yang sebenarnya: apakah halaman ini",
+    "                          bisa dipakai orang yang datang lewat ponsel di",
+    "                          jaringan seadanya. Mengganti berkas pertama",
+    "                          dengan yang ini akan menukar satu jaminan dengan",
+    "                          jaminan lain, bukan menambah.",
+    "",
+    "THROTTLING DITULIS EKSPLISIT, bukan mengandalkan preset 'mobile' bawaan",
+    "Lighthouse. Preset itu mensimulasikan 'Slow 4G' (150 ms RTT, 1.638 kbps) —",
+    "lebih cepat daripada 3G, dan namanya tidak memberi tahu siapa pun bahwa",
+    "angka yang dijanjikan dokumen ini tidak sedang diuji. Angka di bawah adalah",
+    "profil 'Regular 3G' Chrome DevTools.",
+    "",
+    "Skor aksesibilitas TIDAK diturunkan di sini: viewport ponsel adalah tempat",
+    "target sentuh paling mudah gagal, jadi justru di sinilah 100 paling berarti."
+  ],
+  "ci": {
+    "collect": {
+      "staticDistDir": "./dist",
+      "url": ["http://localhost/index.html"],
+      "numberOfRuns": 3,
+      "settings": {
+        "formFactor": "mobile",
+        "screenEmulation": {
+          "mobile": true,
+          "width": 360,
+          "height": 640,
+          "deviceScaleFactor": 2,
+          "disabled": false
+        },
+        "throttlingMethod": "simulate",
+        "throttling": {
+          "rttMs": 300,
+          "throughputKbps": 700,
+          "requestLatencyMs": 1125,
+          "downloadThroughputKbps": 630,
+          "uploadThroughputKbps": 630,
+          "cpuSlowdownMultiplier": 4
+        },
+        "onlyCategories": ["performance", "accessibility"],
+        "chromeFlags": "--no-sandbox --headless=new"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.8 }],
+        "categories:accessibility": ["error", { "minScore": 1 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./.lighthouseci-3g"
+    }
+  }
+}
