@@ -2,7 +2,7 @@
   "name": "@nawasena/a11y",
   "version": "0.0.0",
   "private": true,
-  "description": "Hook & context profil aksesibilitas (dipakai web + mobile). Placeholder — menyusul di phase Accessibility.",
+  "description": "Preferensi aksesibilitas: store, rekonsiliasi OS, token (ADR-008). Inti bebas DOM, dipakai web & mobile.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,14 +10,18 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "lint": "eslint src __tests__ --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",
     "eslint": "8.57.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "@nawasena/schemas": "workspace:*",
+    "zustand": "5.0.2"
   }
 }

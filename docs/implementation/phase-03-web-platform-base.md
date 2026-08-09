@@ -185,9 +185,16 @@ RB-Std.
 
 * [ ] `prefers-reduced-motion` OS dihormati bila user belum set eksplisit.
 * [ ] Perubahan store langsung mengubah token DOM (live).
-* [ ] Persist selamat dari refresh + migrasi versi teruji.
+* [x] Persist selamat dari refresh + migrasi versi teruji. — **PR-026a.** State tersimpan divalidasi skema pada `migrate` DAN `merge` (yang pertama hanya berjalan saat versi berbeda, jadi tanpa yang kedua state hasil suntingan tangan pada versi terkini masuk tanpa diperiksa). Nilai rusak dibuang **per-field**, sisanya selamat. Versi tersimpan yang lebih BARU dibuang, bukan ditebak. Diverifikasi mutasi.
 * [ ] Semua token terdokumentasi untuk pemakaian Tailwind preset.
 * [ ] Tidak ada flash-of-wrong-theme saat load (init sebelum paint).
+
+> **Dipecah jadi tiga PR (persetujuan owner 2026-08-09):** scope utuh terukur ≈ 1100 LOC — lebih dari dua kali batas <500, PR terbesar sejauh ini.
+> **PR-026a** — kontrak zod tujuh preferensi, rekonsiliasi murni (pengguna > OS > bawaan), store Zustand ber-persist + migrasi versi, harness paket. Seluruhnya **bebas DOM** agar bisa dipakai mobile (SDD §4.2) — *selesai* (AC 3).
+> **PR-026b** — token ke `<html>`, listener `prefers-*`, integrasi `apps/web`, sambungan mode bahasa i18n — *belum* (AC 1, 2).
+> **PR-026c** — anti-flash pra-paint + dokumentasi token Tailwind — *belum* (AC 4, 5).
+>
+> **Selisih dokumen yang dicatat:** SDD §4.3 menyebut ENAM preferensi, tabel `accessibility_profiles` punya TUJUH (`screenReaderHint` tidak disebut SDD). CLAUDE.md §12 menetapkan Prisma sebagai sumber kebenaran skema, jadi ketujuhnya masuk kontrak.
 
 #### Dependencies
 
@@ -196,6 +203,10 @@ RB-Std.
 #### Risks
 
 * Kombinasi preferensi merusak layout. Mitigasi: matrix test di PR-036.
+
+#### Log Implementasi
+
+* 2026-08-09 — PR-026a selesai (kontrak zod tujuh preferensi, rekonsiliasi murni, store Zustand ber-persist + migrasi versi; `packages/a11y` berhenti jadi placeholder). AC 3 terpenuhi. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-026a--kontrak-preferensi--store-bebas-dom).
 
 
 ### PR-027 - packages/ui Batch 1 — Form Primitives

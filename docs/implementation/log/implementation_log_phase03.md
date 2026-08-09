@@ -391,3 +391,57 @@ Berkas PWA semula ditaruh di `src/pwa/` — folder **kelima**, yang ditolak `str
 * **PR-031a** — gerbang a11y sebelum pustaka komponen lahir di PR-027.
 * **Ikon produk** — perlu desainer; PNG 192/512 untuk iOS.
 * **Verifikasi browser** untuk siklus update SW, layak digabung ke Manual Verification PR-032 (viewport mobile).
+
+---
+## PR-026a — Kontrak preferensi & store bebas-DOM
+
+> **Phase:** [03 - Web Platform Base](../phase-03-web-platform-base.md#pr-026---packagesa11y--store-preferensi--css-custom-properties)
+> **Tanggal:** 2026-08-09
+> **Status:** Selesai (bagian pertama dari tiga; token DOM & OS = PR-026b, anti-flash & dokumentasi = PR-026c)
+
+### Ringkasan hasil
+
+`packages/a11y` berhenti menjadi placeholder: kontrak zod tujuh preferensi, rekonsiliasi murni (pengguna > OS > bawaan), dan store Zustand ber-persist dengan migrasi versi — **seluruhnya bebas DOM**.
+
+Menutup AC **3** (*"Persist selamat dari refresh + migrasi versi teruji"*).
+
+Gate: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `@nawasena/a11y` **20 test** (paket ini sebelumnya nol), `check:openapi` sinkron. 569 baris.
+
+### Pemecahan PR (persetujuan owner 2026-08-09)
+
+PR-026 utuh terukur ≈ 1100 LOC — lebih dari dua kali batas, PR terbesar sejauh ini.
+
+* **PR-026a** (ini) — kontrak, rekonsiliasi, store + persist/migrasi. AC 3.
+* **PR-026b** — token ke `<html>`, listener `prefers-*`, integrasi web, sambungan mode bahasa. AC 1 & 2.
+* **PR-026c** — anti-flash pra-paint + dokumentasi token. AC 4 & 5.
+
+### Keputusan teknis
+
+* **Pilihan pengguna disimpan sebagai objek SEBAGIAN (`Partial`), bukan profil utuh.** Ini keputusan paling menentukan di PR ini: hanya bentuk itu yang bisa membedakan *"pengguna memilih tidak"* dari *"pengguna belum memilih"*. Profil utuh memaksa setiap field punya nilai, dan begitu itu terjadi, aturan ADR-008 "OS menang bila belum diset" tidak bisa ditegakkan lagi — tidak ada lagi yang tahu mana yang benar-benar dipilih.
+* **`undefined` dari OS berbeda dari `false` dari OS.** Browser lama tidak melaporkan `prefers-contrast` sama sekali; memperlakukan ketiadaannya sebagai "tidak mau" akan menimpa keinginan yang tidak pernah dinyatakan siapa pun.
+* **`hapusPilihan` MENGHAPUS kunci, tidak menyetelnya `false`.** Menyetel `false` berarti "pengguna memilih tidak", yang memblokir sinyal OS selamanya — persis kebalikan dari maksud tombol "ikuti perangkat".
+* **Penyimpanan disuntikkan, bukan `localStorage` langsung.** Paket ini dipakai mobile (SDD §4.2), tempat `localStorage` tidak ada. Test memakai penyimpanan memori.
+* **Sinyal OS tidak ikut disimpan.** Ia keadaan perangkat, bukan pilihan pengguna: menyimpannya berarti membawa setelan laptop kantor ke ponsel pribadi lewat sinkronisasi profil browser.
+* **State tersimpan divalidasi skema pada `migrate` DAN `merge`.** `migrate` hanya berjalan saat versi berbeda; tanpa `merge`, state yang disunting tangan pada versi terkini masuk tanpa diperiksa sama sekali.
+* **Nilai rusak dibuang per-field, sisanya selamat.** Membuang SEMUA preferensi karena satu field rusak berarti menghukum pengguna atas kesalahan yang bukan miliknya.
+* **Versi tersimpan yang LEBIH BARU dibuang, bukan ditebak** (pengguna membuka versi lama aplikasi setelah memakai yang baru). Menebak bentuk masa depan adalah cara paling andal merusak preferensi seseorang.
+* **`textScale` dibatasi 100–200.** Batas atas bukan selera: WCAG 2.2 §1.4.4 menuntut teks dapat diperbesar sampai 200%. Tidak ada nilai di bawah 100 — mengecilkan teks tidak melayani satu pun kebutuhan aksesibilitas.
+
+### Selisih dokumen yang dicatat
+
+**SDD §4.3 menyebut ENAM preferensi; tabel `accessibility_profiles` punya TUJUH.** Yang tidak disebut SDD: `screenReaderHint`. CLAUDE.md §12 menetapkan Prisma sebagai sumber kebenaran skema, jadi ketujuhnya masuk kontrak. Ditulis di kepala `accessibility.ts` agar selisihnya terlihat, bukan didiamkan.
+
+Catatan desain yang menyertainya: `screenReaderHint` adalah **petunjuk, bukan deteksi**. Browser tidak menyediakan cara mendeteksi screen reader, dan setiap upaya menebaknya (mengukur perilaku fokus, waktu baca) adalah sidik jari pengguna yang tidak boleh dikumpulkan.
+
+### Verifikasi
+
+* **Uji mutasi 1:** `if (eksplisit !== undefined)` → `if (eksplisit)` — bug klasik yang menelan `false` eksplisit. **Dua test merah.**
+* **Uji mutasi 2:** pembuangan versi tersimpan yang lebih baru dicabut. **Satu test merah.**
+* Test state rusak mencakup JSON tak sah, `null`, string, array, field asing, dan nilai di luar rentang — semuanya tidak menjatuhkan aplikasi.
+* `check:openapi` tetap sinkron: skema baru belum dirujuk path mana pun, jadi memang belum masuk dokumen. Ia bergabung saat endpointnya lahir di PR-034.
+
+### Next steps
+
+* **PR-026b** — tulis `--font-scale`, `--touch-target-min`, `data-contrast/motion/lang-mode` ke `<html>`; listener `prefers-*`; sambungkan mode bahasa i18n (jalur masuknya sudah disiapkan PR-029a).
+* **PR-026c** — anti-flash pra-paint + dokumentasi token.
+* **PR-034** — endpoint sinkron server; di sanalah bawaan klien dan `@default` Prisma perlu dijaga agar tidak menyimpang.
