@@ -1774,3 +1774,105 @@ Keduanya dijaga `@ts-expect-error` yang membuat `tsc --noEmit` merah bila ikatan
 ### Next steps
 
 * **PR-033** — settings + Data Saya. Ia PR terakhir Phase 03; sesudahnya Exit Criteria phase bisa diperiksa.
+
+## PR-033a — Kerangka pengaturan, panel Akun & slot aksesibilitas
+
+**Tanggal:** 2026-08-10
+**Branch:** `pr-033a-kerangka-pengaturan` → `phase-03-web-platform-base`
+**Menutup:** kerangka dari AC PR-033 nomor 4 (keyboard-only) & 5 (id + id-simple). AC 1, 2, 3 milik 033b/033c.
+
+### Ringkasan
+
+Halaman `/pengaturan` lahir: kerangka + navigasi panel, panel **Akun & Data Saya** yang benar-benar menampilkan data pengguna, dan slot panel aksesibilitas yang mengakui dirinya belum berisi. Ia sekaligus **route terlindungi pertama** di aplikasi ini.
+
+### Keputusan teknis
+
+**`Terlindungi` dipasang di komponen layout, bukan di `routes.ts`.** Berkas route sengaja `.ts` murni data tanpa satu pun markup (keputusan PR-025), dan membungkus route dengan `<Terlindungi>` akan memaksanya menjadi `.tsx`. Memasangnya di induk juga berarti setiap panel yang ditambahkan kelak ikut terjaga tanpa perlu diingat — dan panel yang lupa dijaga tidak menimbulkan gejala apa pun sampai seseorang membuka alamatnya tanpa sesi. Diuji atas panel yang BUKAN indeks, sebab di sanalah kelalaian seperti itu muncul.
+
+**Guard yang teruji tanpa pemakai belum membuktikan apa pun.** `Terlindungi` lahir lengkap dengan test-nya di PR-030a, tetapi sampai kemarin tidak satu pun route memakainya. PR ini jalur nyatanya yang pertama.
+
+**Alamat indeks BERISI, bukan mengalihkan.** `/pengaturan` langsung menampilkan panel Akun, tanpa redirect ke `/pengaturan/akun`. Pengalihan di halaman indeks memang lazim, tetapi ia membuat satu alamat yang dibagikan orang selalu berakhir di alamat lain, dan tombol kembali sesudahnya terasa rusak. Dengan dua panel, alamat indeks lebih baik berisi daripada menunjuk.
+
+**`end` pada tautan indeks — bukan kerapian.** Tanpa itu, tautan `/pengaturan` tampak aktif di SETIAP panel (setiap alamat panel diawali `/pengaturan`), dan `aria-current="page"` yang menempel di dua tautan sekaligus memberi pengguna screen reader dua jawaban berbeda atas "saya di mana". Dijaga test yang menghitung `aria-current`, bukan yang memeriksa kelas CSS.
+
+**Panel aktif dibedakan warna DAN tebal huruf.** Warna sendirian melanggar WCAG 1.4.1.
+
+**`GET /me` lahir sekarang, dan itu menjawab pertanyaan yang sengaja ditunda.** Catatan store sesi PR-030a menulis bahwa identitas pengguna belum dijawab karena belum ada halaman yang membutuhkannya, dan bahwa jawabannya lahir "bersama halaman pertama yang menampilkan identitas". Inilah halaman itu. `PUT /me` sengaja TIDAK ikut ditambahkan meski kontraknya sudah final: pemakainya baru lahir di PR-035, dan endpoint tanpa pemakai adalah kode yang tidak pernah dijalankan siapa pun.
+
+**Halaman bernama "Data Saya" yang tidak menampilkan satu pun data mengingkari namanya.** Itu alasan panel akun berisi identitas, bukan kerangka kosong yang menunggu 033b/033c.
+
+**`<dl>` dengan `<dt>`/`<dd>` sebagai anak LANGSUNG.** Hubungan label→nilai adalah seluruh isi bagian ini, dan hanya daftar deskripsi yang menyatakannya secara semantik — pada deret `<p>`, screen reader membacakan "Nama Rina Pratiwi Email rina@contoh.id" sebagai satu aliran tanpa batas. Versi pertama memakai `<div>` pembungkus per baris (sah menurut HTML, enak untuk tata letak); ia melunturkan peran `term`/`definition` dan test yang menanyakan peran itu gagal. Pembungkusnya dibuang, jaraknya dipindahkan ke `<dt>`/`<dd>` sendiri.
+
+**Kosong dibedakan dari gagal.** Nilai `null` — dan `fullName` yang berisi spasi, keadaan wajar bagi akun hasil login OTP — ditulis "Belum diisi", bukan dibiarkan kosong dan bukan "—". Baris berlabel tanpa nilai tidak bisa dibedakan dari cacat: pengguna screen reader mendengar "Nama" lalu langsung "Email".
+
+**Tanggal dalam zona WIB, ditulis eksplisit.** Tanpa `timeZone`, tanggal yang sama tampil berbeda di perangkat dengan zona berbeda — dan "bergabung sejak 15 Januari" yang berubah jadi 14 Januari membuat pengguna mempertanyakan data yang lain juga. Diuji dengan tanggal yang memang menyeberang hari (03.00 UTC = 10.00 WIB).
+
+**Kegagalan menawarkan "Coba lagi", bukan "Muat ulang halaman".** Yang gagal hanya satu permintaan; memuat ulang seluruh halaman membuang posisi gulir dan mengunduh ulang seluruh aplikasi di jaringan yang barusan terbukti bermasalah. Diuji dengan MENGHITUNG permintaan ulang, bukan dengan memeriksa keberadaan tombolnya.
+
+**Slot aksesibilitas memakai `KeadaanKosong` (PR-032b) — pemakai pertamanya.** Dan kalimat keduanya yang paling penting: preferensi sistem SUDAH bekerja sejak PR-026. Slot yang hanya berkata "belum tersedia" akan membuat pengguna yang sudah menyetel perangkatnya menyangka setelannya diabaikan, lalu berhenti memakainya. Dijaga test yang menuntut tidak ada satu pun kendali palsu — tombol mati lebih buruk daripada ketiadaan.
+
+**"Cara Anda masuk" TIDAK ditampilkan.** `GET /me` mengembalikan `phone` tetapi bukan `googleId`, jadi menampilkannya sekarang berarti menebak dari ada-tidaknya nomor HP — dan tebakan itu salah untuk akun yang punya keduanya. Baris yang salah di halaman "data yang kami simpan tentang Anda" lebih merugikan daripada baris yang belum ada. Ketiadaannya ditulis sebagai komentar di katalog, bukan dibiarkan tampak seperti kelupaan.
+
+### Tiga cacat gerbang yang ditemukan PR ini
+
+Ketiganya sejenis: gerbang yang hijau atas hal yang salah.
+
+1. **Halaman terlindungi diperiksa sebagai halaman masuk.** Jawaban palsu untuk `/auth/refresh` adalah 401, sehingga `/pengaturan` mengalihkan ke `/masuk` — axe berakhir hijau atas halaman yang sama sekali berbeda dari yang dilaporkannya. Ditutup dengan penanda `butuhSesi` di registry (jawaban `/auth/refresh` disesuaikan per halaman) plus penjaga `harusTidakBerpindah`, yang berlaku untuk SEMUA halaman — bukan hanya yang terlindungi. Penjaga itu sendiri sempat tidak berfungsi; lihat catatan uji mutasi.
+2. **Panel bersarang lolos dari kewajiban terdaftar.** Penjaga registry PR-031 hanya membaca route tingkat pertama. Penelusurannya dibuat rekursif dan mengumpulkan DAUN saja (route induk adalah kerangka; yang punya alamat untuk dibuka pengguna adalah panelnya). Ditambah satu penjaga atas penjaganya sendiri: bila penelusurannya kembali dangkal, test lain tetap hijau — mereka hanya berhenti memeriksa sebagian halaman.
+3. **Tautan lompat diuji pada dokumen yang masih kosong.** Cacat laten sejak PR-032a, muncul begitu jumlah halaman bertambah. `page.goto` selesai saat kerangka SPA terunduh, jauh sebelum React menulis apa pun; Tab yang ditekan pada dokumen kosong tidak mendarat di mana pun, dan fokusnya tidak menyusul sendiri. Kegagalannya tampak seperti tautan lompat yang hilang padahal ia ada di DOM. Halaman terlindungi paling rentan sebab ia menunggu pemulihan sesi lebih dulu. Ditutup dengan menunggu `h1` + `bringToFront()`.
+
+Pemalsuan API juga dipindahkan dari dalam spec axe ke `e2e/palsukan-api.ts`, sebab kini DUA spec membutuhkannya dan keduanya harus melihat aplikasi dalam keadaan yang sama persis.
+
+### Uji mutasi (dijalankan, bukan diasumsikan)
+
+| Mutasi | Hasil |
+|---|---|
+| `<Terlindungi>` dilepas dari layout | **3 merah** (isi terlihat tanpa sesi; `?tujuan=` tidak terbawa; panel non-indeks ikut terbuka) |
+| `end` dilepas dari tautan indeks | **1 merah** — "TEPAT SATU aria-current" menemukan dua |
+| `timeZone: "Asia/Jakarta"` → `"UTC"` | **1 merah** |
+| `butuhSesi` dilepas dari entri registry | **4 merah** (2 halaman × 2 spec), lewat `harusTidakBerpindah` — bukan lewat axe |
+| `jalurRute()` dikembalikan dangkal | **2 merah** (penjaga rekursi + "halaman terdaftar menunjuk route yang ada"); test arah sebaliknya tetap hijau |
+| Fixture `id` dikembalikan ke bentuk ULID | **2 merah** di api-client — `meResponseSchema` menuntut UUID |
+
+**Dua catatan yang tidak boleh hilang dari tabel ini.**
+
+*Baris ketiga tidak berjalan seperti yang saya duga.* Rencananya menghapus `timeZone` lalu menjalankan test dengan `TZ=America/New_York`. Node di mesin Windows ini tidak menghormati `TZ` — `Intl` tetap menjawab `Asia/Jakarta` — jadi mutasi itu HIJAU dan tidak membuktikan apa pun. Dua hal diubah karenanya: waktu ujinya dipindah ke 15 Januari pukul 20.00 UTC (= 16 Januari WIB) supaya tanggalnya benar-benar menyeberang hari, dan mutasinya diganti menjadi `timeZone: "UTC"` — yang mensimulasikan mesin CI secara tepat, sebab runner GitHub berjalan di UTC. Dalam bentuk itu ia merah. Penjaganya kini menggigit di tempat yang penting (CI) meski di mesin WIB ia tidak bisa dibuat merah dengan cara lain.
+
+*Baris keempat semula HIJAU, dan itu menemukan cacat di penjaganya sendiri.* Versi pertama `harusTidakBerpindah` membaca `page.url()` segera sesudah `goto`. Aplikasi ini SPA: `goto` selesai begitu kerangka kosong terunduh, dan pengalihan `<Navigate>` milik route guard baru terjadi sesudah React berjalan. Alamat yang dibaca sedini itu karena itu SELALU sama dengan yang diminta — penjaganya tidak pernah bisa merah. Menunggu `h1` lebih dulu dilipat ke dalam fungsi yang sama (bukan dibiarkan sebagai langkah terpisah yang bisa lupa dipanggil), dan barulah mutasinya merah. Tanpa uji mutasi ini, PR ini akan mendarat membawa penjaga yang tidak menjaga apa pun sambil mengklaim sebaliknya di dokumen.
+
+*Baris terakhir* juga bukan sekadar test yang cerewet: fixture ULID itu semula dipakai di tiga tempat, termasuk stub Playwright — dan di sana klien NYATA memparse jawabannya, jadi halaman pengaturan akan merender keadaan gagal sementara axe tetap hijau atasnya.
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` | hijau (9 task) |
+| `pnpm typecheck` | hijau (9 task) |
+| `pnpm test` — web | **329** test / 30 berkas (+27) |
+| `pnpm test` — api-client | **30** test / 5 berkas (+6) |
+| Playwright | **14** test hijau, 3× berturut-turut (+4) |
+| Lighthouse desktop | perf 84, a11y 100 |
+| Lighthouse 3G | perf **84**, a11y 100 |
+| Budget bundel | 104,96 KB / 200 KB gzip |
+
+### Risiko & batas yang jujur
+
+**Perkiraan LOC meleset besar — lagi.** Diperkirakan ≈450, mendarat **± 1.170** (490 sumber + 680 test/e2e). Bagian sumbernya masih di dalam anggaran; yang membengkak adalah test. Dua PR terakhir juga meleset ke arah yang sama (032a: ≈430 → 825). Pola yang cukup konsisten untuk dipakai: perkiraan saya di repo ini berjalan sekitar 2,5× terlalu rendah, dan angka untuk 033b/033c dinaikkan mengikuti itu.
+
+**Bundel awal naik 101,3 → 104,96 KB gzip.** Perf 3G justru terukur 84 (naik dari 82 di PR-032a), jadi marginnya belum tergerus — tetapi angka itu bergerak antar mesin, dan kenaikan bundel-nya nyata. Sebabnya `useQuery` kini benar-benar terpakai sehingga bagian TanStack Query yang sebelumnya terpangkas ikut masuk. Jalan keluar strukturalnya tetap sama seperti dicatat PR-032a: memisahkan shell publik dari shell aplikasi (Phase 16).
+
+**Verifikasi manual yang belum ditempuh:** NVDA atas struktur `<dl>` dan navigasi panel; viewport ponsel sungguhan; dan review teks katalog `pengaturan` oleh non-engineer. Teks di halaman ini menjelaskan hak atas data pribadi — pembacanya sedang mempertimbangkan tindakan yang tidak bisa dibatalkan — dan sampai sekarang ia ditulis engineer.
+
+**`role` dari `/me` diambil tetapi tidak dipakai.** Ia bagian kontrak dan akan dipakai memilih navigasi kelak; hari ini ia hanya lewat.
+
+### Out of scope
+
+* Ekspor data (PR-033b), hapus akun + dialog re-auth (PR-033c).
+* Isi panel preferensi aksesibilitas (PR-036).
+* `PUT /me` dan halaman onboarding (PR-035).
+* `authMethods` di kontrak `/me` — perubahan backend; PR-033 menyatakan tidak ada perubahan backend.
+
+### Next steps
+
+* **PR-033b** — ekspor data: `GET /me/export` di api-client, unduh JSON, keadaan kuota habis (3×/24 jam). Perkiraan direvisi: ± 700 LOC.
+* **PR-033c** — hapus akun: dialog dua langkah + re-auth OTP/Google, penjelasan masa tunggu 30 hari. Perkiraan direvisi: ± 1.100 LOC. Bila terukur lebih besar lagi saat diperiksa, pemecahan lanjutan diusulkan **sebelum** implementasi.

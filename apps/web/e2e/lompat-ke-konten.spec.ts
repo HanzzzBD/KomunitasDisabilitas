@@ -10,13 +10,34 @@
 // ini yang TIDAK dilihat axe: axe memeriksa struktur, bukan ke mana fokus pergi.
 import { expect, test } from "@playwright/test";
 import { HALAMAN } from "./halaman.js";
+import { harusTidakBerpindah, palsukanApi } from "./palsukan-api.js";
 
 /** Halaman yang memakai kerangka aplikasi (layar kesalahan menggantikannya). */
 const BERKERANGKA = HALAMAN.filter((h) => h.nama !== "404" && h.siapkan === undefined);
 
 for (const halaman of BERKERANGKA) {
   test(`lompat ke konten: ${halaman.nama}`, async ({ page }) => {
+    // Sesi dipalsukan dengan aturan yang SAMA seperti gerbang axe (PR-033a).
+    // Tanpa itu, halaman terlindungi mengalihkan ke `/masuk` — yang juga punya
+    // tautan lompat, sehingga test ini lulus sambil memeriksa halaman lain.
+    await palsukanApi(page, halaman);
     await page.goto(halaman.jalur);
+
+    // Menunggu halamannya terbentuk SEKALIGUS memastikan alamatnya tidak
+    // berpindah. Tab yang ditekan pada dokumen SPA yang masih kosong tidak
+    // mendarat di mana pun, dan fokusnya tidak menyusul sendiri sesudah isinya
+    // muncul — kegagalannya lalu tampak seperti tautan lompat yang hilang
+    // padahal ia ada di DOM. Halaman terlindungi paling rentan: ia menunggu
+    // pemulihan sesi lebih dulu, jadi ia yang pertama gagal begitu mesinnya
+    // sibuk (mis. Playwright berjalan paralel di CI).
+    await harusTidakBerpindah(page, halaman);
+
+    // Halaman ini juga harus memegang fokus sebelum Tab ditekan.
+    // Beberapa halaman berjalan dalam peramban yang sama, dan halaman yang
+    // tidak di depan menerima penekanan tombol tanpa punya elemen terfokus —
+    // `:focus` kosong, dan kegagalannya tampak seperti tautan lompat yang
+    // hilang padahal ia ada di DOM.
+    await page.bringToFront();
 
     // Satu penekanan Tab dari keadaan awal. Bila tautan ini bukan yang pertama,
     // pengguna keyboard harus menyusuri apa pun yang mendahuluinya — dan itu

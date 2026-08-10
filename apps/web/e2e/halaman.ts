@@ -34,6 +34,20 @@ export interface HalamanDijaga {
    * berubah menjadi pengecualian permanen yang tidak ada yang berani hapus.
    */
   matikan?: Readonly<Record<string, string>>;
+  /**
+   * Halaman ini hanya bisa dicapai pengguna yang sudah masuk (PR-033a).
+   *
+   * Tanpa penanda ini, halaman terlindungi akan MENGALIHKAN ke `/masuk` saat
+   * diperiksa — sebab jawaban palsu untuk `/auth/refresh` adalah 401 — dan
+   * gerbangnya berakhir hijau setelah memeriksa halaman masuk sambil mengira
+   * sedang memeriksa halaman fitur. Persis jenis kegagalan yang paling mahal:
+   * ia tidak pernah merah, jadi tidak ada yang menyelidikinya.
+   *
+   * Penandanya membuat `aksesibilitas.spec.ts` menjawab permintaan pemulihan
+   * sesi dengan sesi yang sah, dan spec itu MEMASTIKAN alamatnya tidak berpindah
+   * setelah halaman dimuat.
+   */
+  butuhSesi?: true;
 }
 
 export const HALAMAN: readonly HalamanDijaga[] = [
@@ -55,5 +69,7 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     // dilihat saat mengembangkan, dan paling sering luput dari perhatian.
     jalur: "/masuk/google?error=access_denied",
   },
+  { nama: "pengaturan — akun & data saya", jalur: "/pengaturan", butuhSesi: true },
+  { nama: "pengaturan — aksesibilitas", jalur: "/pengaturan/aksesibilitas", butuhSesi: true },
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

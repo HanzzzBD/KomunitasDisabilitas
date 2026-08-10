@@ -31,7 +31,7 @@ Fondasi web SPA: bootstrap Vite, paket a11y (global state preferensi), design sy
 * **PR-030** - Halaman login produksi-ready
 * **PR-031** - Gate a11y aktif untuk semua PR FE berikutnya
 * **PR-032** - Landing + 404 + pola empty state (dipecah: 032a landing/landmark/3G, 032b 404/empty state)
-* **PR-033** - Settings + Data Saya
+* **PR-033** - Settings + Data Saya (dipecah: 033a kerangka/panel akun/slot a11y, 033b ekspor, 033c hapus akun)
 
 ## Pull Requests
 
@@ -776,11 +776,11 @@ Bisnis: hak PDP terlihat dan mudah dipakai (bukan terkubur). Teknis: konsumsi PR
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
+* [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. **PR-033a: 26 test web** (penjagaan route 3, kerangka & navigasi 5, panel akun 7, slot aksesibilitas 3, judul dokumen 1, bahasa sederhana 2, axe lapis kedua 3, penjaga anti-hampa 2) + **6 test api-client** untuk `/me` + 1 penjaga rekursi registry.
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (ekspor + hapus akun)
-* [ ] Accessibility Test (axe + NVDA dialog)
-* [ ] Manual Verification (akun uji dihapus benar-benar)
+* [ ] E2E Test (ekspor + hapus akun) — PR-033b/033c. **PR-033a: kedua halaman pengaturan masuk registry PR-031**, diperiksa axe di peramban sungguhan dan diikutkan uji tautan lompat.
+* [ ] Accessibility Test (axe + NVDA dialog) — **axe lolos di dua lapis** (jsdom + Chromium). NVDA belum: dialognya sendiri baru lahir di PR-033c.
+* [ ] Manual Verification (akun uji dihapus benar-benar) — PR-033c.
 
 **Deliverables:**
 
@@ -796,11 +796,18 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Ekspor mengunduh JSON milik user.
-* [ ] Hapus akun butuh dua langkah + re-auth; tidak bisa via satu klik.
-* [ ] Dialog konfirmasi lolos NVDA checklist.
-* [ ] Seluruh halaman keyboard-only.
-* [ ] Copy dalam id + id-simple.
+* [ ] Ekspor mengunduh JSON milik user. *(PR-033b)*
+* [ ] Hapus akun butuh dua langkah + re-auth; tidak bisa via satu klik. *(PR-033c)*
+* [ ] Dialog konfirmasi lolos NVDA checklist. *(PR-033c)*
+* [ ] Seluruh halaman keyboard-only. *(PR-033a menutup KERANGKA-nya — berpindah antar panel ditempuh sebagai perbuatan, Tab lalu Enter, bukan dengan memeriksa `href`: tautan yang benar tetapi dilewati urutan fokus punya `href` yang tampak baik-baik saja. Kendali ekspor & hapus menyusul di 033b/033c.)*
+* [ ] Copy dalam id + id-simple. *(PR-033a menutup katalog `pengaturan` — 22 kunci, sembilan di antaranya identik dan terdaftar beserta alasannya di `SAMA_DENGAN_SENGAJA`. Teks ekspor & hapus menyusul di 033b/033c.)*
+
+> **Dipecah jadi tiga PR (persetujuan owner 2026-08-10):** scope utuh terukur ≈ 1.400 LOC. Diusulkan **sebelum** implementasi. Re-auth bukan sekadar konfirmasi: `DELETE /auth/account` menuntut kode OTP baru **atau** consent Google baru (PKCE ulang), sehingga jalur hapus akun memuat alur login kedua di dalam sebuah dialog.
+> **PR-033a** — Kerangka pengaturan, panel Akun, slot aksesibilitas — *selesai*. Mendarat **± 1.170 LOC** (490 sumber + 680 test/e2e), jauh di atas target <500 dan di atas perkiraan ≈450; selisihnya dilaporkan di log.
+> **PR-033b** — Ekspor data (AC 1) — belum.
+> **PR-033c** — Hapus akun dua langkah + re-auth (AC 2, 3) — belum.
+>
+> **"Cara Anda masuk" TIDAK ditampilkan di panel akun, dan itu keputusan.** `GET /me` mengembalikan `phone` tetapi bukan `googleId` (identitas provider sengaja bukan urusan pengguna — lihat `meSchema`), jadi satu-satunya cara menampilkannya sekarang adalah menebak dari ada-tidaknya nomor HP. Tebakan itu SALAH untuk akun yang punya keduanya, dan baris yang salah di halaman "data yang kami simpan tentang Anda" lebih merugikan daripada baris yang belum ada. PR-033c menghadapi kekurangan yang sama saat memilih cara re-auth; jalan keluarnya kelak adalah menambahkan `authMethods` ke kontrak `/me` (perubahan backend, di luar scope PR-033).
 
 #### Dependencies
 
@@ -810,6 +817,13 @@ RB-Std.
 #### Risks
 
 * User menghapus tanpa paham konsekuensi. Mitigasi: penjelasan bahasa sederhana + masa tunggu purge 30 hari disebutkan.
+* **Halaman terlindungi lolos gerbang a11y sambil memeriksa halaman masuk.** Ditemukan saat mendaftarkan `/pengaturan` ke registry PR-031: jawaban palsu untuk `/auth/refresh` adalah 401, sehingga halaman terlindungi mengalihkan ke `/masuk` — dan axe berakhir hijau atas halaman yang sama sekali berbeda dari yang dilaporkannya. Kegagalan yang TIDAK PERNAH merah adalah yang paling mahal. Ditutup PR-033a dengan penanda `butuhSesi` di registry (jawaban `/auth/refresh` disesuaikan per halaman) plus penjaga `harusTidakBerpindah` yang memastikan alamat yang diminta memang alamat yang terbuka.
+* **Panel bersarang lolos dari kewajiban terdaftar di registry.** Penjaga PR-031 hanya membaca route tingkat pertama, jadi `/pengaturan/aksesibilitas` — dan setiap panel yang lahir di bawah route bersarang mana pun sesudahnya — tidak wajib punya entri. PR-033a membuat penelusurannya rekursif dan menambahkan penjaga atas penjaganya sendiri.
+* **Tautan lompat diuji pada dokumen yang masih kosong.** Cacat laten sejak PR-032a yang baru muncul ketika jumlah halaman bertambah: `page.goto` selesai begitu kerangka SPA terunduh, jauh sebelum React menulis apa pun, dan Tab yang ditekan pada dokumen kosong tidak mendarat di mana pun — fokusnya TIDAK menyusul sendiri sesudah isinya muncul. Halaman terlindungi paling rentan sebab ia menunggu pemulihan sesi lebih dulu. Ditutup dengan menunggu `h1` dan `bringToFront()` sebelum menekan Tab.
+
+#### Log Implementasi
+
+* 2026-08-10 — PR-033a selesai (route `/pengaturan` terlindungi + navigasi panel, panel Akun & Data Saya di atas `GET /me` yang baru di api-client, slot aksesibilitas memakai `KeadaanKosong`, katalog i18n `pengaturan`, penanda `butuhSesi` di registry a11y, penjaga registry rekursif). Menutup kerangka dari AC 4 & 5. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-033a--kerangka-pengaturan-panel-akun--slot-aksesibilitas).
 
 
 ## Exit Criteria

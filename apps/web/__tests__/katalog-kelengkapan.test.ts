@@ -58,6 +58,26 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "Label aksi empat kata sehari-hari. 'Masuk' harus SAMA dengan label di " +
     "halaman tujuan — pengguna mencocokkan kata yang tadi ia tekan.",
 
+  // --- pengaturan (PR-033a) ---
+  // Sebagian besar di sini LABEL, bukan kalimat — pola yang sama dengan auth.
+  // Yang perlu dibaca dua kali hanyalah dua nama bagian di bawah.
+  "pengaturan.judul": "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana.",
+  "pengaturan.nav.label":
+    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata sehari-hari.",
+  "pengaturan.nav.aksesibilitas":
+    "Harus SAMA dengan judul panel tujuannya (`pengaturan.aksesibilitas.judul`) — pengguna " +
+    "mencocokkan kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  "pengaturan.akun.nama": "Label satu kata sehari-hari.",
+  "pengaturan.akun.email": "Label satu kata; 'email' adalah sebutan sehari-harinya di Indonesia.",
+  "pengaturan.akun.nomor": "Label dua kata; sama dengan label di halaman masuk (`auth.nomor.label`).",
+  "pengaturan.akun.belumDiisi": "Dua kata sehari-hari, sudah menyebut keadaannya secara harfiah.",
+  "pengaturan.akun.cobaLagi": "Label tombol dua kata, sama dengan `shell.luring.cobaLagi`.",
+  "pengaturan.aksesibilitas.judul":
+    "ISTILAH PRODUK, dan sengaja tidak disederhanakan. Kata ini muncul di navigasi, di judul " +
+    "panel, dan kelak di seluruh panel preferensi (PR-036); menggantinya hanya di mode sederhana " +
+    "berarti satu tempat yang sama punya dua nama, dan pengguna yang berpindah mode akan " +
+    "menyangka ia tersesat.",
+
   // --- shell (PR-032a) ---
   "shell.judulDokumen":
     "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +

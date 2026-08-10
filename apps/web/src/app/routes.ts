@@ -62,6 +62,49 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Pengaturan (PR-033a) — route TERLINDUNGI pertama di aplikasi ini.
+        //
+        // Penjagaannya dipasang di dalam komponen `Pengaturan`, bukan di sini:
+        // berkas ini `.ts` murni data, dan membungkus route dengan `<Terlindungi>`
+        // akan memaksanya menjadi `.tsx`. Karena penjaganya ada di INDUK, setiap
+        // panel yang ditambahkan kelak ikut terjaga tanpa perlu diingat.
+        //
+        // Induknya TIDAK lazy sementara anak-anaknya lazy: kerangkanya kecil dan
+        // selalu dibutuhkan begitu salah satu panel dibuka, sedangkan tiap panel
+        // hanya diunduh oleh yang benar-benar membukanya.
+        path: "pengaturan",
+        lazy: async () => {
+          const { Pengaturan } = await import("../routes/pengaturan.js");
+          return { Component: Pengaturan };
+        },
+        children: [
+          {
+            // Panel indeks: "/pengaturan" LANGSUNG menampilkan Akun & Data Saya,
+            // tanpa pengalihan ke "/pengaturan/akun".
+            //
+            // Pengalihan di halaman indeks memang lazim, tetapi ia membuat satu
+            // alamat yang dibagikan orang selalu berakhir di alamat lain — dan
+            // pengguna yang menekan tombol kembali sesudahnya terlempar bolak-balik.
+            // Dengan dua panel saja, alamat indeks lebih baik BERISI daripada
+            // menunjuk.
+            index: true,
+            lazy: async () => {
+              const { PengaturanAkun } = await import("../routes/pengaturan-akun.js");
+              return { Component: PengaturanAkun };
+            },
+          },
+          {
+            path: "aksesibilitas",
+            lazy: async () => {
+              const { PengaturanAksesibilitas } = await import(
+                "../routes/pengaturan-aksesibilitas.js"
+              );
+              return { Component: PengaturanAksesibilitas };
+            },
+          },
+        ],
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //
