@@ -2128,3 +2128,98 @@ Pengguna yang masuk lewat Google kini bisa menghapus akunnya sendiri. Maksud per
 ### Next steps
 
 * Phase 03 tuntas: seluruh 9 PR (PR-025..PR-033) selesai. Yang tersisa sebelum `phase-03 → main` adalah keputusan owner, ditambah utang verifikasi manual yang tercatat di sini dan di log PR-030.
+
+## Verifikasi manual Google OAuth & Tahap 0 (auth_time)
+
+**Tanggal:** 2026-08-10
+**Sifat:** verifikasi manual + koreksi klaim. **Tidak ada perubahan perilaku aplikasi.**
+**Menutup:** utang verifikasi manual PR-030 (AC 2, login Google terhadap akun uji) dan PR-033c-2 (alur hapus akun lewat Google).
+
+### Ringkasan
+
+Alur Google dijalankan terhadap Google sungguhan untuk pertama kalinya. Sebagian besar berjalan seperti dirancang. Satu klaim keamanan terbukti **tidak bisa dipertahankan**, dan rencana enforcement yang lahir dari klaim itu dibatalkan sebelum sempat ditulis.
+
+### Yang terverifikasi nyata
+
+| Butir | Bukti |
+|---|---|
+| Login Google end-to-end (AC 2 PR-030) | `AUTH_LOGIN_SUCCEEDED` `{"method":"google"}` di audit, sesi terbit |
+| Callback `/masuk/google` menerbitkan sesi | Refresh token baru di `refresh_tokens`, status `aktif` |
+| Cookie refresh dipakai peramban | Rantai sebab: halaman kembalian dimuat DARI NOL; `DELETE /auth/account` menuntut access token; satu-satunya sumbernya `pulihkanSesi()` → `/auth/refresh` → cookie HttpOnly. Penghapusan berhasil ⇒ cookie terpakai. Tanpa itu layarnya akan berbunyi "Sesi Anda sudah berakhir" |
+| Panel memilih jalur Google, bukan OTP | `Nomor HP → "Belum diisi"`, dialog langkah kedua berjudul "Buktikan dulu lewat akun Google Anda", tanpa kotak kode |
+| Fokus awal dialog TIDAK di tombol perusak | Snapshot aksesibilitas: fokus di "Batal" |
+| Sisa halaman disembunyikan saat dialog terbuka | Isi latar kehilangan referensi di pohon aksesibilitas |
+| Halaman kembalian tidak menghapus apa pun sendiri | Layar "Konfirmasi terakhir" tampil; `ACCOUNT_DELETED` baru muncul setelah tombol ditekan |
+| Hapus akun end-to-end | `ACCOUNT_DELETED` `{"stage":"requested"→"completed","method":"google","revokedCount":6}`; `deleted_at` terisi, `token_version` naik, 0 refresh token aktif |
+| Ekspor data (AC 1 PR-033) | `DATA_EXPORTED` `{"format":"json","sections":["account"],"formatVersion":1}` |
+| `max_age=0` terkirim, login biasa tidak | URL persetujuan nyata dari address bar; login: tanpa `max_age`, hapus: `max_age=0&prompt=select_account` |
+
+### Langkah 5 — PARTIAL, bukan pass penuh
+
+Perilaku Google **bergantung pada state sesi**:
+
+* email diketik manual (tidak ada sesi di pemilih akun) → **password diminta**
+* memilih akun yang sudah bersesi → **langsung lanjut, tanpa password**
+
+Karena itu `max_age=0` **tidak boleh** diklaim "selalu memaksa re-auth", dan juga **tidak boleh** disebut "diabaikan": Google jelas menerimanya (lihat Tahap 0). Yang benar: **dari sisi klien kita tidak tahu apakah autentikasinya baru.**
+
+### Tahap 0 — pengukuran `auth_time`
+
+Instrumentasi sementara (hanya mencatat, tidak menolak apa pun, tidak pernah mencatat token/`sub`/email/kredensial) dipasang di `google-id-token.ts`, dijalankan, lalu **dicabut**. Tidak pernah di-commit.
+
+**16 penukaran id_token** terekam: 12 login + **4 hapus akun** (yang membawa `max_age=0`), mencakup kedua skenario.
+
+| Pertanyaan | Jawaban |
+|---|---|
+| `auth_time` hadir? | **Tidak. 0 dari 16.** |
+| Umur `auth_time`? | Tidak ada yang bisa dilaporkan — klaimnya tidak pernah dikirim |
+| Beda antara "pilih akun" dan "email manual"? | **Tidak ada.** Absen di keduanya |
+| `iat` | konsisten −1/−2 detik (jam kita di belakang Google; jauh di dalam toleransi 60 detik yang sudah ada) |
+
+### Tiga hal yang membuat kesimpulannya kokoh
+
+**1. Google MENERIMA `max_age`.** Ia mem-parsingnya ke parameter alurnya sendiri: `opparams=%253Fmax_age%253D0`. Jadi absennya `auth_time` bukan karena permintaan kita diabaikan begitu saja.
+
+**2. Perbedaan perilaku nyata di layar tetapi tidak meninggalkan jejak di token.** Password diminta atau tidak — token yang kembali sama-sama tanpa `auth_time`.
+
+**3. `prompt=none` di callback adalah OBSERVASI, bukan bukti.** Google kadang menambahkannya ke URL kembalian pada run yang tanpa prompt. Ia menggoda dan **tidak boleh dipakai**: parameter query di URL peramban, tanpa integritas, bisa disusun ulang siapa pun yang menyentuh alamat kembalian. Sebagai dasar keputusan keamanan ia lebih buruk daripada tidak ada.
+
+### Keputusan: enforcement `auth_time` DIBATALKAN
+
+Bukan ditunda. Desain yang sempat disepakati — opsi pada `verify(...)`, jendela toleransi, pilihan fail-open/fail-closed — seluruhnya bersandar pada klaim yang tidak pernah tiba. Memasangnya sekarang berarti:
+
+* cabang kode yang tidak pernah dieksekusi,
+* komentar yang menjanjikan perlindungan yang tidak ada,
+* dan bila dipasang sebagai "periksa bila kebetulan ada", sebuah gerbang yang tidak menjaga apa pun tetapi terbaca seperti menjaga.
+
+Juga **tidak** dipasang: guard yang hanya aktif bila klaimnya kebetulan tersedia (keputusan owner, eksplisit).
+
+### Klaim keamanan yang diturunkan
+
+**Sebelum:** re-auth Google membuktikan orang yang menekan tombol sekarang adalah pemiliknya.
+
+**Sesudah:** jalur Google membuktikan bahwa **peramban memegang sesi Google yang cocok dengan `google_id` akun**. Itu **lebih lemah daripada kode OTP baru**, yang menuntut kredensial yang baru saja dikirim ke nomor terdaftar.
+
+Klaim ini dikoreksi di dua tempat: komentar `apps/web/src/features/auth/google.ts` dan butir Risks PR-033c pada dokumen phase ini. Fiturnya sendiri **tidak diubah** — ia tetap satu-satunya jalur hapus akun bagi pengguna Google-only, dan menghapusnya berarti mencabut hak PDP mereka.
+
+### Lapisan pemulihan dipindahkan ke tempat yang kita kendalikan
+
+Karena identitas tidak bisa dipastikan, yang dikuatkan adalah **kemampuan pemilik mengetahui dan membatalkan**. Penghapusan bersifat soft 30 hari; jendela itu tidak berguna bagi yang tidak diberi tahu.
+
+Akun ber-nomor sudah menerima SMS pasca-hapus (PR-021). Akun Google-only **tidak menerima apa pun** — dan justru merekalah yang memakai jalur pembuktian terlemah. Dicatat sebagai **dependensi eksplisit Phase 07 PR-049** (kanal email), lengkap dengan tujuannya.
+
+Sengaja **tidak** dibuatkan placeholder di Phase 03: kendali keamanan yang terbaca ada tetapi tidak mengirim apa pun lebih berbahaya daripada ketiadaan yang tercatat.
+
+### Koreksi penomoran PR
+
+PR proxy dev Vite (merged sebagai #89) memakai label **PR-034**. Nomor itu **milik Phase 04** — "Accessibility Module (Backend)", `prs: PR-034..PR-036`. Judul PR yang sudah merge tidak diubah (riwayat), tetapi backlog tidak boleh ikut bergeser: **PR-034 di Phase 04 tetap milik Accessibility Module**, dan pekerjaan proxy itu adalah perbaikan infrastruktur dev milik Phase 03, bukan butir backlog. Kesalahan agent, dicatat supaya tidak menular ke penomoran berikutnya.
+
+### Utang yang MASIH terbuka
+
+* **NVDA** atas dialog hapus akun dan layar kembalian. Butir strukturalnya di CI; urutan pembacaannya belum pernah didengar.
+* **Review teks katalog oleh non-engineer** — teks hapus akun menjelaskan tindakan tak-terbalikkan dan sampai kini ditulis engineer.
+* **Pemberitahuan pasca-hapus untuk akun tanpa nomor** — Phase 07 PR-049.
+
+### Catatan alat
+
+Verifikasi dijalankan lewat MCP Playwright (agent menyetir navigasi, owner memegang kredensial di layar Google). Alat itu menulis jejak halaman & log konsol ke `.playwright-mcp/`, yang **bisa memuat isi halaman termasuk nama dan email pengguna uji**. Artefaknya dihapus dan polanya ditambahkan ke `.gitignore` — bukan artefak build, dan tidak ada yang membacanya ulang.

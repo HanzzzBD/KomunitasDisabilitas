@@ -194,6 +194,19 @@ Bisnis: kanal cadangan bagi pengguna tanpa push. Teknis: adapter Resend + templa
 
 * Processor email + template (welcome, status lamaran, CV siap)
 * Preferensi kanal (default in-app+push; email opt-in)
+* **Pemberitahuan pasca-hapus akun untuk akun tanpa nomor HP** — dependensi keamanan yang dititipkan Phase 03, lihat di bawah.
+
+> **DEPENDENSI KEAMANAN DARI PHASE 03 (dicatat 2026-08-10, dari verifikasi manual PR-033c-2).**
+>
+> **Keadaan hari ini:** menghapus akun mengirim SMS pemberitahuan ke nomor terdaftar (PR-021, `buildAccountDeletedMessage`) — *"Akun Nawasena Anda sudah dihapus. Data Anda masih bisa dipulihkan dalam 30 hari."* Akun yang masuk lewat Google **tidak punya nomor HP**, sehingga mereka **tidak menerima apa pun**. Kode-nya sudah menyebut celah ini sejak PR-021: *"celah nyata yang tertutup begitu ada kanal email"*.
+>
+> **Kenapa ini bukan sekadar kesantunan.** Penghapusan bersifat *soft* selama 30 hari justru supaya yang keliru bisa dibatalkan. Jendela itu **tidak berguna sama sekali** bagi orang yang tidak tahu ia ada — dan orang yang akunnya baru dihapus tidak punya alasan membuka aplikasi ini lagi dalam waktu dekat. Tanpa pemberitahuan, soft-delete 30 hari hanyalah penundaan teknis, bukan lapisan pemulihan.
+>
+> **Kenapa justru akun Google yang paling membutuhkannya.** Verifikasi manual membuktikan konfirmasi ulang lewat Google **lebih lemah** daripada kode OTP baru: `auth_time` tidak pernah dikirim Google (0 dari 16 token terukur), sehingga server tidak bisa memastikan autentikasinya baru. Jadi jalur dengan pembuktian identitas terlemah justru satu-satunya yang tidak punya jaring pengaman pemberitahuan.
+>
+> **Yang diminta:** kirim pemberitahuan pasca-hapus ke alamat email akun bila nomor HP tidak ada. Isinya mengikuti pesan SMS yang sudah ada — apa yang terjadi, sampai kapan bisa dibatalkan, dan apa yang harus dilakukan bila ini bukan dia. **Tanpa tautan**: pesan yang meminta orang mengeklik sesuatu tepat setelah kejadian mencurigakan berbentuk sama dengan phishing (alasan yang sama sudah ditulis di PR-021).
+>
+> **Sengaja TIDAK dikerjakan lebih awal:** membuat placeholder kanal email di Phase 03 berarti kendali keamanan yang terbaca ada tetapi tidak mengirim apa pun.
 
 #### Technical Notes
 
