@@ -17,6 +17,14 @@ import { useTeks, type KunciTeks } from "../shared/i18n/index.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { alamatKembali, ambilTitipan } from "../features/auth/google.js";
+import { KonfirmasiHapusGoogle } from "../features/akun/konfirmasi-hapus-google.js";
+
+/** Titipan yang lolos pemeriksaan, disimpan untuk cabang hapus akun. */
+interface Konfirmasi {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+}
 
 export function MasukGoogle() {
   const t = useTeks();
@@ -24,8 +32,22 @@ export function MasukGoogle() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const masukKeSesi = useStoreSesi((s) => s.masuk);
+  const keluarDariSesi = useStoreSesi((s) => s.keluar);
 
   const [galat, setGalat] = useState<KunciTeks | null>(null);
+  /**
+   * Cabang HAPUS AKUN (PR-033c-2).
+   *
+   * Halaman ini melayani dua maksud karena alamat kembaliannya cuma satu —
+   * `/masuk/google` sudah terdaftar di Google Cloud Console dan tidak bisa
+   * ditambah sesuka kita. Maksudnya dibaca dari titipan, bukan ditebak dari
+   * ada-tidaknya sesi: tebakan itu salah persis pada kasus paling berbahaya.
+   *
+   * Yang membedakan cabang ini: ia TIDAK menukarkan apa pun secara otomatis.
+   * Code-nya disimpan, dan penghapusan baru terjadi setelah pengguna menekan
+   * tombol yang menyebut akibatnya. Lihat alasannya di `KonfirmasiHapusGoogle`.
+   */
+  const [konfirmasi, setKonfirmasi] = useState<Konfirmasi | null>(null);
 
   // React 18 StrictMode menjalankan efek DUA KALI di pengembangan, dan
   // `code` dari Google hanya berlaku sekali pakai. Tanpa penjaga ini,
@@ -56,6 +78,16 @@ export function MasukGoogle() {
     }
     if (code === null) return setGalat("auth.google.gagalUmum");
 
+    if (titipan.maksud === "hapus-akun") {
+      // Berhenti di sini. Tidak ada penukaran, tidak ada penghapusan — hanya
+      // menyimpan buktinya dan menyerahkan keputusannya kembali ke pengguna.
+      return setKonfirmasi({
+        code,
+        codeVerifier: titipan.verifier,
+        redirectUri: alamatKembali(window.location.origin),
+      });
+    }
+
     void (async () => {
       try {
         const { data } = await googleAuth(klien, {
@@ -79,6 +111,31 @@ export function MasukGoogle() {
       }
     })();
   }, [klien, masukKeSesi, navigate, params]);
+
+  if (konfirmasi !== null) {
+    return (
+      <KonfirmasiHapusGoogle
+        klien={klien}
+        code={konfirmasi.code}
+        codeVerifier={konfirmasi.codeVerifier}
+        redirectUri={konfirmasi.redirectUri}
+        // Batal = pergi ke pengaturan, tanpa menyentuh apa pun. Sesi masih sah:
+        // yang dibatalkan adalah penghapusannya, bukan keberadaan akunnya.
+        onBatal={() => navigate("/pengaturan", { replace: true })}
+        onSelesai={() => {
+          // Urutannya BEBAS di sini, tidak seperti di panel pengaturan
+          // (PR-033c-1). Di sana sesi harus dibuang SESUDAH perpindahan, sebab
+          // `Terlindungi` yang masih terpasang akan mengalihkan pengguna ke
+          // halaman masuk. Halaman ini publik — ia kembalian OAuth, dan tidak
+          // mungkin dijaga guard — jadi tidak ada yang bereaksi atas hilangnya
+          // sesi. Uji mutasi PR-033c-2 menegaskannya: menukar urutan di sini
+          // tidak membuat satu test pun merah.
+          keluarDariSesi();
+          navigate("/", { replace: true });
+        }}
+      />
+    );
+  }
 
   if (galat !== null) {
     return (

@@ -94,6 +94,15 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "pengaturan.hapus.selesai.judul":
     "Kalimat empat kata sehari-hari yang menyatakan keadaan secara harfiah.",
 
+  // --- hapus akun lewat Google (PR-033c-2) ---
+  "pengaturan.hapus.google.lanjut":
+    "Label tombol tiga kata sehari-hari. 'Google' adalah nama layanan — tidak diterjemahkan " +
+    "dan tidak disederhanakan, sama seperti nama produk.",
+  "pengaturan.hapus.kembali.masuk":
+    "Label aksi empat kata sehari-hari, sama persis dengan `shell.kesalahan.perluMasuk.masuk` — " +
+    "keduanya mengantar ke halaman yang sama, dan dua nama untuk satu tujuan membuat pengguna " +
+    "menyangka ia sedang menuju tempat yang berbeda.",
+
   "pengaturan.ekspor.tombol":
     "Label tombol tiga kata sehari-hari. 'Unduh' harus SAMA di kedua varian — ia muncul lagi " +
     "di kalimat pengumuman dan di judul bagiannya, dan pengguna mencocokkan kata yang tadi ia tekan.",

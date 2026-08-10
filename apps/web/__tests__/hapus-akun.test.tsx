@@ -7,7 +7,7 @@
 // merah. Yang TIDAK bisa dijamin siapa pun kecuali telinga manusia adalah
 // apakah urutan pembacaannya masuk akal saat didengar. Itu tetap utang manual,
 // dan dicatat sebagai utang — bukan diklaim tertutup karena test-nya hijau.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -110,6 +110,7 @@ async function sampaiKotakKode() {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
   useStoreSesi.setState({ status: "memulihkan" });
 });
 
@@ -403,13 +404,44 @@ describe("sesudah akun terhapus", () => {
 });
 
 describe("akun tanpa nomor HP (masuk lewat Google)", () => {
-  it("diberi tahu apa adanya, BUKAN tombol yang akan ditolak server", async () => {
+  it("ditawari jalur Google — bukan jalan buntu (PR-033c-2)", async () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "klien-uji.apps.googleusercontent.com");
+    renderPanel({ profil: { phone: null } });
+
+    await userEvent.click(await tombolBuka());
+    await userEvent.click(await screen.findByRole("button", { name: "Saya mengerti, lanjutkan" }));
+
+    // Langkah keduanya BERBEDA dari jalur OTP: tidak ada kotak kode, dan tidak
+    // ada tombol perusak — yang ada hanya jalan menuju Google.
+    expect(
+      await screen.findByRole("dialog", { name: "Buktikan dulu lewat akun Google Anda" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lanjut ke Google" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Kode 6 angka/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Hapus akun saya sekarang" })).toBeNull();
+  });
+
+  it("dialognya menyebut bahwa akan ada pertanyaan sekali lagi sesudah kembali", async () => {
+    // Pengguna yang menyangka penghapusan terjadi begitu ia menekan "Lanjut ke
+    // Google" akan panik di halaman Google — dan yang membatalkan di sana tidak
+    // tahu apakah akunnya sudah hilang atau belum.
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "klien-uji.apps.googleusercontent.com");
+    renderPanel({ profil: { phone: null } });
+
+    await userEvent.click(await tombolBuka());
+    await userEvent.click(await screen.findByRole("button", { name: "Saya mengerti, lanjutkan" }));
+
+    expect(await screen.findByRole("dialog")).toHaveTextContent(/kami tanya sekali lagi/i);
+  });
+
+  it("tanpa kredensial Google, dikatakan APA ADANYA — bukan tombol yang pasti gagal", async () => {
     // Pengguna yang ditolak pada langkah terakhir — sesudah membaca seluruh
     // peringatan — akan mengira dirinya yang salah.
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "");
     renderPanel({ profil: { phone: null } });
 
     expect(
-      await screen.findByText(/konfirmasi lewat Google belum tersedia/i, {}, { timeout: 5000 }),
+      await screen.findByText(/konfirmasi lewat Google sedang tidak tersedia/i, {}, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hapus akun saya" })).toBeNull();
   });

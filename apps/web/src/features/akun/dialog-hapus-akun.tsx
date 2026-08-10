@@ -22,19 +22,42 @@ import { deleteAccount, requestOtp } from "@nawasena/api-client";
 import { HARI_SEBELUM_PURGE } from "@nawasena/schemas";
 import { Dialog, KolomForm, Masukan, Tombol, TutupDialog } from "@nawasena/ui";
 import type { ApiClient } from "@nawasena/api-client";
-import { useTeks } from "../../shared/i18n/index.js";
+import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { pesanGalatHapus } from "./hapus-akun.js";
 
-type Langkah = "akibat" | "kode" | "selesai";
+type Langkah = "akibat" | "kode" | "google" | "selesai";
+
+/**
+ * Cara konfirmasi yang tersedia untuk akun ini.
+ *
+ * DITENTUKAN PEMANGGIL, bukan ditebak di sini. Aturannya sederhana dan lengkap:
+ * akun yang punya nomor HP memakai kode OTP; yang tidak punya nomor pasti
+ * masuk lewat Google (platform ini tidak punya password, jadi setiap akun
+ * memegang setidaknya satu dari keduanya).
+ */
+export type CaraKonfirmasi =
+  | { jenis: "otp"; nomor: string }
+  | {
+      jenis: "google";
+      /**
+       * Membawa pengguna ke Google. Disediakan pemanggil karena pengalihan
+       * menyentuh `window.location` — dan `features/` adalah lapisan yang
+       * dipakai ulang mobile, sehingga ia tidak boleh menyentuh DOM langsung
+       * (features/README.md).
+       */
+      mulai: () => Promise<void>;
+    };
 
 export interface DialogHapusAkunProps {
   klien: ApiClient;
-  /** Nomor HP terdaftar (E.164). Jalur ini hanya untuk akun yang punya nomor. */
-  nomor: string;
+  cara: CaraKonfirmasi;
   /**
    * Dipanggil setelah akun BENAR-BENAR terhapus dan pengguna menutup layar
    * terakhir. Pemanggillah yang mengakhiri sesi dan memindahkan halaman —
    * bukan dialog ini, yang tidak boleh tahu soal router.
+   *
+   * Pada jalur Google ia tidak pernah terpanggil: penghapusannya selesai di
+   * halaman kembalian, bukan di sini.
    */
   onSelesai: () => void;
 }
@@ -50,7 +73,28 @@ export interface DialogHapusAkunProps {
  */
 const GAYA_HAPUS = "bg-red-700 text-white hover:bg-red-800";
 
-export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProps) {
+/**
+ * Judul & deskripsi per langkah sebagai DATA.
+ *
+ * Bukan rantai ternary: dengan empat langkah ia sudah tidak terbaca, dan
+ * langkah kelima nanti akan ditambahkan ke salah satunya saja — sehingga
+ * dialognya punya judul yang benar tetapi deskripsi milik langkah lain.
+ */
+const JUDUL: Readonly<Record<Langkah, KunciTeks>> = {
+  akibat: "pengaturan.hapus.dialog.judul",
+  kode: "pengaturan.hapus.kode.judul",
+  google: "pengaturan.hapus.google.judul",
+  selesai: "pengaturan.hapus.selesai.judul",
+};
+
+const DESKRIPSI: Readonly<Record<Langkah, KunciTeks | undefined>> = {
+  akibat: "pengaturan.hapus.dialog.deskripsi",
+  kode: "pengaturan.hapus.kode.deskripsi",
+  google: "pengaturan.hapus.google.deskripsi",
+  selesai: undefined,
+};
+
+export function DialogHapusAkun({ klien, cara, onSelesai }: DialogHapusAkunProps) {
   const t = useTeks();
   const [terbuka, setTerbuka] = useState(false);
   const [langkah, setLangkah] = useState<Langkah>("akibat");
@@ -59,6 +103,7 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
   const [kabar, setKabar] = useState("");
 
   const kotakKode = useRef<HTMLInputElement>(null);
+  const nomor = cara.jenis === "otp" ? cara.nomor : "";
 
   const kirimKode = useMutation({
     mutationFn: () => requestOtp(klien, { phone: nomor }),
@@ -68,6 +113,18 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
     },
     onSuccess: () => setKabar(t("pengaturan.hapus.kode.terkirim", { nomor })),
     onError: (e: unknown) => setGalat(pesanGalatHapus(e, t)),
+  });
+
+  /**
+   * Berangkat ke Google. Kegagalannya ditampilkan, bukan dibiarkan senyap:
+   * menyiapkan PKCE bisa gagal di konteks tidak aman (`crypto.subtle` hanya
+   * ada di HTTPS dan localhost), dan tombol yang tidak melakukan apa pun
+   * membuat pengguna mengira dirinya salah menekan.
+   */
+  const keGoogle = useMutation({
+    mutationFn: () => (cara.jenis === "google" ? cara.mulai() : Promise.resolve()),
+    onMutate: () => setGalat(null),
+    onError: () => setGalat(t("pengaturan.hapus.google.gagalSiap")),
   });
 
   const hapus = useMutation({
@@ -113,20 +170,8 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
       pemicu={
         <Tombol varian="sekunder">{t("pengaturan.hapus.tombol")}</Tombol>
       }
-      judul={t(
-        langkah === "akibat"
-          ? "pengaturan.hapus.dialog.judul"
-          : langkah === "kode"
-            ? "pengaturan.hapus.kode.judul"
-            : "pengaturan.hapus.selesai.judul",
-      )}
-      deskripsi={
-        langkah === "akibat"
-          ? t("pengaturan.hapus.dialog.deskripsi")
-          : langkah === "kode"
-            ? t("pengaturan.hapus.kode.deskripsi")
-            : undefined
-      }
+      judul={t(JUDUL[langkah])}
+      deskripsi={DESKRIPSI[langkah] === undefined ? undefined : t(DESKRIPSI[langkah]!)}
       labelTutup={t("pengaturan.hapus.batal")}
       aksi={
         langkah === "akibat" ? (
@@ -137,7 +182,9 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
             <TutupDialog asChild>
               <Tombol varian="sekunder">{t("pengaturan.hapus.batal")}</Tombol>
             </TutupDialog>
-            <Tombol onClick={() => setLangkah("kode")}>{t("pengaturan.hapus.lanjut")}</Tombol>
+            <Tombol onClick={() => setLangkah(cara.jenis === "otp" ? "kode" : "google")}>
+              {t("pengaturan.hapus.lanjut")}
+            </Tombol>
           </>
         ) : langkah === "kode" ? (
           <>
@@ -175,6 +222,22 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
                   : t("pengaturan.hapus.kode.kirim")}
               </Tombol>
             )}
+          </>
+        ) : langkah === "google" ? (
+          <>
+            <TutupDialog asChild>
+              <Tombol varian="sekunder">{t("pengaturan.hapus.batal")}</Tombol>
+            </TutupDialog>
+            <Tombol
+              aria-disabled={keGoogle.isPending}
+              aria-busy={keGoogle.isPending}
+              onClick={() => {
+                if (keGoogle.isPending) return;
+                keGoogle.mutate();
+              }}
+            >
+              {t("pengaturan.hapus.google.lanjut")}
+            </Tombol>
           </>
         ) : (
           <TutupDialog asChild>
@@ -223,6 +286,14 @@ export function DialogHapusAkun({ klien, nomor, onSelesai }: DialogHapusAkunProp
           ) : null}
 
           {galat !== null && !kirimKode.isSuccess ? <p role="alert">{galat}</p> : null}
+        </div>
+      ) : langkah === "google" ? (
+        <div className="flex flex-col gap-3">
+          {/* Tidak ada tombol perusak di layar ini, dan itu disengaja: yang
+              ditekan di sini hanya membawa pengguna ke Google. Penghapusannya
+              diputuskan sekali lagi di halaman kembalian, dengan tombol yang
+              menyebut akibatnya. */}
+          {galat !== null ? <p role="alert">{galat}</p> : null}
         </div>
       ) : (
         <p>{t("pengaturan.hapus.selesai.penjelasan", { hari: HARI_SEBELUM_PURGE })}</p>

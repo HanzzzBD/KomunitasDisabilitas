@@ -24,10 +24,23 @@ const KUNCI = "nawasena-google-oauth";
  * `sessionStorage` mati bersama tab; `localStorage` bertahan berbulan-bulan,
  * meninggalkan verifier menganggur di perangkat bersama.
  */
+/**
+ * Untuk apa perjalanan ke Google ini (PR-033c-2).
+ *
+ * IKUT DITITIPKAN karena alamat kembaliannya SAMA. `/masuk/google` sudah
+ * terdaftar di Google Cloud Console sejak PR-025 dan tidak bisa kita tambah
+ * sesuka hati; jadi halaman itu harus bisa membedakan "saya baru saja mencoba
+ * masuk" dari "saya baru saja menyetujui penghapusan akun saya". Tanpa penanda
+ * ini, satu-satunya cara menebaknya adalah dari ada-tidaknya sesi — dan
+ * tebakan itu salah persis pada kasus yang paling berbahaya.
+ */
+export type MaksudOAuth = "masuk" | "hapus-akun";
+
 interface TitipanOAuth {
   verifier: string;
   state: string;
   tujuan: string;
+  maksud: MaksudOAuth;
 }
 
 /** Alamat kembalian — harus SAMA PERSIS dengan yang terdaftar di Google Cloud Console. */
@@ -56,16 +69,22 @@ export function clientIdGoogle(): string | null {
  * dimulai: begitu `location.assign` berjalan, tidak ada jaminan baris
  * berikutnya sempat dieksekusi.
  */
-export async function siapkanMasukGoogle(opsi: {
+async function siapkanAlurGoogle(opsi: {
   clientId: string;
   asal: string;
   tujuan: string;
+  maksud: MaksudOAuth;
   simpanan?: Storage;
 }): Promise<string> {
   const simpanan = opsi.simpanan ?? sessionStorage;
   const verifier = buatVerifier();
   const state = buatState();
-  const titipan: TitipanOAuth = { verifier, state, tujuan: bersihkanTujuan(opsi.tujuan) };
+  const titipan: TitipanOAuth = {
+    verifier,
+    state,
+    tujuan: bersihkanTujuan(opsi.tujuan),
+    maksud: opsi.maksud,
+  };
   simpanan.setItem(KUNCI, JSON.stringify(titipan));
 
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -78,11 +97,58 @@ export async function siapkanMasukGoogle(opsi: {
   url.searchParams.set("code_challenge", await buatChallenge(verifier));
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("state", state);
+
+  if (opsi.maksud === "hapus-akun") {
+    // MEMINTA GOOGLE MEMBUKTIKAN ULANG, bukan sekadar menerbitkan code.
+    //
+    // Inti re-auth adalah membuktikan bahwa orang yang menekan tombol SEKARANG
+    // adalah pemiliknya. Bila Google mengembalikan code diam-diam karena
+    // peramban ini masih punya sesi Google yang hidup, yang terbukti hanyalah
+    // "peramban ini pernah dipakai masuk ke Google" — persis kelemahan yang
+    // seharusnya ditutup langkah ini.
+    //
+    // `max_age=0` menuntut autentikasi yang baru; `select_account` memastikan
+    // pengguna menyatakan akun mana yang ia maksud alih-alih dipilihkan.
+    //
+    // BATASNYA JUJUR: yang bisa kita lakukan hanya MEMINTA. Apakah Google
+    // benar-benar menegakkannya hanya terbaca dari klaim `auth_time` di
+    // id_token, dan server kita saat ini hanya mencocokkan `sub` (PR-021).
+    // Memverifikasi `auth_time` adalah perubahan backend — dicatat sebagai
+    // langkah lanjutan, bukan diklaim sudah ada.
+    url.searchParams.set("max_age", "0");
+    url.searchParams.set("prompt", "select_account");
+  }
+
   return url.toString();
 }
 
+/** Masuk lewat Google. */
+export async function siapkanMasukGoogle(opsi: {
+  clientId: string;
+  asal: string;
+  tujuan: string;
+  simpanan?: Storage;
+}): Promise<string> {
+  return siapkanAlurGoogle({ ...opsi, maksud: "masuk" });
+}
+
+/**
+ * Konfirmasi ulang identitas untuk MENGHAPUS akun (PR-033c-2).
+ *
+ * `tujuan` sengaja tidak diminta: sesudah akun terhapus tidak ada halaman yang
+ * masuk akal untuk dituju selain beranda, dan membawa tujuan lama berarti
+ * mengantar pengguna ke halaman yang butuh akun yang baru saja ia hapus.
+ */
+export async function siapkanHapusAkunGoogle(opsi: {
+  clientId: string;
+  asal: string;
+  simpanan?: Storage;
+}): Promise<string> {
+  return siapkanAlurGoogle({ ...opsi, tujuan: "/", maksud: "hapus-akun" });
+}
+
 export type HasilTitipan =
-  | { ok: true; verifier: string; tujuan: string }
+  | { ok: true; verifier: string; tujuan: string; maksud: MaksudOAuth }
   | { ok: false; sebab: "hilang" | "state-tidak-cocok" };
 
 /**
@@ -128,5 +194,10 @@ export function ambilTitipan(stateDariUrl: string | null, simpanan?: Storage): H
     // `sessionStorage` bisa disunting lewat devtools, dan pembersihan yang
     // hanya terjadi di satu sisi adalah pembersihan yang bisa dilewati.
     tujuan: bersihkanTujuan(titipan.tujuan),
+    // Titipan yang tidak menyebut maksudnya diperlakukan sebagai MASUK, bukan
+    // sebagai hapus akun. Bentuk lama (sebelum PR-033c-2) bisa saja masih
+    // tersimpan di tab yang belum ditutup, dan menebak "hapus akun" untuk
+    // sesuatu yang tidak menyatakannya adalah cara terburuk untuk salah.
+    maksud: titipan.maksud === "hapus-akun" ? "hapus-akun" : "masuk",
   };
 }

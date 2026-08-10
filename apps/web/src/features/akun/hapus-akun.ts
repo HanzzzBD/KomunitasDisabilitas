@@ -22,6 +22,15 @@ const PER_KODE: PetaGalat = {
   TERLALU_BANYAK_PERCOBAAN: "auth.galat.terlaluBanyak",
   TERLALU_BANYAK_PERMINTAAN: "auth.galat.terlaluBanyak",
   JARINGAN_GAGAL: "shell.galat.jaringan",
+
+  // --- Jalur Google (PR-033c-2) ---
+  // Consent-nya sah, tetapi milik akun Google lain. Hampir selalu salah pilih
+  // akun di layar Google — bukan serangan — jadi kalimatnya menyebut sebabnya
+  // dan apa yang harus dilakukan, bukan menolak dengan "tidak valid".
+  KONFIRMASI_GOOGLE_BEDA_AKUN: "pengaturan.hapus.galat.bedaAkun",
+  // `code` Google sekali pakai dan berumur pendek; yang tiba di layar
+  // konfirmasi beberapa menit kemudian akan menemuinya.
+  GOOGLE_EXCHANGE_GAGAL: "pengaturan.hapus.galat.kedaluwarsa",
 };
 
 export function pesanGalatHapus(galat: unknown, t: FungsiTeks): string {
