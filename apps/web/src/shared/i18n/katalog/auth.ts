@@ -145,8 +145,7 @@ export const katalogAuth = {
     id: "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
     "id-simple": "Anda mencoba terlalu sering. Tunggu sebentar.",
   },
-  "auth.galat.jaringan": {
-    id: "Tidak dapat terhubung ke server. Periksa internet Anda, lalu coba lagi.",
-    "id-simple": "Internet Anda bermasalah. Coba lagi nanti.",
-  },
+  // Kegagalan JARINGAN tidak punya domain auth — ia berlaku sama di mana pun
+  // permintaan gagal. Kuncinya pindah ke katalog shell di PR-033b, saat
+  // pemakai keduanya lahir.
 } as const satisfies KatalogFitur;

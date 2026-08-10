@@ -778,7 +778,7 @@ Bisnis: hak PDP terlihat dan mudah dipakai (bukan terkubur). Teknis: konsumsi PR
 
 * [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. **PR-033a: 26 test web** (penjagaan route 3, kerangka & navigasi 5, panel akun 7, slot aksesibilitas 3, judul dokumen 1, bahasa sederhana 2, axe lapis kedua 3, penjaga anti-hampa 2) + **6 test api-client** untuk `/me` + 1 penjaga rekursi registry.
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (ekspor + hapus akun) — PR-033b/033c. **PR-033a: kedua halaman pengaturan masuk registry PR-031**, diperiksa axe di peramban sungguhan dan diikutkan uji tautan lompat.
+* [x] E2E Test (ekspor + hapus akun) — **ekspor selesai (PR-033b): 3 test Playwright** yang menangkap unduhan sungguhan, memparse isinya, dan menempuh tombolnya lewat keyboard. Hapus akun menyusul di 033c. **PR-033a: kedua halaman pengaturan masuk registry PR-031**, diperiksa axe di peramban sungguhan dan diikutkan uji tautan lompat.
 * [ ] Accessibility Test (axe + NVDA dialog) — **axe lolos di dua lapis** (jsdom + Chromium). NVDA belum: dialognya sendiri baru lahir di PR-033c.
 * [ ] Manual Verification (akun uji dihapus benar-benar) — PR-033c.
 
@@ -796,15 +796,15 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Ekspor mengunduh JSON milik user. *(PR-033b)*
+* [x] Ekspor mengunduh JSON milik user. — **PR-033b.** Dibuktikan di DUA lapis, sebab jsdom tidak pernah benar-benar mengunduh apa pun: test jsdom menyadap klik tautannya (membuktikan nama & isi yang benar diserahkan), dan test Playwright menangkap unduhan SUNGGUHAN lalu memparse ulang isinya. Selisih keduanya bukan teori — tautan yang tidak pernah masuk dokumen, atau URL objek yang dilepas terlalu cepat, lolos jsdom dengan mulus dan gagal DIAM-DIAM di peramban.
 * [ ] Hapus akun butuh dua langkah + re-auth; tidak bisa via satu klik. *(PR-033c)*
 * [ ] Dialog konfirmasi lolos NVDA checklist. *(PR-033c)*
-* [ ] Seluruh halaman keyboard-only. *(PR-033a menutup KERANGKA-nya — berpindah antar panel ditempuh sebagai perbuatan, Tab lalu Enter, bukan dengan memeriksa `href`: tautan yang benar tetapi dilewati urutan fokus punya `href` yang tampak baik-baik saja. Kendali ekspor & hapus menyusul di 033b/033c.)*
-* [ ] Copy dalam id + id-simple. *(PR-033a menutup katalog `pengaturan` — 22 kunci, sembilan di antaranya identik dan terdaftar beserta alasannya di `SAMA_DENGAN_SENGAJA`. Teks ekspor & hapus menyusul di 033b/033c.)*
+* [ ] Seluruh halaman keyboard-only. *(PR-033a menutup KERANGKA-nya — berpindah antar panel ditempuh sebagai perbuatan, Tab lalu Enter, bukan dengan memeriksa `href`. PR-033b menutup kendali ekspor, termasuk satu hal yang mudah luput: tombolnya memakai `aria-disabled`, bukan `disabled`, sebab tombol yang dinonaktifkan saat sedang MEMEGANG fokus melemparkan fokus itu ke awal dokumen — pengguna keyboard terdampar tepat setelah aksinya berhasil. Kendali hapus menyusul di 033c.)*
+* [ ] Copy dalam id + id-simple. *(PR-033a menutup katalog `pengaturan` — 22 kunci; PR-033b menambah 7 kunci ekspor. Teks hapus akun menyusul di 033c.)*
 
 > **Dipecah jadi tiga PR (persetujuan owner 2026-08-10):** scope utuh terukur ≈ 1.400 LOC. Diusulkan **sebelum** implementasi. Re-auth bukan sekadar konfirmasi: `DELETE /auth/account` menuntut kode OTP baru **atau** consent Google baru (PKCE ulang), sehingga jalur hapus akun memuat alur login kedua di dalam sebuah dialog.
 > **PR-033a** — Kerangka pengaturan, panel Akun, slot aksesibilitas — *selesai*. Mendarat **± 1.170 LOC** (490 sumber + 680 test/e2e), jauh di atas target <500 dan di atas perkiraan ≈450; selisihnya dilaporkan di log.
-> **PR-033b** — Ekspor data (AC 1) — belum.
+> **PR-033b** — Ekspor data — *selesai* (AC 1). Mendarat **± 1.170 LOC** (470 sumber + 700 test/e2e), di atas target <500 dan di atas perkiraan revisi ≈700.
 > **PR-033c** — Hapus akun dua langkah + re-auth (AC 2, 3) — belum.
 >
 > **"Cara Anda masuk" TIDAK ditampilkan di panel akun, dan itu keputusan.** `GET /me` mengembalikan `phone` tetapi bukan `googleId` (identitas provider sengaja bukan urusan pengguna — lihat `meSchema`), jadi satu-satunya cara menampilkannya sekarang adalah menebak dari ada-tidaknya nomor HP. Tebakan itu SALAH untuk akun yang punya keduanya, dan baris yang salah di halaman "data yang kami simpan tentang Anda" lebih merugikan daripada baris yang belum ada. PR-033c menghadapi kekurangan yang sama saat memilih cara re-auth; jalan keluarnya kelak adalah menambahkan `authMethods` ke kontrak `/me` (perubahan backend, di luar scope PR-033).
@@ -821,8 +821,12 @@ RB-Std.
 * **Panel bersarang lolos dari kewajiban terdaftar di registry.** Penjaga PR-031 hanya membaca route tingkat pertama, jadi `/pengaturan/aksesibilitas` — dan setiap panel yang lahir di bawah route bersarang mana pun sesudahnya — tidak wajib punya entri. PR-033a membuat penelusurannya rekursif dan menambahkan penjaga atas penjaganya sendiri.
 * **Tautan lompat diuji pada dokumen yang masih kosong.** Cacat laten sejak PR-032a yang baru muncul ketika jumlah halaman bertambah: `page.goto` selesai begitu kerangka SPA terunduh, jauh sebelum React menulis apa pun, dan Tab yang ditekan pada dokumen kosong tidak mendarat di mana pun — fokusnya TIDAK menyusul sendiri sesudah isinya muncul. Halaman terlindungi paling rentan sebab ia menunggu pemulihan sesi lebih dulu. Ditutup dengan menunggu `h1` dan `bringToFront()` sebelum menekan Tab.
 
+* **Ekspor sebagai `useQuery` akan menghabiskan jatah pengguna tanpa ia menekan apa pun.** Endpoint-nya `GET`, jadi bentuk yang paling wajar ditulis (`useQuery`) justru yang salah: ia berjalan sendiri saat komponen dipasang dan berpotensi berjalan lagi saat datanya dianggap basi — padahal tiap panggilan memakan satu dari tiga jatah harian dan tercatat di audit. Ditutup PR-033b dengan TIDAK menyediakan query key untuk endpoint itu di `@nawasena/api-client`, sehingga jalan yang salah tidak tersedia; dijaga test.
+* **Tombol `disabled` saat sibuk mengusir fokus pengguna keyboard.** Peramban melepas fokus dari elemen yang baru dinonaktifkan; pengguna yang menekan Enter mendarat di awal dokumen dan harus menyusuri halaman lagi — tepat setelah aksinya berhasil. PR-033b memakai `aria-disabled` + penjaga di handler, dan menyeragamkan tombol "Coba lagi" PR-033a yang sebelumnya memakai `disabled`.
+
 #### Log Implementasi
 
+* 2026-08-10 — PR-033b selesai (endpoint `GET /me/export` di api-client tanpa query key, tombol unduh dengan live region, pesan kuota khas ekspor, pengunduh berkas di `shared/`, inti pesan galat dipindah ke `shared/galat-api.ts`). Menutup AC 1. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-033b--ekspor-data-pribadi).
 * 2026-08-10 — PR-033a selesai (route `/pengaturan` terlindungi + navigasi panel, panel Akun & Data Saya di atas `GET /me` yang baru di api-client, slot aksesibilitas memakai `KeadaanKosong`, katalog i18n `pengaturan`, penanda `butuhSesi` di registry a11y, penjaga registry rekursif). Menutup kerangka dari AC 4 & 5. Lihat [log/implementation_log_phase03.md](log/implementation_log_phase03.md#pr-033a--kerangka-pengaturan-panel-akun--slot-aksesibilitas).
 
 

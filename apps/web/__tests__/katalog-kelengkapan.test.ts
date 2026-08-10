@@ -72,6 +72,9 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "pengaturan.akun.nomor": "Label dua kata; sama dengan label di halaman masuk (`auth.nomor.label`).",
   "pengaturan.akun.belumDiisi": "Dua kata sehari-hari, sudah menyebut keadaannya secara harfiah.",
   "pengaturan.akun.cobaLagi": "Label tombol dua kata, sama dengan `shell.luring.cobaLagi`.",
+  "pengaturan.ekspor.tombol":
+    "Label tombol tiga kata sehari-hari. 'Unduh' harus SAMA di kedua varian — ia muncul lagi " +
+    "di kalimat pengumuman dan di judul bagiannya, dan pengguna mencocokkan kata yang tadi ia tekan.",
   "pengaturan.aksesibilitas.judul":
     "ISTILAH PRODUK, dan sengaja tidak disederhanakan. Kata ini muncul di navigasi, di judul " +
     "panel, dan kelak di seluruh panel preferensi (PR-036); menggantinya hanya di mode sederhana " +

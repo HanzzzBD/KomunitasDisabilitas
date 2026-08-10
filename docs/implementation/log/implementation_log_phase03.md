@@ -1876,3 +1876,84 @@ Pemalsuan API juga dipindahkan dari dalam spec axe ke `e2e/palsukan-api.ts`, seb
 
 * **PR-033b** — ekspor data: `GET /me/export` di api-client, unduh JSON, keadaan kuota habis (3×/24 jam). Perkiraan direvisi: ± 700 LOC.
 * **PR-033c** — hapus akun: dialog dua langkah + re-auth OTP/Google, penjelasan masa tunggu 30 hari. Perkiraan direvisi: ± 1.100 LOC. Bila terukur lebih besar lagi saat diperiksa, pemecahan lanjutan diusulkan **sebelum** implementasi.
+
+## PR-033b — Ekspor data pribadi
+
+**Tanggal:** 2026-08-10
+**Branch:** `pr-033b-ekspor-data` → `phase-03-web-platform-base`
+**Menutup:** AC PR-033 nomor 1. Menambah cakupan AC 4 & 5.
+
+### Ringkasan
+
+Hak portabilitas UU PDP §8.7 punya tombolnya: `GET /me/export` masuk ke `@nawasena/api-client`, dan panel Akun & Data Saya kini bisa menyerahkan seluruh data pengguna sebagai satu berkas JSON.
+
+### Keputusan teknis
+
+**`useMutation`, bukan `useQuery`, meski endpoint-nya `GET`.** Inilah keputusan paling penting di PR ini, dan ia menyalahi bentuk yang paling wajar ditulis. Tiap panggilan memakan satu dari tiga jatah harian dan tercatat di audit; sebagai query ia akan berjalan sendiri saat komponen dipasang dan berpotensi berjalan lagi saat datanya dianggap basi — menghabiskan jatah pengguna tanpa ia menekan apa pun. Yang menahan kesalahan itu bukan komentar melainkan bentuk API: `@nawasena/api-client` sengaja TIDAK menyediakan query key untuk endpoint ini, jadi jalan yang salah tidak tersedia. Dijaga test yang memeriksa isi `usersKeys`.
+
+**`aria-disabled`, bukan `disabled`, pada tombol sibuk.** Peramban melepas fokus dari elemen yang baru dinonaktifkan: pengguna keyboard yang menekan Enter mendarat di awal dokumen dan harus menyusuri halaman lagi — tepat setelah aksinya berhasil. `aria-disabled` tetap mengumumkannya nonaktif tanpa mengusir fokus; yang menahan klik kedua adalah penjaga di handler, dan itu diuji terpisah supaya tidak ada yang mengira `aria-disabled` menahannya sendiri. Tombol "Coba lagi" dari PR-033a yang memakai `disabled` ikut diseragamkan — dua pola berlawanan di satu berkas lebih buruk daripada salah satunya.
+
+**Keberhasilan DIUMUMKAN, dan itu bukan hiasan.** Unduhan tidak mengubah apa pun di halaman: pengguna screen reader menekan tombol lalu tidak mendengar apa pun sama sekali, dan tidak punya cara mengetahui bahwa berkasnya sudah ada. Live region-nya dirender sejak awal (kosong), sebab region yang lahir bersama pesannya kerap tidak terbaca — pola yang sama dengan `WilayahMemuat` (PR-028b). Isinya dikosongkan tiap kali tombol ditekan, karena unduhan kedua pada hari yang sama menghasilkan kalimat yang SAMA PERSIS, dan menulis teks identik dua kali bukan perubahan — jadi tidak diumumkan. Diuji dengan `MutationObserver` yang merekam urutan perubahan, bukan dengan menangkap keadaan sesaat.
+
+**Batas kuota disebutkan SEBELUM ditekan.** Pengguna yang tahu jatahnya tiga tidak akan menekan berulang lalu tiba-tiba ditolak tanpa mengerti sebabnya.
+
+**Pesan 429 khas ekspor, bukan pesan khas login.** Kode servernya sama (`TERLALU_BANYAK_PERMINTAAN`) dengan yang muncul saat terlalu sering mencoba masuk. Satu daftar pesan bersama akan membuat halaman ini berkata "terlalu banyak percobaan" kepada orang yang baru sekali menekan tombol. Karena itu inti generik `pesanGalat` (pesan server + hint, cadangan jaringan) dipindah ke `shared/galat-api.ts` dan petanya diminta per pemanggil. Pemindahan itu dilakukan SEKARANG, bukan lebih awal: sampai kemarin pemakainya cuma satu, dan memindahkan lebih dulu hanyalah tebakan tentang pemakai kedua yang belum ada. Kunci `auth.galat.jaringan` ikut pindah menjadi `shell.galat.jaringan` — kegagalan jaringan tidak punya domain auth.
+
+**Nama berkas bertanggal WIB.** `exportedAt` datang dalam UTC; memotong sepuluh huruf pertamanya memberi TANGGAL KEMARIN bagi siapa pun yang mengunduh sesudah pukul tujuh malam. Tanggal yang meleset sehari persis menghapus satu-satunya gunanya: mengurutkan unduhan di folder Unduhan.
+
+**Berkasnya berisi ekspor itu sendiri, bukan amplop `{ data }`.** Amplop adalah urusan API; pengguna yang membuka berkasnya tidak punya alasan melihat satu lapis pembungkus yang hanya bermakna di dalam kode. JSON-nya berindentasi — ekspor PDP dibaca manusia, dan JSON satu baris panjang memenuhi kontrak sambil mengingkari gunanya.
+
+**Tombol ekspor dirender DI LUAR percabangan gagal-memuat identitas.** Pengguna yang `GET /me`-nya gagal tetap berhak mengambil salinan datanya; menyembunyikan tombolnya pada saat itu berarti hak PDP hilang karena kegagalan yang tidak ada hubungannya.
+
+### Uji mutasi (dijalankan, bukan diasumsikan)
+
+| Mutasi | jsdom | Peramban |
+|---|---|---|
+| `aria-disabled` → `disabled` | **1 merah** | — |
+| pengosongan live region di `onMutate` dilepas | **1 merah** | — |
+| berkas dibungkus amplop `{ data }` | **2 merah** | — |
+| `timeZone: "Asia/Jakarta"` → `"UTC"` | **2 merah** | **2 merah** |
+| 429 dipetakan ke kalimat auth | **2 merah** | — |
+| tautan tidak dipasang ke dokumen | **1 merah** | **hijau** |
+| pelepasan URL objek tidak ditunda | **2 merah** | **hijau** |
+
+**Dua baris terakhir mengubah isi berkas ini, dan layak dibaca dua kali.**
+
+Saya menulis kedua kehati-hatian itu dengan alasan "sebagian peramban mengabaikannya / membatalkan unduhannya". Uji mutasi membantahnya untuk peramban yang benar-benar kita jalankan: dengan tautan yang tidak pernah masuk dokumen, dan dengan URL objek yang dilepas seketika, **unduhan di Chromium tetap berhasil**. Klaim itu semula ditulis seolah terverifikasi; komentarnya sudah dikoreksi.
+
+Keduanya tetap dipertahankan, tetapi kini atas alasan yang jujur: gerbang a11y kita menjalankan SATU mesin peramban, penggunanya tidak, dan yang dicegah keduanya bersifat bisu — tombol ditekan, tidak terjadi apa-apa, tanpa satu pun pesan galat. Kegagalan bisu tidak pernah sampai sebagai laporan; pengguna hanya berhenti memakai fiturnya. Bila kelak terbukti tidak ada peramban target yang membutuhkannya, keduanya boleh dibuang — atas bukti, bukan atas dugaan bahwa "Chromium saja sudah cukup".
+
+Baris `timeZone` juga tidak bisa dibuat merah dengan menyetel `TZ`: Node di mesin Windows ini tidak menghormatinya (temuan PR-033a). Mutasinya karena itu menjadi `timeZone: "UTC"`, yang mensimulasikan runner CI secara tepat — dan di sana ia merah di KEDUA lapis.
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` | hijau (9 task) |
+| `pnpm typecheck` | hijau (9 task) |
+| `pnpm test` — web | **356** test / 32 berkas (+27) |
+| `pnpm test` — api-client | **34** test / 5 berkas (+4) |
+| Playwright | **17** test hijau (+3) |
+| Lighthouse desktop | perf 82–85, a11y 100 |
+| Lighthouse 3G | perf 82–85, a11y 100 |
+| Budget bundel | 105,33 KB / 200 KB gzip |
+
+### Risiko & batas yang jujur
+
+**Perkiraan LOC meleset lagi, arah yang sama.** Perkiraan revisi ≈700 (sudah dinaikkan setelah PR-033a), mendarat **± 1.170** (470 sumber + 700 test/e2e). Rasionya membaik (1,7× dari 2,5×) tetapi masih di atas. Yang konsisten membengkak adalah test, bukan sumber.
+
+**Margin perf 3G tipis dan berayun.** Terukur 82–85 antar-run pada mesin yang sama, dengan ambang 80. Bundel awal naik 104,96 → 105,33 KB gzip. Gerbangnya menjaga, tetapi PR yang menambah sedikit saja bisa membuatnya merah karena kebisingan pengukuran, bukan karena regresi nyata. Jalan keluarnya tetap sama: memisahkan shell publik dari shell aplikasi (Phase 16).
+
+**Belum diverifikasi manusia:** NVDA atas pengumuman keberhasilan unduhan (inilah bagian yang paling menuntut telinga sungguhan — seluruh gunanya ada pada apakah ia benar-benar terdengar), unduhan di peramban selain Chromium, unduhan di peramban ponsel (perilaku `download` di iOS Safari berbeda), dan review teks katalog oleh non-engineer.
+
+**Kuota tidak ditampilkan sebagai sisa.** Halaman menyebut "sampai 3 kali dalam 24 jam" tetapi tidak bisa menyebut berapa yang tersisa: server tidak mengembalikan angka itu pada jawaban sukses, dan `Retry-After` pada 429 tidak terbaca klien (celah lama yang tercatat sejak PR-030b — `ApiError` tidak membawa header).
+
+### Out of scope
+
+* Hapus akun + dialog re-auth (PR-033c).
+* Meneruskan header `Retry-After` di `@nawasena/api-client` — celah yang sama dengan PR-030b, dan menutupnya menyentuh seluruh pemakai klien.
+* Ekspor berformat lain (CSV/PDF): kontraknya JSON, dan `formatVersion` di dalamnya adalah janji atas bentuk itu.
+
+### Next steps
+
+* **PR-033c** — hapus akun: dialog dua langkah + re-auth OTP/Google, penjelasan masa tunggu 30 hari. Perkiraan direvisi lagi mengikuti dua kali meleset: **± 1.400 LOC**. Bila terukur lebih besar saat diperiksa, pemecahan lanjutan diusulkan **sebelum** implementasi.
