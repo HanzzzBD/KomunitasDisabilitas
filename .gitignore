@@ -55,3 +55,9 @@ temp/
 
 # Berkas sementara Vite saat config-nya di-bundle ulang (muncul saat `vite preview`).
 *.timestamp-*.mjs
+
+# Jejak peramban dari MCP Playwright (snapshot halaman & log konsol), dihasilkan
+# saat verifikasi manual dijalankan lewat alat itu. Ia bisa memuat isi halaman
+# yang sedang dibuka — termasuk nama dan alamat email pengguna uji — jadi ia
+# TIDAK boleh masuk repo. Bukan artefak build: tidak ada yang membacanya ulang.
+/.playwright-mcp/

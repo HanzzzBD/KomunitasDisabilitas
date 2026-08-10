@@ -99,22 +99,38 @@ async function siapkanAlurGoogle(opsi: {
   url.searchParams.set("state", state);
 
   if (opsi.maksud === "hapus-akun") {
-    // MEMINTA GOOGLE MEMBUKTIKAN ULANG, bukan sekadar menerbitkan code.
+    // MEMINTA Google membuktikan ulang — dan hanya itu yang bisa kita lakukan.
     //
-    // Inti re-auth adalah membuktikan bahwa orang yang menekan tombol SEKARANG
-    // adalah pemiliknya. Bila Google mengembalikan code diam-diam karena
-    // peramban ini masih punya sesi Google yang hidup, yang terbukti hanyalah
-    // "peramban ini pernah dipakai masuk ke Google" — persis kelemahan yang
-    // seharusnya ditutup langkah ini.
+    // `max_age=0` meminta autentikasi baru; `select_account` memastikan pengguna
+    // menyatakan akun mana yang ia maksud alih-alih dipilihkan. Keduanya
+    // dipertahankan karena kadang berhasil dan tidak merugikan.
     //
-    // `max_age=0` menuntut autentikasi yang baru; `select_account` memastikan
-    // pengguna menyatakan akun mana yang ia maksud alih-alih dipilihkan.
+    // APA YANG SUDAH DIUKUR, DAN APA YANG TERNYATA TIDAK BISA DIKLAIM
+    // (verifikasi manual 2026-08-10, 16 penukaran id_token nyata):
     //
-    // BATASNYA JUJUR: yang bisa kita lakukan hanya MEMINTA. Apakah Google
-    // benar-benar menegakkannya hanya terbaca dari klaim `auth_time` di
-    // id_token, dan server kita saat ini hanya mencocokkan `sub` (PR-021).
-    // Memverifikasi `auth_time` adalah perubahan backend — dicatat sebagai
-    // langkah lanjutan, bukan diklaim sudah ada.
+    //   - Google MENERIMA `max_age` — ia mem-parsingnya ke parameter alurnya
+    //     sendiri (`opparams=?max_age=0`).
+    //   - Perilakunya BERGANTUNG PADA STATE SESI: mengetik email secara manual
+    //     memicu permintaan password; memilih akun yang sudah bersesi lewat
+    //     begitu saja.
+    //   - Klaim `auth_time` TIDAK PERNAH HADIR — 0 dari 16 token, termasuk 4
+    //     penukaran yang membawa `max_age=0`. Jadi hasil re-auth tidak tersedia
+    //     dalam bentuk apa pun yang bisa diverifikasi server.
+    //   - Callback kadang membawa `prompt=none`. Itu OBSERVASI, bukan bukti:
+    //     ia parameter query di URL peramban, tanpa integritas, dan bisa
+    //     disusun ulang siapa saja.
+    //
+    // KARENA ITU KLAIM KEAMANANNYA DITURUNKAN, dan sistem tidak boleh
+    // menyatakan bahwa jalur ini membuktikan kepemilikan akun SAAT INI. Yang
+    // benar-benar dibuktikan: peramban ini memegang sesi Google yang cocok
+    // dengan `google_id` akun. Itu LEBIH LEMAH daripada kode OTP baru, yang
+    // menuntut kredensial yang baru saja dikirim ke nomor terdaftar.
+    //
+    // Enforcement berbasis `auth_time` DIBATALKAN (keputusan owner 2026-08-10),
+    // bukan ditunda: memasang gerbang atas klaim yang tidak pernah tiba hanya
+    // menghasilkan cabang kode yang tak pernah berjalan sambil terbaca seperti
+    // perlindungan. Lapisan pemulihannya dipindahkan ke tempat yang benar-benar
+    // kita kendalikan — pemberitahuan pasca-hapus (dependensi Phase 07).
     url.searchParams.set("max_age", "0");
     url.searchParams.set("prompt", "select_account");
   }
