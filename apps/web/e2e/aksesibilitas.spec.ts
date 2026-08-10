@@ -17,6 +17,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import type { AxeResults } from "axe-core";
 import { HALAMAN } from "./halaman.js";
+import { harusTidakBerpindah, palsukanApi } from "./palsukan-api.js";
 
 /**
  * Aturan yang dijalankan: seluruh WCAG 2.2 A + AA.
@@ -26,46 +27,6 @@ import { HALAMAN } from "./halaman.js";
  * baris pun berubah di repo ini.
  */
 const TAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-
-/**
- * Jaringan DIPALSUKAN, dan itu keputusan — bukan jalan pintas.
- *
- * Gerbang ini memeriksa TAMPILAN, bukan integrasi. Menggantungkannya pada API
- * yang berjalan berarti: pipeline butuh Postgres + Redis + worker hanya untuk
- * memeriksa kontras warna; kegagalan jaringan terbaca sebagai pelanggaran
- * aksesibilitas; dan keadaan halaman ikut berubah-ubah mengikuti isi basis
- * data. Gerbang yang kadang merah karena sebab lain akan diabaikan orang, dan
- * gerbang yang diabaikan tidak menjaga apa pun.
- *
- * Jawabannya sengaja MINIMAL — hanya yang membuat halaman mencapai keadaan
- * yang ingin diperiksa.
- */
-async function palsukanApi(page: Page) {
-  await page.route("**/api/v1/**", async (route) => {
-    const jalur = new URL(route.request().url()).pathname;
-
-    // Pengunjung halaman masuk memang belum punya sesi.
-    if (jalur.endsWith("/auth/refresh")) {
-      return route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({ code: "SESI_TIDAK_VALID", message: "Sesi Anda sudah berakhir" }),
-      });
-    }
-    if (jalur.endsWith("/auth/otp/request")) {
-      return route.fulfill({
-        status: 202,
-        contentType: "application/json",
-        body: JSON.stringify({ data: { retryAfterSeconds: 0 } }),
-      });
-    }
-    return route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ code: "BELUM_SIAP", message: "Belum tersedia" }),
-    });
-  });
-}
 
 function laporkan(hasil: AxeResults): string {
   return hasil.violations
@@ -88,13 +49,15 @@ async function periksa(
   return builder.analyze();
 }
 
-test.beforeEach(async ({ page }) => {
-  await palsukanApi(page);
-});
-
+// Jawaban palsu dipasang PER TEST, bukan di `beforeEach` bersama, karena isinya
+// bergantung pada halaman yang sedang diperiksa (`butuhSesi`).
 for (const halaman of HALAMAN) {
   test(`a11y: ${halaman.nama}`, async ({ page }) => {
+    await palsukanApi(page, halaman);
     await page.goto(halaman.jalur);
+
+    await harusTidakBerpindah(page, halaman);
+
     if (halaman.siapkan !== undefined) {
       await halaman.siapkan({
         fill: (sel, nilai) => page.fill(sel, nilai),
@@ -112,6 +75,7 @@ test("gerbang ini TIDAK lulus secara hampa", async ({ page }) => {
   // Seluruh nilai gerbang ini bergantung pada kemampuannya menjadi merah.
   // Cacat yang ditanam sengaja jenis yang HANYA bisa ditangkap di peramban:
   // kontras warna. Ia lolos lint DAN lolos lapis jsdom.
+  await palsukanApi(page);
   await page.goto("/");
   await page.evaluate(() => {
     const p = document.createElement("p");
@@ -136,6 +100,7 @@ test("utang TAK_BISA_DI_JSDOM benar-benar DIBAYAR, bukan dipindahkan", async ({ 
   // kedua. Inilah yang akhirnya mengukur klaim PR-027 — kontras 17,4:1 dan
   // target sentuh ≥ 44px — dalam piksel dan warna sungguhan, bukan dalam
   // nama kelas.
+  await palsukanApi(page);
   await page.goto("/masuk");
   const hasil = await periksa(page);
   const lulus = new Set(hasil.passes.map((v) => v.id));

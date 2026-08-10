@@ -42,13 +42,48 @@ describe("bentuk registry", () => {
 });
 
 describe("registry mengikuti route yang benar-benar ada", () => {
-  /** Jalur route produksi, diratakan dari `ruteApp`. */
+  /**
+   * Jalur SETIAP HALAMAN produksi, diratakan dari `ruteApp` secara rekursif.
+   *
+   * Rekursif sejak PR-033a, dan itu bukan kerapian. Versi sebelumnya hanya
+   * membaca anak tingkat pertama, sehingga `/pengaturan/aksesibilitas` — dan
+   * setiap panel yang lahir di bawah route bersarang mana pun sesudahnya —
+   * lolos dari kewajiban terdaftar tanpa satu pun gejala. Justru halaman
+   * bersarang yang paling mungkin dilupakan: ia ditambahkan sebagai satu blok
+   * kecil di dalam route yang sudah ada, bukan sebagai route baru yang terlihat.
+   *
+   * Yang dikumpulkan hanya DAUN (route tanpa anak): route induk seperti
+   * `/pengaturan` adalah kerangka, dan yang punya alamat sendiri untuk dibuka
+   * pengguna adalah panel di dalamnya. Route indeks tidak punya `path`, jadi ia
+   * mewarisi alamat induknya — persis seperti di peramban.
+   */
   function jalurRute(): string[] {
-    const induk = ruteApp[0] as RouteObject;
-    return ((induk.children ?? []) as RouteObject[])
-      .filter((r) => r.path !== undefined && r.path !== "*")
-      .map((r) => `/${r.path ?? ""}`);
+    const hasil: string[] = [];
+
+    const telusuri = (rute: readonly RouteObject[], induk: string): void => {
+      for (const r of rute) {
+        if (r.path === "*") continue;
+        const jalur = (r.path === undefined ? induk : `${induk}/${r.path}`).replace(/\/+/g, "/");
+        const anak = (r.children ?? []) as RouteObject[];
+        if (anak.length > 0) telusuri(anak, jalur);
+        else hasil.push(jalur === "" ? "/" : jalur);
+      }
+    };
+
+    telusuri(ruteApp, "");
+    return hasil;
   }
+
+  it("penelusuran route menemukan halaman BERSARANG, bukan hanya tingkat pertama", () => {
+    // Penjaga atas penjaganya sendiri. Bila `jalurRute` kembali dangkal, kedua
+    // test di bawah tetap hijau — mereka hanya berhenti memeriksa sebagian
+    // halaman. Kegagalan yang tidak pernah merah adalah yang paling mahal.
+    const jalur = jalurRute();
+    expect(jalur).toContain("/pengaturan/aksesibilitas");
+    expect(jalur, "route induk bukan halaman; yang punya alamat adalah panelnya").not.toContain(
+      "/masuk/",
+    );
+  });
 
   it("setiap halaman terdaftar menunjuk route yang ada (atau catch-all 404)", () => {
     // Registry yang menunjuk jalur mati akan memeriksa halaman 404 sambil

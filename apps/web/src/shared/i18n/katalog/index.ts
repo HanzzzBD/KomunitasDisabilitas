@@ -6,16 +6,18 @@
 import { katalogShell } from "./shell.js";
 import { katalogAuth } from "./auth.js";
 import { katalogBeranda } from "./beranda.js";
+import { katalogPengaturan } from "./pengaturan.js";
 
 /**
  * Katalog gabungan. Tiap fitur menyumbang kuncinya sendiri di sini.
  *
- * Berikutnya: `pengaturan` (PR-033), `lowongan` (Phase 08).
+ * Berikutnya: `lowongan` (Phase 08).
  */
 export const katalog = {
   ...katalogShell,
   ...katalogAuth,
   ...katalogBeranda,
+  ...katalogPengaturan,
 } as const;
 
 /**
@@ -32,6 +34,7 @@ export const fiturKatalog = [
   { nama: "shell", entri: katalogShell },
   { nama: "auth", entri: katalogAuth },
   { nama: "beranda", entri: katalogBeranda },
+  { nama: "pengaturan", entri: katalogPengaturan },
 ] as const;
 
 /**
