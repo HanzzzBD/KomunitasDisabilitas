@@ -29,6 +29,17 @@ const PROFIL_UJI = {
   createdAt: "2026-01-15T20:00:00.000Z",
 } as const;
 
+/**
+ * Berkas ekspor uji (PR-033b). `exportedAt` sengaja pukul 20.00 UTC — yaitu
+ * hari BERIKUTNYA di WIB — supaya nama berkas yang salah zona langsung
+ * ketahuan, bukan lolos karena kebetulan tanggalnya sama.
+ */
+const BERKAS_UJI = {
+  formatVersion: 1,
+  exportedAt: "2026-01-15T20:00:00.000Z",
+  account: { ...PROFIL_UJI, emailVerified: true, authMethods: ["otp"] },
+} as const;
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
@@ -52,6 +63,9 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
           ? jsonkan(200, { data: { accessToken: "token-uji", expiresIn: 900 } })
           : jsonkan(401, { code: "SESI_TIDAK_VALID", message: "Sesi Anda sudah berakhir" }),
       );
+    }
+    if (jalur.endsWith("/me/export")) {
+      return route.fulfill(jsonkan(200, { data: BERKAS_UJI }));
     }
     if (jalur.endsWith("/me")) {
       return route.fulfill(jsonkan(200, { data: PROFIL_UJI }));

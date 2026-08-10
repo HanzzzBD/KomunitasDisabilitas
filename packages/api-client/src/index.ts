@@ -17,5 +17,5 @@ export {
   logoutAll,
   authKeys,
 } from "./endpoints/auth.js";
-export { getMe, usersKeys } from "./endpoints/users.js";
+export { getMe, exportMe, usersKeys } from "./endpoints/users.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

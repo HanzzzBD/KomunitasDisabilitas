@@ -100,6 +100,47 @@ export const katalogPengaturan = {
     "id-simple": "Coba lagi",
   },
 
+  // --- Ekspor data (PR-033b) ---
+  //
+  // Teks bagian ini menjelaskan HAK, bukan fitur. Yang membacanya sedang
+  // memutuskan apakah akan mengambil salinan datanya, dan ia berhak tahu apa
+  // yang akan ia terima sebelum menekan apa pun.
+  "pengaturan.ekspor.judul": {
+    id: "Unduh salinan data Anda",
+    "id-simple": "Ambil salinan data Anda",
+  },
+  "pengaturan.ekspor.penjelasan": {
+    id: "Anda berhak mengambil salinan data yang kami simpan. Berkasnya berbentuk JSON dan bisa Anda simpan atau pindahkan ke layanan lain.",
+    "id-simple": "Anda boleh mengambil data Anda kapan saja. Data akan diunduh sebagai satu berkas. Berkas itu milik Anda.",
+  },
+  "pengaturan.ekspor.batas": {
+    // Batas kuota disebutkan LEBIH DULU, bukan baru muncul sebagai galat.
+    // Pengguna yang tahu jatahnya tiga tidak akan menekan tombolnya berulang
+    // kali lalu tiba-tiba ditolak tanpa mengerti sebabnya.
+    id: "Anda bisa mengunduh sampai 3 kali dalam 24 jam.",
+    "id-simple": "Anda bisa mengunduh 3 kali sehari.",
+  },
+  "pengaturan.ekspor.tombol": {
+    id: "Unduh data saya",
+    "id-simple": "Unduh data saya",
+  },
+  "pengaturan.ekspor.menyiapkan": {
+    id: "Menyiapkan berkas data Anda…",
+    "id-simple": "Sebentar, berkas Anda sedang disiapkan…",
+  },
+  "pengaturan.ekspor.selesai": {
+    // Diumumkan, bukan hanya ditampilkan. Unduhan tidak mengubah apa pun di
+    // halaman: pengguna screen reader menekan tombol lalu tidak mendengar apa
+    // pun sama sekali, dan tidak punya cara mengetahui bahwa berkasnya sudah
+    // ada. Nama berkasnya ikut disebut supaya ia bisa mencarinya.
+    id: "Berkas {nama} sudah diunduh. Cek folder unduhan di perangkat Anda.",
+    "id-simple": "Berkas {nama} sudah selesai. Lihat folder unduhan Anda.",
+  },
+  "pengaturan.ekspor.galat.jatahHabis": {
+    id: "Jatah unduhan Anda hari ini sudah habis. Coba lagi besok, atau pakai berkas yang sudah Anda unduh.",
+    "id-simple": "Hari ini Anda sudah mengunduh 3 kali. Coba lagi besok.",
+  },
+
   // --- Aksesibilitas (slot; diisi PR-036) ---
   "pengaturan.aksesibilitas.judul": {
     id: "Aksesibilitas",

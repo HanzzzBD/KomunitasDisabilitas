@@ -98,6 +98,12 @@ export const katalogShell = {
     "id-simple": "Buka ulang halaman",
   },
 
+  // --- Galat lintas fitur ---
+  "shell.galat.jaringan": {
+    id: "Tidak dapat terhubung ke server. Periksa internet Anda, lalu coba lagi.",
+    "id-simple": "Internet Anda bermasalah. Coba lagi nanti.",
+  },
+
   // --- Sesi ---
   "shell.sesi.memulihkan": {
     id: "Memeriksa apakah Anda masih masuk…",

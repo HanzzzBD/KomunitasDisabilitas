@@ -1,9 +1,8 @@
-// Panel indeks "/pengaturan" — Akun & Data Saya (PR-033a).
+// Panel indeks "/pengaturan" — Akun & Data Saya (PR-033a, PR-033b).
 //
 // APA YANG ADA DI SINI, DAN APA YANG MENYUSUL. PR-033a memasang panelnya dan
-// menjawab pertanyaan "data apa yang kalian simpan tentang saya". Dua kendali
-// hak PDP menyusul di atas panel yang sama: unduh salinan data (PR-033b) dan
-// hapus akun (PR-033c).
+// menjawab "data apa yang kalian simpan tentang saya"; PR-033b menambahkan hak
+// mengambil salinannya. Hapus akun menyusul di PR-033c.
 //
 // KENAPA IDENTITAS DITAMPILKAN, DAN BUKAN SEKADAR KERANGKA KOSONG. Halaman
 // bernama "Data Saya" yang tidak menampilkan satu pun data adalah halaman yang
@@ -11,12 +10,15 @@
 // PR-030a: store sesi tahu BAHWA pengguna masuk tetapi tidak tahu SIAPA, dan
 // catatannya menyebut bahwa jawabannya lahir "bersama halaman pertama yang
 // menampilkan identitas". Inilah halaman itu.
-import { useQuery } from "@tanstack/react-query";
-import { getMe, usersKeys } from "@nawasena/api-client";
-import { Tombol, WilayahMemuat } from "@nawasena/ui";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { exportMe, getMe, usersKeys } from "@nawasena/api-client";
+import { Kartu, Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { useKlienApi } from "../app/klien-api.js";
+import { berkasJson, unduhBerkas } from "../shared/unduh-berkas.js";
+import { namaBerkasEkspor, pesanGalatEkspor } from "../features/akun/ekspor.js";
 
 /**
  * Tanggal dalam zona WIB, ditulis EKSPLISIT.
@@ -70,6 +72,90 @@ function Baris({ label, nilai, kosong }: BarisProps) {
   );
 }
 
+/**
+ * Bagian "Unduh salinan data Anda" — AC PR-033 nomor 1.
+ *
+ * `useMutation`, BUKAN `useQuery`, meski endpoint-nya `GET`. Tiap panggilan
+ * memakan kuota (3× per 24 jam) dan tercatat di audit; sebagai query ia akan
+ * berjalan sendiri saat komponen dipasang dan berpotensi berjalan lagi saat
+ * datanya dianggap basi — menghabiskan jatah pengguna tanpa ia menekan apa pun.
+ * `@nawasena/api-client` sengaja tidak menyediakan query key untuk endpoint ini
+ * supaya jalan yang salah itu tidak tersedia.
+ */
+function UnduhData() {
+  const t = useTeks();
+  const klien = useKlienApi();
+  const [kabar, setKabar] = useState("");
+
+  const ekspor = useMutation({
+    mutationFn: () => exportMe(klien),
+    onMutate: () => {
+      // Dikosongkan lebih dulu supaya unduhan KEDUA pada hari yang sama ikut
+      // terdengar: live region hanya mengumumkan PERUBAHAN, dan menulis kalimat
+      // yang sama persis dua kali bukan perubahan.
+      setKabar("");
+    },
+    onSuccess: ({ data: berkas }) => {
+      const nama = namaBerkasEkspor(berkas.exportedAt);
+      unduhBerkas(nama, berkasJson(berkas));
+      setKabar(t("pengaturan.ekspor.selesai", { nama }));
+    },
+  });
+
+  const sibuk = ekspor.isPending;
+
+  return (
+    <Kartu
+      judul={t("pengaturan.ekspor.judul")}
+      // Tingkat 3: bersarang di bawah <h2> panel, yang bersarang di bawah <h1>
+      // "Pengaturan" milik kerangka.
+      tingkatJudul={3}
+      aksi={
+        <Tombol
+          // `aria-disabled`, BUKAN `disabled`. Tombol yang dinonaktifkan saat ia
+          // sedang MEMEGANG fokus melepaskan fokus itu ke awal dokumen di
+          // beberapa peramban — pengguna keyboard yang baru menekan Enter
+          // terdampar dan harus menyusuri halaman lagi untuk kembali. Dengan
+          // `aria-disabled` tombolnya tetap terfokus dan tetap diumumkan
+          // sebagai nonaktif; yang menahan klik kedua adalah penjaga di bawah.
+          aria-disabled={sibuk}
+          aria-busy={sibuk}
+          onClick={() => {
+            if (sibuk) return;
+            ekspor.mutate();
+          }}
+        >
+          {sibuk ? t("pengaturan.ekspor.menyiapkan") : t("pengaturan.ekspor.tombol")}
+        </Tombol>
+      }
+    >
+      <p className="text-base text-gray-900">{t("pengaturan.ekspor.penjelasan")}</p>
+      {/* Batasnya disebutkan SEBELUM ditekan, bukan baru muncul sebagai galat. */}
+      <p className="text-sm text-gray-700">{t("pengaturan.ekspor.batas")}</p>
+
+      {/*
+        Selalu dirender, juga saat kosong. Live region hanya mengumumkan
+        perubahan DI DALAM region yang sudah ada; region yang lahir bersama
+        pesannya kerap tidak terbaca sama sekali (pola yang sama dengan
+        `WilayahMemuat`, PR-028b).
+
+        Ini satu-satunya tanda bahwa unduhan berhasil: berkas yang turun tidak
+        mengubah apa pun di halaman, jadi tanpa pengumuman ini pengguna screen
+        reader menekan tombol lalu tidak mendengar apa pun sama sekali.
+      */}
+      <p role="status" className="text-base text-gray-900">
+        {kabar}
+      </p>
+
+      {ekspor.isError ? (
+        <p role="alert" className="text-base font-semibold text-gray-900">
+          {pesanGalatEkspor(ekspor.error, t)}
+        </p>
+      ) : null}
+    </Kartu>
+  );
+}
+
 export function PengaturanAkun() {
   const t = useTeks();
   const klien = useKlienApi();
@@ -112,11 +198,17 @@ export function PengaturanAkun() {
             serta memaksa seluruh aplikasi diunduh lagi di jaringan yang barusan
             terbukti bermasalah.
           */}
+          {/* `aria-disabled`, bukan `disabled` — alasannya sama seperti tombol
+              unduh di bawah, dan justru paling menyakitkan di sini: tombol ini
+              PASTI sedang memegang fokus saat ditekan, sebab ia satu-satunya
+              kendali di layar galat. Diseragamkan di PR-033b. */}
           <Tombol
+            aria-disabled={isFetching}
+            aria-busy={isFetching}
             onClick={() => {
+              if (isFetching) return;
               void refetch();
             }}
-            disabled={isFetching}
           >
             {t("pengaturan.akun.cobaLagi")}
           </Tombol>
@@ -147,6 +239,15 @@ export function PengaturanAkun() {
           </dl>
         </WilayahMemuat>
       )}
+
+      {/*
+        Hak mengunduh berdiri SENDIRI dari keberhasilan memuat identitas.
+        Dirender di luar percabangan di atas dengan sengaja: pengguna yang
+        `GET /me`-nya gagal tetap berhak mengambil salinan datanya, dan
+        menyembunyikan tombolnya pada saat itu berarti hak PDP hilang justru
+        karena kegagalan yang tidak ada hubungannya.
+      */}
+      <UnduhData />
     </section>
   );
 }
