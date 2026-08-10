@@ -11,6 +11,7 @@
 // catatannya menyebut bahwa jawabannya lahir "bersama halaman pertama yang
 // menampilkan identitas". Inilah halaman itu.
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { exportMe, getMe, usersKeys } from "@nawasena/api-client";
 import { Kartu, Tombol, WilayahMemuat } from "@nawasena/ui";
@@ -19,6 +20,8 @@ import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { berkasJson, unduhBerkas } from "../shared/unduh-berkas.js";
 import { namaBerkasEkspor, pesanGalatEkspor } from "../features/akun/ekspor.js";
+import { DialogHapusAkun } from "../features/akun/dialog-hapus-akun.js";
+import { useStoreSesi } from "../shared/sesi/store.js";
 
 /**
  * Tanggal dalam zona WIB, ditulis EKSPLISIT.
@@ -156,6 +159,58 @@ function UnduhData() {
   );
 }
 
+/**
+ * Bagian "Hapus akun" — AC PR-033 nomor 2 & 3.
+ *
+ * PR-033c-1 hanya membangun jalur konfirmasi lewat kode OTP. Akun yang masuk
+ * lewat Google (tanpa nomor HP) diberi tahu APA ADANYA bahwa jalurnya belum
+ * ada, bukan tombol yang akan ditolak server pada langkah terakhir: pengguna
+ * yang ditolak sesudah membaca seluruh peringatan akan mengira dirinya yang
+ * salah. Jalur Google lahir di PR-033c-2.
+ */
+function HapusAkun({ nomor }: { nomor: string | null }) {
+  const t = useTeks();
+  const klien = useKlienApi();
+  const navigate = useNavigate();
+  const keluar = useStoreSesi((s) => s.keluar);
+
+  return (
+    <Kartu judul={t("pengaturan.hapus.judul")} tingkatJudul={3}>
+      <p className="text-base text-gray-900">{t("pengaturan.hapus.penjelasan")}</p>
+
+      {nomor === null ? (
+        <p className="text-base text-gray-900">{t("pengaturan.hapus.tanpaNomor")}</p>
+      ) : (
+        <DialogHapusAkun
+          klien={klien}
+          nomor={nomor}
+          onSelesai={() => {
+            // BERPINDAH DULU — DAN PERPINDAHANNYA HARUS SUDAH TER-COMMIT —
+            // baru sesinya dibuang.
+            //
+            // Membuang sesi lebih dulu berarti `Terlindungi`, yang masih
+            // merender halaman ini, langsung melihat status "keluar" lalu
+            // mengalihkan ke `/masuk?tujuan=%2Fpengaturan`. Pengguna yang baru
+            // saja menghapus akunnya mendarat di halaman MASUK, membawa tujuan
+            // kembali ke pengaturan akun yang sudah tidak ada.
+            //
+            // Menukar urutannya saja TIDAK cukup, dan itu yang ditemukan test:
+            // pada data router (`createBrowserRouter`), `navigate` ASINKRON —
+            // ia menjalankan transisi lebih dulu, sehingga baris sesudahnya
+            // berjalan ketika halaman ini MASIH terpasang. `flushSync` juga
+            // tidak menolong; ia tidak bisa memaksa transisi router selesai.
+            //
+            // Karena itu perpindahannya DITUNGGU. Bentuk ini sekaligus menyatakan
+            // maksudnya: sesi baru boleh dibuang setelah kita benar-benar keluar
+            // dari halaman terlindungi.
+            void Promise.resolve(navigate("/", { replace: true })).then(() => keluar());
+          }}
+        />
+      )}
+    </Kartu>
+  );
+}
+
 export function PengaturanAkun() {
   const t = useTeks();
   const klien = useKlienApi();
@@ -248,6 +303,15 @@ export function PengaturanAkun() {
         karena kegagalan yang tidak ada hubungannya.
       */}
       <UnduhData />
+
+      {/*
+        Hapus akun, SEBALIKNYA, menunggu identitas termuat — dan itu bukan
+        ketidakkonsistenan. Jalur konfirmasinya ditentukan oleh apa yang dimiliki
+        akun ini (nomor HP atau Google), jadi menawarkannya sebelum tahu berarti
+        menebak. Menebak salah di sini menghasilkan tombol yang menolak pengguna
+        pada langkah terakhir, sesudah ia membaca seluruh peringatan.
+      */}
+      {akun === undefined ? null : <HapusAkun nomor={akun.phone} />}
     </section>
   );
 }

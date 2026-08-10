@@ -249,6 +249,20 @@ export const googleReauthSchema = z
 export type GoogleReauth = z.infer<typeof googleReauthSchema>;
 
 /**
+ * Hari sebelum data dihapus permanen (SDD §6.4; ditegakkan job purge PR-023).
+ *
+ * DI SINI, DI KONTRAK, DAN BUKAN HANYA DI SERVER. Angka ini bukan detail
+ * implementasi: ia DIJANJIKAN kepada pengguna di layar konfirmasi hapus akun
+ * ("data Anda masih bisa dipulihkan dalam 30 hari") dan di SMS pemberitahuan,
+ * lalu DITEGAKKAN oleh job purge. Bila web menuliskan angkanya sendiri, janji
+ * dan perilaku bebas menyimpang — dan yang menanggung selisihnya adalah orang
+ * yang datang di hari ke-28 karena menyangka masih sempat.
+ *
+ * Dipindahkan ke sini di PR-033c-1, saat pemakai keduanya (web) lahir.
+ */
+export const HARI_SEBELUM_PURGE = 30;
+
+/**
  * DELETE /api/v1/auth/account — body.
  *
  * KENAPA ADA BODY SAMA SEKALI. Access token saja TIDAK cukup untuk menghapus

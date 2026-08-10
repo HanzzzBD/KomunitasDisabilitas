@@ -16,7 +16,12 @@
 // PENGHAPUSANNYA SENDIRI SATU TRANSAKSI (lihat userRepository.deleteAccount):
 // `deleted_at` + `token_version` + pencabutan seluruh refresh token berhasil
 // bersama-sama atau tidak sama sekali.
-import { AUDIT_ACTION, type DeleteAccount, type GoogleReauth } from "@nawasena/schemas";
+import {
+  AUDIT_ACTION,
+  HARI_SEBELUM_PURGE,
+  type DeleteAccount,
+  type GoogleReauth,
+} from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
@@ -29,8 +34,16 @@ import type { OtpService } from "./otp.service.js";
 /** Entitas audit modul ini (tanpa PII — nomor/email/googleId tidak pernah ikut). */
 const AUDIT_ENTITY = "auth.account";
 
-/** Hari sebelum data dihapus permanen (SDD §6.4; ditegakkan job purge PR-023). */
-export const HARI_SEBELUM_PURGE = 30;
+/**
+ * Hari sebelum data dihapus permanen (SDD §6.4; ditegakkan job purge PR-023).
+ *
+ * Nilainya kini datang dari `@nawasena/schemas` — bukan ditulis ulang di sini.
+ * Angka ini DIJANJIKAN kepada pengguna (SMS pemberitahuan di bawah, dan layar
+ * konfirmasi di web sejak PR-033c-1) sekaligus DITEGAKKAN oleh job purge; dua
+ * salinan berarti janji dan perilaku bebas menyimpang. Tetap di-re-export agar
+ * pemakai lama di modul ini tidak perlu berubah.
+ */
+export { HARI_SEBELUM_PURGE };
 
 /**
  * Pemberitahuan bahwa akun sudah dihapus, dikirim ke nomor terdaftar.

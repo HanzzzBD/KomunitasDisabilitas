@@ -17,7 +17,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import type { AxeResults } from "axe-core";
 import { HALAMAN } from "./halaman.js";
-import { harusTidakBerpindah, palsukanApi } from "./palsukan-api.js";
+import { harusTidakBerpindah, palsukanApi, tungguGayaTenang } from "./palsukan-api.js";
 
 /**
  * Aturan yang dijalankan: seluruh WCAG 2.2 A + AA.
@@ -65,6 +65,9 @@ for (const halaman of HALAMAN) {
         waitForSelector: (sel) => page.waitForSelector(sel),
       });
     }
+
+    // Warna diukur SESUDAH transisi selesai — lihat .
+    await tungguGayaTenang(page);
 
     const hasil = await periksa(page, halaman.matikan);
     expect(hasil.violations, `\n${laporkan(hasil)}\n`).toEqual([]);
