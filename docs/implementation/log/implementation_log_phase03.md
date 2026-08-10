@@ -2223,3 +2223,38 @@ PR proxy dev Vite (merged sebagai #89) memakai label **PR-034**. Nomor itu **mil
 ### Catatan alat
 
 Verifikasi dijalankan lewat MCP Playwright (agent menyetir navigasi, owner memegang kredensial di layar Google). Alat itu menulis jejak halaman & log konsol ke `.playwright-mcp/`, yang **bisa memuat isi halaman termasuk nama dan email pengguna uji**. Artefaknya dihapus dan polanya ditambahkan ke `.gitignore` — bukan artefak build, dan tidak ada yang membacanya ulang.
+
+## PR-033f — Koreksi dua baris checklist yang basi
+
+**Tanggal:** 2026-08-10
+**Sifat:** dokumentasi saja. Tidak ada kode, tidak ada perubahan perilaku.
+
+### Sebab
+
+Audit final Phase 03 menemukan dua baris yang **meremehkan apa yang sudah terbukti**. Keduanya lahir dari urutan kerja: catatannya ditulis sebelum verifikasi manual dijalankan, lalu verifikasinya berhasil tetapi barisnya tidak ikut diperbarui — bukti hidup di log, sementara checklist masih berkata "belum".
+
+Arah kesalahannya penting untuk dicatat: dokumen **kurang mengklaim**, bukan berlebih. Tidak ada satu pun klaim yang terbukti lebih besar daripada buktinya.
+
+### Yang dikoreksi
+
+**1. AC PR-030 nomor 2 — "Login Google end-to-end (akun uji)".** Sebelumnya `[ ]` dengan catatan *"Yang belum: dijalankan terhadap akun Google sungguhan. Butuh kredensial OAuth nyata"*. Padahal verifikasi manual 2026-08-10 menjalankannya persis begitu: kredensial OAuth nyata, akun uji nyata, URL persetujuan diperiksa dari address bar, dan `AUTH_LOGIN_SUCCEEDED {"method":"google"}` tercatat di `audit_logs`. Log PR-033e bahkan sudah menyatakan menutup AC ini — jadi dokumen berselisih dengan dirinya sendiri.
+
+**2. Testing Checklist PR-033 — "Manual Verification (akun uji dihapus benar-benar)".** Sebelumnya `[ ]` dengan catatan *"belum. Alurnya teruji terhadap klien palsu"*. Padahal akun uji nyata benar-benar dihapus terhadap API dev, dan hasilnya diperiksa di basis data: `deleted_at`, `token_version` naik, 0 refresh token aktif dari 10, serta `ACCOUNT_DELETED{stage:requested→completed, method:google, revokedCount:6}`.
+
+Batas jalur OTP disebut eksplisit di kedua baris: lingkungan ini tidak punya provider OTP, jadi separuh itu tetap terbuka.
+
+### Yang SENGAJA tidak disentuh
+
+**Testing Checklist PR-030 — "Manual Verification (browser nyata)"** tetap `[ ]` dan tetap tanpa catatan. Baris itu mencakup jalur OTP maupun Google; jalur Google memang sudah ditempuh di peramban sungguhan, tetapi OTP belum. Mencentangnya akan mengklaim separuh yang belum ada, dan menambahkan catatan panjang di baris yang statusnya tidak berubah hanya menambah teks tanpa mengubah keputusan siapa pun.
+
+Tiga utang terbuka juga tidak disentuh dan tetap terbuka: NVDA (AC PR-033 nomor 3), keyboard-only jalur hapus lewat Google (AC PR-033 nomor 4), dan review copy oleh non-engineer (Testing Checklist PR-029).
+
+### Keadaan AC Phase 03 sesudah koreksi
+
+**42 dari 45 tercentang** (naik satu — koreksi kedua menyentuh Testing Checklist, bukan AC). Tiga yang tersisa:
+
+* **AC PR-030 nomor 1** — login OTP end-to-end. Terhalang ketiadaan kredensial provider (Fonnte/Twilio), bukan ketiadaan pekerjaan.
+* **AC PR-033 nomor 3** — NVDA checklist. Butir strukturalnya di CI; NVDA sungguhan belum pernah dijalankan.
+* **AC PR-033 nomor 4** — keyboard-only. Tiga dari empat alur tertutup; jalur hapus akun lewat Google belum diuji khusus keyboard.
+
+Exit Criteria phase ini masih menuntut satu hal lagi yang bukan urusan dokumen: seluruh PR merged ke `main`, yang merupakan keputusan owner.
