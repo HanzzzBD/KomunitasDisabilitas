@@ -54,6 +54,46 @@ export default defineConfig({
     // ikut diubah — jadi port ini dikunci, bukan dibiarkan bergeser.
     port: 5173,
     strictPort: true,
+
+    /**
+     * API dev diteruskan lewat origin yang SAMA dengan web (PR-034).
+     *
+     * KENAPA INI WAJIB, bukan kenyamanan. Tiga hal saling mengunci:
+     *
+     *   1. `apps/web/src/app/klien-api.tsx` memakai baseUrl RELATIF `/api/v1`,
+     *      tanpa jalan menimpanya lewat env. Tanpa proxy, permintaan mendarat
+     *      di server dev ini dan dijawab HTML fallback SPA — bukan 404 yang
+     *      jelas, melainkan JSON yang gagal diparse.
+     *   2. `packages/api-client` tidak pernah menyetel `credentials`, jadi
+     *      bawaannya `same-origin`: cookie tidak ikut ke origin lain meski
+     *      alamatnya dibuat absolut.
+     *   3. Cookie refresh ber-`SameSite=Strict`, yang memang menolak
+     *      dilampirkan pada permintaan lintas situs.
+     *
+     * Artinya alur sesi TIDAK MUNGKIN berjalan di dev dengan web dan API di
+     * origin berbeda. Proxy ini menyatukan keduanya di `localhost:5173`,
+     * sehingga cookie ber-`Path=/api/v1/auth` ikut terkirim apa adanya.
+     * Ditemukan saat menyiapkan verifikasi manual Google OAuth — sampai saat
+     * itu alur ini memang belum pernah dijalankan sungguhan.
+     *
+     * HANYA DEVELOPMENT. `vite build` tidak membaca `server`, jadi produksi
+     * tidak tersentuh: di sana web dan API disajikan satu origin oleh reverse
+     * proxy (Phase 16). Kontrak API, api-client, kebijakan cookie, dan alur
+     * auth tidak diubah sama sekali oleh PR ini.
+     */
+    proxy: {
+      // Prefix, bukan regex: Vite mencocokkan awalan dan meneruskan sisa jalur
+      // apa adanya, jadi `/api/v1/auth/refresh` sampai sebagai jalur yang sama
+      // persis. Tidak ada `rewrite` — API memang melayani di bawah `/api/v1`.
+      "/api/v1": {
+        target: "http://localhost:3000",
+        // Host asli DIPERTAHANKAN (`localhost:5173`). Cookie tidak terpengaruh
+        // — server tidak menyetel atribut `Domain`, dan cookie mengabaikan
+        // port — sementara log API tetap menunjukkan asal permintaan yang
+        // sebenarnya alih-alih dirinya sendiri.
+        changeOrigin: false,
+      },
+    },
   },
   build: {
     // Peta sumber tetap dibuat: menelusuri kegagalan produksi tanpa peta sumber
