@@ -73,6 +73,10 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     if (jalur.endsWith("/auth/otp/request")) {
       return route.fulfill(jsonkan(202, { data: { retryAfterSeconds: 0 } }));
     }
+    if (jalur.endsWith("/auth/account")) {
+      // 204 tanpa body — persis seperti server (PR-021).
+      return route.fulfill({ status: 204, body: "" });
+    }
     return route.fulfill(jsonkan(503, { code: "BELUM_SIAP", message: "Belum tersedia" }));
   });
 }

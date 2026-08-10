@@ -2054,3 +2054,77 @@ Titik buta pertama berlaku bagi SETIAP kendali nonaktif yang kelak didaftarkan, 
 ### Next steps
 
 * **PR-033c-2** — maksud di titipan OAuth, cabang hapus-akun di halaman kembalian Google, keadaan sesudah akun terhapus. Perkiraan ≈ 700 LOC. Menutup celah bagi pengguna Google-only, dan menuntaskan Phase 03.
+
+## PR-033c-2 — Hapus akun lewat konfirmasi Google
+
+**Tanggal:** 2026-08-10
+**Branch:** `pr-033c2-hapus-akun-google` → `phase-03-web-platform-base`
+**Menutup:** AC PR-033 nomor 2 bagi akun tanpa nomor HP. **PR-033 tuntas.**
+
+### Ringkasan
+
+Pengguna yang masuk lewat Google kini bisa menghapus akunnya sendiri. Maksud perjalanan dititipkan bersama bekal OAuth, alamat kembalian `/masuk/google` bercabang menurut maksud itu, dan penghapusan baru terjadi sesudah satu konfirmasi lagi.
+
+### Keputusan teknis
+
+**Maksud dititipkan, bukan ditebak.** Alamat kembaliannya cuma satu — `/masuk/google` sudah terdaftar di Google Cloud Console sejak PR-025 dan tidak bisa ditambah sesuka kita. Halaman itu karena itu harus bisa membedakan "saya baru mencoba masuk" dari "saya baru menyetujui penghapusan akun saya". Satu-satunya alternatif adalah menebak dari ada-tidaknya sesi — dan tebakan itu salah persis pada kasus paling berbahaya. Titipan yang TIDAK menyebut maksudnya diperlakukan sebagai MASUK: bentuk lama bisa masih tersimpan di tab yang belum ditutup, dan menebak "hapus akun" untuk sesuatu yang tidak menyatakannya adalah cara terburuk untuk salah.
+
+**`max_age=0` — re-auth yang biasa saja membuktikan NOL.** Bila peramban masih memegang sesi Google yang hidup, Google mengembalikan code tanpa menanyakan apa pun; yang terbukti hanyalah "peramban ini pernah dipakai masuk ke Google" — persis kelemahan yang seharusnya ditutup langkah ini (access token berumur 15 menit dan diperbarui diam-diam). `max_age=0` menuntut autentikasi baru, `prompt=select_account` memastikan pengguna menyatakan akun mana yang ia maksud. Keduanya HANYA pada alur hapus akun; memaksanya di setiap login hanya menyulitkan tanpa menambah apa pun.
+
+*Batasnya jujur:* yang bisa dilakukan klien hanya MEMINTA. Apakah Google menegakkannya terbaca dari klaim `auth_time` di id_token, dan server kita hanya mencocokkan `sub` (PR-021). Memverifikasi `auth_time` adalah perubahan backend — dicatat sebagai langkah lanjutan, bukan diklaim sudah ada.
+
+**Halaman kembalian TIDAK menghapus apa pun sendiri.** Tiga alasan, semuanya soal jarak: (1) yang terakhir ditekan pengguna adalah tombol milik GOOGLE yang berbunyi "Lanjutkan" dan tidak menyebut penghapusan apa pun — prinsip yang dipegang seluruh alur ini, bahwa teks terakhir sebelum akun hilang harus menyebut persis apa yang terjadi, akan patah tanpa layar konfirmasi; (2) perhatian pengguna sudah menyeberangi satu situs lain, dan sebagian tiba beberapa menit kemudian; (3) alamat itu bisa dibuka ulang lewat tombol kembali, riwayat, atau tab yang dipulihkan — menghapus otomatis berarti satu tekan tombol kembali bisa menghapus akun seseorang.
+
+**Layar konfirmasi MENUNGGU pemulihan sesi.** Ia dimuat dari nol sesudah pengalihan, dan `DELETE /auth/account` butuh access token yang baru ada setelah cookie refresh ditukarkan. Menawarkan tombolnya lebih dulu berarti menawarkan tombol yang pasti gagal 401. Sesi yang keburu berakhir dikatakan sebabnya, bukan disembunyikan.
+
+**Pengalihannya dipegang HALAMAN, bukan dialog.** `features/` adalah lapisan yang dipakai ulang mobile dan tidak boleh menyentuh `window` langsung (features/README.md), jadi dialog menerima `mulai()` dari pemanggilnya.
+
+**Cara konfirmasi diturunkan dari ada-tidaknya nomor HP, dan aturannya kini lengkap:** platform ini tidak punya password, jadi setiap akun memegang setidaknya satu dari dua kredensial. Yang punya nomor memakai OTP; yang tidak punya nomor pasti masuk lewat Google. Sisa kasusnya satu — kredensial Google belum di-set di lingkungan itu — dan itu tetap dikatakan apa adanya.
+
+**Judul & deskripsi dialog menjadi DATA (`JUDUL`/`DESKRIPSI` per langkah).** Rantai ternary dengan empat langkah sudah tidak terbaca, dan langkah kelima nanti akan ditambahkan ke salah satunya saja — menghasilkan dialog dengan judul yang benar tetapi deskripsi milik langkah lain.
+
+### Uji mutasi (dijalankan)
+
+| Mutasi | Hasil |
+|---|---|
+| `maksud` tidak ikut dititipkan (selalu "masuk") | **13 merah** |
+| `max_age=0` dilepas | **1 merah** |
+| titipan tanpa maksud dianggap "hapus-akun" | **1 merah** |
+| halaman kembalian menghapus otomatis saat dimuat | **8 merah** (jsdom) + **1 merah** (peramban) |
+| penjaga pemulihan sesi dilepas | **1 merah** |
+| `keluar()` dipanggil sebelum `navigate` | **hijau** |
+
+**Baris terakhir mengubah kode ini.** Saya menyalin pola "tunggu perpindahan sebelum membuang sesi" dari PR-033c-1, lengkap dengan komentar yang menjelaskan bahwa guard route akan mengalihkan pengguna. Alasan itu TIDAK berlaku di sini: `/masuk/google` adalah kembalian OAuth dan tidak mungkin dijaga guard, jadi tidak ada yang bereaksi atas hilangnya sesi. Pola itu disederhanakan dan komentarnya diluruskan — kode yang dibenarkan oleh alasan yang salah lebih buruk daripada kode yang lebih panjang.
+
+*Catatan proses:* sebuah berkas backup lama di `/tmp` sempat menimpa `google.ts` dengan versi pra-PR di tengah rangkaian mutasi, membuat tiga hasil pertama tidak berarti (13/15/15 merah, seluruhnya karena berkasnya kosong dari perubahan). Ketiganya dijalankan ulang setelah dipulihkan dari index; angka di tabel di atas adalah hasil ulangan itu.
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` / `typecheck` | hijau (9 task) |
+| `pnpm test` — web | **395** test / 34 berkas (+18) |
+| `pnpm test` — lainnya | api 683, ui 157, api-client 40, a11y 74 (tidak berubah) |
+| Playwright | **20** test hijau (+2) |
+| Lighthouse desktop | perf 82, a11y 100 |
+| Lighthouse 3G | perf 82, a11y 100 |
+| Budget bundel | 106,78 KB / 200 KB gzip |
+
+### Risiko & batas yang jujur
+
+**± 950 LOC** terhadap perkiraan ≈700. Meleset lagi, tetapi rasionya (1,35×) yang terbaik sejauh phase ini.
+
+**Verifikasi manual yang belum ditempuh — dan yang paling menonjol di seluruh PR-033:** alur ini BELUM PERNAH dijalankan terhadap Google sungguhan. Seluruh buktinya berasal dari klien palsu dan titipan yang disemai test. Yang hanya bisa dijawab akun Google nyata: apakah Google benar-benar menghormati `max_age=0`, apakah layar `select_account` muncul seperti dugaan, dan apakah `sub` yang kembali cocok dengan yang tersimpan. Utang ini sejenis dengan AC 2 PR-030 (login Google terhadap akun uji) dan sebaiknya ditutup bersamanya.
+
+**NVDA** atas dialog dan atas layar kembalian juga belum. Butir strukturalnya di CI; urutan pembacaannya belum pernah didengar.
+
+**Layar konfirmasi terakhir tidak memberi jalan mengulang bila code-nya kedaluwarsa** — pesannya menyuruh kembali ke halaman pengaturan, tetapi tanpa tautan. Pengguna harus menavigasi sendiri.
+
+### Out of skope
+
+* Verifikasi `auth_time` di server (perubahan backend).
+* Membatalkan penghapusan dari dalam aplikasi selama 30 hari — pemulihannya lewat kanal resmi.
+
+### Next steps
+
+* Phase 03 tuntas: seluruh 9 PR (PR-025..PR-033) selesai. Yang tersisa sebelum `phase-03 → main` adalah keputusan owner, ditambah utang verifikasi manual yang tercatat di sini dan di log PR-030.

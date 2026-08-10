@@ -263,13 +263,71 @@ export const katalogPengaturan = {
     "id-simple": "Buka halaman awal",
   },
 
-  // Akun tanpa nomor HP (masuk lewat Google) — jalurnya lahir di PR-033c-2.
+  // Jalur Google (PR-033c-2).
+  "pengaturan.hapus.google.judul": {
+    id: "Buktikan dulu lewat akun Google Anda",
+    "id-simple": "Buktikan dulu lewat akun Google",
+  },
+  "pengaturan.hapus.google.deskripsi": {
+    id: "Anda akan dibawa ke halaman Google untuk masuk sekali lagi. Setelah kembali, kami tanya sekali lagi sebelum menghapus.",
+    "id-simple": "Anda akan dibawa ke halaman Google. Masuk sekali lagi di sana. Setelah kembali, kami tanya lagi.",
+  },
+  "pengaturan.hapus.google.lanjut": {
+    id: "Lanjut ke Google",
+    "id-simple": "Lanjut ke Google",
+  },
+  "pengaturan.hapus.google.gagalSiap": {
+    id: "Kami tidak bisa membuka halaman Google sekarang. Coba lagi nanti, atau hubungi kami lewat kanal resmi Nawasena.",
+    "id-simple": "Halaman Google tidak bisa dibuka. Coba lagi nanti, atau hubungi kami.",
+  },
+
+  // Layar kembalian dari Google — konfirmasi TERAKHIR sebelum akun dihapus.
+  "pengaturan.hapus.kembali.judul": {
+    id: "Konfirmasi terakhir: hapus akun Anda?",
+    "id-simple": "Terakhir: hapus akun Anda?",
+  },
+  "pengaturan.hapus.kembali.penjelasan": {
+    // Akibatnya DIULANG di sini, bukan diandalkan pada ingatan. Antara membaca
+    // peringatan dan sampai di layar ini, pengguna menyeberangi halaman Google
+    // — perhatiannya sudah pindah, dan sebagian orang tiba di sini beberapa
+    // menit kemudian.
+    id: "Anda sudah masuk lewat Google. Menekan tombol di bawah akan menghapus akun Anda, menghentikan seluruh lamaran Anda, dan mengeluarkan Anda dari semua perangkat.",
+    "id-simple": "Google sudah memastikan ini Anda. Kalau tombol di bawah ditekan, akun Anda dihapus. Semua lamaran Anda berhenti.",
+  },
+  "pengaturan.hapus.kembali.batal": {
+    id: "Batal, jangan hapus akun saya",
+    "id-simple": "Batal. Jangan hapus.",
+  },
+  "pengaturan.hapus.kembali.memeriksaSesi": {
+    id: "Sebentar, kami periksa dulu akun Anda…",
+    "id-simple": "Sebentar, kami cek dulu akun Anda…",
+  },
+  "pengaturan.hapus.kembali.sesiHabis": {
+    id: "Sesi Anda sudah berakhir, jadi kami belum bisa menghapus akun. Masuk lagi, lalu ulangi dari halaman pengaturan.",
+    "id-simple": "Sesi Anda habis. Masuk lagi, lalu ulangi dari halaman pengaturan.",
+  },
+  "pengaturan.hapus.kembali.masuk": {
+    id: "Masuk ke akun Anda",
+    "id-simple": "Masuk ke akun Anda",
+  },
+  "pengaturan.hapus.galat.bedaAkun": {
+    // Hampir selalu salah pilih akun di layar Google — bukan serangan. Pesannya
+    // menyebut penyebabnya alih-alih menolak dengan "tidak valid" yang buntu.
+    id: "Akun Google yang Anda pilih berbeda dengan akun Nawasena ini. Ulangi, lalu pilih akun Google yang biasa Anda pakai untuk masuk.",
+    "id-simple": "Anda memilih akun Google yang lain. Ulangi, lalu pilih akun Google yang biasa Anda pakai.",
+  },
+  "pengaturan.hapus.galat.kedaluwarsa": {
+    id: "Konfirmasi dari Google sudah kedaluwarsa. Ulangi dari halaman pengaturan.",
+    "id-simple": "Konfirmasi dari Google sudah lewat waktu. Ulangi dari halaman pengaturan.",
+  },
+
+  // Akun tanpa nomor HP DAN tanpa jalur Google (kredensial Google belum di-set).
   "pengaturan.hapus.tanpaNomor": {
     // Dikatakan APA ADANYA, bukan disembunyikan di balik tombol yang gagal.
     // Pengguna yang menekan tombol lalu ditolak server akan mengira dirinya
     // yang salah — padahal jalurnya memang belum kami bangun.
-    id: "Akun Anda masuk lewat Google, dan konfirmasi lewat Google belum tersedia di aplikasi. Hubungi kami lewat kanal resmi Nawasena untuk dibantu menghapus akun.",
-    "id-simple": "Anda masuk pakai Google. Cara hapus untuk akun Google belum siap. Hubungi kami, nanti kami bantu.",
+    id: "Akun Anda tidak punya nomor HP, dan konfirmasi lewat Google sedang tidak tersedia. Hubungi kami lewat kanal resmi Nawasena untuk dibantu menghapus akun.",
+    "id-simple": "Akun Anda tidak punya nomor HP. Cara lewat Google juga sedang mati. Hubungi kami, nanti kami bantu.",
   },
 
   // --- Aksesibilitas (slot; diisi PR-036) ---

@@ -20,7 +20,8 @@ import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { berkasJson, unduhBerkas } from "../shared/unduh-berkas.js";
 import { namaBerkasEkspor, pesanGalatEkspor } from "../features/akun/ekspor.js";
-import { DialogHapusAkun } from "../features/akun/dialog-hapus-akun.js";
+import { DialogHapusAkun, type CaraKonfirmasi } from "../features/akun/dialog-hapus-akun.js";
+import { clientIdGoogle, siapkanHapusAkunGoogle } from "../features/auth/google.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 
 /**
@@ -162,11 +163,15 @@ function UnduhData() {
 /**
  * Bagian "Hapus akun" — AC PR-033 nomor 2 & 3.
  *
- * PR-033c-1 hanya membangun jalur konfirmasi lewat kode OTP. Akun yang masuk
- * lewat Google (tanpa nomor HP) diberi tahu APA ADANYA bahwa jalurnya belum
- * ada, bukan tombol yang akan ditolak server pada langkah terakhir: pengguna
- * yang ditolak sesudah membaca seluruh peringatan akan mengira dirinya yang
- * salah. Jalur Google lahir di PR-033c-2.
+ * CARA KONFIRMASINYA DITURUNKAN DARI ADA-TIDAKNYA NOMOR HP, dan aturan itu
+ * lengkap: platform ini tidak punya password, jadi setiap akun memegang
+ * setidaknya satu dari dua kredensial. Yang punya nomor memakai kode OTP; yang
+ * tidak punya nomor pasti masuk lewat Google.
+ *
+ * Sisa kasusnya satu: kredensial Google belum di-set di lingkungan ini
+ * (`clientIdGoogle()` null). Akun tanpa nomor lalu tidak punya jalur sama
+ * sekali — dan itu dikatakan apa adanya, bukan disembunyikan di balik tombol
+ * yang pasti gagal.
  */
 function HapusAkun({ nomor }: { nomor: string | null }) {
   const t = useTeks();
@@ -174,16 +179,36 @@ function HapusAkun({ nomor }: { nomor: string | null }) {
   const navigate = useNavigate();
   const keluar = useStoreSesi((s) => s.keluar);
 
+  const clientId = clientIdGoogle();
+  const cara: CaraKonfirmasi | null =
+    nomor !== null
+      ? { jenis: "otp", nomor }
+      : clientId === null
+        ? null
+        : {
+            jenis: "google",
+            // Pengalihannya dipegang HALAMAN, bukan dialog: `features/` adalah
+            // lapisan yang dipakai ulang mobile dan tidak boleh menyentuh
+            // `window` langsung (features/README.md).
+            mulai: async () => {
+              const alamat = await siapkanHapusAkunGoogle({
+                clientId,
+                asal: window.location.origin,
+              });
+              window.location.assign(alamat);
+            },
+          };
+
   return (
     <Kartu judul={t("pengaturan.hapus.judul")} tingkatJudul={3}>
       <p className="text-base text-gray-900">{t("pengaturan.hapus.penjelasan")}</p>
 
-      {nomor === null ? (
+      {cara === null ? (
         <p className="text-base text-gray-900">{t("pengaturan.hapus.tanpaNomor")}</p>
       ) : (
         <DialogHapusAkun
           klien={klien}
-          nomor={nomor}
+          cara={cara}
           onSelesai={() => {
             // BERPINDAH DULU — DAN PERPINDAHANNYA HARUS SUDAH TER-COMMIT —
             // baru sesinya dibuang.
