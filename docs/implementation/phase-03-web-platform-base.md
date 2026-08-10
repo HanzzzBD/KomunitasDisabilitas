@@ -75,8 +75,8 @@ Bisnis: fondasi pengalaman online-only yang jujur (ADR-009). Teknis: React Route
 
 * [x] Unit Test (error boundary, offline store) — **55 test**: penjaga budget & code-splitting (14), router (9), banner luring (7), penjaga struktur folder (7), layar kesalahan (6), query client (6), status jaringan (4), app shell (2).
 * [x] Integration Test (N/A)
-* [ ] E2E Test (shell render + offline sim) — harness E2E baru lahir di PR-031b
-* [ ] Accessibility Test (axe shell) — gerbangnya baru menyala di PR-031a
+* [ ] E2E Test (shell render + offline sim) — harness Playwright sudah ada sejak PR-031b dan dipakai empat spec, tetapi simulasi luring belum ditulis sebagai spec. Perilakunya diotomatiskan di `banner-luring.test.tsx` (jsdom).
+* [x] Accessibility Test (axe shell) — **selesai.** `aksesibilitas.test.tsx` menjalankan axe atas kerangka aplikasi berikut dua keadaan yang paling sering luput: banner luring dan layar kesalahan. Sejak PR-031b seluruh halaman terdaftar juga diperiksa axe di peramban sungguhan, dan halaman mana pun dirender DI DALAM kerangka itu.
 * [ ] Manual Verification (matikan network di devtools) — **siap diuji sejak PR-025c**; perilakunya sudah diotomatiskan di `banner-luring.test.tsx` (muncul/hilang, isi pesan, urutan aksi "Coba lagi"). Yang tersisa hanya konfirmasi di browser nyata.
 
 **Deliverables:**
@@ -163,10 +163,10 @@ Bisnis: fitur pembeda Accessibility Profile — UI menyesuaikan pengguna, bukan 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (rekonsiliasi, migrasi persist)
+* [x] Unit Test (rekonsiliasi, migrasi persist) — `packages/a11y/__tests__/`: `rekonsiliasi.test.ts`, `store.test.ts` (migrasi versi pada `migrate` DAN `merge`), `os.test.ts`, `hubungkan.test.ts`, `token.test.ts`.
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (toggle preferensi → DOM berubah)
-* [ ] Accessibility Test (axe pada kombinasi dasar)
+* [x] Accessibility Test (axe pada kombinasi dasar) — `aksesibilitas.test.tsx` › "teks 200% + kontras tinggi + bahasa sederhana". Matriks penuhnya tetap milik PR-036.
 * [ ] Manual Verification (OS setting vs user setting)
 
 **Deliverables:**
@@ -248,10 +248,10 @@ Bisnis: semua form Nawasena aksesibel by-construction. Teknis: primitives Radix 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (perilaku + jest-axe)
+* [x] Unit Test (perilaku + axe) — `packages/ui/__tests__/`: `tombol`, `masukan`, `kolom-form`, `pilihan`. Helper axe-nya ditulis sendiri, bukan `jest-axe` — lihat AC di bawah.
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (N/A)
-* [ ] Accessibility Test (axe + keyboard per komponen)
+* [x] Accessibility Test (axe + keyboard per komponen) — tiap komponen punya gerbang axe-nya sendiri, dan interaksi keyboardnya diuji lewat penekanan tombol sungguhan (`userEvent`), bukan pemanggilan handler.
 * [ ] Manual Verification (NVDA sampling)
 
 **Deliverables:**
@@ -335,7 +335,7 @@ Bisnis: pola interaksi kompleks (dialog disclosure, notifikasi) aksesibel sejak 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (fokus trap/restore + jest-axe)
+* [x] Unit Test (fokus trap/restore + axe) — `packages/ui/__tests__/`: `dialog` (fokus masuk & kembali lewat tiga jalan tutup), `toast`, `kerangka`, `tab`, `kartu`, `keadaan-kosong`.
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (N/A)
 * [ ] Accessibility Test (keyboard + NVDA sampling)
@@ -424,7 +424,7 @@ Bisnis: mode teks sederhana untuk pengguna autisme/kognitif (PRD Daksa/Autisme s
 
 **Testing Checklist:**
 
-* [ ] Unit Test (fallback, interpolasi)
+* [x] Unit Test (fallback, interpolasi) — `apps/web/__tests__/`: `terjemah.test.ts`, `i18n-provider.test.tsx`, `katalog-kelengkapan.test.ts`.
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (toggle mode)
 * [ ] Accessibility Test (N/A langsung)
@@ -511,7 +511,7 @@ Bisnis: pintu masuk produk yang bisa dipakai semua ragam disabilitas. Teknis: fo
 
 **Testing Checklist:**
 
-* [ ] Unit Test (session store)
+* [x] Unit Test (session store) — `sesi-store.test.ts`, `terlindungi.test.tsx`, `tujuan.test.ts`, `klien-api.test.tsx`, `masuk.test.tsx`, `masuk-google.test.tsx`, `pkce.test.ts`, `google-oauth.test.ts`, `nomor-hp.test.ts`.
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Playwright OTP happy+sad path)
 * [ ] Accessibility Test (axe + keyboard + NVDA checklist)
@@ -607,10 +607,10 @@ Bisnis: WCAG 2.2 AA tidak bisa "dilewati sementara" (ADR-016, R3). Teknis: axe-c
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
+* [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. `packages/a11y/__tests__/axe-harness.test.tsx` (8) + `pengujian-terpisah.test.ts` (2) + `apps/web/__tests__/registry-halaman.test.ts` (13, termasuk penjaga bahwa nama check `a11y` tidak berubah).
 * [ ] Integration Test (harness)
-* [ ] E2E Test (menjalankan axe)
-* [ ] Accessibility Test (inilah gate-nya)
+* [x] E2E Test (menjalankan axe) — `apps/web/e2e/aksesibilitas.spec.ts`, berjalan atas HASIL BUILD lewat `vite preview`.
+* [x] Accessibility Test (inilah gate-nya) — job `a11y` wajib di repository ruleset; nama check-nya dijaga `registry-halaman.test.ts` agar kewajibannya tidak lepas diam-diam saat job di-rename.
 * [ ] Manual Verification (PR uji dengan pelanggaran)
 
 **Deliverables:**
@@ -691,10 +691,10 @@ Bisnis: pintu masuk akuisisi (community-driven & medsos — PRD §Business). Tek
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
+* [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. `beranda.test.tsx`, `tata-letak.test.tsx`, `kesalahan.test.tsx`, plus `keadaan-kosong.test.tsx` di `packages/ui`.
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (smoke landing→login)
-* [ ] Accessibility Test (axe + keyboard)
+* [ ] E2E Test (smoke landing→login) — belum ada spec yang menempuh landing → login sebagai SATU alur. Yang ada: `lompat-ke-konten.spec.ts` menyentuh kedua halaman secara terpisah.
+* [x] Accessibility Test (axe + keyboard) — beranda & 404 lolos axe di dua lapis (jsdom + peramban), dan tautan lompat ke konten diuji sebagai perpindahan fokus sungguhan di `lompat-ke-konten.spec.ts`.
 * [ ] Manual Verification (mobile viewport)
 
 **Deliverables:**
@@ -776,10 +776,10 @@ Bisnis: hak PDP terlihat dan mudah dipakai (bukan terkubur). Teknis: konsumsi PR
 
 **Testing Checklist:**
 
-* [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. **PR-033c-1: 21 test web** (AC 2 enam, butir NVDA delapan, sesudah terhapus dua, akun tanpa nomor satu, bahasa sederhana satu, anti-hampa satu) + **6 test api-client**. **PR-033b: 27 test web + 4 api-client.** **PR-033a: 26 test web** (penjagaan route 3, kerangka & navigasi 5, panel akun 7, slot aksesibilitas 3, judul dokumen 1, bahasa sederhana 2, axe lapis kedua 3, penjaga anti-hampa 2) + **6 test api-client** untuk `/me` + 1 penjaga rekursi registry.
+* [x] Unit Test — checklist aslinya menulis N/A; ternyata bukan. **PR-033c-2: 16 test web** di `hapus-akun-google.test.tsx` (maksud titipan 4, kembalian tidak menghapus sendiri 4, keadaan sesi 2, kegagalan konfirmasi 2, sesudah terhapus 2, axe 2), plus 3 test jalur Google yang ditambahkan ke `hapus-akun.test.tsx`. **PR-033c-1: 20 test web** di berkas itu (berkasnya kini 23 total) + **6 test api-client**. **PR-033b: 27 test web + 4 api-client.** **PR-033a: 26 test web** (penjagaan route 3, kerangka & navigasi 5, panel akun 7, slot aksesibilitas 3, judul dokumen 1, bahasa sederhana 2, axe lapis kedua 3, penjaga anti-hampa 2) + **6 test api-client** untuk `/me` + 1 penjaga rekursi registry.
 * [ ] Integration Test (N/A)
-* [x] E2E Test (ekspor + hapus akun) — **ekspor selesai (PR-033b): 3 test Playwright** yang menangkap unduhan sungguhan, memparse isinya, dan menempuh tombolnya lewat keyboard. Hapus akun menyusul di 033c. **PR-033a: kedua halaman pengaturan masuk registry PR-031**, diperiksa axe di peramban sungguhan dan diikutkan uji tautan lompat.
-* [ ] Accessibility Test (axe + NVDA dialog) — **axe lolos di dua lapis** (jsdom + Chromium), termasuk atas dialog hapus akun pada langkah yang benar-benar memuat tombol perusaknya (PR-033c-1). NVDA sungguhan belum dijalankan.
+* [x] E2E Test (ekspor + hapus akun) — **keduanya selesai.** Ekspor (PR-033b): 3 test yang menangkap unduhan SUNGGUHAN, memparse ulang isinya, dan menempuh tombolnya lewat keyboard. Hapus akun: dialognya diperiksa axe di peramban pada langkah yang benar-benar memuat tombol perusaknya (PR-033c-1), dan layar kembalian Google diuji sebagai halaman yang dimuat DARI NOL — termasuk bahwa membukanya TIDAK mengirim permintaan hapus (PR-033c-2, `e2e/hapus-akun-google.spec.ts`). **PR-033a: kedua halaman pengaturan masuk registry PR-031**, diperiksa axe di peramban sungguhan dan diikutkan uji tautan lompat.
+* [ ] Accessibility Test (axe + NVDA dialog) — **axe lolos di dua lapis** (jsdom + Chromium): dialog hapus akun pada langkah yang benar-benar memuat tombol perusaknya (PR-033c-1) dan layar kembalian Google (PR-033c-2). NVDA sungguhan belum dijalankan — utang yang sama bentuknya dengan NVDA sampling PR-030.
 * [ ] Manual Verification (akun uji dihapus benar-benar) — belum. Alurnya teruji terhadap klien palsu; menjalankannya terhadap API dev dengan sender mock adalah utang yang sama bentuknya dengan AC 1 PR-030.
 
 **Deliverables:**
@@ -799,8 +799,8 @@ RB-Std.
 * [x] Ekspor mengunduh JSON milik user. — **PR-033b.** Dibuktikan di DUA lapis, sebab jsdom tidak pernah benar-benar mengunduh apa pun: test jsdom menyadap klik tautannya (membuktikan nama & isi yang benar diserahkan), dan test Playwright menangkap unduhan SUNGGUHAN lalu memparse ulang isinya. Selisih keduanya bukan teori — tautan yang tidak pernah masuk dokumen, atau URL objek yang dilepas terlalu cepat, lolos jsdom dengan mulus dan gagal DIAM-DIAM di peramban.
 * [x] Hapus akun butuh dua langkah + re-auth; tidak bisa via satu klik. *(PR-033c-1 — alurnya **terbangun penuh dan teruji** untuk akun ber-nomor HP: tiga langkah (akibat → minta kode baru → konfirmasi), dan `DELETE /auth/account` hanya terkirim setelah kode diisi. Dijaga test yang memeriksa PERMINTAAN YANG BENAR-BENAR SAMPAI KE JARINGAN, bukan sekadar tampilan dialognya — membuka dialog mengirim nol permintaan, dan menekan tombol perusak dengan kotak kode kosong juga nol. **PR-033c-2** menutup akun yang masuk lewat Google: dialog mengantar ke Google dengan `max_age=0` — meminta autentikasi BARU, bukan sekadar code yang diterbitkan diam-diam karena peramban masih punya sesi Google — lalu halaman kembalian bertanya SEKALI LAGI dengan tombol yang menyebut akibatnya. Membuka alamat kembalian tidak menghapus apa pun; dijaga di jsdom DAN di peramban sungguhan. **AC ini kini tertutup untuk semua akun.**)*
 * [ ] Dialog konfirmasi lolos NVDA checklist. *(PR-033c-1 menutup butir STRUKTURALNYA di CI: peran `dialog` + nama, sisa halaman disembunyikan dari pohon aksesibilitas, fokus masuk ke dalam dialog dan TIDAK mendarat di tombol perusak, Escape menutup dan fokus kembali ke pemicu, seluruh alur bisa ditempuh keyboard-only, dan axe lolos di tiap langkah — termasuk di peramban sungguhan. Yang TIDAK bisa dijamin mesin: apakah urutan pembacaannya masuk akal saat didengar. Itu tetap utang manual, sama seperti NVDA sampling PR-030.)*
-* [ ] Seluruh halaman keyboard-only. *(PR-033a menutup KERANGKA-nya — berpindah antar panel ditempuh sebagai perbuatan, Tab lalu Enter, bukan dengan memeriksa `href`. PR-033b menutup kendali ekspor, termasuk satu hal yang mudah luput: tombolnya memakai `aria-disabled`, bukan `disabled`, sebab tombol yang dinonaktifkan saat sedang MEMEGANG fokus melemparkan fokus itu ke awal dokumen — pengguna keyboard terdampar tepat setelah aksinya berhasil. Kendali hapus menyusul di 033c.)*
-* [ ] Copy dalam id + id-simple. *(PR-033a menutup katalog `pengaturan` — 22 kunci; PR-033b menambah 7 kunci ekspor. Teks hapus akun menyusul di 033c.)*
+* [ ] Seluruh halaman keyboard-only. *(Tiga dari empat alur tertutup sebagai PERBUATAN keyboard, bukan lewat pemeriksaan `href`: navigasi panel (PR-033a — Tab lalu Enter), kendali ekspor (PR-033b — di jsdom DAN di peramban), dan hapus akun jalur OTP dari membuka dialog sampai penghapusan terkirim (PR-033c-1). Seluruh tombol pada alur ini memakai `aria-disabled`, bukan `disabled`: tombol yang dinonaktifkan saat sedang MEMEGANG fokus melemparkan fokus itu ke awal dokumen, dan di dalam dialog itu berarti keluar dari jerat fokusnya. **Yang belum diuji khusus keyboard: jalur hapus akun lewat Google** — tombol "Lanjut ke Google" dan layar kembalian memakai `Tombol` biasa dan lolos axe, tetapi belum ada test yang menempuhnya tanpa satu pun klik.)*
+* [x] Copy dalam id + id-simple. — Katalog `pengaturan` lengkap di keempat sub-PR: kerangka & panel akun (033a), ekspor (033b), hapus akun (033c-1), jalur Google (033c-2). **Ditegakkan tipe, bukan sekadar dipatuhi:** `EntriTeks` menuntut kedua varian, sehingga kunci yang kehilangan salah satunya adalah `typecheck` MERAH — bukan cacat yang baru ketahuan di layar pengguna. Di atasnya, `katalog-kelengkapan.test.ts` menolak varian sederhana yang disalin mentah dari `id`: yang memang identik wajib terdaftar beserta alasannya, dan daftar alasan itu sendiri dijaga agar tidak menyimpan entri basi.
 
 > **Dipecah jadi tiga PR (persetujuan owner 2026-08-10):** scope utuh terukur ≈ 1.400 LOC. Diusulkan **sebelum** implementasi. Re-auth bukan sekadar konfirmasi: `DELETE /auth/account` menuntut kode OTP baru **atau** consent Google baru (PKCE ulang), sehingga jalur hapus akun memuat alur login kedua di dalam sebuah dialog.
 > **PR-033a** — Kerangka pengaturan, panel Akun, slot aksesibilitas — *selesai*. Mendarat **± 1.170 LOC** (490 sumber + 680 test/e2e), jauh di atas target <500 dan di atas perkiraan ≈450; selisihnya dilaporkan di log.
