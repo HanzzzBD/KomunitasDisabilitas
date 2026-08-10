@@ -1957,3 +1957,100 @@ Baris `timeZone` juga tidak bisa dibuat merah dengan menyetel `TZ`: Node di mesi
 ### Next steps
 
 * **PR-033c** — hapus akun: dialog dua langkah + re-auth OTP/Google, penjelasan masa tunggu 30 hari. Perkiraan direvisi lagi mengikuti dua kali meleset: **± 1.400 LOC**. Bila terukur lebih besar saat diperiksa, pemecahan lanjutan diusulkan **sebelum** implementasi.
+
+## PR-033c-1 — Hapus akun lewat kode OTP
+
+**Tanggal:** 2026-08-10
+**Branch:** `pr-033c1-hapus-akun-otp` → `phase-03-web-platform-base`
+**Menutup:** AC PR-033 nomor 2 & 3 untuk akun ber-nomor HP. Jalur Google = PR-033c-2.
+
+### Ringkasan
+
+Hak hapus akun (UU PDP; PRD FR-1.4) punya jalurnya: dialog konfirmasi tiga langkah dengan pembuktian ulang lewat kode OTP baru, dan `DELETE /auth/account` masuk ke `@nawasena/api-client`.
+
+### Keputusan teknis
+
+**TIGA langkah, dan tiap langkah menahan kesalahan yang berbeda.** Bukan "dua langkah" karena backlog menyebut angka itu, melainkan karena ada tiga hal berbeda yang harus terjadi: (1) AKIBAT menahan yang salah paham — orang yang menekan "hapus akun" mengira itu berarti "keluar" atau "sembunyikan profil sementara"; (2) KODE menahan yang bukan pemiliknya — access token berumur 15 menit dan diperbarui diam-diam, jadi "punya sesi" hanya membuktikan perangkat ini pernah dipakai masuk; (3) SELESAI memberi tahu jendela 30 hari, yang tidak berguna sama sekali bagi orang yang tidak tahu ia ada — dan orang yang baru menghapus akunnya tidak punya alasan membuka aplikasi ini lagi dalam waktu dekat.
+
+**Satu dialog yang isinya berganti, bukan tiga dialog.** `Dialog` (PR-028) melarang penumpukan secara struktural; larangan itu di sini bukan penghalang melainkan bentuk yang benar.
+
+**`HARI_SEBELUM_PURGE` dipindah ke `@nawasena/schemas`.** Angka 30 itu DIJANJIKAN kepada pengguna (layar konfirmasi, SMS pemberitahuan) sekaligus DITEGAKKAN job purge. Dua salinan berarti janji dan perilaku bebas menyimpang — dan yang menanggung selisihnya adalah orang yang datang di hari ke-28 karena menyangka masih sempat. Dipindahkan sekarang, saat pemakai keduanya (web) lahir; `account.service.ts` me-re-export-nya agar pemakai lama tidak berubah.
+
+**"Batal" didahulukan dalam urutan baca dan urutan fokus.** Pada layar yang menawarkan tindakan tak-terbalikkan, jalan keluar harus lebih mudah ditemukan daripada jalan lanjut. Fokus awal juga sengaja TIDAK mendarat di tombol perusak: satu penekanan Enter yang tidak sengaja sudah cukup, dan itu persis yang seharusnya dicegah konfirmasi ini.
+
+**Label tombol menyebut akibatnya, bukan "OK".** "Hapus akun saya sekarang" adalah teks terakhir yang dibaca — dan dibacakan — sebelum akun hilang. Dua entri katalog sengaja identik di kedua varian bahasa dengan alasan yang ditulis: menyederhanakannya hanya bisa dengan mengaburkan, dan pada tombol ini kabur jauh lebih berbahaya daripada panjang.
+
+**Akun tanpa nomor HP diberi tahu apa adanya.** Bukan tombol yang akan ditolak server pada langkah terakhir. Pengguna yang ditolak sesudah membaca seluruh peringatan akan mengira dirinya yang salah — padahal jalurnya memang belum kami bangun.
+
+**`endpoints/account.ts` terpisah dari `endpoints/auth.ts`.** Berkas itu berisi PINTU MASUK, dan kalimat "semua isi berkas ini publik" adalah yang menjaga endpoint baru tidak lahir terbuka tanpa disadari. `DELETE /auth/account` justru kebalikannya.
+
+**Validasi "tepat satu cara pembuktian" berjalan DI KLIEN.** Bug klien yang mengirim dua bukti (atau nol) gagal sebelum satu byte pun dikirim, bukan setelah perjalanan ke server yang sudah pasti gagal.
+
+### Dua cacat yang ditemukan TEST, bukan review
+
+**1. Membuang sesi lebih dulu melempar pengguna ke halaman MASUK.**
+`keluar()` dipanggil sementara halaman terlindungi masih terpasang → `Terlindungi` langsung mengalihkan ke `/masuk?tujuan=%2Fpengaturan`. Pengguna yang baru saja menghapus akunnya mendarat di halaman masuk, lengkap dengan tujuan kembali ke pengaturan akun yang sudah tidak ada. Komentar versi pertama saya bahkan menjelaskan urutan yang TERBALIK dari yang benar.
+
+Menukar urutannya saja tidak cukup, dan `flushSync` juga tidak menolong — pada data router `navigate` bersifat asinkron dan `flushSync` tidak bisa memaksa transisinya selesai. Perpindahannya karena itu DITUNGGU sebelum sesi dibuang. Tiga percobaan sampai benar, ketiganya diarahkan test yang sama.
+
+**2. Gerbang kontras warna punya dua titik buta.**
+Tombol perusak berlatar merah didaftarkan ke gerbang peramban justru karena kontrasnya tidak bisa diperiksa jsdom. Lalu uji mutasi yang menggantinya menjadi merah muda (± 1,9:1, jelas gagal) TETAP HIJAU.
+
+*Sebab pertama, dan yang sesungguhnya:* selama kotak kode kosong, tombolnya ber-`aria-disabled` — dan axe memang MELEWATI pemeriksaan kontras pada kendali nonaktif. Entri registry-nya karena itu memeriksa satu-satunya hal yang menjadi alasannya ada sambil melewatinya. `siapkan` kini ikut mengisi kodenya, dan sesudah itu mutasinya merah.
+
+*Sebab kedua, terpisah:* probe langsung menunjukkan warna yang sedang bertransisi dilaporkan sebagai nilai ANTARA — tombol merah terbaca `oklab(0.27 …)`, abu-abu gelap, bila diukur tepat setelah dialog terbuka. Penantian `document.getAnimations()` ditambahkan untuk itu. **Uji mutasi menunjukkan penantian ini BUKAN penyebab lolosnya**, jadi ia dipertahankan demi determinisme gerbang — bukan diklaim menangkap cacat. Komentarnya menyatakan itu apa adanya.
+
+Titik buta pertama berlaku bagi SETIAP kendali nonaktif yang kelak didaftarkan, bukan hanya tombol ini.
+
+### Uji mutasi (dijalankan)
+
+| Mutasi | Hasil |
+|---|---|
+| langkah "akibat" dilewati (dialog langsung ke kode) | **1 merah** |
+| `keluar()` dipanggil sebelum `navigate` | **1 merah** |
+| penjaga "kode kosong" pada tombol perusak dilepas | **hijau → 1 merah** sesudah test diperkuat |
+| `aria-disabled` → `disabled` di tombol perusak | **hijau → 1 merah** sesudah test diperkuat |
+| latar tombol perusak → `bg-red-300` (± 1,9:1) | **hijau → 1 merah** sesudah `siapkan` mengisi kode |
+| `siapkan` berhenti di langkah pertama | gerbang tetap hijau atas layar yang tidak memuat tombol perusaknya sama sekali |
+
+**Tiga dari enam mutasi ini semula HIJAU, dan ketiganya mengubah PR ini.** Draf tabel saya menuliskannya sebagai merah sebelum dijalankan; menjalankannya membantah tiga baris sekaligus.
+
+*Penjaga "kode kosong"* — versi pertama test hanya memeriksa lalu lintas jaringan, dan permintaannya memang tetap tidak terkirim tanpa penjaga itu: `deleteAccountSchema` menolaknya di klien. Tetapi penolakan itu mendarat sebagai PESAN GALAT — pengguna menekan tombol yang seharusnya belum aktif, lalu dituduh salah oleh kalimat validasi yang tidak ia mengerti. Test kini memeriksa bahwa tidak ada galat yang muncul.
+
+*`aria-disabled` → `disabled`* — keadaan sibuk berlalu terlalu cepat untuk teramati, jadi test pertama tidak pernah sempat melihatnya. Ditulis ulang dengan permintaan yang MENGGANTUNG (pola yang sama dengan tombol ekspor di PR-033b), dan barulah mutasi itu merah. Ini penting justru di sini: fokus yang terlempar keluar dialog terjadi tepat pada detik paling menentukan di seluruh aplikasi.
+
+*Kontras tombol perusak* — dibahas di bagian sebelumnya.
+
+### Gate
+
+| Gate | Hasil |
+|---|---|
+| `pnpm lint` / `typecheck` | hijau (9 task) |
+| `pnpm test` — web | **377** test / 33 berkas (+21) |
+| `pnpm test` — api-client | **40** test (+6) |
+| `pnpm test` — api | 683 test (tidak berubah; konstanta purge dipindah tanpa mengubah perilaku) |
+| Playwright | **18** test hijau (+1) |
+| Lighthouse desktop | perf 82, a11y 100 |
+| Lighthouse 3G | perf 82, a11y 100 |
+| Budget bundel | 106,32 KB / 200 KB gzip |
+
+### Risiko & batas yang jujur
+
+**Perkiraan LOC akhirnya tidak terlampaui** — ± 1.080 terhadap perkiraan revisi ≈1.100. Tetapi itu setelah scope-nya dipecah dua kali; terhadap target <500 ia tetap lebih dari dua kali lipat.
+
+**Pengguna Google-only belum bisa menghapus akun lewat aplikasi.** Celah yang diketahui dan disetujui saat pemecahan; ditutup PR-033c-2. Sementara itu mereka diarahkan menghubungi kanal resmi — jalur yang memang disebut server sendiri (`saranCara`).
+
+**Belum diverifikasi manusia:** NVDA atas urutan pembacaan dialog (butir strukturalnya sudah di CI, tetapi apakah alurnya masuk akal saat DIDENGAR hanya bisa dijawab telinga), penghapusan terhadap API dev sungguhan dengan sender mock, dan review teks oleh non-engineer. Yang terakhir paling menonjol di sini: teks ini menjelaskan tindakan tak-terbalikkan, dan sampai sekarang ditulis engineer.
+
+**Dialog tidak menahan penutupan saat permintaan hapus sedang berjalan.** Menahannya berarti jerat keyboard sementara (WCAG 2.1.2); membiarkannya berarti pengguna yang menutup di detik terakhir tidak melihat layar konfirmasi — meski penghapusannya tetap berjalan dan sesinya tetap diakhiri. Dipilih yang kedua.
+
+**Warna merah tombol perusak memakai `className`, bukan varian `bahaya` di `packages/ui`.** Satu pemakai belum cukup untuk menetapkan bentuk sebuah varian — alasan yang sama dengan pemindahan `galat-api` yang menunggu pemakai kedua.
+
+### Out of scope
+
+* Re-auth Google, cabang hapus-akun di `/masuk/google`, keadaan sesudah akun terhapus (PR-033c-2).
+* Membatalkan penghapusan dari dalam aplikasi selama 30 hari — pemulihannya lewat kanal resmi, dan endpoint-nya belum ada.
+
+### Next steps
+
+* **PR-033c-2** — maksud di titipan OAuth, cabang hapus-akun di halaman kembalian Google, keadaan sesudah akun terhapus. Perkiraan ≈ 700 LOC. Menutup celah bagi pengguna Google-only, dan menuntaskan Phase 03.

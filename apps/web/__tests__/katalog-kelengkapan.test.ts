@@ -72,6 +72,28 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "pengaturan.akun.nomor": "Label dua kata; sama dengan label di halaman masuk (`auth.nomor.label`).",
   "pengaturan.akun.belumDiisi": "Dua kata sehari-hari, sudah menyebut keadaannya secara harfiah.",
   "pengaturan.akun.cobaLagi": "Label tombol dua kata, sama dengan `shell.luring.cobaLagi`.",
+  // --- hapus akun (PR-033c-1) ---
+  // Sebagian besar LABEL. Dua di antaranya — `hapus.tombol` dan
+  // `kode.konfirmasi` — sengaja identik meski kalimatnya panjang: keduanya
+  // menyebut akibatnya secara harfiah ("Hapus akun saya", "Hapus akun saya
+  // sekarang"), dan tidak ada bentuk yang lebih sederhana tanpa MENGABURKAN
+  // apa yang akan terjadi. Pada tombol paling final di seluruh aplikasi,
+  // mengaburkan adalah kesalahan yang lebih besar daripada mengulang.
+  "pengaturan.hapus.judul": "Label dua kata sehari-hari; nama bagian tidak punya bentuk lebih sederhana.",
+  "pengaturan.hapus.tombol":
+    "Menyebut akibatnya secara harfiah. Menyederhanakannya hanya bisa dengan mengaburkan, " +
+    "dan pada tombol ini kabur jauh lebih berbahaya daripada panjang.",
+  "pengaturan.hapus.batal": "Satu kata sehari-hari; jalan keluar harus dikenali seketika.",
+  "pengaturan.hapus.akibat.judul": "Tiga kata sehari-hari yang sudah menyebut isinya secara harfiah.",
+  "pengaturan.hapus.kode.terkirim":
+    "Kalimat lima kata dengan kata sehari-hari; nomornya disisipkan apa adanya.",
+  "pengaturan.hapus.kode.label": "Label yang sudah menyebut bentuknya secara harfiah ('6 angka').",
+  "pengaturan.hapus.kode.konfirmasi":
+    "Label tombol paling final di aplikasi ini. Ia menyebut persis apa yang akan terjadi; " +
+    "varian yang lebih pendek akan mengurangi kejelasan tepat di tempat yang paling menuntutnya.",
+  "pengaturan.hapus.selesai.judul":
+    "Kalimat empat kata sehari-hari yang menyatakan keadaan secara harfiah.",
+
   "pengaturan.ekspor.tombol":
     "Label tombol tiga kata sehari-hari. 'Unduh' harus SAMA di kedua varian — ia muncul lagi " +
     "di kalimat pengumuman dan di judul bagiannya, dan pengguna mencocokkan kata yang tadi ia tekan.",

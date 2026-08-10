@@ -70,6 +70,43 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     jalur: "/masuk/google?error=access_denied",
   },
   { nama: "pengaturan — akun & data saya", jalur: "/pengaturan", butuhSesi: true },
+  {
+    // Dialog hapus akun (PR-033c-1) — AC PR-033 nomor 3.
+    //
+    // Terdaftar TERPISAH meski alamatnya sama, sebab keadaan yang diperiksa
+    // berbeda: dialog terbuka membawa tombol perusak berlatar merah, dan
+    // kontras warnanya termasuk yang TIDAK BISA diperiksa jsdom sama sekali
+    // (`TAK_BISA_DI_JSDOM`, PR-031a). Lapis kedua akan meluluskan teks putih di
+    // atas latar apa pun tanpa berkomentar.
+    nama: "pengaturan — dialog hapus akun",
+    jalur: "/pengaturan",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      // `:text-is` = cocok PERSIS. `:has-text` akan ikut menangkap tombol
+      // "Hapus akun saya sekarang" di dalam dialog, dan yang tertekan menjadi
+      // tombol yang berbeda tergantung urutan render.
+      await page.click('button:text-is("Hapus akun saya")');
+      await page.waitForSelector('[role="dialog"]');
+
+      // DITEMPUH SAMPAI LANGKAH KEDUA, bukan berhenti di langkah pertama.
+      // Tombol merahnya baru dirender di sana — dan tombol itulah satu-satunya
+      // alasan halaman ini didaftarkan. Berhenti di langkah pertama berarti
+      // gerbangnya hijau atas layar yang tidak memuat apa pun yang ingin
+      // diperiksa.
+      await page.click('button:text-is("Saya mengerti, lanjutkan")');
+      await page.click('button:text-is("Kirim kode ke nomor saya")');
+      await page.waitForSelector("input[autocomplete='one-time-code']");
+
+      // KODENYA IKUT DIISI, dan itu bukan kelengkapan yang berlebihan.
+      // Selama kotaknya kosong, tombol perusak ber-`aria-disabled` — dan axe
+      // MELEWATI pemeriksaan kontras pada kendali nonaktif (memang begitu
+      // aturannya). Tanpa langkah ini, entri ini memeriksa satu-satunya hal
+      // yang menjadi alasannya ada sambil melewatinya. Terbukti: uji mutasi
+      // yang mengganti latar tombol menjadi merah muda tetap hijau sampai
+      // baris ini ditambahkan.
+      await page.fill("input[autocomplete='one-time-code']", "123456");
+    },
+  },
   { nama: "pengaturan — aksesibilitas", jalur: "/pengaturan/aksesibilitas", butuhSesi: true },
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

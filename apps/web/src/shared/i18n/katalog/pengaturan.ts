@@ -141,6 +141,137 @@ export const katalogPengaturan = {
     "id-simple": "Hari ini Anda sudah mengunduh 3 kali. Coba lagi besok.",
   },
 
+  // --- Hapus akun (PR-033c-1) ---
+  //
+  // TEKS PALING BERAT DI SELURUH APLIKASI INI. Yang membacanya sedang
+  // mempertimbangkan tindakan yang tidak bisa dibatalkan sesudah 30 hari, dan
+  // ia berhak tahu PERSIS apa yang akan terjadi — bukan versi yang menenangkan.
+  //
+  // Tiga aturan yang dipegang di seluruh bagian ini:
+  //   1. Sebut akibatnya sebelum menyebut caranya.
+  //   2. Sebut jalan kembalinya (30 hari), sebab jendela itu tidak berguna bagi
+  //      yang tidak tahu ia ada.
+  //   3. Jangan pernah memakai kata halus untuk "hapus". Pengguna yang mengira
+  //      ia hanya "menonaktifkan" akan terkejut di hari ke-31.
+  "pengaturan.hapus.judul": {
+    id: "Hapus akun",
+    "id-simple": "Hapus akun",
+  },
+  "pengaturan.hapus.penjelasan": {
+    id: "Menghapus akun akan menghentikan seluruh lamaran Anda dan mengeluarkan Anda dari semua perangkat.",
+    "id-simple": "Kalau akun dihapus, semua lamaran Anda berhenti. Anda juga keluar dari semua HP dan komputer.",
+  },
+  "pengaturan.hapus.tombol": {
+    id: "Hapus akun saya",
+    "id-simple": "Hapus akun saya",
+  },
+
+  // Langkah 1 — akibat.
+  "pengaturan.hapus.dialog.judul": {
+    id: "Yakin ingin menghapus akun Anda?",
+    "id-simple": "Anda yakin mau menghapus akun?",
+  },
+  "pengaturan.hapus.dialog.deskripsi": {
+    id: "Baca dulu apa yang akan terjadi. Anda masih bisa membatalkan langkah ini.",
+    "id-simple": "Baca dulu. Anda masih boleh berhenti di sini.",
+  },
+  "pengaturan.hapus.akibat.judul": {
+    id: "Yang akan terjadi:",
+    "id-simple": "Yang akan terjadi:",
+  },
+  "pengaturan.hapus.akibat.profil": {
+    id: "Profil, CV, dan lamaran Anda tidak bisa dilihat lagi oleh siapa pun.",
+    "id-simple": "Profil, CV, dan lamaran Anda hilang dari pencarian.",
+  },
+  "pengaturan.hapus.akibat.sesi": {
+    id: "Anda langsung keluar dari semua perangkat.",
+    "id-simple": "Anda langsung keluar dari semua HP dan komputer.",
+  },
+  "pengaturan.hapus.akibat.tunggu": {
+    // Angka harinya datang dari kontrak (`HARI_SEBELUM_PURGE`), bukan diketik
+    // ulang di sini: yang dijanjikan harus sama dengan yang ditegakkan job purge.
+    id: "Data Anda masih bisa dipulihkan dalam {hari} hari. Setelah itu terhapus permanen.",
+    "id-simple": "Dalam {hari} hari, data Anda masih bisa dikembalikan. Lewat itu, hilang selamanya.",
+  },
+  "pengaturan.hapus.akibat.pulihkan": {
+    id: "Untuk memulihkan akun dalam masa itu, hubungi kami lewat kanal resmi Nawasena.",
+    "id-simple": "Mau akun Anda kembali? Hubungi kami sebelum {hari} hari lewat.",
+  },
+  "pengaturan.hapus.batal": {
+    id: "Batal",
+    "id-simple": "Batal",
+  },
+  "pengaturan.hapus.lanjut": {
+    id: "Saya mengerti, lanjutkan",
+    "id-simple": "Saya mengerti. Lanjut.",
+  },
+
+  // Langkah 2 — pembuktian ulang.
+  "pengaturan.hapus.kode.judul": {
+    id: "Buktikan dulu bahwa ini Anda",
+    "id-simple": "Buktikan dulu ini Anda",
+  },
+  "pengaturan.hapus.kode.deskripsi": {
+    // Menyebut SEBABNYA, bukan hanya memerintah. Pengguna yang tahu ia sudah
+    // masuk akan bertanya-tanya kenapa diminta lagi, dan pertanyaan yang tidak
+    // dijawab terbaca sebagai aplikasi yang rewel.
+    id: "Anda memang sudah masuk, tetapi menghapus akun adalah langkah terakhir. Kami minta kode baru supaya orang lain yang memegang perangkat Anda tidak bisa melakukannya.",
+    "id-simple": "Anda sudah masuk. Tapi ini langkah terakhir. Kami minta kode baru, supaya orang lain tidak bisa menghapus akun Anda.",
+  },
+  "pengaturan.hapus.kode.kirim": {
+    id: "Kirim kode ke nomor saya",
+    "id-simple": "Kirim kode ke HP saya",
+  },
+  "pengaturan.hapus.kode.mengirim": {
+    id: "Mengirim kode…",
+    "id-simple": "Sebentar, kode sedang dikirim…",
+  },
+  "pengaturan.hapus.kode.terkirim": {
+    id: "Kode sudah dikirim ke {nomor}.",
+    "id-simple": "Kode sudah dikirim ke {nomor}.",
+  },
+  "pengaturan.hapus.kode.label": {
+    id: "Kode 6 angka",
+    "id-simple": "Kode 6 angka",
+  },
+  "pengaturan.hapus.kode.bantuan": {
+    id: "Cek WhatsApp atau SMS Anda.",
+    "id-simple": "Lihat WhatsApp atau SMS Anda.",
+  },
+  "pengaturan.hapus.kode.konfirmasi": {
+    // Label tombol final MENYEBUT AKIBATNYA, bukan "OK" atau "Lanjut". Inilah
+    // teks terakhir yang dibaca — dan dibacakan — sebelum akun hilang.
+    id: "Hapus akun saya sekarang",
+    "id-simple": "Hapus akun saya sekarang",
+  },
+  "pengaturan.hapus.kode.menghapus": {
+    id: "Menghapus akun Anda…",
+    "id-simple": "Sebentar, akun Anda sedang dihapus…",
+  },
+
+  // Sesudah terhapus.
+  "pengaturan.hapus.selesai.judul": {
+    id: "Akun Anda sudah dihapus",
+    "id-simple": "Akun Anda sudah dihapus",
+  },
+  "pengaturan.hapus.selesai.penjelasan": {
+    id: "Data Anda masih bisa dipulihkan dalam {hari} hari lewat kanal resmi Nawasena. Terima kasih sudah mencoba Nawasena.",
+    "id-simple": "Dalam {hari} hari, data Anda masih bisa dikembalikan. Hubungi kami. Terima kasih sudah memakai Nawasena.",
+  },
+  "pengaturan.hapus.selesai.tutup": {
+    id: "Kembali ke beranda",
+    "id-simple": "Buka halaman awal",
+  },
+
+  // Akun tanpa nomor HP (masuk lewat Google) — jalurnya lahir di PR-033c-2.
+  "pengaturan.hapus.tanpaNomor": {
+    // Dikatakan APA ADANYA, bukan disembunyikan di balik tombol yang gagal.
+    // Pengguna yang menekan tombol lalu ditolak server akan mengira dirinya
+    // yang salah — padahal jalurnya memang belum kami bangun.
+    id: "Akun Anda masuk lewat Google, dan konfirmasi lewat Google belum tersedia di aplikasi. Hubungi kami lewat kanal resmi Nawasena untuk dibantu menghapus akun.",
+    "id-simple": "Anda masuk pakai Google. Cara hapus untuk akun Google belum siap. Hubungi kami, nanti kami bantu.",
+  },
+
   // --- Aksesibilitas (slot; diisi PR-036) ---
   "pengaturan.aksesibilitas.judul": {
     id: "Aksesibilitas",

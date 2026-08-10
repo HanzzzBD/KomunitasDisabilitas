@@ -103,3 +103,32 @@ export async function harusTidakBerpindah(page: Page, halaman: HalamanDijaga): P
   const diminta = halaman.jalur.split("?")[0] ?? halaman.jalur;
   expect(new URL(page.url()).pathname, `"${halaman.nama}" dialihkan ke alamat lain`).toBe(diminta);
 }
+
+/**
+ * Menunggu seluruh transisi & animasi CSS selesai.
+ *
+ * UNTUK DETERMINISME, BUKAN KARENA TERBUKTI MENANGKAP CACAT. Ini perlu
+ * dinyatakan apa adanya: uji mutasi PR-033c-1 menunjukkan gerbang kontras tetap
+ * menggigit TANPA penantian ini. Yang sempat membuat mutasi itu lolos adalah
+ * hal lain (`aria-disabled` pada tombolnya — axe memang melewati kendali
+ * nonaktif), bukan transisi.
+ *
+ * Yang MEMANG terbukti adalah gejalanya: probe langsung atas tombol perusak,
+ * diukur segera sesudah dialognya terbuka, melaporkan latar abu-abu gelap
+ * (`oklab(0.27 …)`) alih-alih merah — nilai ANTARA dari `transition-colors`
+ * yang masih berjalan. Warna antara itulah yang dibaca axe bila ia mengukur
+ * pada saat yang sama.
+ *
+ * Penantian ini ada karena gerbang yang mengukur nilai antara akan berperilaku
+ * berbeda mengikuti kecepatan mesin — dan gerbang yang "kadang hijau" berhenti
+ * dipercaya (playwright.config.ts menyatakan sikap yang sama tentang retry).
+ * `document.getAnimations()` mencakup transisi CSS maupun animasi; menunggunya
+ * lebih jujur daripada menidurkan test sekian milidetik dan berharap cukup.
+ */
+export async function tungguGayaTenang(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => document.getAnimations().every((animasi) => animasi.playState !== "running"),
+    undefined,
+    { timeout: 5_000 },
+  );
+}
