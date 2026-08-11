@@ -2258,3 +2258,97 @@ Tiga utang terbuka juga tidak disentuh dan tetap terbuka: NVDA (AC PR-033 nomor 
 * **AC PR-033 nomor 4** — keyboard-only. Tiga dari empat alur tertutup; jalur hapus akun lewat Google belum diuji khusus keyboard.
 
 Exit Criteria phase ini masih menuntut satu hal lagi yang bukan urusan dokumen: seluruh PR merged ke `main`, yang merupakan keputusan owner.
+
+## Verifikasi NVDA — dialog hapus akun & layar kembalian Google
+
+**Tanggal:** 2026-08-11
+**Sifat:** verifikasi manual. **Tidak ada perubahan kode** — tidak ditemukan cacat.
+**Menutup:** AC PR-033 nomor 3 (dialog konfirmasi lolos NVDA checklist).
+
+### Cara
+
+NVDA + Chrome. Navigasi disetir agent lewat MCP Playwright; NVDA berjalan di mesin owner dan membaca jendela yang sama. **Speech Viewer** dipakai sebagai bukti tertulis — hasilnya disalin apa adanya, bukan diingat.
+
+**Kalibrasi lebih dulu, dan itu bukan formalitas.** Playwright meluncurkan Chromium-nya sendiri; ada dua cara NVDA bisa senyap tanpa aplikasi bersalah (jendela tidak dipegang sistem, atau pohon aksesibilitas tidak terekspos pada peramban yang dijalankan otomatis). Kalau salah satu terjadi, "senyap" berarti alat tidak terhubung — dan itu terlihat persis sama dengan "aplikasi tidak mengumumkan". Jadi halaman masuk dibaca lebih dulu untuk membuktikan rantainya hidup:
+
+```
+Nawasena - Google Chrome  window
+Masuk ke Nawasena  heading  level 1
+Nomor HP (wajib diisi)  edit  required
+Kirim kode  button
+Masuk dengan Google
+```
+
+Rantai hidup ⇒ senyap sesudah ini adalah temuan sungguhan.
+
+### Hasil per butir
+
+**① Panel pengaturan** — `<dl>` identitas terbaca sebagai list dengan pasangan label–nilai utuh; `Nomor HP → Belum diisi` menegaskan akun Google-only sehingga dialog mengambil cabang Google.
+
+**② Dialog langkah 1 — keempat akibat mendahului tombol lanjut** ✅
+
+```
+Yakin ingin menghapus akun Anda?
+Baca dulu apa yang akan terjadi. Anda masih bisa membatalkan langkah ini.
+Yang akan terjadi:
+Profil, CV, dan lamaran Anda tidak bisa dilihat lagi oleh siapa pun.
+Anda langsung keluar dari semua perangkat.
+Data Anda masih bisa dipulihkan dalam 30 hari. Setelah itu terhapus permanen.
+Untuk memulihkan akun dalam masa itu, hubungi kami lewat kanal resmi Nawasena.
+Saya mengerti, lanjutkan
+Batal
+```
+
+Inilah seluruh alasan langkah pertama ada. Kalau akibatnya terdengar SESUDAH tombol lanjut — atau tidak terdengar sama sekali kecuali pengguna berinisiatif menjelajah — langkah itu hanya menambah satu klik tanpa menambah pemahaman.
+
+**③ Pergantian langkah 1 → langkah Google, DI TEMPAT** ✅
+
+```
+Buktikan dulu lewat akun Google Anda  dialog
+Anda akan dibawa ke halaman Google untuk masuk sekali lagi.
+Setelah kembali, kami tanya sekali lagi sebelum menghapus.
+button  Lanjut ke Google
+```
+
+Risiko nomor satu, dan ia tidak terjadi. Isi dialog berganti tanpa dialog baru dibuka — pola yang kerap senyap — tetapi judul DAN deskripsi barunya ikut diumumkan. Pengguna tahu ia berpindah langkah, dan tahu masih ada satu pintu lagi sesudah Google.
+
+**④ Layar kembalian, sesudah muat ulang penuh dari Google** ✅
+
+```
+main landmark  heading  level 1  Konfirmasi terakhir: hapus akun Anda?
+Anda sudah masuk lewat Google. Menekan tombol di bawah akan menghapus akun Anda,
+menghentikan seluruh lamaran Anda, dan mengeluarkan Anda dari semua perangkat.
+button  Batal, jangan hapus akun saya
+```
+
+Jalan keluar diumumkan LEBIH DULU daripada tombol perusak — urutan yang memang dirancang begitu, dan kini terbukti terdengar begitu.
+
+**⑤ Layar sesudah terhapus, pergantian di tempat lagi** ✅
+
+```
+heading  level 1  Akun Anda sudah dihapus
+Data Anda masih bisa dipulihkan dalam 30 hari lewat kanal resmi Nawasena.
+Terima kasih sudah mencoba Nawasena.
+button  Kembali ke beranda
+```
+
+Kalimat 30 hari terdengar tepat di detik ia paling berguna. Ini tombol paling final di aplikasi; senyap di sini akan menjadi kegagalan bisu yang paling mahal.
+
+Bukti sisi server pada detik yang sama: `ACCOUNT_DELETED` `requested`→`completed`, `method: google`, `deleted_at` terisi, `token_version` naik, 0 sesi aktif / 8 dicabut.
+
+### Satu hal yang TIDAK dicatat sebagai cacat
+
+Pembacaan penuh (`NVDA + ↓`) pada langkah 1 memunculkan beberapa kalimat dua kali. Pengumuman OTOMATIS pada langkah berikutnya bersih tanpa duplikat — jadi duplikasi itu tumpang-tindih antara pengumuman otomatis dan pembacaan manual, bukan halamannya. Tidak ditindaklanjuti.
+
+### Cakupan yang TIDAK diuji
+
+* **Jalur OTP langkah 2** — tidak ada provider OTP di lingkungan uji, kotak kode tidak pernah muncul.
+* **Penanda tunggu** *"Sebentar, kami periksa dulu akun Anda…"* — tidak terdengar, tetapi bukan cacat: pemulihan sesi di localhost selesai dalam milidetik sehingga kemungkinan besar tidak pernah dirender. Mengujinya menuntut jaringan ter-throttle.
+* **Peramban selain Chrome** — Firefox belum; urutan pembacaan bisa berbeda.
+* **Keyboard-only** — navigasi sesi ini memakai klik Playwright, bukan tombol. AC PR-033 nomor 4 karena itu TETAP terbuka.
+
+### Akibatnya
+
+AC Phase 03 menjadi **43 dari 45**. Dua yang tersisa: AC PR-030 nomor 1 (login OTP end-to-end — terhalang ketiadaan kredensial provider) dan AC PR-033 nomor 4 (keyboard-only jalur Google).
+
+Utang non-AC yang masih berdiri: review copy oleh non-engineer, dan pemberitahuan pasca-hapus untuk akun Google-only (dependensi Phase 07 PR-049).
