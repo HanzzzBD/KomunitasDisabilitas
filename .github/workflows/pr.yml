@@ -1,7 +1,8 @@
 # CI PR Checks — lint (termasuk boundaries), typecheck, unit test (ADR-016, PR-003).
 #
 # Semua check WAJIB hijau sebelum merge (branch protection required checks).
-# Slot job e2e & a11y disiapkan non-blocking; diaktifkan di PR-031.
+# Job `a11y` (gerbang aksesibilitas lapis ketiga) aktif sejak PR-031b. Slot
+# `e2e` yang dulu dipesan di sini sudah dihapus — lihat alasannya di bawah.
 # Tanpa secrets produksi; permission least-privilege (contents: read).
 
 name: PR Checks
@@ -156,15 +157,27 @@ jobs:
       - name: Build web + cek budget bundle
         run: pnpm --filter @nawasena/web build && pnpm --filter @nawasena/web cek:budget
 
-  # ---- Slot non-blocking (diaktifkan PR-031) ----
-  # `if: false` = job tidak pernah jalan, tapi struktur & nama check sudah dipesan
-  # sehingga PR-031 cukup mengganti kondisi + mengisi langkah.
-  e2e:
-    name: e2e (slot — aktif di PR-031)
-    if: ${{ false }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Slot e2e — alur pengguna end-to-end; masih slot (lihat catatan PR-031b)."
+  # SLOT `e2e` DIHAPUS (2026-08-10). Ia dipesan di PR-003 dengan `if: false` dan
+  # nama check "e2e (slot — aktif di PR-031)". PR-031 datang dan pergi: yang ia
+  # bangun adalah gerbang aksesibilitas, yang mendarat sebagai job `a11y` di
+  # bawah — slotnya sendiri tidak pernah disentuh, dan namanya terus menjanjikan
+  # sesuatu yang tidak pernah datang di setiap PR selama delapan phase.
+  #
+  # Menghapusnya aman DAN jujur:
+  #   - `e2e` bukan required status check (ruleset `phase branches` hanya
+  #     mewajibkan `lint-typecheck-test` dan `a11y`), jadi tidak ada merge yang
+  #     ikut terhalang.
+  #   - Alur pengguna end-to-end SUDAH berjalan hari ini: job `a11y` memanggil
+  #     `test:a11y`, yang berarti `playwright test` TANPA filter — sehingga
+  #     `ekspor-data.spec.ts` (unduhan berkas sungguhan) dan
+  #     `hapus-akun-google.spec.ts` (alur lintas-pengalihan) ikut dijalankan.
+  #
+  # Yang MEMANG belum tercakup adalah e2e yang menuntut stack hidup (Postgres +
+  # Redis + API): simulasi luring, toggle mode bahasa, OTP happy/sad path, dan
+  # smoke landing→login. Job `a11y` sengaja MEMALSUKAN jaringan supaya gerbang
+  # tampilan tidak merah karena basis data, jadi keduanya memang tidak bisa
+  # disatukan. Saat pekerjaan itu punya pemilik, job barunya dibuat berikut
+  # langkah-langkahnya — bukan dipesan lebih dulu sebagai nama kosong.
 
   # Gerbang aksesibilitas LAPIS KETIGA (PR-031b) — axe + Lighthouse atas halaman
   # nyata di peramban nyata.

@@ -236,8 +236,8 @@ Bisnis: kualitas tidak bergantung ingatan reviewer. Teknis: workflow PR dengan c
 
 * [x] Unit Test (pipeline menjalankan unit suite penuh — termasuk 8 test `@nawasena/config`, bukti fixture boundaries)
 * [x] Integration Test (N/A — dicatat)
-* [x] E2E Test (slot job `e2e` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
-* [x] Accessibility Test (slot job `a11y` disiapkan di pr.yml, non-blocking `if: false` — aktif PR-031)
+* [x] E2E Test (slot job `e2e` disiapkan di pr.yml, non-blocking `if: false`) — **slotnya DIHAPUS 2026-08-10.** PR-031 membangun gerbang aksesibilitas, bukan e2e, jadi slot ini tidak pernah diaktifkan dan namanya menjanjikan sesuatu yang tidak datang selama delapan phase. Alur pengguna end-to-end sendiri sudah berjalan di job `a11y` (`test:a11y` = `playwright test` tanpa filter). E2E yang menuntut stack hidup belum punya pemilik — dicatat di `pr.yml`.
+* [x] Accessibility Test (slot job `a11y` disiapkan di pr.yml, non-blocking `if: false` — **aktif sejak PR-031b**, dan kini required check di ruleset)
 * [x] Manual Verification (PR uji #1 dibuka → check `lint-typecheck-test` tampil & hijau; slot e2e/a11y tampil skipped; merge terblokir sampai check hijau)
 
 **Deliverables:**
