@@ -54,7 +54,7 @@
 - **Library:** React 18+ (via Vite)
 - **State Management:** Zustand (global) + TanStack Query (server state)
 - **UI Components:** Custom components dengan focus accessibility-first
-- **Styling:** Tailwind CSS (strict WCAG 2.2 AA compliance)
+- **Styling:** Tailwind CSS **v4** (ADR-019) — tema bersama sebagai CSS `@theme` di `packages/config/tailwind`, membaca token aksesibilitas ADR-008; strict WCAG 2.2 AA
 - **Accessibility Checks:** axe-core (axe devtools), jsx-a11y (ESLint), Lighthouse
 - **Type Checking:** TypeScript strict
 
@@ -211,6 +211,7 @@ Database (PostgreSQL)
 | **ADR-016** | GitHub Actions CI/CD | PR checks: lint, typecheck, unit; deploy via `deploy.sh --rollback` |
 | **ADR-017** | Observability Hemat | Structured JSON logs; minimal stack MVP (Fase 2: centralized logging) |
 | **ADR-018** | PostgreSQL FTS + pg_trgm | Job search: native FTS, tidak external search engine MVP |
+| **ADR-019** | Tailwind CSS v4 (styling web) | `@theme` CSS menggantikan preset JS; mekanisme token ADR-008 terwakili langsung |
 
 ---
 
@@ -397,12 +398,19 @@ Setelah sebuah task PR-XXX **selesai** (implementasi + test + `pnpm lint`/`typec
 3. **Push:** `git push -u origin pr-XXX-<slug>`.
 4. **Buat PR** ke branch phase (BUKAN `main`):
    `gh pr create --base phase-XX-<nama> --head pr-XXX-<slug>` dengan body what/why/AC terpenuhi/hasil verifikasi.
-   - Push langsung ke branch phase DITOLAK (protected, required check `lint-typecheck-test`) — PR adalah satu-satunya jalur masuk.
-5. **Tunggu CI:** `gh pr checks <nomor> --watch --interval 15`. Merge HANYA bila `lint-typecheck-test` pass.
+   - Push langsung ke branch phase DITOLAK — PR adalah satu-satunya jalur masuk.
+   - Penegakannya adalah **repository ruleset `phase branches`** (dibuat 2026-08-09), bertarget `refs/heads/phase-*` dengan `enforcement: active` dan **tanpa bypass actor** — jadi pemilik repo pun tidak dikecualikan. Ruleset dipakai, bukan branch protection per-branch, justru supaya phase BERIKUTNYA ikut terlindungi sejak menit ia dibuat: proteksi yang harus dipasang manual tiap phase adalah proteksi yang suatu saat terlupakan (dan memang pernah — `phase-02` dan `phase-03` sempat sama sekali tidak terlindungi).
+   - Aturannya: PR wajib (0 approval — alur satu-orang + agent), status check wajib **`lint-typecheck-test` DAN `a11y`** dengan kebijakan *strict* (branch harus mutakhir sebelum merge), force push ditolak (`non_fast_forward`), penghapusan branch ditolak (`deletion`).
+5. **Tunggu CI:** `gh pr checks <nomor> --watch --interval 15`. Merge HANYA bila `lint-typecheck-test` **dan** `a11y` pass.
    - CI merah → STOP merge, perbaiki di branch PR, push lagi, tunggu ulang. Jangan pernah bypass check.
+   - **Nama check `a11y` adalah kontrak.** Ruleset mencocokkannya sebagai string; mengubah `name:` job di `pr.yml` akan diam-diam melepas kewajibannya dan menyisakan aturan yang menunggu check yang tidak pernah lagi dilaporkan. Dijaga `apps/web/__tests__/registry-halaman.test.ts`.
 6. **Merge manual setelah hijau:** `gh pr merge <nomor> --merge`.
-   - Auto-merge repo DINONAKTIFKAN (by design) — jangan pakai `--auto`; agent yang menunggu CI lalu merge.
+   - Auto-merge **tersedia** di repo ini, tetapi agent TIDAK memakainya — jangan pakai `--auto`. Bukan karena setelannya mati, melainkan karena agent wajib melihat hasil CI dengan matanya sendiri lalu memutuskan: auto-merge menyerahkan keputusan itu kepada GitHub, dan menghapus satu-satunya titik di mana kegagalan yang lolos gerbang masih bisa tertangkap.
 7. **Sinkron lokal:** `git fetch origin --prune && git checkout phase-XX-<nama> && git pull --ff-only`, lalu kembali/berhenti.
+   - Branch PR **dihapus otomatis** di remote setelah merge oleh `.github/workflows/hapus-branch-pr.yml`. Karena itu `--prune` bukan kosmetik: tanpa itu, ref remote yang sudah hilang tetap menumpuk di lokal. Hapus juga branch lokalnya (`git branch -d <nama>`) — workflow hanya menjangkau remote.
+   - **Branch `phase-*` sengaja TIDAK ikut terhapus**, termasuk saat `phase-XX → main` di-merge: ia rujukan historis per phase dan titik cabang bila phase dibuka kembali. Inilah alasan setelan repo "Automatically delete head branches" **tidak** dipakai — ia tidak bisa mengecualikan pola nama.
+   - PR yang ditutup **tanpa** merge tidak dihapus: branch-nya bisa memuat kerja yang belum ada di mana pun.
+   - Workflow-nya bertrigger `pull_request`, jadi ia hanya berjalan bila berkasnya ikut ada di branch PR — otomatis terpenuhi untuk branch yang dicabang dari phase yang sudah memuatnya. Phase berikutnya (dicabang dari `main`) baru ikut terjaga setelah `phase-03 → main`; sampai saat itu, hapus branch-nya manual.
 8. **Larangan keras:** JANGAN pernah membuat PR atau merge apa pun ke `main`. `phase-XX → main` hanya terjadi setelah SELURUH PR phase selesai (Exit Criteria terpenuhi) **dan** atas perintah eksplisit owner.
 
 ---
@@ -463,6 +471,7 @@ ProjectKomunitasDisabilitas/
 | `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.dev.yml` | Stack dev: PostgreSQL, `redis-cache`, `redis-queue`, api, worker. **Dua Redis terpisah dengan sengaja** (ADR-004): cache boleh di-evict (`allkeys-lru`), queue tidak boleh (`noeviction` + AOF). Overlay staging/produksi menyusul di Phase 16. |
 | `docs/rbac-route-registry.md` | Konvensi guard RBAC & route registry (PR-019) — wajib dibaca sebelum menambah endpoint |
+| [docs/panduan-bahasa-sederhana.md](./docs/panduan-bahasa-sederhana.md) | Cara menulis varian `id-simple` pada katalog i18n (PR-029b) — wajib dibaca sebelum menambah teks UI. Entri yang varian sederhananya disalin mentah dari `id` membuat CI merah. |
 
 ---
 

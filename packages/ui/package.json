@@ -2,22 +2,45 @@
   "name": "@nawasena/ui",
   "version": "0.0.0",
   "private": true,
-  "description": "Design system aksesibel (Radix + Tailwind; RN counterpart). Placeholder — menyusul di phase UI/a11y.",
+  "description": "Design system aksesibel (Tailwind v4 + Radix seperlunya). Set komponen MVP lengkap: form primitives (PR-027), Dialog (PR-028a), Toast & Kerangka (PR-028b), Tab & Kartu (PR-028c).",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "lint": "eslint src __tests__ --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "devDependencies": {
+    "@nawasena/a11y": "workspace:*",
     "@nawasena/config": "workspace:*",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@testing-library/user-event": "14.5.2",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@vitejs/plugin-react": "4.3.4",
     "eslint": "8.57.1",
+    "jsdom": "25.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.15",
+    "@radix-ui/react-select": "2.3.7",
+    "@radix-ui/react-tabs": "1.1.21",
+    "@radix-ui/react-toast": "1.2.23",
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.6.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   }
 }

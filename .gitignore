@@ -45,3 +45,19 @@ temp/
 # Docker local volumes
 /docker-data/
 /docker/volumes/
+
+# Artefak gerbang aksesibilitas (PR-031b) — laporan, jejak, dan hasil Lighthouse.
+# Semuanya dihasilkan ulang tiap jalan; yang di CI diunggah sebagai artefak job.
+/apps/web/playwright-report/
+/apps/web/test-results/
+/apps/web/.lighthouseci/
+/apps/web/.lighthouseci-3g/
+
+# Berkas sementara Vite saat config-nya di-bundle ulang (muncul saat `vite preview`).
+*.timestamp-*.mjs
+
+# Jejak peramban dari MCP Playwright (snapshot halaman & log konsol), dihasilkan
+# saat verifikasi manual dijalankan lewat alat itu. Ia bisa memuat isi halaman
+# yang sedang dibuka — termasuk nama dan alamat email pengguna uji — jadi ia
+# TIDAK boleh masuk repo. Bukan artefak build: tidak ada yang membacanya ulang.
+/.playwright-mcp/

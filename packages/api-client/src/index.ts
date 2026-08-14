@@ -11,9 +11,12 @@ export { queryKey, type QueryKey, type QueryParams } from "./query-keys.js";
 export {
   requestOtp,
   verifyOtp,
+  googleAuth,
   refreshSession,
   logout,
   logoutAll,
   authKeys,
 } from "./endpoints/auth.js";
+export { getMe, exportMe, usersKeys } from "./endpoints/users.js";
+export { deleteAccount } from "./endpoints/account.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";
