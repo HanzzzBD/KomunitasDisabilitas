@@ -849,6 +849,35 @@ Phase 03 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
 
+> ### ⚠ DI-OVERRIDE atas perintah owner — 2026-08-14
+>
+> `phase-03` di-merge ke `main` **tanpa** Exit Criteria terpenuhi penuh. Dicatat di
+> sini, bukan hanya di log, supaya siapa pun yang membaca gerbang ini melihat
+> bahwa ia tidak dilewati — melainkan dilangkahi dengan sadar.
+>
+> **Yang TIDAK terpenuhi:** kriteria kedua. **AC PR-030 nomor 1** (login OTP
+> end-to-end terhadap API dev) masih terbuka — 44 dari 45 AC.
+>
+> **Sebabnya bukan kode.** Alur OTP terbangun dan teruji dari nomor sampai sesi,
+> termasuk normalisasi `0812…` → E.164 yang benar-benar sampai ke jaringan
+> (PR-030b). Yang belum pernah dijalankan adalah alurnya terhadap API dev
+> sungguhan, dan itu menuntut kredensial provider OTP yang belum ada di
+> lingkungan mana pun. Menunggunya berarti menahan seluruh phase pada sesuatu
+> yang tidak bisa diselesaikan dengan menulis kode.
+>
+> **Tiga kriteria lain terpenuhi** pada saat override: seluruh PR-025..PR-033
+> mendarat di `phase-03`, CI hijau penuh (`lint-typecheck-test` + `a11y`), dan
+> tidak ada regresi pada E2E yang sudah ada.
+>
+> **Utang ini dibawa ke Phase 04**, dan tetap terbuka sampai kredensial provider
+> tersedia. Ia TIDAK dianggap selesai oleh override ini — override hanya
+> memindahkan keputusan merge, bukan mengubah kenyataan verifikasinya.
+>
+> Utang non-AC yang ikut terbawa: review copy oleh non-engineer, pemberitahuan
+> pasca-hapus untuk akun Google-only (dependensi Phase 07 / PR-049), dan jendela
+> toleransi rotasi token di sisi server untuk dua celah balapan yang sengaja
+> ditunda di PR-033i.
+
 ## Next Phase
 
 [Phase 04 - Accessibility Experience](phase-04-accessibility-experience.md)
