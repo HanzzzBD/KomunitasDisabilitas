@@ -190,16 +190,54 @@ describe("POST /auth/refresh — klien web (cookie)", () => {
     });
     expect(res.status).toBe(401);
     expect((await res.json()) as { code: string }).toMatchObject({ code: "SESI_TIDAK_VALID" });
+    // Tidak ada cookie yang dikirim → tidak ada yang perlu ditulis kembali.
+    // Menghapus di sini pernah membuang cookie yang baru dipasang permintaan
+    // lain pada muat halaman yang sama (PR-033i).
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
-  it("cookie ditolak → cookie basi ikut dihapus dari browser", async () => {
+  it("cookie ditolak → 401 TANPA menyentuh cookie sama sekali (PR-033i)", async () => {
+    // Perilaku ini SENGAJA dibalik dari sebelumnya. Dulu penolakan ikut
+    // menghapus cookie basi; itu terbukti membuang sesi yang sah ketika dua
+    // refresh berlomba — lihat test balapan di bawah dan catatan di
+    // session.controller.ts.
     const { base } = await boot();
     const res = await refreshWeb(base, "nawasena_refresh=token-karangan");
 
     expect(res.status).toBe(401);
-    const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("nawasena_refresh=;");
-    expect(setCookie).toContain("Path=/api/v1/auth"); // atribut sama = benar-benar terhapus
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("dua refresh bersamaan: yang kalah TIDAK menghapus cookie milik yang menang", async () => {
+    // Inilah cacat yang memblokir AC PR-033 nomor 4, direproduksi sebagai test.
+    //
+    // Token dirotasi, jadi dua permintaan dengan satu nilai cookie SELALU
+    // berarti satu menang dan satu ditolak — itu wajar dan tidak bisa
+    // dihilangkan di sisi server. Yang tidak boleh terjadi adalah penolakan
+    // itu ikut membuang cookie yang baru dipasang pemenangnya, sebab hasil
+    // akhirnya peramban kehilangan sesi yang sebetulnya sah.
+    const { base, prisma } = await boot();
+    const awal = await sesiAwal(prisma);
+    const cookie = `nawasena_refresh=${awal.refreshToken}`;
+
+    const [a, b] = await Promise.all([refreshWeb(base, cookie), refreshWeb(base, cookie)]);
+
+    const menang = a.status === 200 ? a : b;
+    const kalah = a.status === 200 ? b : a;
+
+    expect(menang.status).toBe(200);
+    expect(kalah.status).toBe(401);
+
+    // Pemenang memasang cookie berisi token BARU. `[^;]*` (bukan `+`) disengaja:
+    // pola yang menuntut minimal satu karakter tidak akan pernah cocok dengan
+    // cookie yang DIKOSONGKAN, sehingga asersinya lolos justru pada keadaan
+    // yang ingin dijaga.
+    const tokenMenang = /nawasena_refresh=([^;]*)/.exec(menang.headers.get("set-cookie") ?? "")?.[1];
+    expect(tokenMenang).toBeTruthy();
+    expect(tokenMenang).not.toBe(awal.refreshToken);
+
+    // Dan yang kalah tidak menulis apa pun ke toples cookie peramban.
+    expect(kalah.headers.get("set-cookie")).toBeNull();
   });
 
   it("cookie lain di header tidak mengganggu pembacaan", async () => {

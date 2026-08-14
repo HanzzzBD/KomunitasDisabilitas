@@ -4,6 +4,7 @@
 // butuh klien. Perakitan yang salah tidak gagal saat dipasang — ia gagal
 // belakangan, saat token pertama kedaluwarsa, dan gejalanya "pengguna
 // terlempar keluar tanpa sebab".
+import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { buatKlienApi, pulihkanSesi, PenyediaKlienApi, useKlienApi } from "../src/app/klien-api.js";
@@ -117,6 +118,97 @@ describe("pemulihan sesi saat boot", () => {
   });
 });
 
+describe("pemulihan bersamaan — single-flight (PR-033i)", () => {
+  /**
+   * Fetch yang MENAHAN jawabannya sampai disuruh. Tanpa penahan ini pemulihan
+   * pertama sudah selesai sebelum yang kedua dimulai, dan test akan lulus
+   * bahkan ketika gerbangnya dilepas — yaitu test yang tidak menguji apa pun.
+   */
+  function fetchTertahan(accessToken: string) {
+    let lepaskan!: () => void;
+    const siap = new Promise<void>((res) => {
+      lepaskan = res;
+    });
+    const fetchPalsu = vi.fn(() => siap.then(() => jawabRefresh(accessToken)));
+    return { fetchPalsu, lepaskan };
+  }
+
+  it("dua pemulihan bersamaan hanya memicu SATU /auth/refresh", async () => {
+    // Inilah cacat yang memblokir AC PR-033 nomor 4. Refresh token dirotasi,
+    // jadi panggilan kedua membawa nilai cookie yang sudah dicabut — dan
+    // penolakannya dulu menghapus cookie milik panggilan yang menang.
+    const { fetchPalsu, lepaskan } = fetchTertahan("token-pulih");
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    const pertama = pulihkanSesi(klien);
+    const kedua = pulihkanSesi(klien);
+    lepaskan();
+    await Promise.all([pertama, kedua]);
+
+    expect(fetchPalsu).toHaveBeenCalledTimes(1);
+    expect(useStoreSesi.getState().status).toBe("masuk");
+  });
+
+  it("pemanggil KEDUA ikut menunggu janji yang sama, bukan janji kosong", async () => {
+    // Gerbang yang mengembalikan janji yang langsung selesai kepada pemanggil
+    // kedua juga membuat hitungan fetch menjadi satu — jadi test penghitung di
+    // atas tidak bisa melihatnya. Pemanggilnya lalu melanjutkan sebelum sesi
+    // siap, dan `PenyediaKlienApi` merender seolah pemulihan sudah usai.
+    //
+    // Karena itu yang diamati di sini HARUS panggilan kedua. Panggilan pertama
+    // sengaja dibuang: ia pemrakarsa flight dan selalu memegang janji yang
+    // asli, sehingga mengamatinya akan lulus pada mutan mana pun.
+    const { fetchPalsu, lepaskan } = fetchTertahan("token-pulih");
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    void pulihkanSesi(klien);
+
+    let keduaSelesai = false;
+    const kedua = pulihkanSesi(klien).then(() => {
+      keduaSelesai = true;
+    });
+
+    // Antrean mikrotask DAN makrotask dikuras dulu. Pemeriksaan sinkron di sini
+    // akan benar secara sepele — ia berjalan sebelum janji mana pun sempat
+    // selesai, termasuk janji kosong milik mutannya.
+    await new Promise((selesai) => setTimeout(selesai, 0));
+    expect(keduaSelesai).toBe(false);
+
+    lepaskan();
+    await kedua;
+    expect(ambilTokenAkses()).toBe("token-pulih");
+  });
+
+  it("pemulihan SESUDAH yang pertama selesai tetap boleh berjalan", async () => {
+    // Gerbangnya menggabungkan yang bersamaan, bukan mematikan pemulihan
+    // selamanya. Provider yang dipasang ulang harus tetap bisa memulihkan.
+    const fetchPalsu = vi.fn(() => Promise.resolve(jawabRefresh("token-pulih")));
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    await pulihkanSesi(klien);
+    useStoreSesi.setState({ status: "memulihkan" });
+    await pulihkanSesi(klien);
+
+    expect(fetchPalsu).toHaveBeenCalledTimes(2);
+  });
+
+  it("gerbangnya per-KLIEN, bukan global", async () => {
+    // Gerbang modul-global membuat klien kedua diam-diam memakai hasil klien
+    // pertama — di test itu tampak seperti lulus, di aplikasi itu sesi yang
+    // salah.
+    const { fetchPalsu, lepaskan } = fetchTertahan("token-pulih");
+    const klienA = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+    const klienB = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    const a = pulihkanSesi(klienA);
+    const b = pulihkanSesi(klienB);
+    lepaskan();
+    await Promise.all([a, b]);
+
+    expect(fetchPalsu).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("simpul klien ↔ refresh tersambung", () => {
   it("401 pada permintaan biasa memicu refresh lalu mengulang SEKALI", async () => {
     useStoreSesi.getState().masuk("token-basi");
@@ -195,6 +287,27 @@ describe("penyedia klien", () => {
 
     await waitFor(() => expect(useStoreSesi.getState().status).toBe("masuk"));
     expect(ambilTokenAkses()).toBe("token-dari-provider");
+  });
+
+  it("StrictMode memasang dua kali → tetap SATU /auth/refresh (PR-033i)", async () => {
+    // Pemicu nyatanya, bukan simulasi: `main.tsx` membungkus aplikasi dengan
+    // StrictMode, yang menjalankan efek pemulihan dua kali. Itu perilaku
+    // DEVELOPMENT — pada build produksi StrictMode tidak berefek runtime —
+    // dan justru karena itu ia berharga: cacatnya jadi deterministik dan bisa
+    // diukur, alih-alih muncul sesekali di lapangan.
+    const fetchPalsu = vi.fn(() => Promise.resolve(jawabRefresh("token-strict")));
+    const klien = buatKlienApi({ fetch: fetchPalsu as unknown as typeof globalThis.fetch });
+
+    render(
+      <StrictMode>
+        <PenyediaKlienApi klien={klien}>
+          <p>isi</p>
+        </PenyediaKlienApi>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(useStoreSesi.getState().status).toBe("masuk"));
+    expect(fetchPalsu).toHaveBeenCalledTimes(1);
   });
 
   it("dipakai di luar penyedianya → galat yang menyebut penyebabnya", () => {

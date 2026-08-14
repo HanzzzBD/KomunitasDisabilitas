@@ -49,6 +49,9 @@ export function buatKlienApi(opsi: { baseUrl?: string; fetch?: typeof globalThis
   return klien;
 }
 
+/** Pemulihan yang sedang berjalan per klien; lihat catatan di `pulihkanSesi`. */
+const pemulihanBerjalan = new WeakMap<ApiClient, Promise<void>>();
+
 /**
  * Coba pulihkan sesi dari cookie refresh saat aplikasi dibuka.
  *
@@ -62,7 +65,73 @@ export function buatKlienApi(opsi: { baseUrl?: string; fetch?: typeof globalThis
  * masuk" di localStorage, yaitu memindahkan sebagian keadaan sesi ke tempat
  * yang justru ingin kita hindari.
  */
-export async function pulihkanSesi(klien: ApiClient): Promise<void> {
+export function pulihkanSesi(klien: ApiClient): Promise<void> {
+  // SINGLE-FLIGHT, dan ini syarat kebenaran — bukan penghematan permintaan.
+  //
+  // Refresh token DIROTASI: sekali dipakai ia dicabut. Dua pemulihan yang
+  // berjalan bersamaan membawa nilai cookie yang SAMA, jadi yang kalah tiba
+  // dengan token yang sudah dirotasi dan ditolak. Sampai PR-033i, respons
+  // penolakan itu ikut menghapus cookie yang baru saja dipasang pemenangnya —
+  // dan hasil akhirnya adalah toples cookie kosong meskipun server memegang
+  // sesi yang sah.
+  //
+  // Gejalanya menyesatkan justru karena halaman yang sedang terbuka tetap
+  // sehat: access token pemenang hidup di memori. Kerusakannya baru muncul
+  // pada MUAT ULANG berikutnya — dan tempat pertama yang menabraknya adalah
+  // halaman kembalian dari Google, yang selalu dimuat dari nol. Di sana ia
+  // terbaca sebagai "sesi Anda sudah berakhir", satu-satunya cabang yang
+  // menyembunyikan tombol hapus akun. Itulah yang memblokir AC PR-033 nomor 4.
+  //
+  // PEMICU YANG TERUKUR ADALAH PERILAKU DEVELOPMENT, dan itu perlu dinyatakan
+  // apa adanya: `useEffect` di bawah dijalankan dua kali oleh StrictMode React
+  // 18 hanya di dev — pada build produksi `<StrictMode>` tidak berefek runtime
+  // (`providers.tsx` mencatat hal yang sama). Di aplikasi ini pun tidak ada
+  // jalur remount produksi: `PenyediaKlienApi` dipasang sekali di puncak pohon
+  // provider dengan klien yang dipaku `useState`.
+  //
+  // Jadi yang ditutup gerbang ini persisnya: dua panggilan `pulihkanSesi`
+  // BERSAMAAN pada satu klien. Itu yang membuat cacatnya deterministik dan
+  // bisa diukur di dev, dan itu pula yang membuat verifikasi keyboard-only
+  // jalur Google mustahil diselesaikan sebelumnya.
+  //
+  // YANG TIDAK DITUTUP GERBANG INI, supaya tidak dikira sudah aman:
+  //   - Dua tab yang dibuka bersamaan. Keduanya konteks JavaScript terpisah
+  //     dengan WeakMap sendiri-sendiri, jadi keduanya tetap mengirim nilai
+  //     cookie yang sama.
+  //   - Pemulihan boot yang berlomba dengan refresh yang dipicu 401. Jalur itu
+  //     punya single-flight-nya SENDIRI di `createSessionRefresher`, dan dua
+  //     gerbang terpisah tidak saling melihat. Jendelanya sempit, tetapi ia
+  //     TERJANGKAU — dan justru di `/masuk/google`: halaman itu publik secara
+  //     kontrak (kembalian OAuth tidak bisa dijaga guard), ia menembakkan
+  //     `googleAuth` saat mount berbarengan dengan pemulihan boot, `googleAuth`
+  //     tidak menyetel `skipAuthRefresh`, dan `GOOGLE_EXCHANGE_GAGAL` berstatus
+  //     401 — sehingga penukaran yang gagal memanggil hook refresh. Akibatnya
+  //     bisa lebih buruk daripada satu 401: bila yang kalah membaca barisnya
+  //     SESUDAH rotasi pemenang commit, ia masuk cabang reuse dan
+  //     `revokeFamily` ikut mematikan token segar milik pemenang. (Bila
+  //     keduanya benar-benar berbarengan, `revokedAt: null` di klausa WHERE
+  //     membuat yang kalah hanya mendapat 401 biasa.)
+  //
+  // Keduanya butuh jendela toleransi di sisi server (memperlakukan token yang
+  // baru saja dirotasi sebagai balapan, bukan reuse) — dicatat sebagai
+  // lanjutan, di luar lingkup PR ini.
+  //
+  // Gerbangnya per-KLIEN, bukan per-modul: test merakit banyak klien, dan
+  // gerbang modul-global akan membuat pemulihan kedua diam-diam memakai hasil
+  // pemulihan milik klien lain.
+  const berjalan = pemulihanBerjalan.get(klien);
+  if (berjalan !== undefined) return berjalan;
+
+  const janji = jalankanPemulihan(klien).finally(() => {
+    // Dilepas setelah selesai: yang digabungkan hanya yang BERSAMAAN. Pemulihan
+    // sesudahnya (mis. provider dipasang ulang) tetap harus boleh berjalan.
+    pemulihanBerjalan.delete(klien);
+  });
+  pemulihanBerjalan.set(klien, janji);
+  return janji;
+}
+
+async function jalankanPemulihan(klien: ApiClient): Promise<void> {
   let hasil: string | null = null;
   try {
     const { data } = await refreshSession(klien);
