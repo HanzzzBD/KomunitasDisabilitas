@@ -21,6 +21,7 @@ import {
   createTokenService,
 } from "../src/core/auth/index.js";
 import { SESSION_KEYS } from "./helpers/session.js";
+import { busUji } from "./helpers/events.js";
 import { registrarUji } from "./helpers/routes.js";
 
 const SEEKER = "018f4c1e-0000-7000-8000-00000000aaaa";
@@ -192,6 +193,7 @@ describe("router auth nyata", () => {
       otpHashSecret: undefined,
       sessionKeys: SESSION_KEYS,
       auditLog: () => {},
+      events: busUji(),
       logger: { error: () => {}, warn: () => {} } as never,
     });
 

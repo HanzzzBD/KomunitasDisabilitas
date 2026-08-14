@@ -15,6 +15,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
+import { busUji } from "./helpers/events.js";
 import { registrarUji } from "./helpers/routes.js";
 import { createAuthModule } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
@@ -254,6 +255,7 @@ async function boot(options: BootOptions = {}) {
           auditLog: (_actor, action, _entity, entityId, meta) => {
             audit.push({ action, entityId, meta });
           },
+          events: busUji(),
           logger,
         }),
       );

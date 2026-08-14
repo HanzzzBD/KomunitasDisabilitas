@@ -640,7 +640,7 @@ Struktur, lapisan, dan aturan dependensi didefinisikan di §5.1–5.2 (mengikat,
 
 ```
 Events (in-process, typed):
-  auth.user_registered        → notifications (welcome), admin (metric)
+  auth.user_registered        → notifications (welcome), admin (metric), accessibility (default preferences row, PR-034)
   application.submitted       → notifications, admin
   application.status_changed  → notifications, admin
   application.hired_confirmed → admin (North Star)

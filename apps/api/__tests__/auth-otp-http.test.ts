@@ -8,6 +8,7 @@ import type { PrismaClient } from "@prisma/client";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
+import { busUji } from "./helpers/events.js";
 import { registrarUji } from "./helpers/routes.js";
 import { createAuthModule, createOtpSenderFromEnv } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
@@ -139,6 +140,7 @@ async function boot(options: BootOptions = {}) {
           // Sejak PR-018b login menerbitkan sesi; tanpa kunci semuanya 503.
           sessionKeys: "sessionKeys" in options ? options.sessionKeys : SESSION_KEYS,
           auditLog: () => {},
+          events: busUji(),
           logger,
         }),
       );

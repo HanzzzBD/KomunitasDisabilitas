@@ -35,7 +35,7 @@ Fitur pembeda Accessibility Profile: API preferensi, onboarding wizard dengan pr
 
 **GET/PUT /me/accessibility + default row saat registrasi.**
 
-Bisnis: Accessibility Preferences Sync — preferensi mengikuti akun, bukan perangkat (PRD FR-2.2). Teknis: upsert preferensi UI non-sensitif; row default via event `auth.user_registered` (SDD §6.2).
+Bisnis: Accessibility Preferences Sync — preferensi mengikuti akun, bukan perangkat (PRD FR-2.2). Teknis: upsert preferensi UI non-sensitif; row default via event `auth.user_registered` (SDD §15).
 
 #### Scope
 
@@ -87,11 +87,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Registrasi otomatis membuat row default.
-* [ ] Upsert idempotent.
-* [ ] Skema field = kontrak `packages/a11y` (satu sumber).
-* [ ] User lain tidak bisa membaca preferensi (authz test).
-* [ ] Nilai di luar rentang ditolak dengan pesan jelas.
+* [x] Registrasi otomatis membuat row default.
+* [x] Upsert idempotent.
+* [x] Skema field = kontrak `packages/a11y` (satu sumber).
+* [x] User lain tidak bisa membaca preferensi (authz test).
+* [x] Nilai di luar rentang ditolak dengan pesan jelas.
 
 #### Dependencies
 

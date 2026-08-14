@@ -8,6 +8,7 @@
 // mempercayai email HANYA karena langkah 2 sudah membuktikan asalnya.
 import { AUDIT_ACTION, type GoogleAuth } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
+import type { EventBus } from "../../../core/events/index.js";
 import { AppError, appError } from "../../../core/http/index.js";
 import type { ErrorCode } from "../../../core/http/index.js";
 import {
@@ -31,6 +32,8 @@ export interface GoogleServiceDeps {
   /** Penerbit pasangan token (PR-018b). */
   sessionService: Pick<SessionService, "issue">;
   auditLog: AuditLog;
+  /** Bus event domain (PR-034) — dipakai mengumumkan akun baru. */
+  events: EventBus;
 }
 
 /** Konteks pemanggil untuk audit; belum ada user saat pre-auth. */
@@ -58,7 +61,7 @@ const ALASAN_AUDIT: Partial<
 };
 
 export function createGoogleService(deps: GoogleServiceDeps) {
-  const { exchange, verifier, userRepository, sessionService, auditLog } = deps;
+  const { exchange, verifier, userRepository, sessionService, auditLog, events } = deps;
 
   return {
     /** POST /auth/google — tukar code, verifikasi, find-or-create/link, terbitkan sesi. */
@@ -105,6 +108,17 @@ export function createGoogleService(deps: GoogleServiceDeps) {
         }
         throw err;
       }
+
+      // Sama seperti jalur OTP: diterbitkan setelah baris user benar-benar ada,
+      // dan HANYA saat akun memang baru — masuk berulang bukan registrasi.
+      // Tidak ditunggu; kegagalan pelanggan tidak menggagalkan masuk.
+      if (user.isNew) {
+        events.emit("auth.user_registered", {
+          userId: user.id,
+          registeredAt: new Date().toISOString(),
+        });
+      }
+
       const tokens = await sessionService.issue(user.id);
 
       auditLog(
