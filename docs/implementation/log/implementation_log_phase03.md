@@ -2510,3 +2510,53 @@ end-to-end — terhalang ketiadaan kredensial provider).
 Utang non-AC yang masih berdiri: review copy oleh non-engineer, pemberitahuan
 pasca-hapus untuk akun Google-only (dependensi Phase 07 PR-049), dan jendela toleransi
 rotasi di sisi server untuk dua celah balapan yang sengaja dibiarkan di atas.
+
+---
+
+## PR-033j — Exit Criteria di-override, Phase 03 ditutup ke `main`
+
+**Tanggal:** 2026-08-14
+**Sifat:** dokumentasi. **Tidak ada perubahan kode.**
+**Menutup:** tidak ada AC. Ia justru mencatat AC yang TIDAK tertutup.
+
+### Kenapa PR ini ada
+
+Owner memerintahkan `phase-03 → main`. Exit Criteria Phase 03 menuntut *"setiap
+checklist Acceptance Criteria per PR terpenuhi"*, dan satu tidak: **AC PR-030 nomor 1**
+(login OTP end-to-end terhadap API dev). Merge tetap dijalankan atas perintah itu.
+
+`CLAUDE.md` §5.8 butir 8 mensyaratkan DUA hal untuk `phase-XX → main`: Exit Criteria
+terpenuhi **dan** perintah eksplisit owner. Yang kedua ada, yang pertama tidak. PR ini
+menutup selisihnya dengan catatan, bukan dengan diam.
+
+Alasannya sederhana: gerbang yang dilangkahi tanpa jejak akan terbaca sebagai gerbang
+yang dilewati. Enam bulan lagi tidak ada yang bisa membedakan keduanya dari isi repo,
+dan orang berikutnya akan menyangka OTP end-to-end pernah diverifikasi.
+
+### Yang dicatat
+
+Blok peringatan ditambahkan tepat di bawah daftar Exit Criteria
+(`phase-03-web-platform-base.md`), memuat: apa yang tidak terpenuhi, bahwa sebabnya
+bukan kode melainkan ketiadaan kredensial provider OTP, tiga kriteria lain yang memang
+terpenuhi, dan penegasan bahwa override **tidak** mengubah status verifikasinya —
+hanya memindahkan keputusan merge.
+
+Ditaruh di dokumen phase, bukan hanya di log ini, karena Exit Criteria-lah yang dibaca
+orang saat bertanya "apakah phase ini benar-benar selesai?".
+
+### Keadaan Phase 03 saat ditutup
+
+* **AC: 44 dari 45.** Satu terbuka: AC PR-030 nomor 1.
+* **CI hijau penuh** pada tip `phase-03`: `lint-typecheck-test` + `a11y`.
+* **Seluruh PR-025..PR-033 mendarat**, termasuk sembilan sub-PR PR-033 (a, b, c-1,
+  c-2, d, e, f, g, h, i).
+
+### Utang yang dibawa ke Phase 04 dan seterusnya
+
+* **AC PR-030 nomor 1** — login OTP end-to-end. Menunggu kredensial provider OTP.
+  Tetap terbuka; tidak diselesaikan oleh override.
+* **Review copy oleh non-engineer** — paket teksnya sudah disiapkan, belum direview.
+* **Pemberitahuan pasca-hapus** untuk akun Google-only — dependensi Phase 07 / PR-049.
+* **Jendela toleransi rotasi token di sisi server** — untuk dua celah balapan yang
+  sengaja ditunda di PR-033i (dua tab bersamaan; pemulihan boot vs refresh 401 di
+  `/masuk/google`).
