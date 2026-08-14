@@ -7,7 +7,7 @@
 // - component OpenAPI PascalCase via .openapi({ ref: "..." })
 import "zod-openapi/extend";
 import { z } from "zod";
-import { idSchema } from "./common.js";
+import { idSchema, timestampSchema } from "./common.js";
 
 /**
  * Peran pengguna — nilainya SAMA PERSIS dengan enum `Role` di skema Prisma
@@ -200,6 +200,23 @@ export const googleAuthResponseSchema = z
   .openapi({ ref: "GoogleAuthResponse" });
 
 export type GoogleAuthResponse = z.infer<typeof googleAuthResponseSchema>;
+
+/**
+ * Event domain `auth.user_registered` — akun baru dibuat (find-or-create, OTP
+ * atau Google). Diterbitkan HANYA saat `isNew`, tidak pada masuk biasa.
+ *
+ * TIDAK memuat phone/email: sama seperti `jobClosedEventSchema`, payload event
+ * tidak membawa PII maupun salinan data yang bisa basi. Pelanggan yang butuh
+ * lebih membacanya lewat service pemilik datanya.
+ */
+// SENGAJA tanpa `.openapi({ ref })`: ini event DOMAIN, bukan kontrak HTTP —
+// tidak ada satu pun endpoint yang mengembalikannya.
+export const userRegisteredEventSchema = z.object({
+  userId: idSchema,
+  registeredAt: timestampSchema,
+});
+
+export type UserRegisteredEvent = z.infer<typeof userRegisteredEventSchema>;
 
 /**
  * POST /api/v1/auth/refresh — body.
