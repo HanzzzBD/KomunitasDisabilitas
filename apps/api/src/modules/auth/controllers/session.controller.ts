@@ -51,6 +51,26 @@ export function createSessionController(deps: {
      *
      * Sumber token menentukan jenis klien: body = mobile, cookie = web. Tidak
      * ada field `client` di sini karena keberadaan tokennya sudah menjawabnya.
+     *
+     * REFRESH YANG GAGAL TIDAK MENYENTUH COOKIE SAMA SEKALI (PR-033i).
+     *
+     * Dulu ia menghapusnya, supaya browser berhenti mengirim cookie basi. Itu
+     * salah, dan sebabnya struktural: permintaan yang gagal tidak punya cara
+     * mengetahui apakah refresh LAIN sudah memasang cookie yang lebih baru
+     * beberapa milidetik sebelumnya. Karena token dirotasi, dua permintaan
+     * bersamaan selalu berarti satu menang dan satu ditolak — dan penolakan
+     * yang menghapus cookie itu membuang sesi yang baru saja sah dibuat.
+     * Terukur di lapangan: pemenang 200 pukul 02:34:00.072 memasang cookie,
+     * yang kalah 401 pukul 02:34:00.079 menghapusnya kembali.
+     *
+     * Biayanya diterima sadar: cookie yang benar-benar mati bertahan sampai
+     * kedaluwarsa dan menghasilkan 401 berulang. Itu terbatas dan tidak
+     * berbahaya — tokennya sudah dicabut di server, cookie-nya HttpOnly dan
+     * ber-Path sempit, dan login berikutnya menimpanya (nama + path sama).
+     *
+     * `logout`, `logout-all`, dan `deleteAccount` TETAP menghapus cookie:
+     * ketiganya perbuatan sengaja pengguna, bukan kegagalan yang mungkin
+     * sedang berlomba dengan permintaan lain.
      */
     async refresh(req: Request, res: Response): Promise<void> {
       const body = req.body as RefreshSession;
@@ -63,19 +83,12 @@ export function createSessionController(deps: {
         // bukan VALIDATION_ERROR. Bagi pengguna keduanya sama saja ("masuk
         // lagi"), dan membedakannya hanya memberi tahu penyerang bentuk
         // permintaan yang benar.
-        cookie.clear(res);
         throw appError("SESI_TIDAK_VALID");
       }
 
-      let tokens;
-      try {
-        tokens = await service.refresh(token, actorOf(req));
-      } catch (err) {
-        // Sesi ditolak → cookie basi ikut dibuang, supaya browser tidak
-        // mengirimkannya lagi pada percobaan berikutnya.
-        if (dariBody === undefined) cookie.clear(res);
-        throw err;
-      }
+      // Sengaja TANPA try/catch: penolakan dibiarkan naik apa adanya, tanpa
+      // menyentuh cookie. Lihat catatan di atas.
+      const tokens = await service.refresh(token, actorOf(req));
 
       res.status(200).json({ data: serahkan(res, tokens, dariBody === undefined ? "web" : "mobile") });
     },

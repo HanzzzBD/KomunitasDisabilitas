@@ -2352,3 +2352,161 @@ Pembacaan penuh (`NVDA + ↓`) pada langkah 1 memunculkan beberapa kalimat dua k
 AC Phase 03 menjadi **43 dari 45**. Dua yang tersisa: AC PR-030 nomor 1 (login OTP end-to-end — terhalang ketiadaan kredensial provider) dan AC PR-033 nomor 4 (keyboard-only jalur Google).
 
 Utang non-AC yang masih berdiri: review copy oleh non-engineer, dan pemberitahuan pasca-hapus untuk akun Google-only (dependensi Phase 07 PR-049).
+
+---
+
+## PR-033i — balapan refresh saat boot: AC PR-033 #4 ditutup
+
+**Tanggal:** 2026-08-14
+**Sifat:** perbaikan cacat. 2 berkas sumber, 2 berkas test — **± 248 baris**.
+**Menutup:** AC PR-033 nomor 4 (keyboard-only), setelah verifikasi nyata di peramban.
+
+### Kenapa PR ini ada
+
+Verifikasi keyboard-only jalur Google gagal tiga kali berturut-turut, dan selalu di
+titik yang sama: sepulang dari Google, layar kembalian merender cabang **"sesi habis"**
+— satu-satunya cabang yang tidak punya tombol "Hapus akun saya sekarang". Lima
+checkpoint pertama lulus; dua terakhir mustahil dicapai.
+
+Itu bukan kekurangan test. Itu cacat produk yang baru terlihat karena ada orang
+menempuh alurnya sampai habis.
+
+### Akar masalah — dua cacat, satu gejala
+
+Terukur dari log HTTP dan DB pada satu sesi yang sama:
+
+| Waktu | referer | header `cookie` | hasil |
+|---|---|---|---|
+| 02:34:00.072 | `/pengaturan` | ADA | **200** + `set-cookie: nawasena_refresh=F5g0b2s…` |
+| 02:34:00.079 | `/pengaturan` | ADA | **401** + `set-cookie: nawasena_refresh=; Expires=1970` |
+| 02:35:44 | `/masuk/google` | **TIDAK ADA** | 401 |
+
+1. **Pemicu.** `pulihkanSesi` memanggil `refreshSession` LANGSUNG, melewati
+   single-flight yang sudah ada di `createSessionRefresher` (yang hanya menjaga jalur
+   401-retry). `useEffect` StrictMode menjalankannya dua kali, jadi dua refresh
+   berangkat dengan nilai cookie yang SAMA. Karena token dirotasi, satu menang dan
+   satu ditolak.
+2. **Penguat.** Respons 401 itu ikut **menghapus cookie yang baru dipasang pemenangnya**.
+   Toples cookie peramban berakhir kosong meskipun DB memegang token sah dan belum
+   dicabut.
+
+Halaman yang sedang terbuka tetap tampak sehat — access token pemenang hidup di memori.
+Kerusakannya baru muncul pada muat ulang berikutnya, dan di alur ini muat ulang itu
+adalah halaman kembalian Google. Itulah kenapa gejalanya menyamar sebagai masalah
+OAuth selama tiga sesi.
+
+**Dugaan awal `SameSite=Strict` dicabut.** Permintaan yang gagal bahkan tidak pernah
+membawa cookie untuk ditolak; ia gagal karena toplesnya sudah dikosongkan sendiri.
+
+### Perbaikan
+
+**`apps/web/src/app/klien-api.tsx`** — `pulihkanSesi` bergerbang single-flight
+**per klien** (`WeakMap<ApiClient, Promise<void>>`). Idiom yang sama dengan
+single-flight yang sudah dipakai repo, bukan konsep baru. Per-klien dan bukan
+modul-global karena test merakit banyak klien, dan gerbang global membuat pemulihan
+kedua diam-diam memakai hasil milik klien lain.
+
+Gerbangnya sengaja TIDAK disatukan dengan single-flight 401-retry: keduanya menuntut
+post-condition yang **bertolak belakang** pada status `masuk` — pemulihan boot yang
+gagal harus DIAM (penjaga PR-030c), sementara 401-retry yang gagal harus `keluar()`.
+Satu callback tidak bisa melayani keduanya tanpa membatalkan salah satunya.
+
+**`apps/api/src/modules/auth/controllers/session.controller.ts`** — kedua
+`cookie.clear(res)` di jalur gagal `refresh` dihapus, beserta `try/catch`-nya.
+Invariannya: **respons yang gagal tidak boleh menulis keadaan klien bersama
+berdasarkan informasi basi** — ia tidak bisa tahu apakah refresh lain sudah memasang
+cookie yang lebih baru. `logout`, `logout-all`, dan `deleteAccount` tetap menghapus
+cookie: ketiganya perbuatan sengaja pengguna, bukan kegagalan yang mungkin berlomba.
+
+Efek samping yang baru disadari saat review: `catch` lama tidak membedakan 401 dari
+500, sehingga **satu kedipan DB akan membuang cookie sesi setiap pengguna web yang
+kebetulan menyegarkan saat itu** — padahal token mereka masih sah. Menghapusnya
+menutup amplifikasi tersebut.
+
+### Uji mutasi — enam mutasi, semuanya terbunuh
+
+| # | Mutasi | Hasil |
+|---|---|---|
+| 1 | gerbang single-flight dilepas | 2 test merah (termasuk tiruan StrictMode) |
+| 1b | gerbang dijadikan modul-global | 3 test merah |
+| 2 | `cookie.clear` dikembalikan pada cabang service-melempar | 2 test merah |
+| 2b | `cookie.clear` dikembalikan pada cabang tanpa-token | 1 test merah |
+| 3 | gerbang mengembalikan janji kosong bagi pemanggil kedua | 1 test merah |
+| 4 | pemenang mengosongkan cookie, bukan memasangnya | 3 test merah |
+
+Mutasi 3 dan 4 ada **karena QC menolak PR ini dua kali**, dan penolakannya benar:
+satu asersi API memakai `[^;]+` sehingga tidak bisa gagal pada input apa pun, dan satu
+test web mengamati janji pemanggil PERTAMA sehingga lulus juga pada mutan yang namanya
+sendiri sebut. Keduanya diperbaiki lalu dibuktikan bisa merah. Dicatat di sini karena
+inilah bentuk kegagalan yang paling mudah lolos: test hijau yang tidak menguji apa pun.
+
+### Yang SENGAJA tidak ditutup
+
+Ditulis di kode maupun di sini supaya tidak dikira sudah aman:
+
+* **Dua tab yang dibuka bersamaan.** Konteks JavaScript terpisah, WeakMap
+  sendiri-sendiri; keduanya tetap mengirim nilai cookie yang sama.
+* **Pemulihan boot yang berlomba dengan refresh yang dipicu 401 di `/masuk/google`.**
+  Terjangkau, dan jendelanya sempit: halaman itu publik secara kontrak, menembakkan
+  `googleAuth` saat mount, `googleAuth` tidak menyetel `skipAuthRefresh`, dan
+  `GOOGLE_EXCHANGE_GAGAL` berstatus 401 — jadi penukaran yang gagal memanggil hook
+  refresh. Akibatnya bisa lebih buruk daripada satu 401: bila yang kalah membaca
+  barisnya sesudah rotasi pemenang commit, ia masuk cabang reuse dan `revokeFamily`
+  ikut mematikan token segar milik pemenang.
+
+Keduanya menunggu **jendela toleransi di sisi server** (memperlakukan token yang baru
+saja dirotasi sebagai balapan, bukan reuse). Itu perubahan kebijakan keamanan
+tersendiri dan tidak dititipkan ke PR ini.
+
+Satu lagi dari review keamanan (S-1, LOW): pada kegagalan **non-auth** (DB tumbang,
+jaringan mati) UI kini bisa berkata "sesi berakhir" sementara cookie yang masih sah
+tinggal sampai 30 hari. Remediasi yang tampak jelas — memanggil `POST /auth/logout`
+saat store berpindah ke "keluar" — **sengaja tidak diambil**: bila dipasang di
+`onSessionEnded`, yang tidak punya penjaga status, refresh yang KALAH balapan akan
+mencabut seluruh keluarga milik pemenang. Yaitu cacat yang sama persis yang diperbaiki
+PR ini, dalam bentuk lebih buruk karena pencabutannya di sisi server.
+
+### Catatan yang mudah salah dibaca
+
+**AC-2 tidak berdiri sendiri.** Cookie yang selamat tidak menyelamatkan sesi bila yang
+kalah masuk cabang reuse — `revokeFamily` tetap mematikan token segar pemenang. Yang
+benar-benar menutup gejalanya adalah gerbang klien (AC-1); tidak-menghapus-cookie
+menghilangkan penguatnya.
+
+### Verifikasi keyboard-only — AC PR-033 #4
+
+Dijalankan 2026-08-14 di Chromium, **tanpa satu pun klik**:
+
+| Butir | Hasil |
+|---|---|
+| Mencapai tombol hapus | ✅ 5 Tab: lompat-ke-konten → Akun & Data Saya → Aksesibilitas → Unduh data saya → **Hapus akun saya** |
+| Fokus terlihat & urutan masuk akal | ✅ semua `outline: solid 2.4px`; navigasi mendahului aksi |
+| Membuka dialog | ✅ Enter → fokus mendarat DI DALAM dialog; urutan `× → Batal → Saya mengerti, lanjutkan` |
+| Step 1 → Step 2 | ✅ judul berganti, fokus tetap terjerat, mendarat di "Lanjut ke Google" |
+| Re-auth Google | ✅ `max_age=0&prompt=select_account`; kartu akun 2 Tab + Enter |
+| Mencapai tombol final | ✅ 3 Tab: lompat-ke-konten → **Batal, jangan hapus akun saya** → **Hapus akun saya sekarang** |
+| Menyelesaikan penghapusan | ✅ Enter → "Akun Anda sudah dihapus" |
+
+Bukti sisi server pada detik yang sama: `deleted_at` terisi, `token_version` 0→1,
+**0 sesi aktif / 9 dicabut**, `ACCOUNT_DELETED` `requested`→`completed`.
+
+Tanda perbaikannya terlihat langsung di peramban: muat halaman kini menghasilkan
+**satu** panggilan `/auth/refresh`, bukan dua, dan layar kembalian Google tidak lagi
+mencatat satu pun galat konsol.
+
+### Gerbang
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` **1399 lulus, 1 dilewati, 0 gagal**
+· a11y Playwright **20/20**. Satu yang dilewati adalah skip lingkungan pra-ada di
+`crypto-boot.test.ts`, tidak disentuh PR ini.
+
+Review keamanan: PASS, tanpa CRITICAL/HIGH. QC: PASS pada iterasi ketiga.
+
+### Akibatnya
+
+AC Phase 03 menjadi **44 dari 45**. Satu yang tersisa: AC PR-030 nomor 1 (login OTP
+end-to-end — terhalang ketiadaan kredensial provider).
+
+Utang non-AC yang masih berdiri: review copy oleh non-engineer, pemberitahuan
+pasca-hapus untuk akun Google-only (dependensi Phase 07 PR-049), dan jendela toleransi
+rotasi di sisi server untuk dua celah balapan yang sengaja dibiarkan di atas.
