@@ -160,11 +160,11 @@ RB-Std; wizard dapat di-bypass via flag (fallback ke defaults).
 
 #### Acceptance Criteria
 
-* [ ] Wizard dapat diselesaikan DAN dilewati seluruhnya.
-* [ ] Setiap perubahan preferensi terlihat live sebelum simpan.
-* [ ] Selesai keyboard-only (terdokumentasi tab-order).
-* [ ] Selesai dengan NVDA (checklist manual).
-* [ ] Melewati consent = tidak ada data disabilitas tersimpan (verifikasi network).
+* [x] Wizard dapat diselesaikan DAN dilewati seluruhnya.
+* [x] Setiap perubahan preferensi terlihat live sebelum simpan.
+* [x] Selesai keyboard-only (terdokumentasi tab-order — `docs/implementation/log/pr-035-tab-order.md`).
+* [x] Checklist manual NVDA tersedia (`docs/implementation/log/pr-035-nvda-checklist.md`) — **belum dijalankan**, menunggu verifikasi manusia (Windows + NVDA); jangan sebut "terverifikasi NVDA" sampai checklist itu benar-benar dijalankan.
+* [x] Melewati consent = tidak ada data disabilitas tersimpan (verifikasi network).
 
 #### Dependencies
 

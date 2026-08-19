@@ -108,5 +108,51 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     },
   },
   { nama: "pengaturan — aksesibilitas", jalur: "/pengaturan/aksesibilitas", butuhSesi: true },
+
+  // Wizard onboarding (PR-035) — EMPAT entri untuk SATU alamat, satu per
+  // langkah. AC-nya menuntut axe dijalankan PER LANGKAH, bukan sekali untuk
+  // seluruh alur: tiap langkah membawa jenis kendali yang berbeda (kotak
+  // centang, penggeser, daftar deskripsi), dan memeriksa langkah pertama saja
+  // berarti tiga perempat wizard tidak pernah tersentuh gerbang ini.
+  //
+  // Judul langkah ditunggu dengan `:text-is` (cocok PERSIS): `:has-text` akan
+  // ikut cocok dengan judul halaman dan dengan nama langkah di indikator
+  // progres, sehingga penantiannya selesai sebelum layarnya benar-benar
+  // berganti.
+  { nama: "onboarding — ragam disabilitas", jalur: "/onboarding", butuhSesi: true },
+  {
+    nama: "onboarding — persetujuan",
+    jalur: "/onboarding",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Persetujuan")');
+    },
+  },
+  {
+    nama: "onboarding — preferensi",
+    jalur: "/onboarding",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Persetujuan")');
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Preferensi tampilan")');
+    },
+  },
+  {
+    nama: "onboarding — ringkasan",
+    jalur: "/onboarding",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Persetujuan")');
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Preferensi tampilan")');
+      await page.click('button:text-is("Lanjut")');
+      await page.waitForSelector('h2:text-is("Ringkasan")');
+    },
+  },
+
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

@@ -3,7 +3,7 @@
 // Tipis dengan sengaja: seluruh aturan tinggal di `@nawasena/a11y` (PR-026a/b),
 // dan berkas ini hanya menghubungkan store ke DOM nyata, ke `window` nyata, dan
 // ke mode bahasa i18n.
-import { useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { createA11yStore, type A11yStore } from "@nawasena/a11y";
 import { hubungkanKeDom } from "@nawasena/a11y/web";
 import { useModeBahasa } from "../shared/i18n/index.js";
@@ -45,6 +45,8 @@ export function buatStoreWeb(): A11yStore {
   });
 }
 
+const KonteksA11yStore = createContext<A11yStore | null>(null);
+
 export function PenyediaA11y({ store, children }: { store: A11yStore; children: ReactNode }) {
   useEffect(() => {
     // Skrip pra-paint sudah menulis token yang sama sebelum React ada; panggilan
@@ -54,7 +56,30 @@ export function PenyediaA11y({ store, children }: { store: A11yStore; children: 
     return hubungkanKeDom({ store, elemen: document.documentElement, jendela: window });
   }, [store]);
 
-  return <>{children}</>;
+  return <KonteksA11yStore.Provider value={store}>{children}</KonteksA11yStore.Provider>;
+}
+
+/**
+ * Store preferensi untuk kode fitur yang perlu MENULIS, bukan sekadar terkena
+ * akibatnya.
+ *
+ * Sampai PR-035 tidak ada yang membutuhkannya: preferensi hanya dibaca lewat
+ * `<html>` (token CSS) dan lewat `SambungkanBahasa`, yang menerima store-nya
+ * sebagai prop dari `Providers` — jalur yang tidak terjangkau komponen route
+ * mana pun. Wizard onboarding adalah pemakai pertama yang harus menulis
+ * (`setPreferensi`) ke instance yang SAMA dengan yang menggerakkan DOM;
+ * membuat store kedua akan menghasilkan kendali yang tampak tidak berfungsi.
+ *
+ * Melempar bila dipakai di luar penyedianya, bukan mengembalikan null —
+ * alasannya sama persis dengan `useKlienApi()`: nilai null menyebar sebagai
+ * `undefined` sampai ke tempat yang jauh dari sebabnya.
+ */
+export function useA11yStoreWeb(): A11yStore {
+  const store = useContext(KonteksA11yStore);
+  if (store === null) {
+    throw new Error("useA11yStoreWeb dipakai di luar <PenyediaA11y>. Pasang di tumpukan provider.");
+  }
+  return store;
 }
 
 /**
