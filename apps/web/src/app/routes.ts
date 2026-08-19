@@ -105,6 +105,21 @@ export const ruteApp: RouteObject[] = [
         ],
       },
       {
+        // Onboarding aksesibilitas (PR-035) — SAUDARA `pengaturan`, bukan
+        // anaknya: ia alur pertama-kali, bukan panel setelan. Menyarangkannya
+        // di bawah `/pengaturan` akan menyeret kerangka navigasi panel ikut
+        // terpasang di layar yang justru harus sesedikit mungkin gangguannya.
+        //
+        // Penjagaan sesi DAN sakelar operasionalnya ada di dalam komponen
+        // `Onboarding`, dengan alasan yang sama seperti `Pengaturan`: berkas
+        // ini `.ts` murni data.
+        path: "onboarding",
+        lazy: async () => {
+          const { Onboarding } = await import("../routes/onboarding.js");
+          return { Component: Onboarding };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

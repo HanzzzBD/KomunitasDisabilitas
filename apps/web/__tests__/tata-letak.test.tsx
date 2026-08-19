@@ -10,13 +10,17 @@
 // Pembagian itu disengaja. Menguji "tautannya ada" lalu menyebutnya selesai
 // adalah cara paling umum melahirkan tautan lompat yang tidak melompat ke mana
 // pun.
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { createA11yStore, type PenyimpananA11y } from "@nawasena/a11y";
+import type { ApiClient } from "@nawasena/api-client";
 import { ruteApp } from "../src/app/routes.js";
 import { Providers } from "../src/app/providers.js";
+import { createQueryClient } from "../src/app/query-client.js";
 import { ID_KONTEN_UTAMA } from "../src/app/tata-letak.js";
+import { useStoreSesi } from "../src/shared/sesi/store.js";
+import { kunciPenanda } from "../src/features/onboarding/identitas.js";
 
 function memori(): PenyimpananA11y {
   const isi: Record<string, string> = {};
@@ -127,5 +131,185 @@ describe("landmark utama", () => {
     // membaca apa yang terjadi.
     const { container } = await renderDi("/jalur-yang-tidak-ada");
     expect(container.querySelectorAll("main")).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pengalihan onboarding (PR-035)
+//
+// PEMICUNYA DIPASANG DI KERANGKA, bukan di `Terlindungi`, dan itu yang membuat
+// blok test ini ada di berkas ini: guard hanya dipasang halaman yang
+// memintanya, sementara pengguna yang baru mendaftar mendarat di `/` — halaman
+// publik tanpa guard sama sekali.
+// ---------------------------------------------------------------------------
+
+const SUB = "01912345-89ab-7def-8123-456789abcdef";
+
+/** Token tiga segmen dengan `sub` yang bisa dibaca; TIDAK ditandatangani. */
+function tokenUji(sub: string = SUB): string {
+  const b64 = btoa(JSON.stringify({ sub, role: "seeker", ver: 1 }))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+  return `header.${b64}.tanda`;
+}
+
+/** Klien yang menggantung: pemulihan sesi tidak boleh menimpa `status` yang kita pasang. */
+const klienMenggantung: ApiClient = {
+  request: () => new Promise(() => {}) as Promise<never>,
+};
+
+async function renderBersesi(jalur: string) {
+  const router = createMemoryRouter(ruteApp, { initialEntries: [jalur] });
+  const hasil = render(
+    <Providers
+      queryClient={createQueryClient()}
+      klienApi={klienMenggantung}
+      a11yStore={createA11yStore({ storage: memori() })}
+    >
+      <RouterProvider router={router} />
+    </Providers>,
+  );
+  return { ...hasil, router };
+}
+
+describe("pengalihan onboarding", () => {
+  afterEach(() => {
+    useStoreSesi.setState({ status: "memulihkan" });
+    globalThis.localStorage.clear();
+    vi.unstubAllEnvs();
+  });
+
+  it("pengguna yang belum pernah onboarding dialihkan dari `/`", async () => {
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/onboarding");
+    });
+  });
+
+  it("pengalihannya `replace` — wizard tidak meninggalkan jebakan tombol kembali", async () => {
+    // Tanpa `replace`, halaman asal tertinggal di riwayat: menekan kembali
+    // sesudah wizard akan mengalihkan pengguna ke sini lagi, yang mengalihkannya
+    // lagi — terasa seperti tombol kembali yang rusak.
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/onboarding");
+    });
+
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("penanda yang SUDAH ada membuatnya tinggal di tempat", async () => {
+    globalThis.localStorage.setItem(kunciPenanda(SUB), "1");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("penanda milik pengguna LAIN tidak menutupi pengguna ini", async () => {
+    // Perangkat bersama. Penanda tanpa cakupan id akan membuat akun kedua
+    // melewati onboarding yang tidak pernah ia jalani.
+    globalThis.localStorage.setItem(kunciPenanda("pengguna-lain"), "1");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/onboarding");
+    });
+  });
+
+  it("pengunjung yang belum masuk tidak pernah dialihkan", async () => {
+    useStoreSesi.getState().keluar();
+
+    const { router } = await renderBersesi("/");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("token yang tidak bisa dibaca TIDAK dianggap pengguna baru", async () => {
+    // Kalau `sub` yang null diperlakukan sebagai "belum onboarding", pengguna
+    // itu dikirim ke wizard yang penandanya tidak akan pernah bisa ditulis —
+    // pengalihan yang berulang selamanya.
+    useStoreSesi.getState().masuk("token-yang-bukan-jwt");
+
+    const { router } = await renderBersesi("/");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("tidak mengalihkan `/masuk/google` meski status sudah masuk — regresi kembalian OAuth", async () => {
+    // RISIKO NOMOR SATU PR INI, dan ia diuji SENDIRI — bukan diserahkan pada
+    // kebetulan di alur E2E.
+    //
+    // `/masuk/google` menukarkan authorization code segera setelah dimuat, dan
+    // status sesi di klien bisa sudah "masuk" dari pemulihan boot yang berlomba
+    // dengan penukaran itu (lihat catatan panjang di `klien-api.tsx`).
+    // Mengalihkannya di tengah berarti penukarannya tidak pernah selesai —
+    // dan pengguna mendarat di wizard onboarding seolah-olah berhasil masuk.
+    //
+    // Sekaligus menjaga satu ketergantungan yang halus: `useLocation().pathname`
+    // TIDAK memuat query string, sehingga `?code=…&state=…` di bawah tetap harus
+    // cocok dengan entri `/masuk/google` di daftar pengecualian.
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/masuk/google?code=kode-dari-google&state=acak");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/masuk/google");
+  });
+
+  it("tidak mengalihkan `/masuk`", async () => {
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/masuk");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/masuk");
+  });
+
+  it("tidak mengalihkan `/onboarding` ke dirinya sendiri", async () => {
+    // Tanpa entri ini di daftar pengecualian, wizard mengalihkan ke wizard
+    // pada setiap render — halaman tidak pernah selesai terbentuk.
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/onboarding");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/onboarding");
+  });
+
+  it("sakelar mati → tidak ada seorang pun dikirim ke wizard", async () => {
+    vi.stubEnv("VITE_ONBOARDING_WIZARD_ENABLED", "false");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it('sakelar bernilai apa pun SELAIN "false" tetap menyalakan wizard', async () => {
+    // Polaritasnya: yang mematikan harus menyatakannya. Bendera yang mati
+    // kecuali dinyalakan adalah fitur yang diam-diam tidak pernah tayang di
+    // lingkungan yang lupa menyetelnya.
+    vi.stubEnv("VITE_ONBOARDING_WIZARD_ENABLED", "true");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/onboarding");
+    });
   });
 });

@@ -3,10 +3,11 @@
 // Inilah yang membuat AC 1 & 2 (PR-026b) benar-benar berlaku di aplikasi, bukan
 // hanya di paket. Sampai PR ini, `apps/web` belum memanggil apa pun dari
 // `@nawasena/a11y`.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { createA11yStore, type PenyimpananA11y } from "@nawasena/a11y";
 import { Providers } from "../src/app/providers.js";
+import { useA11yStoreWeb } from "../src/app/penyedia-a11y.js";
 import { useTeks } from "../src/shared/i18n/index.js";
 
 function memori(): PenyimpananA11y {
@@ -116,5 +117,49 @@ describe("SambungkanBahasa — preferensi menggerakkan i18n", () => {
     );
 
     expect(store.getState().pilihanPengguna.simpleLanguage).toBeUndefined();
+  });
+});
+
+describe("useA11yStoreWeb — instance yang SAMA, bukan yang mirip (PR-035)", () => {
+  it("mengembalikan store yang persis dipegang PenyediaA11y", () => {
+    // RISIKO YANG DIJAGA BARIS INI: konteks yang salah rakit — mis. membuat
+    // store kedua alih-alih meneruskan yang sudah ada — menghasilkan wizard
+    // onboarding yang menulis preferensi ke store yang TIDAK menggerakkan
+    // `<html>`. Gejalanya: kendali yang tampak tidak berfungsi, tanpa satu pun
+    // galat. Kesamaan RUJUKAN adalah satu-satunya pemeriksaan yang menangkapnya;
+    // dua store dengan isi identik lolos perbandingan nilai apa pun.
+    const store = createA11yStore({ storage: memori() });
+    let terlihat: unknown = null;
+
+    function Intip() {
+      terlihat = useA11yStoreWeb();
+      return null;
+    }
+
+    render(
+      <Providers a11yStore={store}>
+        <Intip />
+      </Providers>,
+    );
+
+    expect(terlihat).toBe(store);
+  });
+
+  it("melempar bila dipakai di luar penyedianya", () => {
+    // Melempar, bukan mengembalikan null — alasannya sama persis dengan
+    // `useKlienApi()`: null menyebar sebagai `undefined` sampai ke tempat yang
+    // jauh dari sebabnya, dan yang membaca jejaknya tidak lagi punya petunjuk
+    // bahwa yang kurang adalah sebuah provider.
+    function Intip() {
+      useA11yStoreWeb();
+      return null;
+    }
+
+    // `console.error` dibungkam selama satu test ini saja — React mencetak
+    // jejak batas-galat untuk setiap lemparan saat render, dan di sini
+    // lemparannya justru yang diuji. Pola yang sama dipakai `klien-api.test.tsx`.
+    const diam = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<Intip />)).toThrow(/di luar <PenyediaA11y>/);
+    diam.mockRestore();
   });
 });

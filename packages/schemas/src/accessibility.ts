@@ -98,3 +98,23 @@ export const ACCESSIBILITY_DEFAULTS: AccessibilityPreferences = {
   largeTouchTargets: false,
   screenReaderHint: false,
 };
+
+/**
+ * GET/PUT /api/v1/me/accessibility — response 200.
+ *
+ * PEMBUNGKUS `{ data }`, BUKAN preferensi telanjang. Controller PR-034 menjawab
+ * `res.status(200).json({ data: … })` pada kedua endpoint, persis seperti
+ * `meResponseSchema` membungkus `meSchema`. Klien yang memarse
+ * `accessibilityPreferencesSchema` langsung atas badan HTTP akan menolak SETIAP
+ * jawaban yang benar — dan kegagalannya baru muncul di produksi, sebab fixture
+ * test yang ditulis tangan cenderung mengikuti skema yang salah itu.
+ *
+ * Tanpa `.strict()` di lapisan luar, dengan sengaja: pembungkus yang lebih
+ * sempit daripada jawaban server berarti field envelope yang ditambahkan kelak
+ * (mis. `meta`) meruntuhkan seluruh pemanggilan alih-alih diabaikan.
+ */
+export const accessibilityResponseSchema = z
+  .object({ data: accessibilityPreferencesSchema })
+  .openapi({ ref: "AccessibilityResponse" });
+
+export type AccessibilityResponse = z.infer<typeof accessibilityResponseSchema>;

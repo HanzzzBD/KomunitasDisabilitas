@@ -40,6 +40,23 @@ const BERKAS_UJI = {
   account: { ...PROFIL_UJI, emailVerified: true, authMethods: ["otp"] },
 } as const;
 
+/**
+ * Preferensi uji untuk `GET/PUT /me/accessibility` (PR-034; dipakai PR-035).
+ *
+ * Seluruhnya BAWAAN. Nilai yang sudah berbeda dari bawaan akan membuat
+ * pratinjau langsung di wizard tampak bekerja sekalipun ia tidak menulis apa
+ * pun — layarnya sudah berbeda sejak dimuat.
+ */
+const PREFERENSI_UJI = {
+  textScale: 100,
+  highContrast: false,
+  reduceMotion: false,
+  simpleLanguage: false,
+  prefersSignLanguage: false,
+  largeTouchTargets: false,
+  screenReaderHint: false,
+} as const;
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
@@ -62,6 +79,20 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
         bersesi
           ? jsonkan(200, { data: { accessToken: "token-uji", expiresIn: 900 } })
           : jsonkan(401, { code: "SESI_TIDAK_VALID", message: "Sesi Anda sudah berakhir" }),
+      );
+    }
+    if (jalur.endsWith("/me/accessibility")) {
+      // DIPERIKSA SEBELUM `/me`, sebab `endsWith("/me")` tidak akan pernah
+      // cocok dengan alamat ini — tetapi urutan ini juga yang menahan cabang
+      // baru di bawahnya dari menelan alamat yang lebih spesifik kelak.
+      //
+      // `PUT` MEMANTULKAN BADAN PERMINTAAN, bukan mengembalikan bawaan: layar
+      // ringkasan onboarding menyimpan lalu berpindah, dan jawaban yang tidak
+      // mencerminkan yang barusan dikirim membuat setiap cacat "yang tersimpan
+      // bukan yang dipilih" lolos tanpa gejala.
+      const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
+      return route.fulfill(
+        jsonkan(200, { data: { ...PREFERENSI_UJI, ...(kirim as Record<string, unknown>) } }),
       );
     }
     if (jalur.endsWith("/me/export")) {
