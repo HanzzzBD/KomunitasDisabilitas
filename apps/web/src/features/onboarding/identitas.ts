@@ -143,18 +143,29 @@ const penandaSesiBawaan = new Set<string>();
  */
 export function tandaiOnboardingSelesai(userId: string, simpanan?: PenyimpananPenanda): void {
   const tujuan = simpanan ?? bawaan();
-  let tertulis = false;
   try {
     tujuan?.setItem(kunciPenanda(userId), "1");
-    tertulis = tujuan !== undefined;
   } catch {
-    tertulis = false;
+    /* penyimpanan penuh atau diblokir — cadangan sesi di bawah yang menanggung */
   }
-  // `tujuan === undefined` (properti `localStorage` sendiri melempar, ditelan
-  // oleh `bawaan()`) TIDAK melempar apa pun di titik ini — optional chaining di
-  // atas membuatnya diam-diam tidak melakukan apa-apa. Itu sebabnya
-  // keberhasilan diperiksa lewat `tertulis`, bukan lewat ada-tidaknya galat.
-  if (!tertulis && simpanan === undefined) {
+  // TANPA SYARAT pada jalur bawaan — bukan hanya ketika penulisannya gagal.
+  //
+  // Versi sebelumnya menambah ke Set hanya bila `tertulis === false`, dan
+  // `tertulis` disimpulkan dari "tidak melempar". QC PR-035 mencatat sisa celah
+  // itu apa adanya: implementasi penyimpanan yang MENERIMA tulisan lalu
+  // membuangnya diam-diam dalam sesi yang sama akan membuat `tertulis` bernilai
+  // true, Set tetap kosong, pembacaan berikutnya menjawab "belum", dan pengguna
+  // terkunci di `/onboarding` tanpa jalan keluar. Tidak diketahui ada peramban
+  // yang berperilaku begitu — mode privat justru melempar, dan itu sudah
+  // tercakup — tetapi harga penjagaannya satu string per pengguna per tab,
+  // sementara harga kegagalannya adalah pengguna yang tidak bisa memakai
+  // aplikasi sama sekali. Perbandingan itu tidak seimbang, jadi tidak perlu
+  // menunggu buktinya muncul.
+  //
+  // Tetap DIKUNCI PER `userId` (lihat `sudahOnboarding`), jadi menambah tanpa
+  // syarat tidak pernah membuat pengguna BERIKUTNYA di tab yang sama ikut
+  // dianggap selesai. Dijepit `onboarding-identitas.test.ts`.
+  if (simpanan === undefined) {
     penandaSesiBawaan.add(userId);
   }
 }

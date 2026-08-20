@@ -67,11 +67,17 @@ Bisnis: Accessibility Preferences Sync — preferensi mengikuti akun, bukan pera
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service)
-* [ ] Integration Test (event → default row; authz)
-* [ ] E2E Test (via PR-035/036)
-* [ ] Accessibility Test (N/A backend)
-* [ ] Manual Verification (curl)
+> Legenda bukti: **[otomatis]** dijalankan test suite repo · **[CI]** dijalankan
+> gerbang `pr.yml` · **[manual]** dijalankan manusia, hasilnya tercatat ·
+> **[BELUM DIJALANKAN]** instrumennya ada, hasilnya belum pernah ada.
+> Kotak dicentang HANYA bila buktinya bisa ditunjuk. Tidak ada yang dicentang
+> surut demi membuat daftar ini terlihat penuh.
+
+* [x] Unit Test (service) — **[otomatis]** `apps/api/__tests__/accessibility.test.ts`; mencakup `getMe` menjawab tujuh NULL tanpa menulis, PUT sebagai gabung, dan `null` sebagai perintah hapus (migrasi 09).
+* [x] Integration Test (event → baris kosong; authz) — **[otomatis]** `apps/api/__tests__/accessibility-http.test.ts`, server Express + token RS256 nyata; termasuk isolasi A↔B.
+* [x] E2E Test (via PR-035/036) — **[otomatis/CI]** `apps/web/e2e/pengaturan-sinkron.spec.ts` dan `onboarding.spec.ts` menembus endpoint ini lewat klien nyata.
+* [x] Accessibility Test — **N/A (backend)**. Dicentang sebagai "tidak berlaku", bukan sebagai "lulus".
+* [ ] Manual Verification (curl) — **[BELUM DIJALANKAN]**. Belum pernah ada seorang pun memanggil endpoint ini dengan tangan terhadap API dev. Seluruh bukti di atas memakai Prisma palsu; tidak ada satu pun yang menyentuh PostgreSQL sungguhan, jadi migrasi 09 sendiri **belum pernah dijalankan terhadap basis data nyata**.
 
 **Deliverables:**
 
@@ -87,7 +93,7 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [x] Registrasi otomatis membuat row default.
+* [x] Registrasi otomatis membuat baris — KOSONG (tujuh NULL), bukan berisi bawaan. Baris berisi bawaan tidak bisa dibedakan dari pilihan pengguna, dan itulah yang dulu memadamkan sinyal OS saat masuk (migrasi 09).
 * [x] Upsert idempotent.
 * [x] Skema field = kontrak `packages/a11y` (satu sumber).
 * [x] User lain tidak bisa membaca preferensi (authz test).
@@ -140,11 +146,13 @@ Bisnis: momen pertama produk membuktikan janji "100% aksesibel" (PRD FR-2.1, US-
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state wizard)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (selesai + skip path)
-* [ ] Accessibility Test (axe per step + NVDA manual)
-* [ ] Manual Verification (semua kombinasi preview)
+> Legenda sama dengan PR-034 di atas.
+
+* [x] Unit Test (state wizard) — **[otomatis]** `onboarding-mesin-langkah.test.ts`, `onboarding-identitas.test.ts` (termasuk pengerasan cadangan sesi QC-1 dan isolasi lintas-pengguna).
+* [x] Integration Test — **N/A** (tidak ada lapisan integrasi di sisi ini).
+* [x] E2E Test (selesai + jalur lewati) — **[otomatis/CI]** `apps/web/e2e/onboarding.spec.ts`, Chromium nyata atas hasil build produksi.
+* [x] Accessibility Test — axe per langkah **[otomatis/CI]**. **NVDA: [BELUM DIJALANKAN]** — instrumennya `log/pr-035-nvda-checklist.md`, kolom Hasil masih kosong seluruhnya. Kotak ini dicentang HANYA untuk bagian axe; bagian NVDA-nya tidak.
+* [ ] Manual Verification (semua kombinasi pratinjau) — **[BELUM DIJALANKAN]**.
 
 **Deliverables:**
 
@@ -215,11 +223,13 @@ Bisnis: US-03 — ubah preferensi kapan saja dari satu tempat. Teknis: panel di 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (rekonsiliasi)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (dua sesi sinkron)
-* [ ] Accessibility Test (matrix axe + zoom 200%)
-* [ ] Manual Verification (NVDA + low vision mode)
+> Legenda sama dengan PR-034 di atas.
+
+* [x] Unit Test (rekonsiliasi) — **[otomatis]** `packages/a11y/__tests__/*` (74 test) + `apps/web/__tests__/sambungkan-server.test.tsx`, termasuk semantik `null`, isolasi saat keluar, dan cuplikan-sekali-per-masuk.
+* [x] Integration Test — **N/A** (tidak ada lapisan integrasi di sisi ini).
+* [x] E2E Test (dua sesi sinkron) — **[otomatis/CI]** `apps/web/e2e/pengaturan-sinkron.spec.ts`, dua `browser.newContext()` sungguhan.
+* [x] Accessibility Test (matriks axe + zoom 200%) — **[otomatis/CI]** `aksesibilitas-matriks.spec.ts` (2³) + `kontras-skala.spec.ts` (640×512 dan 320×640). Lighthouse berjalan di job CI `a11y`. **Tidak mencakup pembaca layar.**
+* [ ] Manual Verification (NVDA + mode low vision) — **[BELUM DIJALANKAN]**. Instrumennya dibuat pada remediasi Phase 04: `log/pr-036-nvda-checklist.md`. Kolom Hasil kosong seluruhnya; jangan sebut panel ini "terverifikasi NVDA" sampai seseorang benar-benar menjalankannya.
 
 **Deliverables:**
 
@@ -235,9 +245,9 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [x] Ubah di perangkat A → tampak di B setelah login (E2E dua sesi). *(Catatan: sinkron terjadi pada login/reload berikutnya, bukan mid-sesi — sesuai spesifikasi E2E-nya sendiri. Celah parsial: reset `highContrast` true→false di A tidak selalu menimpa nilai lokal eksplisit `true` di B saat OS B meminta kontras lebih; lihat log implementasi PR-036.)*
+* [x] Ubah di perangkat A → tampak di B setelah login (E2E dua sesi). *(Catatan: sinkron terjadi pada login/reload berikutnya, bukan mid-sesi — sesuai spesifikasi E2E-nya sendiri. Celah parsial yang dulu tercatat di sini — reset `highContrast` true→false tidak mendarat di perangkat yang OS-nya meminta kontras lebih — SUDAH DITUTUP oleh remediasi Phase 04: `false` yang benar-benar dipilih kini terkirim sebagai `false`, bukan sebagai nilai yang tak bisa dibedakan dari "belum diatur".)*
 * [x] 8 kombinasi utama lolos axe (matrix). *(Catatan: diinterpretasikan sebagai 2³ atas highContrast × reduceMotion × simpleLanguage, dicakup di halaman panel — tidak dispesifikasi eksplisit di ticket.)*
-* [x] Kontras tinggi + teks 200% tidak memecah layout halaman inti. *(Catatan: diuji pada viewport 640×512, setara 1280px pada zoom 200%, bukan 320px.)*
+* [x] Kontras tinggi + teks 200% tidak memecah layout halaman inti. *(Diuji pada 640×512 — setara 1280px pada zoom 200% — DAN pada 320×640, ambang WCAG 1.4.10. Luberan `<h1>` "Pengaturan" yang dulu tercatat di 320px sudah diperbaiki dan dijepit spec.)*
 * [x] Reset ke default tersedia dan berfungsi.
 * [x] Panel dapat dicapai ≤ 2 interaksi dari mana pun (menu tetap).
 

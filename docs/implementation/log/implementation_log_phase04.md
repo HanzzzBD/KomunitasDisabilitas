@@ -203,3 +203,189 @@ Gate hijau (verifikasi akhir orkestrator): `pnpm lint` 9/9, `npx tsc --noEmit` (
 * Berlingkup pengguna pada `accessibilityKeys.me()` dan bersihkan query cache saat `keluar()`, sesuai maksud komentar yang sudah ada di kode tapi belum diterapkan.
 
 ---
+
+---
+
+## Remediasi Phase 04 — utang dibereskan sebelum phase ditutup
+
+> **Sifat:** perbaikan lintas-PR di dalam Phase 04. **Bukan** PR baru, dan
+> **bukan** PR-037 (PR-037 milik Phase 05 — lihat audit di bawah).
+> **Tanggal:** 2026-08-20
+> **Perintah:** owner meminta seluruh utang relevan dibereskan lebih dulu,
+> terkontrol, tanpa melebar ke Phase 05.
+
+### Kenapa remediasi ini ada
+
+Audit menemukan satu cacat akar yang menjelaskan hampir semua utang lain: tabel
+`accessibility_profiles` punya `@default` pada ketujuh kolom, dan setiap akun
+diberi baris berisi bawaan sejak pendaftaran. Akibatnya server **tidak pernah
+bisa menyatakan "pengguna belum memilih"**. Klien yang menuliskan jawaban itu
+sebagai pilihan membuat tingkat OS pada `rekonsiliasi()` (ADR-008) tak
+terjangkau: pengguna yang sistemnya meminta `prefers-reduced-motion` atau
+`prefers-contrast` kehilangan akomodasi itu diam-diam begitu ia masuk.
+
+PR-036 sempat menambalnya dari sisi klien dengan tebakan ("nilai sama dengan
+bawaan mungkin bukan pilihan"). Tebakan itu menutup kasus umum dan menyisakan
+dua celah yang **tidak bisa ditutup dari sisi klien mana pun** — keduanya
+tercatat jujur di kode sebagai "DUA BATAS YANG DITERIMA SADAR". Remediasi ini
+menutupnya di sumbernya, dan menghapus tebakannya — bukan melonggarkannya.
+
+### Yang dikerjakan
+
+**1. Kontrak akar (migrasi 09).** Ketujuh kolom menjadi nullable tanpa
+`@default`; `NULL` = "belum diatur". `accessibilityProfileSchema` (baru) memuat
+`T | null` per field dan menjadi bentuk jawaban `GET`/`PUT`;
+`updateAccessibilityPreferencesSchema` kini punya TIGA keadaan per field: tidak
+disebut (jangan sentuh), bernilai (simpan), `null` (hapus). `getMe` menjawab
+`ACCESSIBILITY_PROFILE_KOSONG`, bukan bawaan. `provisionDefaults` melahirkan
+baris kosong. Bawaan tidak hilang — ia hidup di `packages/schemas` dan dipakai
+saat rekonsiliasi di klien, bukan sebagai nilai kolom.
+
+*Data lama sengaja tidak disentuh.* Baris yang ada hari ini bercampur antara
+pilihan sungguhan dan bawaan hasil penyediaan otomatis, dan keduanya tidak bisa
+dibedakan lagi (tidak ada `created_at` untuk dibandingkan dengan `updated_at`).
+Menyeragamkannya ke NULL akan MEMBUANG pilihan yang pernah dinyatakan orang.
+Ambiguitasnya tinggal pada baris lama saja, dan hanya sampai pengguna itu
+menyentuh panelnya sekali.
+
+**2. Dua batas yang diterima sadar: DITUTUP.** Verifikasi ulang lewat test yang
+terbukti gagal tanpa perbaikannya: (a) field bernilai bawaan tidak lagi memaku
+apa pun, jadi perubahan setelan OS sesudah masuk kembali berlaku; (b) `false`
+yang benar-benar dipilih terkirim sebagai `false` dan mendarat di perangkat lain.
+`gabungkanFieldOS` beserta tiga cabang tebakannya dihapus.
+
+**3. Wizard onboarding ikut diperbaiki.** `selesaikan()` dulu mengirim
+`efektif()` — hasil rekonsiliasi, termasuk sinyal OS — sehingga sakelar yang tak
+pernah disentuh siapa pun tersimpan sebagai pilihan tegas. Kini mengirim
+`pilihanPengguna`. Cacat yang sama dengan akarnya, di permukaan PR-035.
+
+**4. Isolasi antar-pengguna.** `accessibilityKeys.me(sub)` kini dilingkupi
+pemiliknya. Komentar lamanya menyatakan params dihindari "supaya cache tidak
+berisi preferensi orang lain" — padahal satu key tanpa params dipakai BERSAMA
+oleh setiap pengguna di tab yang sama, jadi justru bentuk itu yang menyimpannya.
+Selain itu, peralihan `masuk → keluar` kini membuang entri cache milik pengguna
+yang pergi DAN `pilihanPengguna` di `localStorage`. Peralihan `memulihkan →
+keluar` (boot tanpa sesi) sengaja TIDAK membuang apa pun — kalau tidak,
+pengunjung anonim kehilangan preferensinya pada setiap muat ulang.
+
+**5. Cuplikan awal sekali per masuk.** `awal.current` dulu dicuplik ulang pada
+setiap jalannya `queryFn`, termasuk retry sebelum penggabungan pertama; suntingan
+pengguna selagi GET awal masih berputar bisa terbaca "tidak tersentuh" lalu
+tertimpa. Kini dicuplik sekali per masuk (`sudahDicuplik`).
+
+**6. Luberan pada zoom tinggi.** `<h1>` "Pengaturan" (PR-033a) mendapat
+`break-words` — terukur `scrollWidth` 341 vs 320 sebelum perbaikan, 320 vs 320
+sesudah. `<output>` penggeser skala di `langkah-preferensi.tsx` (PR-035) mendapat
+`shrink-0`. Dijepit spec baru pada 320×640 + teks 200%.
+
+**7. Pengerasan QC-1 PR-035.** `penandaSesiBawaan` kini diisi TANPA SYARAT pada
+jalur penyimpanan bawaan. Celah yang tersisa: penyimpanan yang menerima tulisan
+lalu membuangnya diam-diam membuat "tidak melempar" menjadi bukti palsu, dan
+pengguna terkunci di `/onboarding`. Harga penjagaannya satu string per pengguna
+per tab; harga kegagalannya pengguna yang tidak bisa memakai aplikasi sama
+sekali. Isolasi lintas-penggunanya kini dijepit test, bukan hanya dijamin
+konstruksi.
+
+### Verifikasi
+
+`pnpm lint` 9/9 · `pnpm typecheck` 9/9 · `pnpm test` 9/9 — web 523, api 612
+(+122 skip), a11y 74, ui 162, api-client 53, schemas 17 · `build` OK ·
+`cek:budget` 110,8/200,0 KB · `npx playwright test --workers=2` **43 lulus**.
+
+Test perbaikan penting dibuktikan **gagal lebih dulu** terhadap kode belum
+diperbaiki, bukan sekadar hijau sesudahnya: cuplikan-retry (`skala=120`, bukan
+175), pembersihan saat keluar (dua test merah), pengerasan QC-1 (`expected false
+to be true`), dan luberan 320px (`Received: true`).
+
+### Yang TIDAK dikerjakan, dan sebabnya
+
+* **NVDA — BELUM DIJALANKAN, untuk PR-035 maupun PR-036.** Butuh Windows + NVDA
+  + telinga manusia; tidak bisa dijalankan dari pipeline. Instrumen PR-036 kini
+  ADA (`log/pr-036-nvda-checklist.md`), kolom Hasil kosong seluruhnya. Jangan
+  sebut Phase 04 "terverifikasi pembaca layar" sampai keduanya dijalankan.
+* **Migrasi 09 SUDAH dijalankan terhadap PostgreSQL dev sungguhan** (lihat
+  bagian "Penerapan migrasi 09" di bawah). Yang tersisa: gerbang CI belum pernah
+  melihat pekerjaan ini, sebab belum ada commit.
+* **String consent PR-035** dibiarkan. Ia berkaitan dengan persistensi consent,
+  yaitu cakupan PR-037 (Phase 05) — dicatat sebagai follow-up, tidak dikerjakan.
+* **`phase-04 → main` tidak dilakukan.** Menunggu perintah eksplisit owner.
+
+### Penerapan migrasi 09 terhadap PostgreSQL dev
+
+Dijalankan atas perintah owner, terhadap basis data yang benar-benar dipakai
+project — `postgresql://nawasena@localhost:5433/nawasena`, kontainer
+`nawasena-dev-postgres-1` dari `docker-compose.dev.yml`. **Bukan** instance
+PostgreSQL lain yang kebetulan hidup di port 5432 (milik Laragon): menjalankan
+migrasi di sana berarti memigrasi basis data yang salah.
+
+`prisma migrate deploy` → *"All migrations have been successfully applied"*,
+lalu `prisma migrate status` → *"Database schema is up to date!"* (9 migrasi).
+
+**Bentuk kolom sesudahnya** (`information_schema.columns`): ketujuh kolom
+preferensi `is_nullable = YES` dengan `column_default` KOSONG. `user_id` dan
+`updated_at` tetap `NOT NULL` — keduanya memang bukan bagian perubahan ini.
+
+**Data lama tidak tersentuh, dan itu dibuktikan, bukan diklaim.** Sidik jari
+`md5(string_agg(...))` atas seluruh tabel diambil sebelum dan sesudah migrasi:
+
+```
+sebelum : e2cf8f858d6b2843e3faa784df223d78   (4 baris)
+sesudah : e2cf8f858d6b2843e3faa784df223d78   (4 baris)
+```
+
+Identik. Hitungan NULL per kolom sesudah migrasi: **nol untuk ketujuhnya**.
+Keempat baris itu memuat pilihan sungguhan (`simple_language = t`,
+`high_contrast = t`, `large_touch_targets = t`, `reduce_motion = t`) — persis
+jenis data yang akan hilang bila skema "dibersihkan" dengan menyeragamkannya ke
+NULL. Tidak ada satu pun `UPDATE` data di dalam migrasi ini, dan tidak ada yang
+dijalankan dengan tangan sesudahnya.
+
+**Nullability-nya nyata, bukan sekadar dideklarasikan.** Diuji lewat transaksi
+yang di-ROLLBACK: `UPDATE ... SET simple_language = NULL, text_scale = NULL`
+diterima mesin (`ts_null = t`, `sl_null = t`), lalu dikembalikan utuh oleh
+rollback (`text_scale = 100`, `simple_language = t`). Sidik jari sesudahnya tetap
+`e2cf8f858d6b2843e3faa784df223d78`. Percobaan pertama dengan `user_id` karangan
+justru DITOLAK foreign key `accessibility_profiles_user_id_fkey` — bukti tambahan
+bahwa batasan tabelnya masih utuh sesudah migrasi.
+
+**Gerbang sesudah migrasi diterapkan:** `pnpm lint` 9/9 · `pnpm typecheck` 9/9 ·
+`pnpm test` 9/9 · `build` OK · `cek:budget` 110,8/200,0 KB ·
+`npx playwright test --workers=2` 43 lulus. Seluruhnya tetap hijau.
+
+### Verifikasi assistive technology — MASIH OUTSTANDING
+
+NVDA 2026.1.1 AKHIRNYA DIJALANKAN di mesin pengembang (owner yang
+menyalakannya — `nvda.exe` menuntut elevasi, dan shell agen tidak elevated).
+Level log dinaikkan ke Debug, panel digerakkan lewat jendela Chromium nyata, dan
+ucapan NVDA yang sebenarnya direkam dari `%TEMP%\nvda.log`. Transkripnya ada di
+lampiran `log/pr-036-nvda-checklist.md`.
+
+Itu tetap BUKAN uji manual, dan checklist keduanya tetap NOT RUN. Transkrip
+membuktikan APA yang diucapkan; ia tidak bisa menjawab baris yang menuntut
+penilaian manusia (apakah terasa SEGERA, apakah selaan mengganggu, apakah
+pengguna PAHAM). Tidak ada simulasi, tidak ada pembaca layar pengganti, dan tidak
+ada satu pun kolom Hasil yang diisi.
+
+**Yang dibuktikan transkrip** (ucapan NVDA sungguhan, bukan pembacaan pohon
+aksesibilitas): penggeser mengumumkan `'Ukuran teks', 'slider', '100 persen'`
+(satuannya ikut, `aria-valuetext` bekerja); keenam sakelar mengumumkan nama,
+peran, keadaan, dan teks bantuannya; perubahan keadaan terdengar
+(`checked` → `not checked` → `checked`); `role="status"` mengumumkan
+`'Pilihan Anda sudah tersimpan ke akun.'`; reset terdengar lewat nilai penggeser
+yang kembali (`125 persen` → `100 persen`); dan kegagalan simpan diumumkan
+dengan awalan peran `'alert'`, yaitu MENYELA — persis yang dituju `role="alert"`.
+
+**Temuan lingkungan, bukan cacat aplikasi:** NVDA melaporkan
+`'Indonesian (not supported)'` untuk suara mesin ini (`oneCore`, David en-US).
+Aplikasi mengirim `lang="id"` dengan benar dan NVDA menghormatinya, tetapi suara
+yang terpasang tidak bisa melafalkan Bahasa Indonesia. Uji manual sungguhan
+WAJIB memakai suara Indonesia — tanpa itu, penguji menilai lafal yang salah.
+
+* `log/pr-035-nvda-checklist.md` — **NOT RUN**, 7 baris uji kosong.
+* `log/pr-036-nvda-checklist.md` — **NOT RUN**, 19 baris uji kosong.
+
+Gerbang otomatis (axe, Lighthouse, `harusLolosAksesibilitas`) memeriksa STRUKTUR
+— peran, nama, kontras, urutan fokus. Tidak satu pun dari mereka menjawab
+pertanyaan yang sebenarnya: apakah orang yang memakai pembaca layar tahu apa
+yang baru saja terjadi di layarnya. **Phase 04 tidak boleh disebut terverifikasi
+pembaca layar sampai kedua checklist itu benar-benar dijalankan seseorang.**

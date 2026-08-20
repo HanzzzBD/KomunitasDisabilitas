@@ -529,7 +529,7 @@ describe("AC 2 — pratinjau langsung, sebelum apa pun disimpan", () => {
 });
 
 describe("penulisan ganda saat selesai", () => {
-  it("mengirim PUT berisi TEPAT tujuh field dengan nilai yang dipilih", async () => {
+  it("mengirim PUT berisi HANYA field yang benar-benar dipilih pengguna", async () => {
     const { jejak, a11y, router } = renderWizard();
     await screen.findByRole("heading", { name: "Ragam disabilitas", level: 2 }, { timeout: 5000 });
     await userEvent.click(tombol("Lanjut"));
@@ -548,8 +548,13 @@ describe("penulisan ganda saat selesai", () => {
     });
     expect(jejak[0]?.method).toBe("PUT");
     expect(jejak[0]?.path).toBe("/me/accessibility");
+    // DUA field, bukan tujuh. Wizard mengirim `pilihanPengguna`, bukan
+    // `efektif()`: yang tidak pernah disentuh pengguna tidak boleh tersimpan
+    // sebagai pilihan tegas. Mengirim `efektif()` — yang dilakukan versi
+    // sebelumnya — memaku hasil rekonsiliasi, termasuk sinyal OS, sehingga
+    // pengguna yang perangkatnya meminta kurangi-animasi mengunci `true` di
+    // akunnya tanpa pernah memilihnya, dan berhenti mengikuti perangkatnya.
     expect(jejak[0]?.body).toEqual({
-      ...ACCESSIBILITY_DEFAULTS,
       highContrast: true,
       largeTouchTargets: true,
     });

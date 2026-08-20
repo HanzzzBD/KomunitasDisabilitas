@@ -10,8 +10,9 @@ import type { PrismaClient } from "@prisma/client";
 import type { UserRole } from "@nawasena/schemas";
 import {
   ACCESSIBILITY_DEFAULTS,
-  accessibilityPreferencesSchema,
-  type AccessibilityPreferences,
+  ACCESSIBILITY_PROFILE_KOSONG,
+  accessibilityProfileSchema,
+  type AccessibilityProfile,
 } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
@@ -32,7 +33,7 @@ const B = "018f4c1e-0000-7000-8000-00000000bbbb";
 const tokens = createTokenService(SESSION_KEYS);
 
 /** Baris `accessibility_profiles` apa adanya, termasuk kolom internal. */
-interface BarisPreferensi extends AccessibilityPreferences {
+interface BarisPreferensi extends AccessibilityProfile {
   userId: string;
   updatedAt: Date;
 }
@@ -44,7 +45,7 @@ interface BarisPreferensi extends AccessibilityPreferences {
  * test lulus atas perilaku yang tidak ada.
  */
 function fakePrisma(rows: BarisPreferensi[]) {
-  type Patch = Partial<AccessibilityPreferences>;
+  type Patch = Partial<AccessibilityProfile>;
   const ambil = (userId: string) => rows.find((r) => r.userId === userId);
 
   const client = {
@@ -66,8 +67,10 @@ function fakePrisma(rows: BarisPreferensi[]) {
       }) => {
         const baris = ambil(where.userId);
         if (baris === undefined) {
+          // Kolomnya nullable tanpa `@default` sejak migrasi 09: yang tidak
+          // disebut `create` lahir NULL, bukan bawaan.
           const lahir: BarisPreferensi = {
-            ...ACCESSIBILITY_DEFAULTS,
+            ...ACCESSIBILITY_PROFILE_KOSONG,
             ...create,
             updatedAt: new Date(),
           };
@@ -163,7 +166,7 @@ function simpan(base: string, token: string, body: unknown) {
 
 function barisUntuk(
   userId: string,
-  overrides: Partial<AccessibilityPreferences> = {},
+  overrides: Partial<AccessibilityProfile> = {},
 ): BarisPreferensi {
   return {
     userId,
@@ -192,14 +195,18 @@ describe("GET /api/v1/me/accessibility — akses", () => {
 });
 
 describe("GET /api/v1/me/accessibility — isi", () => {
-  it("belum punya baris → 200 bawaan, dan TIDAK ada baris yang lahir", async () => {
+  it("belum punya baris → 200 tujuh NULL, dan TIDAK ada baris yang lahir", async () => {
+    // "Belum diatur" dikirim apa adanya. Menjawab bawaan — yang dilakukan versi
+    // sebelumnya — membuat akun yang belum pernah memilih tak bisa dibedakan
+    // dari akun yang memilih bawaan, dan itu cukup untuk memadamkan sinyal OS
+    // pengguna di klien selamanya (ADR-008, migrasi 09).
     const { base, baris } = await boot();
     const res = await ambil(base, "/me/accessibility", await tokenUntuk(A));
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: unknown };
-    expect(accessibilityPreferencesSchema.safeParse(body.data).success).toBe(true);
-    expect(body.data).toEqual(ACCESSIBILITY_DEFAULTS);
+    expect(accessibilityProfileSchema.safeParse(body.data).success).toBe(true);
+    expect(body.data).toEqual(ACCESSIBILITY_PROFILE_KOSONG);
     // Endpoint baca tidak menulis apa pun — bukan sekadar "hasilnya sama".
     expect(baris).toHaveLength(0);
   });
@@ -225,7 +232,7 @@ describe("GET /api/v1/me/accessibility — isi", () => {
     });
 
     const dariA = (await (await ambil(base, "/me/accessibility", await tokenUntuk(A))).json()) as {
-      data: AccessibilityPreferences;
+      data: AccessibilityProfile;
     };
 
     expect(dariA.data.textScale).toBe(120);
@@ -244,14 +251,16 @@ describe("GET /api/v1/me/accessibility — isi", () => {
 });
 
 describe("PUT /api/v1/me/accessibility — upsert", () => {
-  it("pengguna tanpa baris → baris lahir dengan bawaan digabung di bawah patch", async () => {
+  it("pengguna tanpa baris → baris lahir HANYA berisi field yang dikirim", async () => {
+    // Enam sisanya NULL. Melahirkannya berisi bawaan berarti satu PUT berisi
+    // satu pilihan diam-diam mencatat tujuh.
     const { base, baris } = await boot();
 
     const res = await simpan(base, await tokenUntuk(A), { textScale: 150 });
 
     expect(res.status).toBe(200);
     expect((await res.json()) as { data: unknown }).toEqual({
-      data: { ...ACCESSIBILITY_DEFAULTS, textScale: 150 },
+      data: { ...ACCESSIBILITY_PROFILE_KOSONG, textScale: 150 },
     });
     expect(baris).toHaveLength(1);
     expect(baris[0]?.userId).toBe(A);
@@ -276,7 +285,7 @@ describe("PUT /api/v1/me/accessibility — upsert", () => {
 
     const res = await simpan(base, await tokenUntuk(A), { highContrast: true });
 
-    expect((await res.json()) as { data: AccessibilityPreferences }).toEqual({
+    expect((await res.json()) as { data: AccessibilityProfile }).toEqual({
       data: {
         ...ACCESSIBILITY_DEFAULTS,
         textScale: 175,
@@ -286,13 +295,16 @@ describe("PUT /api/v1/me/accessibility — upsert", () => {
     });
   });
 
-  it("badan kosong sah — pengguna tanpa baris mendapat baris tepat di bawaan", async () => {
+  it("badan kosong sah — pengguna tanpa baris mendapat baris KOSONG, bukan baris bawaan", async () => {
+    // Baris lahir, tetapi tujuh kolomnya NULL. Melahirkannya berisi bawaan
+    // berarti PUT kosong diam-diam menjadi tujuh pilihan yang tidak pernah
+    // dinyatakan siapa pun.
     const { base, baris } = await boot();
 
     const res = await simpan(base, await tokenUntuk(A), {});
 
     expect(res.status).toBe(200);
-    expect(baris[0]).toMatchObject(ACCESSIBILITY_DEFAULTS);
+    expect(baris[0]).toMatchObject(ACCESSIBILITY_PROFILE_KOSONG);
   });
 
   it("A menyimpan preferensi, baris B tidak tersentuh", async () => {
@@ -373,12 +385,12 @@ describe("penyediaan awal lewat event auth.user_registered", () => {
     await new Promise((r) => setImmediate(r));
 
     expect(baris).toHaveLength(1);
-    expect(baris[0]).toMatchObject({ userId: A, ...ACCESSIBILITY_DEFAULTS });
+    expect(baris[0]).toMatchObject({ userId: A, ...ACCESSIBILITY_PROFILE_KOSONG });
 
     const body = (await (await ambil(base, "/me/accessibility", await tokenUntuk(A))).json()) as {
       data: unknown;
     };
-    expect(body.data).toEqual(ACCESSIBILITY_DEFAULTS);
+    expect(body.data).toEqual(ACCESSIBILITY_PROFILE_KOSONG);
   });
 
   it("event terbit dua kali → tetap satu baris, dan preferensi pilihan pengguna tidak kembali ke bawaan", async () => {
@@ -400,7 +412,7 @@ describe("penyediaan awal lewat event auth.user_registered", () => {
     expect(events.jumlahPelanggan("auth.user_registered")).toBe(1);
   });
 
-  it("GET sebelum pelanggan sempat berjalan tetap 200 bawaan, bukan 404", async () => {
+  it("GET sebelum pelanggan sempat berjalan tetap 200 profil kosong, bukan 404", async () => {
     // Penerbit TIDAK menunggu pelanggan (lihat core/events), jadi jendela ini
     // memang ada. Yang tidak boleh terjadi adalah pengguna melihat kegagalan.
     const { base, events } = await boot();
@@ -409,7 +421,7 @@ describe("penyediaan awal lewat event auth.user_registered", () => {
     const res = await ambil(base, "/me/accessibility", await tokenUntuk(A));
 
     expect(res.status).toBe(200);
-    expect((await res.json()) as { data: unknown }).toEqual({ data: ACCESSIBILITY_DEFAULTS });
+    expect((await res.json()) as { data: unknown }).toEqual({ data: ACCESSIBILITY_PROFILE_KOSONG });
   });
 });
 

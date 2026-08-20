@@ -112,9 +112,24 @@ export function Wizard({ store, klien, onKeluar }: WizardProps) {
     // (a) Store lokal SUDAH tertulis — tiap perubahan kendali di langkah
     //     "preferensi" menulisnya seketika (live preview). Tidak ada penulisan
     //     susulan di sini, dan itu yang membuat pratinjau tidak bisa berbohong.
-    // (b) Sisi server:
+    // (b) Sisi server: yang dikirim adalah PILIHAN PENGGUNA, bukan `efektif()`.
+    //
+    //     Bedanya menentukan. `efektif()` adalah hasil rekonsiliasi — pilihan
+    //     pengguna DITAMBAH sinyal OS DITAMBAH bawaan, semuanya sudah menjadi
+    //     nilai konkret. Mengirimkannya berarti sakelar yang tidak pernah
+    //     disentuh siapa pun tetap tersimpan sebagai pilihan tegas: pengguna
+    //     yang perangkatnya meminta kurangi-animasi lalu menyelesaikan wizard
+    //     tanpa menyentuh sakelar itu akan mengunci `true` di akunnya, dan
+    //     ketika kelak ia mematikan setelan itu di sistemnya, aplikasi ini tidak
+    //     ikut berubah. Ia tidak pernah memilih; kita yang memilihkan atas
+    //     namanya.
+    //
+    //     `pilihanPengguna` hanya memuat kunci yang benar-benar ia geser di
+    //     langkah preferensi. Sisanya tidak disebut sama sekali, jadi kolomnya
+    //     tetap NULL — "belum diatur" — dan sinyal OS tetap berlaku di perangkat
+    //     mana pun ia masuk nanti (migrasi 09, ADR-008).
     try {
-      await simpan.mutateAsync(store.getState().efektif());
+      await simpan.mutateAsync(store.getState().pilihanPengguna);
     } catch {
       // GAGAL KIRIM TIDAK MEMBATALKAN APA PUN DI SISI PENGGUNA, dan itu
       // keputusan — bukan kelalaian. Preferensinya sudah berlaku di perangkat

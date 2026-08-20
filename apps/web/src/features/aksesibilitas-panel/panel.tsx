@@ -29,29 +29,14 @@ import { useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { dipilihPengguna, rekonsiliasi, type A11yStore, type SinyalOS } from "@nawasena/a11y";
 import { updateAccessibility, type ApiClient } from "@nawasena/api-client";
-import type { AccessibilityPreferences, UpdateAccessibilityPreferences } from "@nawasena/schemas";
+import {
+  ACCESSIBILITY_KEYS,
+  type AccessibilityPreferences,
+  type UpdateAccessibilityPreferences,
+} from "@nawasena/schemas";
 import { KolomForm, KotakCentang, Masukan, Tombol } from "@nawasena/ui";
 import { pesanGalatApi, type PetaGalat } from "../../shared/galat-api.js";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
-
-/**
- * Ketujuh kunci preferensi, sebagai data.
- *
- * Ditulis lengkap alih-alih diturunkan dari `ACCESSIBILITY_DEFAULTS`: yang
- * dibutuhkan tombol reset adalah daftar kunci yang PASTI utuh, dan daftar yang
- * diturunkan dari objek lain diam-diam ikut menyusut bila objek itu berubah.
- * Tipenya menahan daftar ini tetap sejalan dengan skema — kunci yang salah
- * ketik adalah `typecheck` merah, bukan preferensi yang diam-diam tak tereset.
- */
-const SEMUA_KUNCI: readonly (keyof AccessibilityPreferences)[] = [
-  "textScale",
-  "highContrast",
-  "reduceMotion",
-  "simpleLanguage",
-  "largeTouchTargets",
-  "prefersSignLanguage",
-  "screenReaderHint",
-];
 
 /** Keenam preferensi biner. `textScale` bukan sakelar dan punya kendalinya sendiri. */
 const SAKLAR: readonly {
@@ -189,14 +174,18 @@ export function PanelAksesibilitas({ store, klien }: PanelAksesibilitasProps) {
    * pilihannya mengembalikan urutan menang ADR-008 apa adanya: sinyal OS
    * muncul kembali.
    *
-   * Yang DIKIRIM ke server tetap profil utuh (`efektif()`), sebab kontraknya
-   * tidak punya konsep "belum dipilih" — ketujuh field wajib ada (PR-034).
-   * Dibaca SESUDAH penghapusan supaya yang tersimpan adalah keadaan yang baru,
-   * bukan keadaan sebelum tombol ditekan.
+   * Yang DIKIRIM ke server kini `null` untuk ketujuh field — perintah hapus,
+   * bukan nilai. Sebelum migrasi 09 kontraknya tidak punya cara menyatakan
+   * "belum dipilih", jadi yang terkirim adalah `efektif()`: profil utuh berisi
+   * nilai konkret. Akibatnya reset menghapus pilihan di perangkat ini tetapi
+   * MENULISKANNYA sebagai pilihan baru di akun — sehingga perangkat lain, dan
+   * perangkat ini sendiri sesudah masuk lagi, memakukan justru nilai yang baru
+   * saja dilepas pengguna. Reset yang tidak mereset. Sekarang penghapusannya
+   * berlaku di kedua tempat.
    */
   function reset() {
-    for (const kunci of SEMUA_KUNCI) store.getState().hapusPilihan(kunci);
-    kirim(store.getState().efektif());
+    for (const kunci of ACCESSIBILITY_KEYS) store.getState().hapusPilihan(kunci);
+    kirim(Object.fromEntries(ACCESSIBILITY_KEYS.map((k) => [k, null])));
   }
 
   return (

@@ -43,7 +43,14 @@ export function rekonsiliasi(
     dariOS: boolean | undefined,
   ): AccessibilityPreferences[K] => {
     const eksplisit = pilihanPengguna[kunci];
-    if (eksplisit !== undefined) return eksplisit as AccessibilityPreferences[K];
+    // `!= null` menangkap `undefined` DAN `null` sekaligus, dan keduanya memang
+    // berarti hal yang sama di sini: pengguna belum memilih. `null` datang dari
+    // profil akun (`GET /me/accessibility`, migrasi 09) yang menyatakan "belum
+    // diatur" secara eksplisit; `undefined` datang dari kunci yang memang tidak
+    // ada di objek pilihan lokal. Memperlakukan `null` sebagai nilai akan
+    // mengembalikannya sebagai preferensi efektif dan memadamkan tingkat OS —
+    // persis kegagalan yang bentuk nullable itu ada untuk mencegahnya.
+    if (eksplisit != null) return eksplisit as AccessibilityPreferences[K];
     if (dariOS !== undefined) return dariOS as AccessibilityPreferences[K];
     return ACCESSIBILITY_DEFAULTS[kunci];
   };
@@ -51,6 +58,7 @@ export function rekonsiliasi(
   return {
     // `textScale` tidak punya padanan OS yang bisa dibaca andal. Ukuran font
     // sistem memang memengaruhi rem, tetapi lewat browser — bukan lewat kita.
+    // `??` sudah menangani `null` maupun `undefined`.
     textScale: pilihanPengguna.textScale ?? ACCESSIBILITY_DEFAULTS.textScale,
     highContrast: ambil("highContrast", os.highContrast),
     reduceMotion: ambil("reduceMotion", os.reduceMotion),
@@ -75,5 +83,7 @@ export function dipilihPengguna(
   pilihanPengguna: UpdateAccessibilityPreferences,
   kunci: keyof AccessibilityPreferences,
 ): boolean {
-  return pilihanPengguna[kunci] !== undefined;
+  // `!= null` — sama seperti `ambil()` di atas: `null` ("belum diatur", datang
+  // dari profil akun) dan `undefined` (kunci tidak ada) sama-sama BUKAN pilihan.
+  return pilihanPengguna[kunci] != null;
 }

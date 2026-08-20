@@ -13,23 +13,39 @@
 //      mengubah apa pun di layar siapa pun.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { ACCESSIBILITY_DEFAULTS, type AccessibilityPreferences } from "@nawasena/schemas";
+import {
+  ACCESSIBILITY_DEFAULTS,
+  ACCESSIBILITY_KEYS,
+  ACCESSIBILITY_PROFILE_KOSONG,
+  type AccessibilityProfile,
+} from "@nawasena/schemas";
 import { createA11yStore, type A11yStore, type PenyimpananA11y } from "@nawasena/a11y";
-import { accessibilityKeys, type ApiClient } from "@nawasena/api-client";
+import { accessibilityKeys, ApiError, type ApiClient } from "@nawasena/api-client";
 import { Providers } from "../src/app/providers.js";
 import { createQueryClient } from "../src/app/query-client.js";
 import { gabungkanDariServer } from "../src/app/penyedia-a11y.js";
 import { useStoreSesi } from "../src/shared/sesi/store.js";
 
-const DARI_SERVER: AccessibilityPreferences = {
-  ...ACCESSIBILITY_DEFAULTS,
+const DARI_SERVER: AccessibilityProfile = {
+  ...ACCESSIBILITY_PROFILE_KOSONG,
   textScale: 120,
   highContrast: true,
 };
 
+/** Ketujuhnya benar-benar dipilih pengguna — tidak satu pun `null`. */
+const SEMUA_DIPILIH: AccessibilityProfile = {
+  textScale: 120,
+  highContrast: true,
+  reduceMotion: true,
+  simpleLanguage: true,
+  prefersSignLanguage: true,
+  largeTouchTargets: true,
+  screenReaderHint: true,
+};
+
 describe("gabungkanDariServer — aturan per field", () => {
   it("field yang tidak tersentuh mengambil nilai akun", () => {
-    const hasil = gabungkanDariServer(DARI_SERVER, {}, {}, {});
+    const hasil = gabungkanDariServer(DARI_SERVER, {}, {});
 
     expect(hasil.textScale).toBe(120);
     expect(hasil.highContrast).toBe(true);
@@ -39,7 +55,7 @@ describe("gabungkanDariServer — aturan per field", () => {
     // Pengguna sudah MELIHAT perubahannya berlaku, dan PUT-nya sudah berangkat.
     // Menimpanya dengan jawaban yang berangkat lebih dulu berarti layar berubah
     // sendiri kembali ke nilai yang barusan ia tinggalkan.
-    const hasil = gabungkanDariServer(DARI_SERVER, { textScale: 150 }, { textScale: 175 }, {});
+    const hasil = gabungkanDariServer(DARI_SERVER, { textScale: 150 }, { textScale: 175 });
 
     expect(hasil.textScale).toBeUndefined();
     // Tetangganya yang tidak disentuh TETAP diperbarui — penolakannya per
@@ -50,7 +66,7 @@ describe("gabungkanDariServer — aturan per field", () => {
   it("nilai lokal yang KEBETULAN sama dengan saat berangkat tetap diperbarui", () => {
     // "Tersentuh" berarti berubah, bukan pernah ada. Field yang sudah bernilai
     // sama sejak awal tidak sedang diperebutkan siapa pun.
-    const hasil = gabungkanDariServer(DARI_SERVER, { textScale: 150 }, { textScale: 150 }, {});
+    const hasil = gabungkanDariServer(DARI_SERVER, { textScale: 150 }, { textScale: 150 });
 
     expect(hasil.textScale).toBe(120);
   });
@@ -59,61 +75,65 @@ describe("gabungkanDariServer — aturan per field", () => {
     // Field yang terlewat tidak pernah tersinkron antar-perangkat, dan
     // ketiadaannya tidak menimbulkan satu pun gejala di perangkat yang sedang
     // dipakai.
-    expect(Object.keys(gabungkanDariServer(DARI_SERVER, {}, {}, {})).sort()).toEqual(
-      Object.keys(ACCESSIBILITY_DEFAULTS).sort(),
+    expect(Object.keys(gabungkanDariServer(SEMUA_DIPILIH, {}, {})).sort()).toEqual(
+      [...ACCESSIBILITY_KEYS].sort(),
     );
   });
 });
 
 // ---------------------------------------------------------------------------
 
-// Server SELALU menjawab tujuh nilai konkret — akun baru diberi baris berisi
-// ACCESSIBILITY_DEFAULTS sejak pendaftaran — jadi nilai server yang KEBETULAN
-// sama dengan bawaan tidak membuktikan apa pun tentang pilihan pengguna.
-// Menuliskannya apa adanya akan memadamkan akomodasi yang diminta OS bagi
-// setiap orang yang tak pernah menyentuh sakelarnya. Hanya `highContrast` dan
-// `reduceMotion` yang terkena: hanya keduanya yang punya sinyal OS.
-describe("gabungkanDariServer — penjaga sinyal OS", () => {
-  it("nilai server berbentuk bawaan TIDAK ditulis bila sinyal OS bertentangan", () => {
-    // `reduceMotion` server = false = bawaan, sementara perangkat ini meminta
-    // animasi dikurangi. Kuncinya dilewatkan supaya `pilihanPengguna` tetap
-    // kosong dan `rekonsiliasi()` jatuh ke tingkat OS.
-    const hasil = gabungkanDariServer(DARI_SERVER, {}, {}, { reduceMotion: true });
+// `null` DARI AKUN BERARTI "BELUM DIATUR" — dan itu satu-satunya aturan yang
+// diperlukan sekarang.
+//
+// Blok ini menggantikan "penjaga sinyal OS" yang lama. Penjaga itu menebak:
+// selama server tidak bisa menyatakan "belum memilih", nilai yang KEBETULAN sama
+// dengan bawaan dibiarkan kalah oleh sinyal OS yang bertentangan. Tebakan itu
+// menutup kasus umum tetapi menyisakan dua celah yang tidak bisa ditutup dari
+// sisi klien mana pun. Sejak migrasi 09 profil akun menyatakan ketiadaan pilihan
+// apa adanya, jadi tebakan itu DIHAPUS, bukan dilonggarkan — dan kedua celahnya
+// ikut hilang. Dua test terakhir di bawah ini yang menjepitnya.
+describe("gabungkanDariServer — semantik null", () => {
+  it("field null TIDAK ditulis, sehingga sinyal OS tetap terjangkau", () => {
+    const hasil = gabungkanDariServer(DARI_SERVER, {}, {});
 
-    // BUKAN sekadar `toBeUndefined()`: kunci yang HADIR dengan nilai
-    // `undefined` juga lolos pemeriksaan itu, padahal `setPreferensi` men-
-    // spread objek ini apa adanya. Yang harus dibuktikan adalah OMISI kuncinya
-    // — persis yang membedakan cabang 2 (lewati) dari cabang lain (tulis).
+    // BUKAN sekadar `toBeUndefined()`: kunci yang HADIR dengan nilai `undefined`
+    // juga lolos pemeriksaan itu, padahal `setPreferensi` men-spread objek ini
+    // apa adanya. Yang harus dibuktikan adalah OMISI kuncinya.
     expect(hasil.reduceMotion).toBeUndefined();
     expect("reduceMotion" in hasil).toBe(false);
-    // Field lain tetap tersinkron — penjaganya per field.
+    // Field yang memang dipilih tetap tersinkron — aturannya per field.
     expect(hasil.textScale).toBe(120);
   });
 
-  it("nilai server yang MENYIMPANG dari bawaan tetap menang atas sinyal OS", () => {
-    const dariServer: AccessibilityPreferences = { ...DARI_SERVER, reduceMotion: true };
-    const hasil = gabungkanDariServer(dariServer, {}, {}, { reduceMotion: true });
+  // CELAH LAMA (a) — cabang "tulis bila tidak ada pertentangan" dulu MEMAKU
+  // field yang tak pernah dipilih siapa pun, sehingga perubahan setelan OS
+  // sesudah masuk tidak lagi berlaku untuknya.
+  it("akun kosong tidak memaku satu field pun", () => {
+    const hasil = gabungkanDariServer(ACCESSIBILITY_PROFILE_KOSONG, {}, {});
 
-    expect(hasil.reduceMotion).toBe(true);
+    expect(Object.keys(hasil)).toEqual([]);
   });
 
-  it("sinyal OS yang menolak TIDAK membatalkan pilihan eksplisit dari akun", () => {
-    // `highContrast` server = true (menyimpang dari bawaan → bukti pilihan),
-    // OS bilang tidak perlu. Yang dipilih pengguna menang, dan arah gagalnya
-    // sengaja memihak akomodasi yang MENYALA.
-    const hasil = gabungkanDariServer(DARI_SERVER, {}, {}, { highContrast: false });
+  // CELAH LAMA (b) — `false` yang benar-benar dipilih pengguna dulu tidak bisa
+  // dibedakan dari bawaan, jadi ia kalah oleh sinyal OS yang bertentangan dan
+  // reset `true → false` di perangkat A tidak pernah mendarat di perangkat B.
+  it("false yang DIPILIH pengguna tetap ditulis, bukan disamakan dengan belum-diatur", () => {
+    const dariServer: AccessibilityProfile = { ...ACCESSIBILITY_PROFILE_KOSONG, highContrast: false };
+    const hasil = gabungkanDariServer(dariServer, {}, {});
 
-    expect(hasil.highContrast).toBe(true);
+    expect(hasil.highContrast).toBe(false);
+    expect("highContrast" in hasil).toBe(true);
   });
 
-  it("tanpa sinyal OS, nilai bawaan dari akun TETAP ditulis", () => {
-    // Inilah yang menjaga AC-1 untuk kedua field ini: mengembalikan sakelar ke
-    // posisi mati di satu perangkat harus mendarat di perangkat lain yang tidak
-    // punya pendapat OS yang bertentangan.
-    const hasil = gabungkanDariServer(DARI_SERVER, {}, {}, {});
+  it("nilai yang kebetulan sama dengan bawaan tetap tersinkron (AC-1 reset)", () => {
+    const dariServer: AccessibilityProfile = {
+      ...ACCESSIBILITY_PROFILE_KOSONG,
+      textScale: ACCESSIBILITY_DEFAULTS.textScale,
+    };
+    const hasil = gabungkanDariServer(dariServer, {}, {});
 
-    expect(hasil.reduceMotion).toBe(false);
-    expect("reduceMotion" in hasil).toBe(true);
+    expect(hasil.textScale).toBe(ACCESSIBILITY_DEFAULTS.textScale);
   });
 });
 
@@ -142,7 +162,7 @@ interface Tertahan {
   klien: ApiClient;
   /** Jumlah `GET /me/accessibility` yang benar-benar berangkat. */
   jumlah: () => number;
-  jawab: (nilai: AccessibilityPreferences) => void;
+  jawab: (nilai: AccessibilityProfile) => void;
 }
 
 /** Klien yang MENAHAN jawaban preferensi sampai test melepaskannya. */
@@ -261,32 +281,52 @@ describe("penyambungan ke akun", () => {
     // yang bisa menimpa apa pun (`structuralSharing` menahan yang identik).
     tertahan.jawab({ ...DARI_SERVER, textScale: 90, largeTouchTargets: true });
     await waitFor(() =>
-      expect(klien.getQueryState(accessibilityKeys.me())?.fetchStatus).toBe("idle"),
+      // `null`: sesi test memakai token yang bukan JWT, jadi `idPenggunaSaatIni()`
+      // mengembalikan null dan key-nya jatuh ke laci "anonim" — sama seperti
+      // yang dipakai komponennya.
+      expect(klien.getQueryState(accessibilityKeys.me(null))?.fetchStatus).toBe("idle"),
     );
 
     expect(store.getState().pilihanPengguna.textScale).toBe(175);
     // Field yang tak tersentuh pun TIDAK ikut digabungkan lagi: penggabungan
     // berjalan sekali per masuk, jadi perubahan dari perangkat lain baru
     // terlihat pada masuk atau muat ulang berikutnya — persis janji AC-1.
-    expect(store.getState().pilihanPengguna.largeTouchTargets).toBe(false);
+    // `undefined`, bukan `false`: jawaban pertama membawa `null` untuk field ini
+    // ("belum diatur"), dan yang belum diatur memang tidak ditulis sama sekali.
+    expect(store.getState().pilihanPengguna.largeTouchTargets).toBeUndefined();
   });
 
-  it("sinyal OS sudah terbaca saat jawaban akun tiba", async () => {
-    // Penjaga sinyal OS bergantung pada `store.os` yang SUDAH terisi ketika
-    // penggabungan berjalan. Keempat test murni di atas menyuapkan `os` dengan
-    // tangan, jadi hanya pohon nyata yang bisa membuktikan urutannya. Bila
-    // urutan itu rusak, cabang 3 menulis `reduceMotion: false` dan akomodasi
-    // yang diminta perangkat padam diam-diam saat masuk — persis cacat yang
-    // penjaga ini ada untuk mencegahnya.
+  it("akun yang belum mengatur apa pun TIDAK memadamkan akomodasi dari perangkat", async () => {
+    // INI CACAT ASLI PR-036, dijepit di pohon nyata.
+    //
+    // Pengguna yang perangkatnya meminta kurangi-animasi, lalu masuk dengan akun
+    // yang belum pernah mengatur preferensi apa pun. Sebelum migrasi 09 server
+    // menjawab tujuh bawaan — termasuk `reduceMotion: false` — dan klien
+    // menuliskannya sebagai pilihan, sehingga animasi menyala kembali diam-diam
+    // tepat pada saat ia masuk. Sekarang jawabannya `null`, tidak ada yang
+    // ditulis, dan akomodasinya bertahan.
     palsukanKurangiGerakPerangkat();
     const { store, tertahan } = renderProbe("masuk");
 
-    // Akun baru: tujuh nilai bawaan, termasuk `reduceMotion: false`.
-    tertahan.jawab(ACCESSIBILITY_DEFAULTS);
-    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("100"));
+    tertahan.jawab(ACCESSIBILITY_PROFILE_KOSONG);
+    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("150"));
 
     expect(store.getState().efektif().reduceMotion).toBe(true);
     expect("reduceMotion" in store.getState().pilihanPengguna).toBe(false);
+  });
+
+  it("false yang BENAR-BENAR dipilih di akun tetap menang atas sinyal perangkat", async () => {
+    // Sisi lain dari test di atas, dan pasangannya yang membuat keduanya
+    // bermakna: pengguna yang sengaja mematikan kurangi-animasi meski
+    // perangkatnya memintanya berhak atas pilihannya sendiri di perangkat mana
+    // pun. Dulu keduanya tidak bisa dibedakan sama sekali.
+    palsukanKurangiGerakPerangkat();
+    const { store, tertahan } = renderProbe("masuk");
+
+    tertahan.jawab({ ...ACCESSIBILITY_PROFILE_KOSONG, reduceMotion: false });
+    await waitFor(() => expect(store.getState().pilihanPengguna.reduceMotion).toBe(false));
+
+    expect(store.getState().efektif().reduceMotion).toBe(false);
   });
 
   it("pengunjung yang belum masuk TIDAK ditanyakan preferensinya", async () => {
@@ -296,5 +336,133 @@ describe("penyambungan ke akun", () => {
 
     await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("150"));
     expect(tertahan.jumlah()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Klien yang MENOLAK `n` permintaan pertama sebelum menahan yang berikutnya —
+ * untuk menguji jalur retry TanStack (`MAKS_RETRY` = 2).
+ */
+function klienGagalLalu(gagalBerapaKali: number): Tertahan {
+  let lepaskan: ((nilai: never) => void) | null = null;
+  let jumlah = 0;
+
+  return {
+    klien: {
+      request: (path: string) => {
+        if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
+        if (path === "/me/accessibility") {
+          jumlah += 1;
+          if (jumlah <= gagalBerapaKali) {
+            return Promise.reject(
+              new ApiError({ code: "JARINGAN_GAGAL", message: "Gagal" }, 0),
+            ) as Promise<never>;
+          }
+          return new Promise<never>((resolve) => {
+            lepaskan = resolve;
+          });
+        }
+        return Promise.reject(new Error(`jalur tak terduga: ${path}`)) as Promise<never>;
+      },
+    },
+    jumlah: () => jumlah,
+    jawab: (nilai) => lepaskan?.({ data: nilai } as never),
+  };
+}
+
+describe("cuplikan awal diambil sekali per masuk, bukan per percobaan", () => {
+  it("suntingan selagi GET awal masih RETRY tidak tertimpa jawaban akun", async () => {
+    // Cacat non-pemblokir yang tercatat di QC PR-036: `awal.current` dulu
+    // dicuplik ulang pada SETIAP jalannya `queryFn`. Percobaan pertama gagal,
+    // pengguna menggeser sakelar, percobaan kedua berangkat dan mencuplik ulang
+    // — cuplikan barunya sudah memuat geseran itu, jadi field-nya terbaca "tidak
+    // tersentuh" dan jawaban akun menimpanya. Jendelanya detik-detik pertama
+    // masuk, tetapi yang hilang adalah pilihan aksesibilitas seseorang.
+    useStoreSesi.setState({ status: "masuk" });
+    const store = createA11yStore({ storage: memori() });
+    store.getState().setPreferensi({ textScale: 150 });
+
+    const tertahan = klienGagalLalu(1);
+    render(
+      <Providers
+        queryClient={createQueryClient()}
+        klienApi={tertahan.klien}
+        a11yStore={store}
+      >
+        <Pengintip store={store} />
+      </Providers>,
+    );
+
+    // Percobaan pertama sudah berangkat dan ditolak.
+    await waitFor(() => expect(tertahan.jumlah()).toBe(1));
+
+    // Pengguna menggeser sakelar SEBELUM percobaan kedua berangkat.
+    act(() => {
+      store.getState().setPreferensi({ textScale: 175 });
+    });
+
+    // Percobaan kedua (retry) berangkat, lalu dijawab akun dengan nilai LAIN.
+    await waitFor(() => expect(tertahan.jumlah()).toBe(2), { timeout: 5000 });
+    tertahan.jawab({ ...ACCESSIBILITY_PROFILE_KOSONG, textScale: 120 });
+
+    // Geseran pengguna bertahan: cuplikannya diambil sebelum ia menggeser.
+    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("175"));
+    expect(store.getState().pilihanPengguna.textScale).toBe(175);
+  });
+});
+
+describe("isolasi antar-pengguna di perangkat yang sama", () => {
+  it("KELUAR membuang preferensi pengguna yang pergi", async () => {
+    // Perangkat bersama — warnet, ponsel keluarga, laptop komunitas. Tanpa ini,
+    // pengguna berikutnya membuka aplikasi dengan kontras tinggi, teks 175%, dan
+    // mode bahasa sederhana milik orang sebelumnya. Pada produk yang preferensi
+    // aksesibilitasnya menyiratkan disabilitas seseorang, itu juga membocorkan
+    // sesuatu tentang orang itu.
+    const { store, tertahan } = renderProbe("masuk");
+
+    tertahan.jawab({ ...ACCESSIBILITY_PROFILE_KOSONG, highContrast: true });
+    await waitFor(() => expect(store.getState().pilihanPengguna.highContrast).toBe(true));
+
+    act(() => {
+      useStoreSesi.setState({ status: "keluar" });
+    });
+
+    await waitFor(() => expect(store.getState().pilihanPengguna).toEqual({}));
+  });
+
+  it("BOOT tanpa sesi TIDAK membuang preferensi pengunjung anonim", async () => {
+    // Pasangan wajib dari test di atas. `memulihkan → keluar` adalah jalur boot
+    // biasa bagi setiap orang yang belum masuk; membuang preferensi di sana
+    // berarti pengguna yang menyetel kontras tinggi sebelum pernah punya akun
+    // kehilangannya pada SETIAP muat ulang. Pembersihan hanya sah pada peralihan
+    // "masuk" → "keluar" yang sungguhan.
+    const { store } = renderProbe("keluar");
+
+    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("150"));
+    expect(store.getState().pilihanPengguna.textScale).toBe(150);
+  });
+
+  it("pengguna berikutnya menarik preferensinya sendiri, bukan sisa yang sebelumnya", async () => {
+    const { store, tertahan } = renderProbe("masuk");
+
+    tertahan.jawab({ ...ACCESSIBILITY_PROFILE_KOSONG, textScale: 120 });
+    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("120"));
+
+    act(() => {
+      useStoreSesi.setState({ status: "keluar" });
+    });
+    await waitFor(() => expect(store.getState().pilihanPengguna).toEqual({}));
+
+    // Pengguna kedua masuk di tab yang sama: penggabungan HARUS dipersenjatai
+    // ulang, jika tidak akun kedua tidak pernah menarik preferensinya sendiri.
+    act(() => {
+      useStoreSesi.setState({ status: "masuk" });
+    });
+    await waitFor(() => expect(tertahan.jumlah()).toBe(2));
+    tertahan.jawab({ ...ACCESSIBILITY_PROFILE_KOSONG, textScale: 200 });
+
+    await waitFor(() => expect(screen.getByTestId("skala")).toHaveTextContent("200"));
   });
 });

@@ -33,6 +33,23 @@ interface Jejak {
   body: unknown;
 }
 
+/**
+ * Badan PUT yang harus dikirim tombol reset: tujuh perintah hapus.
+ *
+ * Ditulis lengkap, bukan diturunkan dari `ACCESSIBILITY_KEYS`: badan yang
+ * diturunkan dari daftar yang sama dengan yang dipakai kode produksi akan tetap
+ * cocok meski daftar itu sendiri kehilangan satu kunci.
+ */
+const KOSONG_TUJUH = {
+  textScale: null,
+  highContrast: null,
+  reduceMotion: null,
+  simpleLanguage: null,
+  prefersSignLanguage: null,
+  largeTouchTargets: null,
+  screenReaderHint: null,
+};
+
 function memori(): PenyimpananA11y {
   const isi: Record<string, string> = {};
   return {
@@ -246,12 +263,23 @@ describe("AC-4 — kembali ke bawaan", () => {
     await userEvent.click(screen.getByRole("button", { name: "Kembalikan ke setelan bawaan" }));
 
     expect(a11y.getState().efektif().highContrast).toBe(true);
-    // Yang dikirim ke akun tetap profil UTUH — kontraknya tidak punya konsep
-    // "belum dipilih" — dan isinya keadaan SESUDAH penghapusan.
+    // Yang dikirim ke akun adalah TUJUH `null` — perintah hapus, bukan nilai.
+    // Sebelum migrasi 09 yang terkirim adalah profil utuh berisi nilai konkret,
+    // jadi reset menghapus pilihan di perangkat ini tetapi MENULISKANNYA sebagai
+    // pilihan baru di akun: perangkat lain justru memaku nilai yang barusan
+    // dilepas pengguna. Reset yang tidak mereset.
     await waitFor(() => expect(jejak).toHaveLength(2));
     expect(jejak[1]).toEqual({
       method: "PUT",
-      body: { ...ACCESSIBILITY_DEFAULTS, highContrast: true },
+      body: {
+        textScale: null,
+        highContrast: null,
+        reduceMotion: null,
+        simpleLanguage: null,
+        prefersSignLanguage: null,
+        largeTouchTargets: null,
+        screenReaderHint: null,
+      },
     });
   });
 
@@ -272,12 +300,11 @@ describe("AC-4 — kembali ke bawaan", () => {
     ).toBeInTheDocument();
   });
 
-  it("PUT terakhir sesudah reset berisi PERSIS efektif() — bukan cuma store yang kosong", async () => {
-    // Cakupan sengaja BEDA dari test "sinyal perangkat" di atas: di sana
-    // `kontrasPerangkat` membuat PUT-nya punya satu field bukan-bawaan. Di sini
-    // TIDAK ADA sinyal perangkat sama sekali, jadi badan PUT-nya harus PERSIS
-    // `ACCESSIBILITY_DEFAULTS` — buktinya bahwa reset mengirim efektif() APA
-    // ADANYA, bukan sekadar objek yang kebetulan kosong pada satu field.
+  it("PUT terakhir sesudah reset MENGOSONGKAN ketujuh field, apa pun yang diubah sebelumnya", async () => {
+    // Cakupan sengaja BEDA dari test "sinyal perangkat" di atas: di sana ada
+    // `kontrasPerangkat`. Di sini TIDAK ADA sinyal perangkat sama sekali, dan
+    // tiga field sempat diubah — badan PUT-nya tetap harus tujuh `null`,
+    // buktinya bahwa reset menghapus SEMUA, bukan hanya yang kebetulan disentuh.
     const { jejak, a11y } = renderPanel();
     await tungguPanel();
 
@@ -289,7 +316,9 @@ describe("AC-4 — kembali ke bawaan", () => {
     await userEvent.click(screen.getByRole("button", { name: "Kembalikan ke setelan bawaan" }));
 
     await waitFor(() => expect(jejak).toHaveLength(4));
-    expect(jejak[3]).toEqual({ method: "PUT", body: ACCESSIBILITY_DEFAULTS });
+    expect(jejak[3]).toEqual({ method: "PUT", body: KOSONG_TUJUH });
+    // Secara LOKAL, efektifnya kembali ke bawaan — tidak ada pilihan dan tidak
+    // ada sinyal perangkat yang tersisa untuk menimpanya.
     expect(a11y.getState().efektif()).toEqual(ACCESSIBILITY_DEFAULTS);
   });
 
@@ -327,7 +356,7 @@ describe("AC-4 — kembali ke bawaan", () => {
     lepaskan(0);
 
     await waitFor(() => expect(jejak).toHaveLength(2));
-    expect(jejak[1]).toEqual({ method: "PUT", body: ACCESSIBILITY_DEFAULTS });
+    expect(jejak[1]).toEqual({ method: "PUT", body: KOSONG_TUJUH });
   });
 
   it("keterangan itu HILANG begitu pengguna memilih sendiri", async () => {

@@ -4,15 +4,16 @@
 // dan berkas ini hanya menghubungkan store ke DOM nyata, ke `window` nyata, ke
 // mode bahasa i18n, dan — sejak PR-036 — ke preferensi yang tersimpan di akun.
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { createA11yStore, type A11yStore, type SinyalOS } from "@nawasena/a11y";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createA11yStore, type A11yStore } from "@nawasena/a11y";
 import { hubungkanKeDom } from "@nawasena/a11y/web";
 import { accessibilityKeys, getAccessibility } from "@nawasena/api-client";
 import {
-  ACCESSIBILITY_DEFAULTS,
-  type AccessibilityPreferences,
+  ACCESSIBILITY_KEYS,
+  type AccessibilityProfile,
   type UpdateAccessibilityPreferences,
 } from "@nawasena/schemas";
+import { idPenggunaSaatIni } from "../features/onboarding/index.js";
 import { useModeBahasa } from "../shared/i18n/index.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { useKlienApi } from "./klien-api.js";
@@ -121,56 +122,6 @@ export function SambungkanBahasa({ store }: { store: A11yStore }) {
 }
 
 /**
- * Aturan khusus DUA field yang punya sinyal OS: `highContrast` & `reduceMotion`.
- *
- * Server selalu menjawab tujuh nilai konkret — setiap akun diberi baris berisi
- * `ACCESSIBILITY_DEFAULTS` sejak pendaftaran — jadi "belum pernah memilih" tidak
- * punya bentuk di kabel. Menulis nilai server apa adanya berarti setiap orang
- * yang tak pernah menyentuh sakelar mendapat pilihan eksplisit palsu, dan
- * tingkat OS di `rekonsiliasi()` menjadi tak terjangkau selamanya: pengguna yang
- * OS-nya meminta kurangi-animasi atau kontras-lebih kehilangan akomodasi itu
- * diam-diam saat masuk. Persis yang diperingatkan header `rekonsiliasi.ts`.
- *
- * 1. `server !== bawaan` → tulis. Nilai yang menyimpang dari bawaan hanya bisa
- *    lahir dari sebuah pilihan; server menang, sama seperti lima field lain.
- * 2. `server === bawaan` DAN sinyal OS ada dan BERTENTANGAN → `undefined`, kunci
- *    tidak ditulis. Nilai tanpa bukti pilihan tidak boleh mengalahkan sinyal
- *    hidup; `pilihanPengguna` dibiarkan kosong agar rekonsiliasi jatuh ke OS.
- * 3. `server === bawaan` selebihnya (OS diam atau OS setuju) → tulis.
- *
- * DUA BATAS YANG DITERIMA SADAR — keduanya kehilangan perilaku dibanding `main`,
- * keduanya dipilih karena penggantinya lebih buruk:
- *
- * (a) Cabang 3 MEMAKU field-nya. Sesudah ditulis ia eksplisit di perangkat ini,
- *     jadi perubahan setelan OS yang dilakukan KEMUDIAN (menyalakan kurangi-
- *     animasi sesudah masuk) tidak lagi berlaku untuknya — terlihat, setidaknya:
- *     petunjuk "ikut perangkat" di panel berhenti muncul. Alternatifnya, melewat
- *     setiap kali `server === bawaan`, mengorbankan AC-1 — sinkron lintas
- *     perangkat, fitur utama PR ini — untuk dua dari tujuh field: mematikan
- *     sakelar di perangkat A tak akan pernah sampai ke perangkat B.
- *
- * (b) Cabang 2 adalah LUBANG AC-1 SEBAGIAN, bukan sekadar aturan OS-lawan-
- *     pilihan. Konkretnya: perangkat A mengembalikan `highContrast` true → false,
- *     sementara perangkat B menyimpan true eksplisit dan OS-nya meminta kontras
- *     lebih. Cabang 2 melewatkan penulisan, jadi B tetap true dan reset itu tidak
- *     pernah mendarat. Diterima dengan pertimbangan yang sama: akomodasi yang
- *     keliru MENYALA lebih ringan akibatnya daripada akomodasi yang keliru PADAM
- *     bagi orang yang OS-nya memintanya. Menutupnya menuntut field nullable di
- *     kabel (PR-034) — perubahan backend yang di luar cakupan PR ini.
- */
-function gabungkanFieldOS<K extends "highContrast" | "reduceMotion">(
-  kunci: K,
-  server: AccessibilityPreferences,
-  os: SinyalOS,
-): AccessibilityPreferences[K] | undefined {
-  const nilai = server[kunci];
-  if (nilai !== ACCESSIBILITY_DEFAULTS[kunci]) return nilai;
-  const sinyal = os[kunci];
-  if (sinyal !== undefined && sinyal !== nilai) return undefined;
-  return nilai;
-}
-
-/**
  * Gabungkan preferensi dari akun ke pilihan lokal — inti aturan "server menang,
  * lokal hanya untuk cat pertama" (ADR-008, AC-6 PR-036).
  *
@@ -187,38 +138,55 @@ function gabungkanFieldOS<K extends "highContrast" | "reduceMotion">(
  * berangkat: `sebelum` adalah cuplikan saat berangkat, `sekarang` keadaan saat
  * jawabannya tiba.
  *
+ * `null` DARI SERVER BERARTI "BELUM DIATUR", DAN FIELD ITU TIDAK DITULIS.
+ * Sejak migrasi 09 profil akun bisa menyatakan ketiadaan pilihan apa adanya,
+ * jadi aturannya kini sesederhana kenyataannya: ada nilai → itu pilihan yang
+ * pernah ditegaskan pengguna (di perangkat mana pun), tulis; `null` → tidak ada
+ * pilihan, jangan sentuh, biarkan `rekonsiliasi()` turun ke sinyal OS lalu ke
+ * bawaan.
+ *
+ * INI MENGGANTIKAN `gabungkanFieldOS` dan menutup DUA BATAS yang dulu diterima
+ * sadar, keduanya akibat langsung server yang selalu menjawab nilai konkret:
+ * - field bernilai bawaan tidak lagi MEMAKU apa pun, jadi perubahan setelan OS
+ *   sesudah login kembali berlaku untuk field yang belum pernah dipilih;
+ * - `false` yang benar-benar dipilih pengguna kini terkirim sebagai `false`
+ *   (bukan `null`), jadi ia menang atas sinyal OS yang bertentangan dan reset
+ *   `true → false` di perangkat A benar-benar mendarat di perangkat B.
+ * Tebakan "nilai == bawaan, mungkin bukan pilihan" tidak diperlukan lagi, dan
+ * karena itu dihapus — bukan dilonggarkan.
+ *
  * Ditulis tujuh baris eksplisit alih-alih perulangan atas kunci: hanya bentuk
  * ini yang membuat `typecheck` ikut menjaga kecocokan tipe tiap field, dan
  * field baru di skema tidak bisa lolos diam-diam tanpa diputuskan di sini.
  */
 export function gabungkanDariServer(
-  server: AccessibilityPreferences,
+  server: AccessibilityProfile,
   sebelum: UpdateAccessibilityPreferences,
   sekarang: UpdateAccessibilityPreferences,
-  os: SinyalOS,
 ): UpdateAccessibilityPreferences {
   const hasil: UpdateAccessibilityPreferences = {};
-  if (sekarang.textScale === sebelum.textScale) hasil.textScale = server.textScale;
-  // Dua field berikut melewati `gabungkanFieldOS` — hanya keduanya yang punya
-  // sinyal OS yang bisa dipertentangkan dengan nilai server berbentuk bawaan.
-  if (sekarang.highContrast === sebelum.highContrast) {
-    const nilai = gabungkanFieldOS("highContrast", server, os);
-    if (nilai !== undefined) hasil.highContrast = nilai;
+  if (sekarang.textScale === sebelum.textScale && server.textScale !== null) {
+    hasil.textScale = server.textScale;
   }
-  if (sekarang.reduceMotion === sebelum.reduceMotion) {
-    const nilai = gabungkanFieldOS("reduceMotion", server, os);
-    if (nilai !== undefined) hasil.reduceMotion = nilai;
+  if (sekarang.highContrast === sebelum.highContrast && server.highContrast !== null) {
+    hasil.highContrast = server.highContrast;
   }
-  if (sekarang.simpleLanguage === sebelum.simpleLanguage) {
+  if (sekarang.reduceMotion === sebelum.reduceMotion && server.reduceMotion !== null) {
+    hasil.reduceMotion = server.reduceMotion;
+  }
+  if (sekarang.simpleLanguage === sebelum.simpleLanguage && server.simpleLanguage !== null) {
     hasil.simpleLanguage = server.simpleLanguage;
   }
-  if (sekarang.largeTouchTargets === sebelum.largeTouchTargets) {
+  if (sekarang.largeTouchTargets === sebelum.largeTouchTargets && server.largeTouchTargets !== null) {
     hasil.largeTouchTargets = server.largeTouchTargets;
   }
-  if (sekarang.prefersSignLanguage === sebelum.prefersSignLanguage) {
+  if (
+    sekarang.prefersSignLanguage === sebelum.prefersSignLanguage &&
+    server.prefersSignLanguage !== null
+  ) {
     hasil.prefersSignLanguage = server.prefersSignLanguage;
   }
-  if (sekarang.screenReaderHint === sebelum.screenReaderHint) {
+  if (sekarang.screenReaderHint === sebelum.screenReaderHint && server.screenReaderHint !== null) {
     hasil.screenReaderHint = server.screenReaderHint;
   }
   return hasil;
@@ -250,6 +218,7 @@ export function gabungkanDariServer(
  */
 export function SambungkanServer({ store }: { store: A11yStore }) {
   const klien = useKlienApi();
+  const klienQuery = useQueryClient();
   const status = useStoreSesi((s) => s.status);
 
   // Cuplikan pilihan pengguna PADA SAAT permintaan berangkat. Ref, bukan state:
@@ -279,20 +248,69 @@ export function SambungkanServer({ store }: { store: A11yStore }) {
   // persis yang dijanjikan AC-1, tidak kurang.
   const sudahDigabung = useRef(false);
 
+  // Cuplikan diambil SEKALI per masuk, bukan sekali per permintaan.
+  //
+  // Ref terpisah dari `sudahDigabung` dengan sengaja: sebuah GET yang gagal lalu
+  // diulang (retry TanStack, 2×) menjalankan `queryFn` lagi SEBELUM penggabungan
+  // pertama terjadi, sehingga syarat `!sudahDigabung.current` saja masih
+  // membiarkan percobaan kedua mencuplik ulang. Pengguna yang menggeser sakelar
+  // selagi GET awalnya masih berputar akan kehilangan geseran itu, sebab
+  // cuplikan barunya sudah memuatnya dan ia jadi terbaca "tidak tersentuh".
+  // Jendelanya sempit — detik-detik pertama masuk — tapi jendela sempit yang
+  // membuang pilihan aksesibilitas seseorang tetap membuangnya.
+  const sudahDicuplik = useRef(false);
+
+  // `sub` pemilik sesi yang SEDANG berjalan, disimpan supaya masih ada saat
+  // logout: pada saat `status` menjadi "keluar", tokennya sudah dibuang dan
+  // `idPenggunaSaatIni()` mengembalikan null — padahal justru saat itulah kita
+  // perlu tahu cache siapa yang harus dibuang.
+  const subAktif = useRef<string | null>(null);
+  const statusSebelumnya = useRef(status);
+
+  const sub = status === "masuk" ? idPenggunaSaatIni() : null;
+  if (status === "masuk" && sub !== null) subAktif.current = sub;
+
   // Masuk yang BERIKUTNYA berhak digabungkan lagi. Tanpa pengembalian ini, akun
   // kedua di perangkat yang sama tidak akan pernah menarik preferensinya.
   useEffect(() => {
-    if (status !== "masuk") sudahDigabung.current = false;
-  }, [status]);
+    if (status !== "masuk") {
+      sudahDigabung.current = false;
+      sudahDicuplik.current = false;
+    }
+
+    // KELUAR YANG SUNGGUHAN — hanya peralihan "masuk" → "keluar", bukan boot.
+    //
+    // Tanpa syarat peralihan itu, setiap kali aplikasi dibuka tanpa sesi
+    // ("memulihkan" → "keluar") preferensi pengguna anonim ikut terhapus, dan
+    // orang yang mengatur kontras tinggi sebelum pernah punya akun akan
+    // kehilangannya pada setiap muat ulang.
+    //
+    // Yang dibuang DUA-DUANYA, sebab keduanya menyimpan preferensi orang yang
+    // baru saja pergi: entri cache TanStack miliknya, dan `pilihanPengguna` di
+    // `localStorage`. Yang kedua itu yang membuat perangkat bersama — warnet,
+    // ponsel keluarga, laptop komunitas — menyerahkan kontras, skala teks, dan
+    // mode bahasa sederhana milik pengguna sebelumnya kepada pengguna
+    // berikutnya. Pada produk yang preferensinya menyiratkan disabilitas
+    // seseorang, itu bukan sekadar setelan yang salah.
+    if (statusSebelumnya.current === "masuk" && status === "keluar") {
+      const subKeluar = subAktif.current;
+      subAktif.current = null;
+      klienQuery.removeQueries({ queryKey: accessibilityKeys.me(subKeluar) });
+      for (const kunci of ACCESSIBILITY_KEYS) store.getState().hapusPilihan(kunci);
+    }
+    statusSebelumnya.current = status;
+  }, [status, store, klienQuery]);
 
   const { data } = useQuery({
-    queryKey: accessibilityKeys.me(),
+    // Key DILINGKUPI `sub`: pengguna B tidak bisa membaca entri milik A karena
+    // keduanya bukan key yang sama, bukan karena ada kode yang ingat
+    // membersihkannya.
+    queryKey: accessibilityKeys.me(sub),
     queryFn: () => {
-      // Dicuplik hanya selagi penggabungan masih mungkin terjadi. Mencuplik
-      // ulang sesudahnya tak berguna, dan pada permintaan ulang yang berangkat
-      // SEBELUM penggabungan pertama ia justru menghapus jejak suntingan yang
-      // harus dilindungi.
-      if (!sudahDigabung.current) awal.current = store.getState().pilihanPengguna;
+      if (!sudahDicuplik.current) {
+        sudahDicuplik.current = true;
+        awal.current = store.getState().pilihanPengguna;
+      }
       return getAccessibility(klien);
     },
     enabled: status === "masuk",
@@ -302,21 +320,13 @@ export function SambungkanServer({ store }: { store: A11yStore }) {
     if (data === undefined) return;
     if (sudahDigabung.current) return;
     sudahDigabung.current = true;
-    // Sinyal OS dibaca SEKARANG, bukan dicuplik saat permintaan berangkat
-    // seperti `awal.current`: kenyataan perangkat tidak punya "suntingan yang
-    // sedang berjalan" untuk dilindungi, dan `hubungkanKeDom` menjaga
-    // `store.os` tetap mutakhir sejak mount maupun saat media query berubah.
-    const gabungan = gabungkanDariServer(
-      data,
-      awal.current,
-      store.getState().pilihanPengguna,
-      store.getState().os,
-    );
+    const gabungan = gabungkanDariServer(data, awal.current, store.getState().pilihanPengguna);
     // `setPreferensi` menulis ke tingkat "pilihan pengguna" (ADR-008), BUKAN ke
     // tingkat baru: nilai yang tersimpan di akun memang pilihan yang pernah
     // ditegaskan pengguna, hanya di perangkat lain. Tingkat keempat hanya akan
     // menambah aturan menang di paket yang dipakai bersama mobile tanpa satu
-    // pun perbedaan perilaku.
+    // pun perbedaan perilaku. Field yang `null` di akun tidak ikut masuk ke
+    // `gabungan` sama sekali, jadi tingkat OS tetap terjangkau untuknya.
     store.getState().setPreferensi(gabungan);
   }, [data, store]);
 

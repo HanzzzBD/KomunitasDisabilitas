@@ -118,8 +118,13 @@ export function LangkahPreferensi({ store }: LangkahPreferensiProps) {
             }}
           />
           {/* Nilainya juga TERLIHAT. Slider tanpa nilai terbaca memaksa
-              pengguna menebak dari lebar teks di layar. */}
-          <output className="min-w-16 text-base font-semibold text-gray-900">
+              pengguna menebak dari lebar teks di layar.
+
+              `shrink-0` menemani `min-w-16`: tanpa itu flexbox memampatkan
+              kotak ini di bawah lebar minimumnya pada zoom 200%, dan sisa 3 px
+              yang tidak muat mendorong seluruh baris melewati tepi layar —
+              cacat yang sama sudah diperbaiki begini di panel PR-036. */}
+          <output className="min-w-16 shrink-0 text-base font-semibold text-gray-900">
             {t("onboarding.preferensi.skalaNilai", { persen: efektif.textScale })}
           </output>
         </div>

@@ -14,32 +14,42 @@
 import {
   accessibilityResponseSchema,
   updateAccessibilityPreferencesSchema,
-  type AccessibilityPreferences,
+  type AccessibilityProfile,
   type UpdateAccessibilityPreferences,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
 
 /**
- * Key cache TanStack untuk preferensi sendiri.
+ * Key cache TanStack untuk preferensi sendiri — DILINGKUPI PEMILIKNYA.
  *
- * Tanpa params, dengan alasan yang sama seperti `usersKeys.me()`: endpoint ini
- * tidak punya saluran untuk menyebut pengguna lain, dan params (mis. userId)
- * hanya akan mengundang cache berisi preferensi orang lain dalam satu sesi
- * peramban.
+ * Versi sebelumnya adalah `queryKey("accessibility-me")` tanpa parameter, dengan
+ * alasan tertulis "params hanya akan mengundang cache berisi preferensi orang
+ * lain". Alasan itu terbalik dari akibatnya: satu key tanpa parameter dipakai
+ * BERSAMA oleh setiap pengguna yang pernah masuk di tab yang sama, jadi justru
+ * bentuk itulah yang menyimpan preferensi orang lain di satu entri. Cache
+ * TanStack hidup selama dokumennya, bukan selama sesinya, dan `keluar()` tidak
+ * membuangnya.
+ *
+ * `sub` (klaim subjek JWT) sebagai pelingkup: pengguna B tidak akan pernah
+ * membaca entri milik A karena keduanya bukan key yang sama — bukan karena ada
+ * kode yang ingat membersihkannya. Untuk sesi yang belum dikenali, `null`
+ * memberi laci terpisah lagi, sehingga jawaban pra-login pun tidak menetes ke
+ * pengguna mana pun.
  */
 export const accessibilityKeys = {
-  me: () => queryKey("accessibility-me"),
+  me: (sub: string | null) => queryKey("accessibility-me", { sub: sub ?? "anonim" }),
 };
 
 /**
  * GET /me/accessibility — preferensi milik pemilik sesi.
  *
- * Selalu 200 dengan profil lengkap: pengguna yang belum punya baris tetap
- * mendapat `ACCESSIBILITY_DEFAULTS` dari server (keputusan D4 PR-034), jadi
- * tidak ada keadaan "kosong" yang perlu ditangani pemanggil.
+ * Selalu 200 dengan tujuh field, tetapi setiap field boleh `null` = **belum
+ * diatur**. Pemanggil WAJIB memperlakukan `null` sebagai ketiadaan pilihan, dan
+ * TIDAK boleh menggantinya dengan bawaan lalu menyimpannya sebagai pilihan —
+ * justru itu yang membuat sinyal OS (ADR-008) tak terjangkau.
  */
-export async function getAccessibility(client: ApiClient): Promise<AccessibilityPreferences> {
+export async function getAccessibility(client: ApiClient): Promise<AccessibilityProfile> {
   const res = await client.request("/me/accessibility", {
     responseSchema: accessibilityResponseSchema,
   });
@@ -58,7 +68,7 @@ export async function getAccessibility(client: ApiClient): Promise<Accessibility
 export async function updateAccessibility(
   client: ApiClient,
   input: UpdateAccessibilityPreferences,
-): Promise<AccessibilityPreferences> {
+): Promise<AccessibilityProfile> {
   const body = updateAccessibilityPreferencesSchema.parse(input);
   const res = await client.request("/me/accessibility", {
     method: "PUT",

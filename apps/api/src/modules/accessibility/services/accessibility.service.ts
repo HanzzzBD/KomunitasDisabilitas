@@ -10,8 +10,8 @@
 // bebas menyimpang adalah persis cara preferensi aksesibilitas mulai berbeda
 // antara klien dan server tanpa ada yang mengubah apa pun.
 import {
-  ACCESSIBILITY_DEFAULTS,
-  type AccessibilityPreferences,
+  ACCESSIBILITY_PROFILE_KOSONG,
+  type AccessibilityProfile,
   type UpdateAccessibilityPreferences,
 } from "@nawasena/schemas";
 import type {
@@ -34,7 +34,7 @@ export interface AccessibilityServiceDeps {
  * kelak ikut membawa kolom baru (`userId`, `updatedAt`), kolom itu tetap tidak
  * punya jalan keluar dari sini.
  */
-function kePreferensi(row: AccessibilityProfileRow): AccessibilityPreferences {
+function kePreferensi(row: AccessibilityProfileRow): AccessibilityProfile {
   return {
     textScale: row.textScale,
     highContrast: row.highContrast,
@@ -56,18 +56,25 @@ export function createAccessibilityService(deps: AccessibilityServiceDeps) {
      * Baris yang belum ada BUKAN kesalahan: penyediaan awal berjalan lewat event
      * yang tidak ditunggu penerbitnya, jadi permintaan yang datang beberapa
      * milidetik setelah registrasi wajar menemukannya belum ada. Yang dijawab
-     * adalah ACCESSIBILITY_DEFAULTS — nilainya sama persis dengan yang akan
-     * ditulis penyediaan awal, jadi pengguna tidak pernah melihat dua tampilan
-     * berbeda tanpa mengubah apa pun.
+     * adalah ACCESSIBILITY_PROFILE_KOSONG — tujuh `null`, yang isinya sama
+     * persis dengan baris yang akan ditulis penyediaan awal, jadi pengguna tidak
+     * pernah melihat dua tampilan berbeda tanpa mengubah apa pun.
+     *
+     * DULU yang dijawab adalah ACCESSIBILITY_DEFAULTS, dan itu cacat: jawaban
+     * itu tidak bisa dibedakan dari pengguna yang benar-benar memilih bawaan,
+     * sehingga klien memaku ketujuh field sebagai "pilihan" dan sinyal OS
+     * (ADR-008) tidak pernah bisa menang lagi. `null` menyatakan ketiadaan
+     * pilihan apa adanya. Bawaan tetap ada, tetapi tempatnya di klien saat
+     * rekonsiliasi — bukan di jawaban server.
      *
      * TIDAK menulis apa pun. Endpoint baca yang diam-diam menulis akan berlomba
      * dengan pelanggan event atas kunci primer yang sama, dan menambah cabang
      * tulis pada jalur baca tanpa satu pun perbedaan perilaku yang didapat.
      * Yang menulis hanya PUT.
      */
-    async getMe(actor: AccessibilityActor): Promise<AccessibilityPreferences> {
+    async getMe(actor: AccessibilityActor): Promise<AccessibilityProfile> {
       const row = await accessibilityRepository.findByUserId(actor.userId);
-      if (row === null) return { ...ACCESSIBILITY_DEFAULTS };
+      if (row === null) return { ...ACCESSIBILITY_PROFILE_KOSONG };
       return kePreferensi(row);
     },
 
@@ -77,12 +84,16 @@ export function createAccessibilityService(deps: AccessibilityServiceDeps) {
      * Idempoten: mengirim badan yang sama sekali atau sepuluh kali berakhir pada
      * keadaan yang sama, sebab yang dikirim adalah nilai akhir yang diinginkan,
      * bukan selisih. Panggilan pertama pada pengguna tanpa baris membuat barisnya
-     * — dengan bawaan untuk field yang tidak disebut.
+     * — field yang tidak disebut lahir NULL, yaitu "belum diatur".
+     *
+     * `null` pada sebuah field adalah PERINTAH HAPUS, bukan nilai: ia
+     * mengembalikan field itu ke "belum diatur" sehingga sinyal OS bisa muncul
+     * lagi. Itulah yang dipakai tombol "Kembalikan ke bawaan" (AC-4 PR-036).
      */
     async updateMe(
       actor: AccessibilityActor,
       patch: UpdateAccessibilityPreferences,
-    ): Promise<AccessibilityPreferences> {
+    ): Promise<AccessibilityProfile> {
       return kePreferensi(await accessibilityRepository.upsertByUserId(actor.userId, patch));
     },
 

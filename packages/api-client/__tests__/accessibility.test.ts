@@ -163,13 +163,29 @@ describe("updateAccessibility", () => {
 });
 
 describe("accessibilityKeys", () => {
-  it("key preferensi tidak membawa params", () => {
-    // Sama seperti `usersKeys.me()`: params akan mengundang cache berisi
-    // preferensi pengguna berbeda dalam satu sesi peramban.
-    expect(accessibilityKeys.me()).toEqual(["accessibility-me"]);
+  it("stabil antar pemanggilan untuk sub yang sama, sehingga cache tidak pecah", () => {
+    expect(JSON.stringify(accessibilityKeys.me("u-1"))).toBe(
+      JSON.stringify(accessibilityKeys.me("u-1")),
+    );
   });
 
-  it("stabil antar pemanggilan, sehingga cache tidak pecah", () => {
-    expect(JSON.stringify(accessibilityKeys.me())).toBe(JSON.stringify(accessibilityKeys.me()));
+  // INI PENJAGA ISOLASI LINTAS-PENGGUNA, bukan uji bentuk.
+  //
+  // Versi sebelumnya justru menjepit kebalikannya — `me()` tanpa params — dengan
+  // alasan tertulis "params akan mengundang cache berisi preferensi pengguna
+  // berbeda dalam satu sesi peramban". Alasan itu terbalik dari akibatnya: satu
+  // key tanpa params dipakai BERSAMA oleh setiap pengguna yang pernah masuk di
+  // tab yang sama, dan cache TanStack hidup selama dokumennya, bukan selama
+  // sesinya. Justru bentuk itulah yang menyimpan preferensi orang lain.
+  it("pengguna berbeda TIDAK PERNAH berbagi entri cache", () => {
+    expect(JSON.stringify(accessibilityKeys.me("u-1"))).not.toBe(
+      JSON.stringify(accessibilityKeys.me("u-2")),
+    );
+  });
+
+  it("sesi tanpa identitas punya laci sendiri, tidak menetes ke pengguna mana pun", () => {
+    const anonim = JSON.stringify(accessibilityKeys.me(null));
+    expect(anonim).not.toBe(JSON.stringify(accessibilityKeys.me("u-1")));
+    expect(anonim).toBe(JSON.stringify(accessibilityKeys.me(null)));
   });
 });
