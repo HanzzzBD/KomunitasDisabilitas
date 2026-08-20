@@ -139,6 +139,11 @@ function setup(options: { sender?: OtpSender; userId?: string | null } = {}) {
       refreshExpiresAt: new Date("2026-09-03T10:00:00.000Z"),
     }),
   );
+  // Bus event (PR-034) dipalsukan sebagai mata-mata: yang diperiksa di sini
+  // bukan pengirimannya (itu punya test sendiri di events.test.ts), melainkan
+  // KAPAN service ini menerbitkan — dan kapan ia diam.
+  const emitEvent = vi.fn();
+  const events = { emit: emitEvent, on: vi.fn(), jumlahPelanggan: () => 0 };
   const service = createOtpService({
     otpRepository,
     userRepository: createFakeUserRepository(options.userId ?? null),
@@ -147,6 +152,7 @@ function setup(options: { sender?: OtpSender; userId?: string | null } = {}) {
     // bukan penandatanganan token — itu punya test sendiri.
     sessionService: { issue: sessionIssue },
     auditLog,
+    events,
     logger,
   });
   return {
@@ -155,6 +161,7 @@ function setup(options: { sender?: OtpSender; userId?: string | null } = {}) {
     redis,
     nilai,
     auditLog,
+    emitEvent,
     logger,
     sessionIssue,
     terkirim: penangkap.terkirim,
@@ -305,6 +312,52 @@ describe("verify", () => {
       ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR),
     );
     expect(err.code).toBe("KODE_OTP_HANGUS");
+  });
+});
+
+// PR-034. Yang bergantung pada event ini adalah baris preferensi aksesibilitas
+// pengguna baru — jadi "tidak terbit saat akun baru" berarti pengguna itu tidak
+// pernah punya barisnya, dan "terbit di setiap masuk" berarti penyediaan awal
+// dikerjakan berulang untuk akun yang sudah lama punya preferensi sendiri.
+describe("verify — event auth.user_registered", () => {
+  it("akun BARU → terbit tepat sekali, dengan userId dan waktu ISO", async () => {
+    await ctx.service.request({ phone: PHONE }, ACTOR);
+    const hasil = await ctx.service.verify(
+      { phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) },
+      ACTOR,
+    );
+
+    expect(ctx.emitEvent).toHaveBeenCalledTimes(1);
+    const [nama, payload] = ctx.emitEvent.mock.calls[0]!;
+    expect(nama).toBe("auth.user_registered");
+    expect(payload).toEqual({
+      userId: hasil.userId,
+      registeredAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+    });
+  });
+
+  it("payload TIDAK memuat nomor HP (bebas PII)", async () => {
+    await ctx.service.request({ phone: PHONE }, ACTOR);
+    await ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR);
+
+    const dikirim = JSON.stringify(ctx.emitEvent.mock.calls);
+    expect(dikirim).not.toContain(PHONE);
+    expect(dikirim).not.toContain("6281234567890");
+  });
+
+  it("akun LAMA masuk lagi → tidak terbit sama sekali", async () => {
+    const lain = setup({ userId: "01912345-89ab-7def-8123-0000000000aa" });
+    await lain.service.request({ phone: PHONE }, ACTOR);
+    await lain.service.verify({ phone: PHONE, code: kodeDari(lain.terkirim[0]!.text) }, ACTOR);
+
+    expect(lain.emitEvent).not.toHaveBeenCalled();
+  });
+
+  it("kode salah → tidak terbit (tidak ada akun yang lahir)", async () => {
+    await ctx.service.request({ phone: PHONE }, ACTOR);
+    await tangkap(() => ctx.service.verify({ phone: PHONE, code: "000000" }, ACTOR));
+
+    expect(ctx.emitEvent).not.toHaveBeenCalled();
   });
 });
 

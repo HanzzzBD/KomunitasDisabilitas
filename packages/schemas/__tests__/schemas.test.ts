@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  ACCESSIBILITY_DEFAULTS,
+  accessibilityResponseSchema,
   errorEnvelopeSchema,
   paginationQuerySchema,
   pdpPurgeJobSchema,
@@ -61,6 +63,29 @@ describe("payload job purge PDP (PR-023)", () => {
     // janji "data hilang ≤ 30 hari" berhenti ditepati tanpa satu pun gejala.
     expect(pdpPurgeJobSchema.parse({}).dryRun).toBe(false);
     expect(pdpPurgeJobSchema.parse({ dryRun: true }).dryRun).toBe(true);
+  });
+});
+
+describe("amplop respons preferensi aksesibilitas (PR-035)", () => {
+  it("menerima bentuk yang BENAR-BENAR dijawab server: `{ data }`", () => {
+    // Bentuk acuannya diambil dari controller PR-034
+    // (`res.status(200).json({ data: await service.getMe(...) })`), bukan dari
+    // fixture yang ditulis tangan — fixture bebas ikut salah bersama skemanya.
+    const parsed = accessibilityResponseSchema.parse({ data: ACCESSIBILITY_DEFAULTS });
+    expect(parsed.data.textScale).toBe(100);
+    expect(parsed.data.screenReaderHint).toBe(false);
+  });
+
+  it("MENOLAK preferensi telanjang tanpa amplop", () => {
+    // Inilah yang membuktikan pembungkusnya bekerja. Skema yang menerima kedua
+    // bentuk tidak menjaga apa pun — dan bila ia diam-diam salah, setiap
+    // panggilan yang BERHASIL di produksi berakhir `RESPONS_TIDAK_DIKENAL`.
+    expect(accessibilityResponseSchema.safeParse(ACCESSIBILITY_DEFAULTS).success).toBe(false);
+  });
+
+  it("menolak amplop yang isinya tidak lengkap", () => {
+    const { screenReaderHint: _buang, ...kurang } = ACCESSIBILITY_DEFAULTS;
+    expect(accessibilityResponseSchema.safeParse({ data: kurang }).success).toBe(false);
   });
 });
 

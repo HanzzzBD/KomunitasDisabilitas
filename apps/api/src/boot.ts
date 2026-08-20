@@ -14,6 +14,7 @@ import { createLogger } from "./core/logger/index.js";
 import { createDbClient, createPrismaClient } from "./core/db/index.js";
 import { createRedisClients } from "./core/redis/index.js";
 import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
+import { createEventBus } from "./core/events/index.js";
 import { createHealthModule } from "./modules/health/index.js";
 import { createInternalAuth, createInternalModule } from "./modules/internal/index.js";
 import {
@@ -23,6 +24,7 @@ import {
   createSessionUserSource,
 } from "./modules/auth/index.js";
 import { createUsersModule } from "./modules/users/index.js";
+import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -65,6 +67,13 @@ export async function startApi(options: BootOptions): Promise<void> {
       increment: (name) => auditMetricCounts.set(name, (auditMetricCounts.get(name) ?? 0) + 1),
     },
   });
+
+  // Bus event domain PROSES INI (PR-024b, dipakai sejak PR-034). Terpisah dari
+  // bus milik apps/worker dan itu memang benar: bus-nya in-process, jadi dua
+  // proses berarti dua instance. Tidak ada state yang dibagi — `createEventBus`
+  // menutup Map baru setiap dipanggil. Yang membedakan barisnya di log adalah
+  // `service` dari logger masing-masing proses ("api" vs "worker").
+  const events = createEventBus({ logger });
 
   // API hanya PRODUSER job; konsumennya proses apps/worker terpisah (ADR-004).
   const queues = createQueueRegistry({
@@ -113,6 +122,10 @@ export async function startApi(options: BootOptions): Promise<void> {
           google: createGoogleConfigFromEnv(env),
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
+          // Penerbit `auth.user_registered` (PR-034); pelanggannya modul
+          // accessibility di bawah — instance bus yang SAMA, sebab bus ini
+          // in-process dan dua instance tidak saling mendengar.
+          events,
           logger,
         }),
       );
@@ -124,6 +137,16 @@ export async function startApi(options: BootOptions): Promise<void> {
           redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
+        }),
+      );
+      app.use(
+        createAccessibilityModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          auditLog,
+          // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk
+          // akun yang baru lahir (PR-034).
+          events,
         }),
       );
     },

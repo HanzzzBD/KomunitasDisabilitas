@@ -4,9 +4,15 @@
 // yang harus diingat setiap halaman adalah banner yang suatu saat akan
 // terlupakan di salah satunya. Alasan yang sama kini berlaku untuk DUA hal baru
 // (PR-032a): landmark `<main>` dan tautan lompat ke konten.
-import { Outlet, useNavigation } from "react-router";
+import { Link, Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
+import { useStoreSesi } from "../shared/sesi/store.js";
+import {
+  idPenggunaSaatIni,
+  sudahOnboarding,
+  wizardOnboardingAktif,
+} from "../features/onboarding/index.js";
 
 /**
  * Id sasaran tautan lompat. Diekspor supaya test dan halaman lain menyebut
@@ -16,6 +22,27 @@ import { useTeks } from "../shared/i18n/index.js";
  */
 export const ID_KONTEN_UTAMA = "konten-utama";
 
+/**
+ * Alamat yang TIDAK BOLEH dialihkan ke onboarding, apa pun keadaan sesinya.
+ *
+ * Daftar ini bukan optimasi — ia syarat kebenaran, dan `/masuk/google` adalah
+ * alasan utamanya. Halaman itu menukarkan authorization code segera setelah
+ * dimuat; mengalihkannya di tengah proses berarti penukaran tidak pernah
+ * selesai dan pengguna tidak pernah benar-benar masuk. Gejalanya menyesatkan:
+ * ia mendarat di wizard onboarding, jadi tampak "berhasil masuk" — sampai
+ * permintaan pertama ditolak.
+ *
+ * `useLocation().pathname` TIDAK memuat query string, jadi
+ * `/masuk/google?code=…&state=…` tetap cocok dengan entri di bawah. Ini
+ * ketergantungan yang halus dan dijaga test khusus (`tata-letak.test.tsx`,
+ * "regresi kembalian Google").
+ *
+ * `/masuk/google` juga alamat kembalian alur KONFIRMASI HAPUS AKUN (PR-033c-2,
+ * `MaksudOAuth`) — satu entri menutup keduanya, sebab keduanya memang memakai
+ * alamat yang sama persis.
+ */
+const JALUR_DIKECUALIKAN: readonly string[] = ["/onboarding", "/masuk", "/masuk/google"];
+
 export function TataLetak() {
   const t = useTeks();
 
@@ -23,6 +50,36 @@ export function TataLetak() {
   // di jaringan lambat. Tanpa penanda, layar tampak beku dan pengguna menekan
   // tautannya berulang kali.
   const sedangMemuat = useNavigation().state !== "idle";
+
+  // PEMICU ONBOARDING (PR-035), dipasang di kerangka dengan alasan yang sama
+  // seperti banner luring: satu-satunya komponen yang dilewati SETIAP halaman.
+  //
+  // Bukan di `Terlindungi`: guard itu hanya dipasang halaman yang memintanya
+  // (hari ini cuma `/pengaturan`), sementara pengguna yang baru mendaftar
+  // mendarat di `/` — yaitu halaman publik yang tidak memakai guard sama
+  // sekali. Menaruh pemicunya di sana berarti melewatkan justru kasus yang
+  // paling penting.
+  //
+  // Berlangganan HANYA `status`; lihat catatan yang sama di `Terlindungi`.
+  const status = useStoreSesi((s) => s.status);
+  const lokasi = useLocation();
+
+  const perluOnboarding =
+    status === "masuk" && wizardOnboardingAktif() && !JALUR_DIKECUALIKAN.includes(lokasi.pathname);
+
+  if (perluOnboarding) {
+    const sub = idPenggunaSaatIni();
+    // `sub` null (tidak ada token, atau tokennya tidak bisa dibaca) berarti
+    // TIDAK mengalihkan. Memperlakukannya sebagai "pengguna baru" akan
+    // mengirim orang ke wizard yang penandanya tidak pernah bisa ditulis —
+    // yaitu pengalihan yang berulang selamanya.
+    if (sub !== null && !sudahOnboarding(sub)) {
+      // `replace`, BUKAN push: alasan yang sama dengan `Terlindungi` — halaman
+      // yang ditinggalkan tidak boleh tertinggal di riwayat sebagai jebakan
+      // tombol kembali.
+      return <Navigate to="/onboarding" replace />;
+    }
+  }
 
   return (
     <>
@@ -48,6 +105,40 @@ export function TataLetak() {
       >
         {t("shell.lompatKeKonten")}
       </a>
+
+      {/*
+        PINTASAN KE PANEL PREFERENSI (PR-036, AC-5: "panel terjangkau dalam ≤ 2
+        interaksi dari mana pun").
+
+        DIPASANG DI KERANGKA karena tidak ada tempat lain yang memenuhi "dari
+        mana pun". Sebelum PR ini aplikasi TIDAK punya navigasi tingkat atas
+        sama sekali: satu-satunya jalan ke `/pengaturan/aksesibilitas` adalah
+        mengetikkan alamatnya, dan pengguna yang paling membutuhkan panel ini
+        justru yang paling kecil kemungkinannya menebak alamat.
+
+        SATU TAUTAN, BUKAN BILAH NAVIGASI. Menu lengkap adalah keputusan produk
+        yang belum diambil (halaman-halamannya sendiri sebagian belum ada), dan
+        merakitnya di sini hanya akan mendahului keputusan itu dengan bentuk
+        yang lahir sebagai efek samping PR preferensi.
+
+        HANYA SAAT SUDAH MASUK: alamatnya terlindungi (`Terlindungi` di
+        `/pengaturan`), jadi tautan bagi pengunjung yang belum masuk berjanji
+        membawa ke panel lalu mendaratkannya di halaman masuk.
+
+        DI BAWAH TAUTAN LOMPAT, tidak di atasnya. Tautan lompat harus tetap
+        menjadi elemen fokusabel PERTAMA — itu seluruh gunanya, dan dijaga
+        `tata-letak.test.tsx`.
+      */}
+      {status === "masuk" && (
+        <nav aria-label={t("shell.pintas.label")} className="flex justify-end p-2">
+          <Link
+            to="/pengaturan/aksesibilitas"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.aksesibilitas")}
+          </Link>
+        </nav>
+      )}
 
       <BannerLuring />
 

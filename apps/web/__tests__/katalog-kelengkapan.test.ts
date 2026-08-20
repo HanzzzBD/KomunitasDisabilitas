@@ -112,6 +112,44 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "berarti satu tempat yang sama punya dua nama, dan pengguna yang berpindah mode akan " +
     "menyangka ia tersesat.",
 
+  // --- onboarding (PR-035) ---
+  // Pola yang sama dengan auth dan pengaturan: yang tersisa identik di sini
+  // adalah LABEL dan POLA KALIMAT, bukan penjelasan. Setiap penjelasan di
+  // katalog onboarding punya varian sederhananya sendiri — layar ini justru
+  // yang paling dibaca pengguna yang membutuhkannya (persona Dimas).
+  "onboarding.progres.status":
+    "Pola pengumuman, bukan kalimat: isinya hanya nomor, jumlah, dan nama langkah — " +
+    "dan ketiganya sudah disederhanakan di kuncinya masing-masing.",
+  "onboarding.langkah.ringkasan":
+    "Satu kata sehari-hari. Ia muncul sebagai nama langkah DI INDIKATOR PROGRES dan " +
+    "sebagai judul langkahnya; dua kata berbeda untuk satu tempat membuat pengguna " +
+    "menyangka ia berpindah ke layar lain.",
+  "onboarding.aksi.lanjut": "Satu kata sehari-hari; label tombol maju tidak punya bentuk lebih sederhana.",
+  "onboarding.aksi.kembali": "Satu kata sehari-hari, sama dengan sebutan tombol kembali peramban.",
+  "onboarding.ragam.lainnya": "Satu kata sehari-hari; pilihan penutup daftar.",
+  "onboarding.preferensi.skalaNilai":
+    "Pola nilai, bukan kalimat: satu angka plus satuannya. 'Persen' adalah kata yang " +
+    "dipakai sehari-hari dan tidak punya padanan yang lebih pendek.",
+  "onboarding.preferensi.bahasa":
+    "Label saklar yang MENYALAKAN mode sederhana itu sendiri. Kalau labelnya ikut " +
+    "berganti kata begitu disalakan, pengguna melihat tombol yang barusan ia tekan " +
+    "berubah nama — dan tidak punya cara memastikan ia menekan yang benar.",
+  "onboarding.preferensi.sentuh": "Label tiga kata sehari-hari yang sudah menyebut akibatnya.",
+
+  // --- pintasan aksesibilitas (PR-036) ---
+  // Keduanya memuat kata "Aksesibilitas", dan kata itu ISTILAH PRODUK yang
+  // sengaja tidak disederhanakan — alasan yang sama persis dengan
+  // `pengaturan.aksesibilitas.judul` di atas. Tautan ini mengantar KE panel
+  // itu; menamainya lain di mode sederhana berarti pengguna menekan satu kata
+  // lalu mendarat di halaman berjudul kata yang lain.
+  "shell.pintas.label":
+    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata, " +
+    "salah satunya istilah produk yang tidak disederhanakan.",
+  "shell.pintas.aksesibilitas":
+    "Label tautan dua kata yang keduanya muncul lagi di halaman tujuan ('Pengaturan' sebagai " +
+    "judul halaman, 'Aksesibilitas' sebagai judul panel). Pengguna mencocokkan kata yang tadi " +
+    "ia tekan — mengubahnya di mode sederhana justru memutus pencocokan itu.",
+
   // --- shell (PR-032a) ---
   "shell.judulDokumen":
     "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +

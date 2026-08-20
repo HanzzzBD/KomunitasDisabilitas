@@ -6,6 +6,7 @@
 import { randomInt } from "node:crypto";
 import { AUDIT_ACTION, type RequestOtp, type VerifyOtp } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
+import type { EventBus } from "../../../core/events/index.js";
 import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
@@ -36,6 +37,8 @@ export interface OtpServiceDeps {
   /** Penerbit pasangan token (PR-018b) — verify berakhir dengan sesi, bukan userId telanjang. */
   sessionService: Pick<SessionService, "issue">;
   auditLog: AuditLog;
+  /** Bus event domain (PR-034) — dipakai mengumumkan akun baru. */
+  events: EventBus;
   logger: Pick<Logger, "error" | "warn">;
 }
 
@@ -56,7 +59,7 @@ function lockoutSecondsFor(strike: number): number {
 }
 
 export function createOtpService(deps: OtpServiceDeps) {
-  const { otpRepository, userRepository, sender, sessionService, auditLog, logger } = deps;
+  const { otpRepository, userRepository, sender, sessionService, auditLog, events, logger } = deps;
 
   const auditGagal = (actor: OtpActor, reason: "otpInvalid" | "rateLimited" | "accountLocked") => {
     auditLog({ actorId: null, requestId: actor.requestId }, AUDIT_ACTION.AUTH_LOGIN_FAILED, AUDIT_ENTITY, null, { reason });
@@ -176,6 +179,18 @@ export function createOtpService(deps: OtpServiceDeps) {
       const { phone, code } = input;
       await konfirmasiKode(phone, code, actor);
       const user = await userRepository.findOrCreateByPhone(phone);
+
+      // Diterbitkan SETELAH baris user benar-benar ada, dan HANYA saat akun
+      // memang baru: masuk biasa bukan registrasi, dan pelanggan yang menerima
+      // event ini di setiap login akan mengerjakan penyediaan awal berulang kali
+      // untuk akun yang sudah lama punya preferensi sendiri. Tidak ditunggu —
+      // kegagalan pelanggan tidak boleh menggagalkan masuk (lihat core/events).
+      if (user.isNew) {
+        events.emit("auth.user_registered", {
+          userId: user.id,
+          registeredAt: new Date().toISOString(),
+        });
+      }
 
       // Sesi diterbitkan SETELAH kode dihanguskan: bila penerbitan gagal,
       // kode yang sudah dipakai tidak boleh hidup lagi untuk dicoba ulang.

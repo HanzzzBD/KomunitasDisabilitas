@@ -18,5 +18,10 @@ export {
   authKeys,
 } from "./endpoints/auth.js";
 export { getMe, exportMe, usersKeys } from "./endpoints/users.js";
+export {
+  getAccessibility,
+  updateAccessibility,
+  accessibilityKeys,
+} from "./endpoints/accessibility.js";
 export { deleteAccount } from "./endpoints/account.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

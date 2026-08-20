@@ -39,7 +39,15 @@ export function Pengaturan() {
   return (
     <Terlindungi>
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
-        <h1 className="text-3xl font-bold text-gray-900">{t("pengaturan.judul")}</h1>
+        {/*
+          `break-words`: pada 320 px dengan `textScale: 200`, kata "Pengaturan"
+          sendirian lebih lebar daripada layarnya (scrollWidth 341 vs 320) dan
+          memaksa seluruh halaman menggeser mendatar. WCAG 1.4.10 (Reflow)
+          mengukur pada 320 px, dan teks 200% adalah 1.4.4 — keduanya dituntut
+          bersamaan oleh pengguna yang sama. Memecah kata adalah harga yang jauh
+          lebih murah daripada halaman yang harus digeser dua arah.
+        */}
+        <h1 className="text-3xl font-bold break-words text-gray-900">{t("pengaturan.judul")}</h1>
 
         {/*
           `<nav>` ber-`aria-label`, sebab halaman ini punya lebih dari satu

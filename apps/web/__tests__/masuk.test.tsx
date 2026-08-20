@@ -29,19 +29,26 @@ function klienPalsu(jawab: (path: string, body: unknown) => unknown): ApiClient 
 }
 
 /**
- * Perekam permintaan yang MENGABAIKAN `/auth/refresh`.
+ * Perekam permintaan yang MENGABAIKAN permintaan infrastruktur.
  *
  * `Providers` memulihkan sesi saat dipasang (PR-030a), dan pemulihan itu
  * memakai klien yang sama — jadi tiap halaman yang dirender mengirim satu
  * permintaan sebelum pengguna berbuat apa pun. Menghitungnya bersama
  * permintaan alur OTP membuat angkanya bergeser satu tanpa sebab yang terlihat.
+ *
+ * `/me/accessibility` bergabung ke daftar abaikan di PR-036 dengan alasan yang
+ * sama persis: preferensi ditarik dari akun begitu status sesi "masuk" menyala
+ * — yaitu tepat sesudah verifikasi OTP berhasil, di tengah alur yang sedang
+ * dihitung permintaannya di sini.
  */
+const DIABAIKAN: readonly string[] = ["/auth/refresh", "/me/accessibility"];
+
 function permintaanAuth() {
   const daftar: Array<{ path: string; body: unknown }> = [];
   return {
     daftar,
     rekam(path: string, body: unknown) {
-      if (path !== "/auth/refresh") daftar.push({ path, body });
+      if (!DIABAIKAN.includes(path)) daftar.push({ path, body });
     },
   };
 }

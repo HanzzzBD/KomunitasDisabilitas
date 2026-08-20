@@ -83,35 +83,39 @@ describe("createGoogleCodeExchange", () => {
   });
 });
 
+const repoPalsu = (isNew = true): AuthUserRepository =>
+  ({
+    findOrCreateByGoogle: () => Promise.resolve({ id: "01912345-89ab-7def-8123-000000000001", isNew }),
+  }) as unknown as AuthUserRepository;
+
+const buat = (gagalDengan?: AppError, opsi: { isNew?: boolean } = {}) => {
+  const auditLog = vi.fn();
+  // Bus event (PR-034) dipalsukan sebagai mata-mata: yang diperiksa bukan
+  // pengirimannya, melainkan KAPAN service ini menerbitkan.
+  const emitEvent = vi.fn();
+  const service = createGoogleService({
+    exchange: {
+      exchange: () => (gagalDengan === undefined ? Promise.resolve("token") : Promise.reject(gagalDengan)),
+    },
+    verifier: { verify: () => Promise.resolve(IDENTITAS) },
+    userRepository: repoPalsu(opsi.isNew),
+    // Penerbitan sesi (PR-018b) dipalsukan — yang diuji di sini audit Google.
+    sessionService: {
+      issue: () =>
+        Promise.resolve({
+          accessToken: "access-uji",
+          refreshToken: "refresh-uji",
+          expiresIn: 900,
+          refreshExpiresAt: new Date("2026-09-03T10:00:00.000Z"),
+        }),
+    },
+    auditLog,
+    events: { emit: emitEvent, on: vi.fn(), jumlahPelanggan: () => 0 },
+  });
+  return { service, auditLog, emitEvent };
+};
+
 describe("createGoogleService — apa yang diaudit", () => {
-  const repoPalsu = (): AuthUserRepository =>
-    ({
-      findOrCreateByGoogle: () => Promise.resolve({ id: "01912345-89ab-7def-8123-000000000001", isNew: true }),
-    }) as unknown as AuthUserRepository;
-
-  const buat = (gagalDengan?: AppError) => {
-    const auditLog = vi.fn();
-    const service = createGoogleService({
-      exchange: {
-        exchange: () => (gagalDengan === undefined ? Promise.resolve("token") : Promise.reject(gagalDengan)),
-      },
-      verifier: { verify: () => Promise.resolve(IDENTITAS) },
-      userRepository: repoPalsu(),
-      // Penerbitan sesi (PR-018b) dipalsukan — yang diuji di sini audit Google.
-      sessionService: {
-        issue: () =>
-          Promise.resolve({
-            accessToken: "access-uji",
-            refreshToken: "refresh-uji",
-            expiresIn: 900,
-            refreshExpiresAt: new Date("2026-09-03T10:00:00.000Z"),
-          }),
-      },
-      auditLog,
-    });
-    return { service, auditLog };
-  };
-
   it("sukses → audit AUTH_LOGIN_SUCCEEDED dengan metode & status akun baru", async () => {
     const { service, auditLog } = buat();
     const hasil = await service.login(INPUT, ACTOR);
@@ -154,5 +158,46 @@ describe("createGoogleService — apa yang diaudit", () => {
     const dicatat = JSON.stringify(auditLog.mock.calls);
     expect(dicatat).not.toContain(IDENTITAS.email);
     expect(dicatat).not.toContain(IDENTITAS.fullName);
+  });
+});
+
+// PR-034. Jalur Google harus berperilaku SAMA dengan jalur OTP: pendaftaran
+// lewat Google yang tidak menerbitkan event akan meninggalkan sebagian pengguna
+// baru tanpa baris preferensi aksesibilitas sama sekali.
+describe("createGoogleService — event auth.user_registered", () => {
+  it("akun BARU → terbit tepat sekali, dengan userId dan waktu ISO", async () => {
+    const { service, emitEvent } = buat();
+    const hasil = await service.login(INPUT, ACTOR);
+
+    expect(emitEvent).toHaveBeenCalledTimes(1);
+    const [nama, payload] = emitEvent.mock.calls[0]!;
+    expect(nama).toBe("auth.user_registered");
+    expect(payload).toEqual({
+      userId: hasil.userId,
+      registeredAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+    });
+  });
+
+  it("payload TIDAK memuat email/nama pengguna (bebas PII)", async () => {
+    const { service, emitEvent } = buat();
+    await service.login(INPUT, ACTOR);
+
+    const dikirim = JSON.stringify(emitEvent.mock.calls);
+    expect(dikirim).not.toContain(IDENTITAS.email);
+    expect(dikirim).not.toContain(IDENTITAS.fullName);
+  });
+
+  it("akun LAMA masuk lagi → tidak terbit sama sekali", async () => {
+    const { service, emitEvent } = buat(undefined, { isNew: false });
+    await service.login(INPUT, ACTOR);
+
+    expect(emitEvent).not.toHaveBeenCalled();
+  });
+
+  it("penukaran code gagal → tidak terbit (tidak ada akun yang lahir)", async () => {
+    const { service, emitEvent } = buat(new AppError("GOOGLE_EXCHANGE_GAGAL"));
+
+    await expect(service.login(INPUT, ACTOR)).rejects.toBeInstanceOf(AppError);
+    expect(emitEvent).not.toHaveBeenCalled();
   });
 });

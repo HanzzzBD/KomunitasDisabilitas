@@ -7,6 +7,7 @@
 import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
+import type { EventBus } from "../../core/events/index.js";
 import type { Logger } from "../../core/logger/index.js";
 import { createOtpRepository, type OtpRedisLike } from "./repositories/otp.repository.js";
 import { createAuthUserRepository } from "./repositories/user.repository.js";
@@ -66,6 +67,13 @@ export interface AuthModuleDeps {
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
   routes: RouteRegistrar;
   auditLog: AuditLog;
+  /**
+   * Bus event PROSES API. WAJIB, bukan opsional: satu-satunya pemanggil nyata
+   * (boot.ts) selalu punya, dan field opsional hanya akan mengubah "lupa
+   * memasangnya" menjadi kegagalan tanpa gejala — akun baru yang tidak pernah
+   * mendapat baris preferensi, tanpa satu pun error yang muncul.
+   */
+  events: EventBus;
   logger: Pick<Logger, "error" | "warn">;
 }
 
@@ -110,6 +118,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
       sender: deps.sender ?? createUnavailableOtpSender(),
       sessionService,
       auditLog: deps.auditLog,
+      events: deps.events,
       logger: deps.logger,
     });
     controllers.otp = createOtpController(otpService, sesi);
@@ -144,6 +153,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
           userRepository,
           sessionService,
           auditLog: deps.auditLog,
+          events: deps.events,
         }),
         sesi,
       );

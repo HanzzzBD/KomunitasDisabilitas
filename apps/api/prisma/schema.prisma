@@ -126,16 +126,24 @@ model RefreshToken {
 
 /// Preferensi UI aksesibilitas (ADR-008) — BUKAN data medis/sensitif;
 /// data disabilitas terenkripsi ada di seeker_profiles (PR-010).
+/// NULL pada setiap kolom preferensi berarti **"belum diatur"** — bukan
+/// "diatur ke bawaan". Kolom-kolom ini dulu NOT NULL dengan `@default`, dan
+/// karena setiap akun diberi baris sejak pendaftaran, server tidak punya cara
+/// menyatakan "pengguna belum pernah memilih". Akibatnya aturan ADR-008 "OS
+/// menang bila belum diset" tidak bisa ditegakkan sama sekali di klien: setelan
+/// `prefers-reduced-motion` milik pengguna padam diam-diam saat ia masuk.
+/// Bawaannya kini hidup HANYA di `packages/schemas` (ACCESSIBILITY_DEFAULTS),
+/// dipakai saat rekonsiliasi di klien — bukan sebagai nilai kolom.
 model AccessibilityProfile {
   userId              String   @id @map("user_id") @db.Uuid
-  /// Skala teks dalam persen (100 = normal).
-  textScale           Int      @default(100) @map("text_scale")
-  highContrast        Boolean  @default(false) @map("high_contrast")
-  reduceMotion        Boolean  @default(false) @map("reduce_motion")
-  simpleLanguage      Boolean  @default(false) @map("simple_language")
-  prefersSignLanguage Boolean  @default(false) @map("prefers_sign_language")
-  largeTouchTargets   Boolean  @default(false) @map("large_touch_targets")
-  screenReaderHint    Boolean  @default(false) @map("screen_reader_hint")
+  /// Skala teks dalam persen (100 = normal); NULL = belum diatur.
+  textScale           Int?     @map("text_scale")
+  highContrast        Boolean? @map("high_contrast")
+  reduceMotion        Boolean? @map("reduce_motion")
+  simpleLanguage      Boolean? @map("simple_language")
+  prefersSignLanguage Boolean? @map("prefers_sign_language")
+  largeTouchTargets   Boolean? @map("large_touch_targets")
+  screenReaderHint    Boolean? @map("screen_reader_hint")
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

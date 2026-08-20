@@ -330,7 +330,12 @@ export const katalogPengaturan = {
     "id-simple": "Akun Anda tidak punya nomor HP. Cara lewat Google juga sedang mati. Hubungi kami, nanti kami bantu.",
   },
 
-  // --- Aksesibilitas (slot; diisi PR-036) ---
+  // --- Aksesibilitas (PR-036) ---
+  //
+  // SLOT-nya SUDAH TERISI. Dua kunci `pengaturan.aksesibilitas.slot.*` yang
+  // dulu menjelaskan ketiadaan kendali dihapus bersama keadaan kosongnya:
+  // kalimat "belum tersedia" yang tertinggal di katalog akan dipungut kembali
+  // oleh halaman berikutnya yang mencarinya, dan kali itu ia berbohong.
   "pengaturan.aksesibilitas.judul": {
     id: "Aksesibilitas",
     "id-simple": "Aksesibilitas",
@@ -339,16 +344,55 @@ export const katalogPengaturan = {
     id: "Atur cara aplikasi ini tampil dan bekerja, sesuai kebutuhan Anda.",
     "id-simple": "Atur tampilan aplikasi supaya nyaman untuk Anda.",
   },
-  "pengaturan.aksesibilitas.slot.judul": {
-    id: "Pengaturan aksesibilitas belum tersedia",
-    "id-simple": "Pengaturan ini belum bisa dipakai",
+  "pengaturan.aksesibilitas.ikutPerangkat": {
+    // Ditempelkan pada sakelar yang BELUM pernah dipilih pengguna tetapi punya
+    // sinyal perangkat (kontras, kurangi gerak). Tanpa kalimat ini tombol
+    // "kembalikan ke bawaan" tampak rusak: sakelarnya tetap menyala sesudah
+    // ditekan, dan alasannya — setelan perangkat muncul kembali — tidak punya
+    // satu pun tanda di layar.
+    id: "Saat ini mengikuti setelan perangkat Anda.",
+    "id-simple": "Sekarang ini ikut setelan HP atau komputer Anda.",
   },
-  "pengaturan.aksesibilitas.slot.penjelasan": {
-    // Menyebut apa yang SUDAH berlaku, bukan hanya apa yang belum ada.
-    // Preferensi sistem (kurangi gerak, kontras) memang sudah diikuti sejak
-    // PR-026 — pengguna yang tidak diberi tahu akan menyangka aplikasinya
-    // mengabaikan setelan perangkatnya.
-    id: "Untuk sementara, aplikasi ini mengikuti setelan aksesibilitas perangkat Anda.",
-    "id-simple": "Untuk sekarang, aplikasi mengikuti setelan HP atau komputer Anda.",
+
+  // Simpan otomatis: tidak ada tombol "Simpan", jadi ketiga kalimat di bawah
+  // adalah SATU-SATUNYA cara pengguna tahu apa yang terjadi dengan pilihannya.
+  "pengaturan.aksesibilitas.menyimpan": {
+    id: "Menyimpan pilihan Anda…",
+    "id-simple": "Sebentar, pilihan Anda sedang disimpan…",
+  },
+  "pengaturan.aksesibilitas.tersimpan": {
+    id: "Pilihan Anda sudah tersimpan ke akun.",
+    // Menyebut AKUN, bukan sekadar "tersimpan": itulah yang membedakannya dari
+    // perubahan di layar, yang sudah terjadi sejak sakelarnya ditekan.
+    "id-simple": "Pilihan Anda sudah masuk ke akun Anda.",
+  },
+  "pengaturan.aksesibilitas.galat": {
+    id: "Pilihan Anda belum bisa dikirim ke akun Anda. Periksa koneksi internet Anda.",
+    "id-simple": "Pilihan Anda belum sampai ke akun Anda. Cek internet Anda.",
+  },
+  "pengaturan.aksesibilitas.tetapBerlaku": {
+    // Kalimat yang paling menenangkan DAN paling benar: preferensinya sudah
+    // berlaku di perangkat ini dan tetap berlaku. Yang gagal hanya
+    // penyalinannya ke akun. Tanpa ini, pengguna mengira pilihannya hilang lalu
+    // menekan sakelarnya berulang kali.
+    id: "Pilihan Anda tetap berlaku di perangkat ini, meski belum tersimpan ke akun Anda.",
+    "id-simple":
+      "Tampilan Anda sudah berubah di HP atau komputer ini. Perubahan itu belum tersimpan ke akun.",
+  },
+
+  // Kembali ke bawaan.
+  "pengaturan.aksesibilitas.reset": {
+    id: "Kembalikan ke setelan bawaan",
+    "id-simple": "Kembalikan seperti semula",
+  },
+  "pengaturan.aksesibilitas.resetBantuan": {
+    // MENYEBUTKAN AKIBAT SEBENARNYA, bukan "semuanya dimatikan". Tombol ini
+    // MENGHAPUS pilihan, sehingga setelan perangkat berlaku lagi — pengguna
+    // yang perangkatnya menyalakan kontras tinggi akan melihatnya tetap menyala,
+    // dan itu benar. Menjanjikan "semua dimatikan" akan menjadikan perilaku
+    // yang benar itu tampak seperti kegagalan.
+    id: "Semua pilihan di halaman ini dihapus. Setelah itu aplikasi mengikuti setelan perangkat Anda lagi.",
+    "id-simple":
+      "Semua pilihan Anda di halaman ini dihapus. Aplikasi ikut setelan HP atau komputer Anda lagi.",
   },
 } as const satisfies KatalogFitur;

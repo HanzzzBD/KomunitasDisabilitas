@@ -21,7 +21,7 @@
 //      lowongannya SUDAH tertutup di database. Membiarkan pelanggan yang gagal
 //      menggagalkan job akan membatalkan pekerjaan yang sudah benar, lalu
 //      mengulanginya — dan pengulangan itu menerbitkan event yang sama lagi.
-import type { JobClosedEvent } from "@nawasena/schemas";
+import type { JobClosedEvent, UserRegisteredEvent } from "@nawasena/schemas";
 import type { Logger } from "../logger/index.js";
 
 /**
@@ -34,6 +34,9 @@ import type { Logger } from "../logger/index.js";
  */
 export interface DomainEvents {
   "job.closed": JobClosedEvent;
+  /** Akun baru dibuat (PR-034). Penerbitnya modul auth, DI PROSES API —
+   *  jadi pelanggannya pun harus hidup di proses yang sama (batas 1 di atas). */
+  "auth.user_registered": UserRegisteredEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;

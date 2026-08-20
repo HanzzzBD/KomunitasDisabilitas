@@ -32,6 +32,27 @@ export const katalogShell = {
     // "Konten" adalah kata yang dipakai pembuat situs, bukan pembacanya.
     "id-simple": "Langsung ke isi halaman",
   },
+  // --- Pintasan aksesibilitas (PR-036) ---
+  //
+  // SATU-SATUNYA navigasi tingkat atas di aplikasi ini, dan ia sengaja hanya
+  // menunjuk satu tempat. Menu lengkap adalah keputusan produk yang belum
+  // diambil; yang mendesak adalah agar panel preferensi bisa dicapai tanpa
+  // mengetikkan alamat — lihat catatannya di `app/tata-letak.tsx`.
+  "shell.pintas.label": {
+    // Nama landmark navigasi — dibacakan saat pengguna screen reader melompat
+    // antar landmark, bukan ditampilkan di layar.
+    id: "Pintasan aksesibilitas",
+    "id-simple": "Pintasan aksesibilitas",
+  },
+  "shell.pintas.aksesibilitas": {
+    // Menyebut DUA kata yang akan ia temui di halaman tujuan: "Pengaturan"
+    // (judul halaman) dan "Aksesibilitas" (judul panel). Pengguna mencocokkan
+    // kata yang tadi ia tekan dengan yang terbuka; label yang hanya menyebut
+    // salah satunya membuat separuh pencocokan itu gagal.
+    id: "Pengaturan aksesibilitas",
+    "id-simple": "Pengaturan aksesibilitas",
+  },
+
   "shell.judulDokumen": {
     // Judul tab: nama halaman lebih dulu, merek belakangan. Di tab yang menyempit
     // karena belasan tab terbuka, yang tersisa terbaca adalah bagian DEPAN — dan

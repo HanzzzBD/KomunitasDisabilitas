@@ -21,6 +21,7 @@ import { createAuthModule } from "../src/modules/auth/index.js";
 import { createOtpRepository, type OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
 import { GOOGLE_ISSUERS } from "../src/modules/auth/services/google-id-token.js";
 import { createTokenService } from "../src/core/auth/index.js";
+import { busUji } from "./helpers/events.js";
 import { registrarUji } from "./helpers/routes.js";
 import { SESSION_KEYS, fakeRefreshTokenStore } from "./helpers/session.js";
 
@@ -274,6 +275,7 @@ async function boot(options: BootOptions = {}) {
           auditLog: (_actor, action, _entity, entityId, meta) => {
             audit.push({ action, entityId, meta });
           },
+          events: busUji(),
           logger,
         }),
       );
