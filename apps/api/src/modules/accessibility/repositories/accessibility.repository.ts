@@ -7,18 +7,23 @@
 // kolom unik. Itulah yang membuat `upsert()` di bawah cukup satu statement:
 // tidak ada jendela baca-lalu-tulis yang bisa disusupi permintaan kedua, dan
 // tidak mungkin ada dua baris untuk satu pengguna.
-import { ACCESSIBILITY_DEFAULTS, type UpdateAccessibilityPreferences } from "@nawasena/schemas";
+import type { UpdateAccessibilityPreferences } from "@nawasena/schemas";
 import type { AppPrisma } from "../../../core/db/index.js";
 
-/** Baris apa adanya dari DB; pemetaan ke kontrak API ada di service. */
+/**
+ * Baris apa adanya dari DB; pemetaan ke kontrak API ada di service.
+ *
+ * Setiap kolom boleh NULL sejak migrasi 09 — NULL berarti "belum diatur", bukan
+ * "diatur ke bawaan". Lihat migrasi itu untuk alasan lengkapnya.
+ */
 export interface AccessibilityProfileRow {
-  textScale: number;
-  highContrast: boolean;
-  reduceMotion: boolean;
-  simpleLanguage: boolean;
-  prefersSignLanguage: boolean;
-  largeTouchTargets: boolean;
-  screenReaderHint: boolean;
+  textScale: number | null;
+  highContrast: boolean | null;
+  reduceMotion: boolean | null;
+  simpleLanguage: boolean | null;
+  prefersSignLanguage: boolean | null;
+  largeTouchTargets: boolean | null;
+  screenReaderHint: boolean | null;
 }
 
 /** Kolom yang dibaca — daftar eksplisit, bukan `select: *`. `userId` dan
@@ -48,12 +53,16 @@ export function createAccessibilityRepository(prisma: AppPrisma) {
      *
      * `update: patch` — field yang tidak dikirim tidak disebut sama sekali,
      * jadi Prisma tidak menyentuh kolomnya. Itu yang membuat PUT bersifat
-     * gabung, bukan ganti seluruhnya.
+     * gabung, bukan ganti seluruhnya. Field yang dikirim bernilai `null`
+     * DISEBUT, jadi kolomnya benar-benar dikosongkan — itulah cara "kembalikan
+     * ke belum-diatur" sampai ke DB.
      *
-     * `create` menyertakan ACCESSIBILITY_DEFAULTS di bawah patch meski kolomnya
-     * punya `@default` di DB: bawaan yang dijanjikan kontrak (`packages/schemas`)
-     * dan bawaan yang ada di migrasi adalah dua tulisan berbeda, dan satu-satunya
-     * cara memastikan keduanya sama adalah menuliskan yang dari kontrak.
+     * `create: { userId, ...patch }` — TANPA bawaan apa pun. Sejak migrasi 09
+     * kolomnya nullable dan tidak lagi punya `@default`, jadi field yang tidak
+     * disebut lahir sebagai NULL, yang memang artinya "belum diatur". Menaburkan
+     * ACCESSIBILITY_DEFAULTS di sini — seperti versi sebelumnya — akan menulis
+     * bawaan sebagai kalau-kalau itu pilihan, dan justru itu cacat yang migrasi
+     * 09 ada untuk menghapusnya.
      *
      * Dipakai DUA pemanggil: PUT (patch berisi) dan penyediaan awal saat
      * registrasi (patch kosong → `update: {}`, yaitu no-op bila baris sudah ada).
@@ -65,7 +74,7 @@ export function createAccessibilityRepository(prisma: AppPrisma) {
       return prisma.accessibilityProfile.upsert({
         where: { userId },
         update: patch,
-        create: { userId, ...ACCESSIBILITY_DEFAULTS, ...patch },
+        create: { userId, ...patch },
         select: KOLOM_PREFERENSI,
       });
     },

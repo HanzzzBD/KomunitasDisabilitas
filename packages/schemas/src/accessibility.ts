@@ -68,14 +68,97 @@ export const accessibilityPreferencesSchema = z
 export type AccessibilityPreferences = z.infer<typeof accessibilityPreferencesSchema>;
 
 /**
+ * Profil sebagaimana TERSIMPAN di akun — setiap field boleh `null`.
+ *
+ * `null` berarti **"belum diatur"**, dan itu BERBEDA dari "diatur ke nilai
+ * bawaan". Perbedaan itu bukan kehalusan tipe, melainkan syarat agar aturan
+ * ADR-008 "OS menang bila pengguna belum memilih" bisa ditegakkan sama sekali.
+ *
+ * Sebelum PR-036R, tabel ini punya `@default` pada ketujuh kolom dan setiap akun
+ * diberi baris berisi bawaan sejak pendaftaran. Akibatnya server SELALU
+ * menjawab tujuh nilai konkret, "belum pernah memilih" tidak punya bentuk di
+ * kabel, dan klien yang menuliskannya ke tingkat pilihan-pengguna membuat
+ * tingkat OS tak terjangkau selamanya: pengguna yang OS-nya meminta
+ * `prefers-reduced-motion` kehilangan akomodasi itu diam-diam saat masuk.
+ * Klien sempat menambal ini dengan tebakan (nilai == bawaan → mungkin bukan
+ * pilihan), yang menutup kasus umum tapi menyisakan dua celah yang tidak bisa
+ * ditutup dari sisi klien mana pun. `null` menutupnya di sumbernya.
+ *
+ * BEDAKAN dari `accessibilityPreferencesSchema`, yang tetap tanpa `null`: itu
+ * preferensi EFEKTIF hasil `rekonsiliasi()` — apa yang benar-benar berlaku di
+ * layar setelah pilihan pengguna, sinyal OS, dan bawaan digabung. Layar tidak
+ * pernah "belum diatur"; akun bisa.
+ */
+export const accessibilityProfileSchema = z
+  .object({
+    textScale: textScaleSchema.nullable(),
+    highContrast: z.boolean().nullable(),
+    reduceMotion: z.boolean().nullable(),
+    simpleLanguage: z.boolean().nullable(),
+    prefersSignLanguage: z.boolean().nullable(),
+    largeTouchTargets: z.boolean().nullable(),
+    screenReaderHint: z.boolean().nullable(),
+  })
+  .openapi({
+    ref: "AccessibilityProfile",
+    description: "Profil tersimpan; null = belum diatur pengguna",
+  });
+
+export type AccessibilityProfile = z.infer<typeof accessibilityProfileSchema>;
+
+/**
+ * Ketujuh kunci preferensi sebagai data — satu-satunya daftar di repo ini.
+ *
+ * Dipakai tombol reset panel (PR-036) dan pembersihan saat logout (PR-036R),
+ * yang dua-duanya butuh daftar yang PASTI utuh: kunci yang terlewat berarti
+ * preferensi yang diam-diam tidak ikut terhapus, dan itu tidak terlihat sampai
+ * pengguna berikutnya di perangkat yang sama menemukannya.
+ *
+ * Ditulis lengkap alih-alih `Object.keys(ACCESSIBILITY_DEFAULTS)`: tipe eksplisit
+ * di bawah membuat kunci yang salah ketik atau field skema yang baru menjadi
+ * `typecheck` merah, sementara turunan runtime akan diam saja.
+ */
+export const ACCESSIBILITY_KEYS = [
+  "textScale",
+  "highContrast",
+  "reduceMotion",
+  "simpleLanguage",
+  "prefersSignLanguage",
+  "largeTouchTargets",
+  "screenReaderHint",
+] as const satisfies readonly (keyof AccessibilityPreferences)[];
+
+/** Profil kosong — belum satu pun field diatur. Bentuk jawaban bagi akun baru. */
+export const ACCESSIBILITY_PROFILE_KOSONG: AccessibilityProfile = {
+  textScale: null,
+  highContrast: null,
+  reduceMotion: null,
+  simpleLanguage: null,
+  prefersSignLanguage: null,
+  largeTouchTargets: null,
+  screenReaderHint: null,
+};
+
+/**
  * Perubahan sebagian — dipakai `PUT /api/v1/me/accessibility` (PR-034) dan
  * penyimpanan pilihan eksplisit pengguna di klien (PR-026).
+ *
+ * TIGA keadaan per field, dan ketiganya berbeda:
+ * - field TIDAK DISEBUT → jangan sentuh kolomnya (inilah yang membuat PUT
+ *   bersifat gabung, bukan ganti seluruhnya);
+ * - field bernilai → simpan sebagai pilihan eksplisit;
+ * - field bernilai `null` → HAPUS pilihannya, kembalikan ke "belum diatur".
+ *
+ * Keadaan ketiga itu yang membuat tombol "Kembalikan ke bawaan" (AC-4 PR-036)
+ * benar-benar mengembalikan, bukan sekadar menulis nilai bawaan sebagai pilihan
+ * baru. Menulis bawaan sebagai pilihan justru MEMAKU field-nya: sinyal OS tidak
+ * akan pernah muncul lagi sesudahnya.
  *
  * `.strict()`: field asing DITOLAK, bukan diabaikan. Preferensi yang salah tulis
  * lalu dibuang diam-diam akan tampak "tersimpan" bagi pengguna sementara
  * layarnya tidak berubah — kegagalan yang sangat sulit dilaporkan.
  */
-export const updateAccessibilityPreferencesSchema = accessibilityPreferencesSchema
+export const updateAccessibilityPreferencesSchema = accessibilityProfileSchema
   .partial()
   .strict()
   .openapi({ ref: "UpdateAccessibilityPreferences" });
@@ -114,7 +197,7 @@ export const ACCESSIBILITY_DEFAULTS: AccessibilityPreferences = {
  * (mis. `meta`) meruntuhkan seluruh pemanggilan alih-alih diabaikan.
  */
 export const accessibilityResponseSchema = z
-  .object({ data: accessibilityPreferencesSchema })
+  .object({ data: accessibilityProfileSchema })
   .openapi({ ref: "AccessibilityResponse" });
 
 export type AccessibilityResponse = z.infer<typeof accessibilityResponseSchema>;

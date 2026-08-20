@@ -191,3 +191,54 @@ describe("penanda selesai", () => {
     expect(sudahOnboarding("user-1", simpanan)).toBe(false);
   });
 });
+
+describe("cadangan sesi bawaan (QC-1) — pengerasan & isolasi", () => {
+  it("penanda sesi ditulis TANPA SYARAT pada jalur bawaan, bukan hanya saat tulis gagal", () => {
+    // Pengerasan yang dicatat QC PR-035 sebagai celah tersisa: penyimpanan yang
+    // MENERIMA tulisan lalu membuangnya diam-diam membuat "tidak melempar"
+    // menjadi bukti palsu, Set tetap kosong, dan pengguna terkunci di
+    // `/onboarding`. Di sini `setItem` sengaja berhasil tanpa efek.
+    const berpura: PenyimpananPenanda = {
+      getItem: () => null,
+      setItem: () => {
+        /* diterima, lalu dibuang — persis kasus yang dikhawatirkan */
+      },
+    };
+    const asli = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", { value: berpura, configurable: true });
+
+    try {
+      tandaiOnboardingSelesai("user-hantu");
+      // Penyimpanannya tidak menyimpan apa pun, tetapi pengguna TIDAK terkunci.
+      expect(sudahOnboarding("user-hantu")).toBe(true);
+    } finally {
+      if (asli !== undefined) Object.defineProperty(globalThis, "localStorage", asli);
+    }
+  });
+
+  it("cadangan sesi TIDAK bocor ke pengguna berikutnya di tab yang sama", () => {
+    // Celah kedua yang dicatat QC PR-035: dijamin oleh konstruksi (Set dikunci
+    // per `userId`) tetapi tidak dijepit satu test pun. Perangkat bersama —
+    // pengguna A selesai dengan penyimpanan rusak, keluar, pengguna B masuk di
+    // tab yang sama. B belum pernah melihat wizard, jadi B HARUS melihatnya.
+    // Kalau ini bocor, B melewatkan seluruh pengaturan aksesibilitasnya.
+    const asli = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    const diblokir: PenyimpananPenanda = {
+      getItem: () => {
+        throw new Error("diblokir");
+      },
+      setItem: () => {
+        throw new Error("diblokir");
+      },
+    };
+    Object.defineProperty(globalThis, "localStorage", { value: diblokir, configurable: true });
+
+    try {
+      tandaiOnboardingSelesai("pengguna-A");
+      expect(sudahOnboarding("pengguna-A")).toBe(true);
+      expect(sudahOnboarding("pengguna-B")).toBe(false);
+    } finally {
+      if (asli !== undefined) Object.defineProperty(globalThis, "localStorage", asli);
+    }
+  });
+});

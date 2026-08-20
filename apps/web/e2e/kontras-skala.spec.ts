@@ -84,3 +84,38 @@ test("panel tetap terpakai pada skala 200% + kontras tinggi", async ({ page }) =
     "pelanggaran axe pada skala 200% + kontras tinggi",
   ).toEqual([]);
 });
+
+// 320 px + teks 200% — DI LUAR ambang WCAG mana pun, dan itu justru alasannya
+// layak dijaga di sini.
+//
+// Komentar di kepala berkas ini menjelaskan mengapa gerbang UTAMA memakai
+// 640px: menuntut 320px BERSAMA `textScale: 200` berarti menuntut ~800%, lebih
+// ketat daripada kriteria mana pun. Yang berubah adalah pengetahuannya. Kata
+// "Pengaturan" pada `<h1>` kerangka PR-033a memang meluber di sana (terukur
+// scrollWidth 341 vs 320) dan sekarang sudah diperbaiki dengan `break-words`.
+// Perbaikan yang tidak dijepit test akan hilang lagi pada penulisan ulang kelas
+// Tailwind berikutnya — dan hilangnya tidak akan terlihat oleh siapa pun yang
+// tidak memakai ponsel kecil dengan teks diperbesar, yaitu justru sebagian
+// pengguna yang produk ini ada untuk mereka.
+test("halaman pengaturan tidak meluber pada 320px dengan teks 200%", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await tanamPreferensiLokal(page, { textScale: 200 });
+  await buatAkunPalsu({ textScale: 200 }).pasang(page);
+
+  await page.goto("/pengaturan");
+  await page.waitForSelector("h1");
+  await tungguGayaTenang(page);
+
+  const meluber = await page.evaluate(() => {
+    const el = document.documentElement;
+    return el.scrollWidth - el.clientWidth > 1;
+  });
+  expect(meluber, "halaman /pengaturan menuntut gulir mendatar pada 320px + teks 200%").toBe(false);
+
+  // Judulnya memang yang diuji: kalau ia tidak ikut membesar, test di atas lulus
+  // tanpa pernah menyentuh keadaan yang dipermasalahkan.
+  const h1 = page.locator("h1");
+  await expect(h1).toBeVisible();
+  const lebarH1 = await h1.evaluate((el) => el.scrollWidth - el.clientWidth > 1);
+  expect(lebarH1, "judul <h1> sendiri yang meluber").toBe(false);
+});
