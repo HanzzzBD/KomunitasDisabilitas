@@ -1,12 +1,17 @@
-// Kotak centang berlabel — dipakai wizard onboarding (PR-035).
+// Kotak centang berlabel — pemakai pertamanya wizard onboarding (PR-035).
 //
-// TINGGAL DI SINI, BUKAN DI `packages/ui`, dan itu mengikuti disiplin yang
-// sudah dipakai paket itu sendiri: varian `bahaya` pada `Tombol` menunggu
-// pemakai kedua sebelum ditetapkan bentuknya (lihat `dialog-hapus-akun.tsx`).
-// Onboarding adalah pemakai PERTAMA kotak centang di seluruh aplikasi;
-// merancang API bersama untuk satu pemanggil berarti menebak kebutuhan
-// pemanggil kedua yang belum ada. Bila panel preferensi (PR-036) memerlukan
-// bentuk yang sama, di sanalah ia punya dua contoh untuk digeneralisasi.
+// DIPINDAHKAN KE SINI DI PR-036, dan pemindahannya menunggu sampai sekarang
+// dengan sengaja. Versi PR-035 tinggal di `features/onboarding` beserta alasan
+// tertulisnya: onboarding adalah pemakai PERTAMA kotak centang di seluruh
+// aplikasi, dan merancang API bersama untuk satu pemanggil berarti menebak
+// kebutuhan pemanggil kedua yang belum ada. Catatan itu menyebutkan syarat
+// pindahnya secara harfiah — "bila panel preferensi (PR-036) memerlukan bentuk
+// yang sama". Panel itu kini ada, memerlukan bentuk yang sama persis, dan
+// bentuknya karena itu digeneralisasi dari DUA contoh, bukan dari satu.
+//
+// BENTUKNYA TIDAK BERUBAH SEDIKIT PUN saat dipindah. Kalau pemakai kedua tidak
+// menuntut perubahan, menambahkannya "mumpung sedang dipegang" hanya melahirkan
+// prop yang tidak pernah dipakai siapa pun.
 //
 // `<input type="checkbox">` NATIF, dibungkus `<label>`. Elemen natif sudah
 // memenuhi seluruh pola: peran, keadaan `checked` yang diumumkan, aktivasi

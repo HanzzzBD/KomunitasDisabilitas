@@ -26,3 +26,7 @@ export {
 export { Tab, type TabProps, type ItemTab } from "./tab.js";
 export { Kartu, type KartuProps, type TingkatJudul } from "./kartu.js";
 export { KeadaanKosong, type KeadaanKosongProps } from "./keadaan-kosong.js";
+// Dipromosikan dari `apps/web/src/features/onboarding` di PR-036, setelah
+// pemakai keduanya (panel preferensi) benar-benar lahir — lihat catatan
+// panjang di berkasnya.
+export { KotakCentang, type KotakCentangProps } from "./kotak-centang.js";

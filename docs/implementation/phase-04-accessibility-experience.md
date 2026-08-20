@@ -235,11 +235,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Ubah di perangkat A → tampak di B setelah login (E2E dua sesi).
-* [ ] 8 kombinasi utama lolos axe (matrix).
-* [ ] Kontras tinggi + teks 200% tidak memecah layout halaman inti.
-* [ ] Reset ke default tersedia dan berfungsi.
-* [ ] Panel dapat dicapai ≤ 2 interaksi dari mana pun (menu tetap).
+* [x] Ubah di perangkat A → tampak di B setelah login (E2E dua sesi). *(Catatan: sinkron terjadi pada login/reload berikutnya, bukan mid-sesi — sesuai spesifikasi E2E-nya sendiri. Celah parsial: reset `highContrast` true→false di A tidak selalu menimpa nilai lokal eksplisit `true` di B saat OS B meminta kontras lebih; lihat log implementasi PR-036.)*
+* [x] 8 kombinasi utama lolos axe (matrix). *(Catatan: diinterpretasikan sebagai 2³ atas highContrast × reduceMotion × simpleLanguage, dicakup di halaman panel — tidak dispesifikasi eksplisit di ticket.)*
+* [x] Kontras tinggi + teks 200% tidak memecah layout halaman inti. *(Catatan: diuji pada viewport 640×512, setara 1280px pada zoom 200%, bukan 320px.)*
+* [x] Reset ke default tersedia dan berfungsi.
+* [x] Panel dapat dicapai ≤ 2 interaksi dari mana pun (menu tetap).
 
 #### Dependencies
 

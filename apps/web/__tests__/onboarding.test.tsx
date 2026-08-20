@@ -56,6 +56,21 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil): ApiClient {
       // sendiri, dan jawaban apa pun akan menimpanya.
       if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
 
+      // `GET /me/accessibility` — infrastruktur boot sejak PR-036: preferensi
+      // ditarik dari akun begitu status sesi "masuk" menyala, di halaman mana
+      // pun, termasuk saat wizard ini terbuka. Ia TIDAK dikirim wizard dan
+      // tidak membawa satu byte pun data pengguna (GET tanpa badan), jadi ia
+      // tidak dihitung sebagai "permintaan yang dikirim wizard" — persis
+      // perlakuan yang sudah diberikan `/auth/refresh` di baris atas.
+      //
+      // DIBIARKAN MENGGANTUNG, dan itu bukan kemalasan: jawabannya akan menulis
+      // profil akun ke `pilihanPengguna` (aturan "server menang", PR-036) —
+      // yaitu state yang persis diperiksa test pratinjau di berkas ini.
+      // Penarikan itu punya berkasnya sendiri: `sambungkan-server.test.tsx`.
+      if (path === "/me/accessibility" && (opsi?.method ?? "GET") === "GET") {
+        return new Promise(() => {}) as Promise<never>;
+      }
+
       jejak.push({ path, method: opsi?.method ?? "GET", body: opsi?.body });
 
       if (path === "/me/accessibility") {

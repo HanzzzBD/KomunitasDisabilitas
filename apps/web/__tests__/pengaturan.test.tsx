@@ -77,6 +77,16 @@ function klienPalsu(me: OpsiRender["me"], hitung: { n: number }): ApiClient {
   return {
     request: (path: string) => {
       if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
+      // Sejak PR-036 preferensi ditarik dari akun begitu status "masuk"
+      // menyala (`SambungkanServer`), jadi jalur ini dilewati SETIAP render
+      // halaman ini — termasuk oleh test yang tidak berminat padanya.
+      //
+      // DIBIARKAN MENGGANTUNG. Menjawabnya berarti profil akun menimpa
+      // preferensi yang dipasang test (aturan "server menang"), dan opsi
+      // `sederhana` di bawah akan berhenti berarti apa pun tanpa satu pun
+      // baris berubah. Penarikannya diuji tersendiri di
+      // `sambungkan-server.test.tsx`.
+      if (path === "/me/accessibility") return new Promise(() => {}) as Promise<never>;
       if (path === "/me") {
         hitung.n += 1;
         return me === "gagal"
@@ -302,36 +312,28 @@ describe("panel akun — data yang kami simpan", () => {
   });
 });
 
-describe("panel aksesibilitas — slot PR-036", () => {
-  it("mengakui bahwa kendalinya belum ada, alih-alih diam", async () => {
+describe("panel aksesibilitas — slot PR-036 SUDAH terisi", () => {
+  // Perilaku panelnya sendiri diuji di `aksesibilitas-panel.test.tsx`. Yang
+  // diperiksa DI SINI hanya penyambungannya ke route: panel yang sempurna tetapi
+  // tidak pernah dipasang tidak menghasilkan apa pun, dan test komponen yang
+  // merendernya sendiri tidak akan pernah melihat kelalaian itu.
+  it("kendalinya benar-benar ada di alamat ini", async () => {
     renderPengaturan({ jalur: "/pengaturan/aksesibilitas" });
     await tungguJudul("Aksesibilitas");
 
-    const slot = screen.getByRole("status");
-    expect(slot).toHaveTextContent("Pengaturan aksesibilitas belum tersedia");
+    expect(await screen.findAllByRole("checkbox")).toHaveLength(6);
+    expect(screen.getByRole("slider")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kembalikan ke setelan bawaan" })).toBeInTheDocument();
   });
 
-  it("menyebut bahwa setelan perangkat SUDAH diikuti", async () => {
-    // Kalimat inilah isi sesungguhnya dari slot ini. Preferensi sistem sudah
-    // bekerja sejak PR-026; slot yang hanya berkata "belum tersedia" membuat
-    // pengguna yang sudah menyetel perangkatnya menyangka setelannya diabaikan,
-    // lalu berhenti memakainya.
+  it("keadaan kosong yang lama IKUT HILANG", async () => {
+    // Kalimat "belum tersedia" yang tertinggal di halaman berisi adalah kalimat
+    // yang berbohong — dan ia paling mudah tertinggal justru karena tidak
+    // merusak apa pun secara teknis.
     renderPengaturan({ jalur: "/pengaturan/aksesibilitas" });
     await tungguJudul("Aksesibilitas");
 
-    expect(screen.getByRole("status")).toHaveTextContent(/setelan aksesibilitas perangkat Anda/i);
-  });
-
-  it("tidak menawarkan satu pun kendali palsu", async () => {
-    // Kendali mati (tombol `disabled`, sakelar yang tidak menyimpan apa pun)
-    // lebih buruk daripada ketiadaan: pengguna menekannya, tidak terjadi apa
-    // pun, dan menyimpulkan aplikasinya rusak.
-    renderPengaturan({ jalur: "/pengaturan/aksesibilitas" });
-    await tungguJudul("Aksesibilitas");
-
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+    expect(screen.queryByText(/belum tersedia/i)).toBeNull();
   });
 });
 
@@ -355,11 +357,13 @@ describe("bahasa sederhana (AC 5)", () => {
     expect(screen.getByRole("link", { name: "Akun saya" })).toBeInTheDocument();
   });
 
-  it("slot aksesibilitas ikut punya varian sederhananya", async () => {
+  it("panel aksesibilitas ikut punya varian sederhananya", async () => {
     renderPengaturan({ jalur: "/pengaturan/aksesibilitas", sederhana: true });
     await tungguJudul("Aksesibilitas");
 
-    expect(screen.getByRole("status")).toHaveTextContent("Pengaturan ini belum bisa dipakai");
+    expect(
+      await screen.findByRole("button", { name: "Kembalikan seperti semula" }),
+    ).toBeInTheDocument();
   });
 });
 

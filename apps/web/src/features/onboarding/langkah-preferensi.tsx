@@ -22,9 +22,8 @@
 // yang tidak disebut SDD. Prisma sumber kebenaran skema (CLAUDE.md §12).
 import { useMemo } from "react";
 import { rekonsiliasi, type A11yStore } from "@nawasena/a11y";
-import { KolomForm, Masukan } from "@nawasena/ui";
+import { KolomForm, KotakCentang, Masukan } from "@nawasena/ui";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
-import { KotakCentang } from "./kotak-centang.js";
 
 /**
  * Enam preferensi biner, sebagai data — urutan di layar mengikuti urutan di

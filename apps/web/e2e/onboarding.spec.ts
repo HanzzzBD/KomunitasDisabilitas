@@ -92,9 +92,18 @@ async function siapkan(page: Page): Promise<Permintaan[]> {
   // dikirim ke alamat yang TIDAK punya handler pun tetap tercatat di sini.
   // Perekam yang hidup di dalam handler hanya bisa melihat yang sudah kita
   // duga — dan yang perlu dibuktikan alur "lewati" justru ketiadaannya.
+  //
+  // HANYA PENULISAN (`PUT`) yang dicatat, sejak PR-036. Aplikasi kini MEMBACA
+  // preferensi akun (`GET`) begitu status sesi "masuk" menyala, di halaman mana
+  // pun — termasuk saat wizard terbuka. Bacaan itu bukan perbuatan wizard, dan
+  // yang dijaga berkas ini adalah apa yang wizard KIRIMKAN: `GET` tidak
+  // membawa badan sama sekali, sehingga ia tidak bisa membawa jawaban ragam
+  // disabilitas maupun persetujuan. Menghitungnya bersama `PUT` berarti klaim
+  // "tidak ada yang dikirim" berubah menjadi "tidak ada yang menyentuh
+  // jaringan" — pernyataan yang berbeda, dan bukan yang dituntut AC-nya.
   const preferensi: Permintaan[] = [];
   page.on("request", (r) => {
-    if (r.url().includes("/me/accessibility")) {
+    if (r.url().includes("/me/accessibility") && r.method() === "PUT") {
       preferensi.push({ method: r.method(), body: r.postDataJSON() as unknown });
     }
   });
@@ -179,7 +188,7 @@ test("alur lengkap: preferensi tersimpan, penanda ditulis, mendarat di beranda",
   expect(await penanda(page)).toBe("1");
 });
 
-test("alur lewati: penanda tetap ditulis, dan TIDAK ada satu pun permintaan preferensi", async ({
+test("alur lewati: penanda tetap ditulis, dan TIDAK ada satu pun PENYIMPANAN preferensi", async ({
   page,
 }) => {
   const preferensi = await siapkan(page);
@@ -191,7 +200,7 @@ test("alur lewati: penanda tetap ditulis, dan TIDAK ada satu pun permintaan pref
 
   await page.waitForURL((url) => url.pathname === "/");
 
-  expect(preferensi, "melewati wizard tetap menghubungi endpoint preferensi").toEqual([]);
+  expect(preferensi, "melewati wizard tetap menyimpan preferensi ke akun").toEqual([]);
   expect(await penanda(page)).toBe("1");
 });
 

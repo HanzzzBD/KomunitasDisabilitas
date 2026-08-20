@@ -14,8 +14,8 @@
 // pernah dikirim ke mana pun di PR ini — pada JALUR MANA PUN, disetujui atau
 // tidak (PR-037 belum ada) — persetujuan di sini adalah izin untuk MASA DEPAN,
 // bukan pemicu pengiriman hari ini. Teksnya menyatakan itu apa adanya.
+import { KotakCentang } from "@nawasena/ui";
 import { useTeks } from "../../shared/i18n/index.js";
-import { KotakCentang } from "./kotak-centang.js";
 
 export interface LangkahPersetujuanProps {
   setuju: boolean;

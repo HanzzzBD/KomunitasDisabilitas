@@ -4,7 +4,7 @@
 // yang harus diingat setiap halaman adalah banner yang suatu saat akan
 // terlupakan di salah satunya. Alasan yang sama kini berlaku untuk DUA hal baru
 // (PR-032a): landmark `<main>` dan tautan lompat ke konten.
-import { Navigate, Outlet, useLocation, useNavigation } from "react-router";
+import { Link, Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
@@ -105,6 +105,40 @@ export function TataLetak() {
       >
         {t("shell.lompatKeKonten")}
       </a>
+
+      {/*
+        PINTASAN KE PANEL PREFERENSI (PR-036, AC-5: "panel terjangkau dalam ≤ 2
+        interaksi dari mana pun").
+
+        DIPASANG DI KERANGKA karena tidak ada tempat lain yang memenuhi "dari
+        mana pun". Sebelum PR ini aplikasi TIDAK punya navigasi tingkat atas
+        sama sekali: satu-satunya jalan ke `/pengaturan/aksesibilitas` adalah
+        mengetikkan alamatnya, dan pengguna yang paling membutuhkan panel ini
+        justru yang paling kecil kemungkinannya menebak alamat.
+
+        SATU TAUTAN, BUKAN BILAH NAVIGASI. Menu lengkap adalah keputusan produk
+        yang belum diambil (halaman-halamannya sendiri sebagian belum ada), dan
+        merakitnya di sini hanya akan mendahului keputusan itu dengan bentuk
+        yang lahir sebagai efek samping PR preferensi.
+
+        HANYA SAAT SUDAH MASUK: alamatnya terlindungi (`Terlindungi` di
+        `/pengaturan`), jadi tautan bagi pengunjung yang belum masuk berjanji
+        membawa ke panel lalu mendaratkannya di halaman masuk.
+
+        DI BAWAH TAUTAN LOMPAT, tidak di atasnya. Tautan lompat harus tetap
+        menjadi elemen fokusabel PERTAMA — itu seluruh gunanya, dan dijaga
+        `tata-letak.test.tsx`.
+      */}
+      {status === "masuk" && (
+        <nav aria-label={t("shell.pintas.label")} className="flex justify-end p-2">
+          <Link
+            to="/pengaturan/aksesibilitas"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.aksesibilitas")}
+          </Link>
+        </nav>
+      )}
 
       <BannerLuring />
 

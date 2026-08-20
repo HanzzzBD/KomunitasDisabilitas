@@ -136,6 +136,20 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "berubah nama — dan tidak punya cara memastikan ia menekan yang benar.",
   "onboarding.preferensi.sentuh": "Label tiga kata sehari-hari yang sudah menyebut akibatnya.",
 
+  // --- pintasan aksesibilitas (PR-036) ---
+  // Keduanya memuat kata "Aksesibilitas", dan kata itu ISTILAH PRODUK yang
+  // sengaja tidak disederhanakan — alasan yang sama persis dengan
+  // `pengaturan.aksesibilitas.judul` di atas. Tautan ini mengantar KE panel
+  // itu; menamainya lain di mode sederhana berarti pengguna menekan satu kata
+  // lalu mendarat di halaman berjudul kata yang lain.
+  "shell.pintas.label":
+    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata, " +
+    "salah satunya istilah produk yang tidak disederhanakan.",
+  "shell.pintas.aksesibilitas":
+    "Label tautan dua kata yang keduanya muncul lagi di halaman tujuan ('Pengaturan' sebagai " +
+    "judul halaman, 'Aksesibilitas' sebagai judul panel). Pengguna mencocokkan kata yang tadi " +
+    "ia tekan — mengubahnya di mode sederhana justru memutus pencocokan itu.",
+
   // --- shell (PR-032a) ---
   "shell.judulDokumen":
     "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +

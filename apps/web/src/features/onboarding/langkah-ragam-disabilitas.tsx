@@ -11,8 +11,8 @@
 //
 // Bila PR-037 kelak lahir, yang berubah adalah `Wizard`, bukan berkas ini:
 // komponen ini hanya melaporkan pilihan ke atas lewat `onUbah`.
+import { KotakCentang } from "@nawasena/ui";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
-import { KotakCentang } from "./kotak-centang.js";
 
 /**
  * Ragam yang ditawarkan, sebagai DATA.
