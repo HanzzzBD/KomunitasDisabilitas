@@ -53,6 +53,12 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil, profil: Partial<typeof PROFIL>
   return {
     request: (path: string, opsi?: { body?: unknown }) => {
       if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
+      // `GET /me/accessibility` juga infrastruktur boot sejak PR-036: preferensi
+      // ditarik dari akun begitu status sesi "masuk" menyala, di halaman mana
+      // pun. Dibiarkan MENGGANTUNG supaya jawabannya tidak mengubah preferensi
+      // di tengah test yang sedang memeriksa hal lain, dan tidak dicatat sebagai
+      // permintaan yang "dikirim halaman ini".
+      if (path === "/me/accessibility") return new Promise(() => {}) as Promise<never>;
       if (path === "/me") return Promise.resolve({ data: { ...PROFIL, ...profil } }) as Promise<never>;
 
       jejak.push({ path, body: opsi?.body });

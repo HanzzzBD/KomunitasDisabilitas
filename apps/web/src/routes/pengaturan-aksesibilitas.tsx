@@ -1,22 +1,28 @@
-// Panel "/pengaturan/aksesibilitas" — Scope PR-033: "Slot panel aksesibilitas
-// (diisi PR-036)".
+// Panel "/pengaturan/aksesibilitas" — Scope PR-036: "Panel preferensi permanen".
 //
-// SLOT, DAN DIKATAKAN APA ADANYA. Panel ini belum punya satu pun kendali, dan
-// halaman yang menyembunyikan kenyataan itu — dengan tombol mati, atau dengan
-// diam — membuat pengguna mengira aplikasinya rusak. `KeadaanKosong` (PR-032b)
-// ada persis untuk ini: menyebut apa yang tidak ada, lalu menjelaskan sebabnya.
+// SLOT-nya SUDAH DIISI. Sampai PR-035 halaman ini menampilkan `KeadaanKosong`
+// yang mengakui apa adanya bahwa kendalinya belum ada (PR-033a); kendalinya
+// kini ada, jadi pengakuan itu ikut hilang bersama slotnya — keadaan kosong
+// yang tertinggal di halaman berisi adalah kalimat yang berbohong.
 //
-// KALIMAT KEDUANYA YANG PALING PENTING. Preferensi aksesibilitas SUDAH bekerja
-// sejak PR-026 — aplikasi mengikuti `prefers-reduced-motion` dan kontras dari
-// setelan perangkat. Slot yang hanya berkata "belum tersedia" akan membuat
-// pengguna yang sudah menyetel perangkatnya menyangka setelannya diabaikan,
-// lalu berhenti memakainya.
-import { KeadaanKosong } from "@nawasena/ui";
+// KALIMAT PENGANTAR YANG LAMA TETAP: preferensi perangkat memang SUDAH diikuti
+// sejak PR-026, dan panel ini tidak menggantikannya melainkan menimpanya bila
+// pengguna memilih lain (urutan menang ADR-008). Keterangan per sakelar yang
+// menyebut "mengikuti setelan perangkat" ditulis panel itu sendiri.
+//
+// BERKAS INI TIPIS DENGAN SENGAJA: ia menghubungkan hook lapisan `app/`
+// (`useA11yStoreWeb`, `useKlienApi`) ke komponen fitur yang tidak boleh
+// memanggilnya sendiri — lihat catatan lapisan di `features/README.md`.
+import { PanelAksesibilitas } from "../features/aksesibilitas-panel/index.js";
+import { useA11yStoreWeb } from "../app/penyedia-a11y.js";
+import { useKlienApi } from "../app/klien-api.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 
 export function PengaturanAksesibilitas() {
   const t = useTeks();
+  const store = useA11yStoreWeb();
+  const klien = useKlienApi();
 
   useJudulHalaman(t("shell.judulDokumen", { halaman: t("pengaturan.aksesibilitas.judul") }));
 
@@ -27,12 +33,7 @@ export function PengaturanAksesibilitas() {
       </h2>
       <p className="text-base text-gray-900">{t("pengaturan.aksesibilitas.penjelasan")}</p>
 
-      {/* Tingkat 3: bersarang di bawah <h2> di atasnya, yang bersarang di bawah
-          <h1> "Pengaturan" milik kerangka. Tingkatnya diminta di tempat
-          pemakaian justru supaya tidak ada komponen yang menebaknya. */}
-      <KeadaanKosong judul={t("pengaturan.aksesibilitas.slot.judul")} tingkatJudul={3}>
-        <p>{t("pengaturan.aksesibilitas.slot.penjelasan")}</p>
-      </KeadaanKosong>
+      <PanelAksesibilitas store={store} klien={klien} />
     </section>
   );
 }

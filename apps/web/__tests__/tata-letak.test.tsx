@@ -12,6 +12,7 @@
 // pun.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { createA11yStore, type PenyimpananA11y } from "@nawasena/a11y";
 import type { ApiClient } from "@nawasena/api-client";
@@ -311,5 +312,85 @@ describe("pengalihan onboarding", () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/onboarding");
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pintasan aksesibilitas (PR-036) — AC-5: "panel terjangkau dalam ≤ 2
+// interaksi dari mana pun".
+//
+// DIUJI DI BERKAS INI karena "dari mana pun" adalah klaim tentang KERANGKA,
+// bukan tentang satu halaman. Sebelum PR-036 aplikasi ini tidak punya navigasi
+// tingkat atas sama sekali, jadi satu-satunya jalan ke panel adalah mengetikkan
+// alamatnya — dan tidak ada satu pun test yang merah karenanya.
+// ---------------------------------------------------------------------------
+
+describe("pintasan ke panel aksesibilitas", () => {
+  afterEach(() => {
+    useStoreSesi.setState({ status: "memulihkan" });
+    globalThis.localStorage.clear();
+  });
+
+  it("TIDAK ditawarkan kepada pengunjung yang belum masuk", async () => {
+    // Alamatnya terlindungi. Tautan bagi yang belum masuk berjanji membawa ke
+    // panel lalu mendaratkannya di halaman masuk — janji yang tidak ditepati
+    // oleh aplikasi sendiri.
+    useStoreSesi.getState().keluar();
+
+    await renderBersesi("/");
+    await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
+
+    expect(screen.queryByRole("link", { name: "Pengaturan aksesibilitas" })).toBeNull();
+  });
+
+  it("satu interaksi dari halaman mana pun membuka panelnya", async () => {
+    // SATU klik, bukan dua: itulah yang membuat AC-nya terpenuhi dengan margin.
+    // Ditempuh sebagai PERBUATAN — tautan yang benar tetapi tidak pernah
+    // terpasang di kerangka punya href yang tampak baik-baik saja.
+    globalThis.localStorage.setItem(kunciPenanda(SUB), "1");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { router } = await renderBersesi("/");
+    const tautan = await screen.findByRole(
+      "link",
+      { name: "Pengaturan aksesibilitas" },
+      { timeout: 5000 },
+    );
+
+    await userEvent.click(tautan);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/pengaturan/aksesibilitas"), {
+      timeout: 5000,
+    });
+  });
+
+  it("TIDAK menggeser tautan lompat dari urutan fokus pertama", async () => {
+    // Risiko nomor satu dari menambah elemen di kerangka. Tautan lompat yang
+    // berada di urutan kedua tidak menyelesaikan apa pun — gunanya justru
+    // menghindari penekanan Tab yang mendahuluinya.
+    globalThis.localStorage.setItem(kunciPenanda(SUB), "1");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    const { container } = await renderBersesi("/");
+    await screen.findByRole("link", { name: "Pengaturan aksesibilitas" }, { timeout: 5000 });
+
+    const fokusabel = container.querySelectorAll<HTMLElement>(
+      "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])",
+    );
+    expect(fokusabel[0]).toHaveTextContent("Lompat ke konten utama");
+  });
+
+  it("navigasinya PUNYA NAMA, bukan landmark 'navigation' tanpa keterangan", async () => {
+    // Halaman pengaturan sudah punya navigasi sendiri. Dua landmark navigasi
+    // tanpa nama muncul di daftar screen reader sebagai dua baris "navigation"
+    // yang tidak bisa dibedakan satu sama lain.
+    globalThis.localStorage.setItem(kunciPenanda(SUB), "1");
+    useStoreSesi.getState().masuk(tokenUji());
+
+    await renderBersesi("/");
+
+    expect(
+      await screen.findByRole("navigation", { name: "Pintasan aksesibilitas" }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 });

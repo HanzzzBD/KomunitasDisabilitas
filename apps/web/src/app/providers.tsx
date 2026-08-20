@@ -12,7 +12,7 @@ import { PenyediaKlienApi } from "./klien-api.js";
 import { createQueryClient } from "./query-client.js";
 import { PenyediaI18n } from "../shared/i18n/index.js";
 import type { ModeBahasa } from "../shared/i18n/index.js";
-import { PenyediaA11y, SambungkanBahasa, buatStoreWeb } from "./penyedia-a11y.js";
+import { PenyediaA11y, SambungkanBahasa, SambungkanServer, buatStoreWeb } from "./penyedia-a11y.js";
 
 export interface ProvidersProps {
   children: ReactNode;
@@ -55,10 +55,15 @@ export function Providers({
   //     dibungkus TanStack Query, jadi klien harus sudah tersedia saat query
   //     pertama dijalankan. Ia juga yang memicu pemulihan sesi saat boot,
   //     sehingga harus membungkus `children` — bukan bersebelahan dengannya.
+  //   - `SambungkanServer` (PR-036) DI DALAM keduanya: ia memakai `useKlienApi`
+  //     DAN menulis ke store yang sama. Ditaruh sebagai saudara `children`,
+  //     bukan pembungkusnya, sebab ia merender `null` — membungkus akan
+  //     menambah satu lapis komponen tanpa satu pun akibat.
   return (
     <QueryClientProvider client={klien}>
       <PenyediaKlienApi klien={klienApi}>
         <PenyediaA11y store={a11y}>
+          <SambungkanServer store={a11y} />
           <PenyediaI18n modeAwal={modeBahasaAwal}>
             <SambungkanBahasa store={a11y} />
             {children}
