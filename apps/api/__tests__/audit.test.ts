@@ -25,6 +25,9 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: {
     purpose: "support",
     fields: ["disabilityTypes"],
+    // WAJIB sejak PR-039: pembacaan data disabilitas tanpa alasan yang tercatat
+    // adalah pembacaan yang tidak bisa dipertanggungjawabkan.
+    reason: "tiket #4821",
   },
   [AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED]: {
     operation: "fieldsUpdated",

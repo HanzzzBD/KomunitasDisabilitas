@@ -66,6 +66,44 @@ export type AuditAction = z.infer<typeof auditActionSchema>;
 const loginMethodSchema = z.enum(["otp", "google"]);
 
 const sensitiveFieldSchema = z.enum(["disabilityTypes", "accommodationNeeds"]);
+
+/**
+ * Kenapa data disabilitas seseorang dibaca (PR-039).
+ *
+ * Diekspor karena ia BUKAN sekadar label audit: `modules/profiles` memakainya
+ * sebagai kunci kebijakan — tujuan mana yang dicatat per panggilan, mana yang
+ * diagregasi, dan mana yang tidak lewat jalur ini sama sekali. Satu daftar untuk
+ * keduanya supaya tujuan baru tidak bisa lahir di kode tanpa punya tempat di
+ * audit.
+ */
+export const sensitiveAccessPurposeSchema = z.enum([
+  /** Pemilik membaca datanya sendiri. TIDAK melewati jalur ber-alasan. */
+  "selfService",
+  /** Operator/admin menolong pengguna. Wajib alasan, dicatat per panggilan. */
+  "support",
+  /** Pencocokan lowongan. Dicatat teragregasi per hari, bukan per profil. */
+  "matching",
+  /** Pengungkapan ke pemberi kerja saat melamar (PR-075). */
+  "disclosure",
+]);
+
+export type SensitiveAccessPurpose = z.infer<typeof sensitiveAccessPurposeSchema>;
+
+/**
+ * Alasan yang wajib disertakan setiap pembacaan data disabilitas non-pemilik.
+ *
+ * Dipakai DUA kali: sebagai gerbang masuk di `modules/profiles` (permintaan
+ * tanpa alasan ditolak sebelum satu byte pun dibaca) dan sebagai bentuk meta
+ * audit di bawah. Satu batas panjang untuk keduanya — dua batas yang berbeda
+ * akan berarti alasan yang diterima gerbang lalu ditolak sanitizer, dan
+ * pembacaannya tetap terjadi tanpa jejak.
+ */
+export const sensitiveAccessReasonSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "Alasan akses wajib diisi" })
+  .max(200, { message: "Alasan akses maksimal 200 karakter" });
+
 const applicationStatusSchema = z.enum([
   "submitted",
   "viewed",
@@ -110,9 +148,31 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     /** Jumlah refresh token aktif yang ikut dicabut dalam keluarga itu. */
     revokedCount: z.number().int().min(0),
   }),
+  // `reason` dan `count` LAHIR DI PR-039, bersama penulis pertamanya.
+  //
+  // Sama seperti `operation` pada PROFILE_SENSITIVE_UPDATED di bawah: belum ada
+  // satu pun baris PROFILE_SENSITIVE_READ di mana pun — PR-037 membangun modul
+  // profil tanpa jalur baca non-pemilik — jadi menambahkan field WAJIB sekarang
+  // tidak membuat audit lama mendadak ditolak sanitizer.
+  //
+  // `reason` adalah SATU-SATUNYA field teks bebas di seluruh katalog ini, dan
+  // itu disengaja. Pertanyaan yang diajukan orang saat menyelidiki pembacaan
+  // data disabilitas bukan "kapan" melainkan "KENAPA", dan enum tertutup atas
+  // alasan hanya akan menghasilkan satu nilai `lainnya` yang dipakai untuk
+  // segalanya. Harganya: teks itu ditulis manusia, jadi ia satu-satunya tempat
+  // di `audit_logs` yang bisa kemasukan PII bila operatornya lalai. Batas 200
+  // karakter menahan panjangnya, dan docs/audit-action-catalog.md menyatakan
+  // larangannya — sisanya adalah pelatihan operator, bukan validasi.
   [AUDIT_ACTION.PROFILE_SENSITIVE_READ]: z.object({
-    purpose: z.enum(["selfService", "support", "matching", "disclosure"]),
+    purpose: sensitiveAccessPurposeSchema,
     fields: z.array(sensitiveFieldSchema).min(1),
+    reason: sensitiveAccessReasonSchema,
+    /**
+     * Hanya pada baris AGREGAT (`purpose: "matching"`): berapa profil yang
+     * dibaca sepanjang periode itu. Absen pada baris per-panggilan — di sana
+     * jawabannya selalu satu, dan menuliskannya hanya menambah derau.
+     */
+    count: z.number().int().positive().optional(),
   }),
   // `operation` LAHIR DI PR-037, dan sengaja lahir bersama penulis pertamanya.
   //

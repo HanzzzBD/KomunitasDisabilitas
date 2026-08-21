@@ -151,6 +151,17 @@ export const ERROR_CATALOG = {
     message: "Kami belum boleh menyimpan data disabilitas Anda",
     hint: "Centang dulu persetujuan penyimpanan data disabilitas, lalu simpan lagi",
   },
+  // --- Akses data sensitif non-pemilik (PR-039) ---
+  // 403, bukan 400: bentuk permintaannya sah dan pemanggilnya memang berhak
+  // (RBAC sudah meloloskannya) — yang belum dipenuhi adalah SYARAT membaca
+  // kelas data ini, yaitu menyatakan alasannya. Pesannya berbicara kepada
+  // operator, bukan kepada pengguna: satu-satunya yang bisa menerimanya adalah
+  // orang yang memanggil jalur support/disclosure.
+  ALASAN_AKSES_DIPERLUKAN: {
+    status: 403,
+    message: "Akses data disabilitas harus menyertakan alasan",
+    hint: "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

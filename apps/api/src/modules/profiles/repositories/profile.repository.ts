@@ -1,4 +1,4 @@
-// modules/profiles — repository profil pencari kerja (PR-037, SDD §6.2).
+// modules/profiles — repository profil pencari kerja (PR-037, PR-039, SDD §6.2).
 //
 // LAPISAN INI TIDAK PERNAH MELIHAT PLAINTEXT. `disabilityTypes` dan
 // `accommodationNeeds` masuk dan keluar sebagai `Buffer` ciphertext apa adanya;
@@ -7,22 +7,45 @@
 // dan dibaca sambil lalu — plaintext yang lewat di sini adalah plaintext yang
 // cepat atau lambat ikut tercetak.
 //
+// DUA JALUR BACA, DAN ITULAH INTI PR-039 (SDD §8.2). `findSafeByUserId`
+// mengembalikan bentuk yang secara TIPE tidak punya tempat bagi kolom sensitif;
+// `findSensitiveByUserId` mengembalikan barisnya utuh. Yang membuat pemisahan
+// ini berarti bukan disiplin melainkan `select` yang berbeda: kolom yang tidak
+// diminta tidak pernah meninggalkan PostgreSQL, jadi kebocoran lewat serialisasi
+// tak sengaja pada jalur aman TIDAK MUNGKIN — datanya memang tidak ada di
+// memori proses.
+//
+// Kapan memakai yang mana: docs/akses-data-sensitif.md.
+//
 // `userId` adalah PRIMARY KEY `seeker_profiles` (`@id` di schema.prisma), jadi
 // `upsert()` cukup satu statement dan tidak mungkin ada dua baris per pengguna.
 //
 // Kolom `profile_embedding` (`Unsupported("vector(768)")`) sengaja tidak pernah
 // disebut: Prisma Client tidak bisa membacanya, dan pemiliknya adalah repo
 // matching lewat `$queryRaw` (PR-069).
+import { Prisma } from "@prisma/client";
 import type { AppPrisma } from "../../../core/db/index.js";
 
-/** Baris apa adanya dari DB. Dua kolom terakhir CIPHERTEXT — jangan di-log. */
-export interface SeekerProfileRow {
+/**
+ * Bagian profil yang boleh dibaca siapa pun yang berhak melihat profil.
+ *
+ * `consentSensitiveAt` SENGAJA TIDAK ADA DI SINI meski ia bukan data disabilitas
+ * itu sendiri. Tanggal consent menyatakan bahwa orang ini pernah menyetujui
+ * penyimpanan data disabilitasnya — dan itu sudah cukup untuk menyimpulkan
+ * sesuatu tentang dirinya. Metadata yang membocorkan kesimpulan yang sama dengan
+ * datanya bukan metadata yang aman.
+ */
+export interface SafeProfileRow {
   headline: string | null;
   summary: string | null;
   city: string | null;
   province: string | null;
   openToRemote: boolean;
   disclosureDefault: "never" | "ask_each_time" | "always";
+}
+
+/** Baris apa adanya dari DB. Dua kolom terakhir CIPHERTEXT — jangan di-log. */
+export interface SeekerProfileRow extends SafeProfileRow {
   /** Bukti consent eksplisit; null = belum/tidak lagi berlaku. */
   consentSensitiveAt: Date | null;
   disabilityTypes: Buffer | null;
@@ -50,14 +73,19 @@ export interface SeekerProfilePatch {
 /** Hasil tulis: `ok: false` HANYA saat penjaga consent menolak (lihat di bawah). */
 export type HasilSimpan = { ok: true; row: SeekerProfileRow } | { ok: false };
 
-/** Kolom yang dibaca — daftar eksplisit, bukan `select: *`. */
-const KOLOM_PROFIL = {
+/** Kolom aman — daftar eksplisit, bukan `select: *`. */
+const KOLOM_AMAN = {
   headline: true,
   summary: true,
   city: true,
   province: true,
   openToRemote: true,
   disclosureDefault: true,
+} as const;
+
+/** Kolom aman + yang sensitif. Hanya untuk jalur yang memang berhak. */
+const KOLOM_SENSITIF = {
+  ...KOLOM_AMAN,
   consentSensitiveAt: true,
   disabilityTypes: true,
   accommodationNeeds: true,
@@ -65,9 +93,30 @@ const KOLOM_PROFIL = {
 
 export function createProfileRepository(prisma: AppPrisma) {
   return {
-    /** Profil milik satu pengguna; null bila barisnya belum pernah ada. */
-    async findByUserId(userId: string): Promise<SeekerProfileRow | null> {
-      return prisma.seekerProfile.findUnique({ where: { userId }, select: KOLOM_PROFIL });
+    /**
+     * Profil satu pengguna TANPA satu pun kolom sensitif.
+     *
+     * Inilah jalur baku. Pemanggil yang tidak benar-benar membutuhkan data
+     * disabilitas tidak boleh memakai jalur satunya — bukan karena ia akan
+     * membocorkannya, melainkan karena setiap pemakaian jalur sensitif
+     * meninggalkan baris audit, dan audit yang penuh pembacaan yang tidak perlu
+     * berhenti berguna sebagai audit.
+     */
+    async findSafeByUserId(userId: string): Promise<SafeProfileRow | null> {
+      return prisma.seekerProfile.findUnique({ where: { userId }, select: KOLOM_AMAN });
+    },
+
+    /**
+     * Profil satu pengguna BESERTA kolom sensitifnya (masih ciphertext).
+     *
+     * TIDAK menulis audit — penulisannya milik service, sama seperti seluruh
+     * audit lain di modul ini (PR-037). Yang menjaga fungsi ini tidak dipanggil
+     * dari mana-mana adalah `__tests__/akses-sensitif-jangkauan.test.ts`:
+     * jangkauannya dibatasi pada berkas yang memang berhak, dan berkas baru yang
+     * menyentuhnya membuat build merah sampai seseorang memutuskan.
+     */
+    async findSensitiveByUserId(userId: string): Promise<SeekerProfileRow | null> {
+      return prisma.seekerProfile.findUnique({ where: { userId }, select: KOLOM_SENSITIF });
     },
 
     /**
@@ -88,14 +137,21 @@ export function createProfileRepository(prisma: AppPrisma) {
      * disabilitas TANPA consent yang berlaku — persis keadaan yang tidak boleh
      * ada.
      *
-     * BATAS YANG TERSISA, ditulis alih-alih didiamkan: pada isolasi READ
-     * COMMITTED (bawaan PostgreSQL) `SELECT` di bawah tidak mengunci barisnya,
-     * jadi pencabutan yang commit tepat di antara SELECT dan UPDATE masih bisa
-     * terlewat. Jendelanya kini mikrodetik di dalam satu transaksi, bukan satu
-     * putaran permintaan HTTP, dan kedua permintaan itu harus datang dari
-     * pengguna yang sama pada saat yang sama. Menutupnya sepenuhnya menuntut
-     * `SELECT … FOR UPDATE` lewat raw SQL — biaya yang belum sebanding, dan
-     * akan menjadi sebanding di PR-039 saat jalur sensitif dipusatkan.
+     * `SELECT … FOR UPDATE` (PR-039) MENUTUP SISA JENDELANYA. PR-037
+     * meninggalkan celah yang ditulis apa adanya: pada isolasi READ COMMITTED
+     * (bawaan PostgreSQL) `SELECT` biasa tidak mengunci barisnya, jadi
+     * pencabutan yang commit tepat di antara SELECT dan UPDATE masih bisa
+     * terlewat. Dengan `FOR UPDATE`, transaksi kedua yang menyentuh baris yang
+     * sama MENUNGGU sampai yang ini selesai, lalu membaca keadaan terbaru —
+     * bukan keadaan yang sudah basi saat ia memutuskan.
+     *
+     * Raw SQL, bukan Prisma Client, karena Prisma tidak punya cara menyatakan
+     * penguncian baris. Kolomnya disebut apa adanya (`user_id`,
+     * `consent_sensitive_at`) — nama fisik, bukan nama Prisma.
+     *
+     * BARIS YANG BELUM ADA tidak bisa dikunci, dan itu tidak apa-apa: tidak ada
+     * consent untuk dicabut pada baris yang belum lahir, dan `upsert` di
+     * bawahnya akan menempuh jalur INSERT yang dijaga primary key.
      */
     async upsertByUserId(
       userId: string,
@@ -104,14 +160,13 @@ export function createProfileRepository(prisma: AppPrisma) {
     ): Promise<HasilSimpan> {
       return prisma.$transaction(async (tx) => {
         if (opsi.butuhConsent) {
-          const kini = await tx.seekerProfile.findUnique({
-            where: { userId },
-            select: { consentSensitiveAt: true },
-          });
+          const terkunci = await tx.$queryRaw<Array<{ consent_sensitive_at: Date | null }>>(
+            Prisma.sql`SELECT consent_sensitive_at FROM seeker_profiles
+              WHERE user_id = ${userId}::uuid FOR UPDATE`,
+          );
+          const kini = terkunci[0]?.consent_sensitive_at ?? null;
           const efektif =
-            patch.consentSensitiveAt !== undefined
-              ? patch.consentSensitiveAt
-              : (kini?.consentSensitiveAt ?? null);
+            patch.consentSensitiveAt !== undefined ? patch.consentSensitiveAt : kini;
           if (efektif === null) return { ok: false };
         }
 
@@ -119,7 +174,7 @@ export function createProfileRepository(prisma: AppPrisma) {
           where: { userId },
           update: patch,
           create: { userId, ...patch },
-          select: KOLOM_PROFIL,
+          select: KOLOM_SENSITIF,
         });
         return { ok: true, row };
       });

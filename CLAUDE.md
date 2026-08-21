@@ -436,6 +436,7 @@ ProjectKomunitasDisabilitas/
 │   │   ├── log/          (implementation logs per completed phase)
 │   │   └── *.md          (phase docs)
 │   ├── audit-action-catalog.md
+│   ├── akses-data-sensitif.md   (jalur baca data disabilitas, PR-039)
 │   ├── rbac-route-registry.md   (konvensi guard & route registry, PR-019)
 │   └── runbook-keys.md
 ├── .github/
@@ -471,6 +472,7 @@ ProjectKomunitasDisabilitas/
 | `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.dev.yml` | Stack dev: PostgreSQL, `redis-cache`, `redis-queue`, api, worker. **Dua Redis terpisah dengan sengaja** (ADR-004): cache boleh di-evict (`allkeys-lru`), queue tidak boleh (`noeviction` + AOF). Overlay staging/produksi menyusul di Phase 16. |
 | `docs/rbac-route-registry.md` | Konvensi guard RBAC & route registry (PR-019) — wajib dibaca sebelum menambah endpoint |
+| [docs/akses-data-sensitif.md](./docs/akses-data-sensitif.md) | Jalur mana untuk membaca data disabilitas/akomodasi (PR-039) — wajib dibaca sebelum menyentuh `seeker_profiles.disability_types`/`accommodation_needs`. Jalur bakunya `bacaAman`; membaca profil **orang lain** menuntut alasan tertulis dan selalu berjejak di `audit_logs`. Berkas baru yang memanggil `findSensitiveByUserId` membuat CI merah sampai keputusannya dicatat. |
 | [docs/panduan-bahasa-sederhana.md](./docs/panduan-bahasa-sederhana.md) | Cara menulis varian `id-simple` pada katalog i18n (PR-029b) — wajib dibaca sebelum menambah teks UI. Entri yang varian sederhananya disalin mentah dari `id` membuat CI merah. |
 
 ---

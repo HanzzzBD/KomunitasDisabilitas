@@ -113,10 +113,27 @@ function fakePrisma(rows: BarisProfil[]) {
     },
   };
 
+  /**
+   * `SELECT consent_sensitive_at … FOR UPDATE` (PR-039) yang dipakai penjaga
+   * consent. Yang ditiru di sini hanya BACAANNYA — penguncian barisnya tidak
+   * bisa ditiru tabel di memori sama sekali, dan memang tidak diklaim: yang
+   * membuktikannya adalah akses-sensitif-db.test.ts terhadap PostgreSQL
+   * sungguhan.
+   *
+   * `values[0]` adalah `userId` — satu-satunya parameter kueri itu.
+   */
+  const queryRaw = (sql: { values: unknown[] }) => {
+    const baris = ambil(sql.values[0] as string);
+    return Promise.resolve(
+      baris === undefined ? [] : [{ consent_sensitive_at: baris.consentSensitiveAt }],
+    );
+  };
+
   const client = {
     seekerProfile,
-    $transaction: <T>(fn: (tx: { seekerProfile: typeof seekerProfile }) => Promise<T>) =>
-      fn({ seekerProfile }),
+    $transaction: <T>(
+      fn: (tx: { seekerProfile: typeof seekerProfile; $queryRaw: typeof queryRaw }) => Promise<T>,
+    ) => fn({ seekerProfile, $queryRaw: queryRaw }),
   };
   return client as unknown as PrismaClient;
 }

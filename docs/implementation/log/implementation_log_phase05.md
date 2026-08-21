@@ -525,3 +525,241 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
 * **PR-069** — pelanggan `profile.updated`: perhitungan ulang embedding profil.
   Harus berupa job antrean yang dipicu event, bukan pekerjaan di dalam
   handler-nya — bus ini in-process dan tanpa persistensi.
+
+---
+
+## PR-039 — Kontrol Akses Data Sensitif Terpusat
+
+> **Phase:** [05 - User Profile](../phase-05-user-profile.md#pr-039---findprofilesafe-vs-findprofilesensitive)
+> **Tanggal:** 2026-08-21
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Yang dipecahkan PR ini bukan "siapa boleh membaca data disabilitas" — itu urusan
+RBAC dan sudah dijawab PR-019. Yang dipecahkan adalah masalah yang **tidak
+terlihat oleh RBAC**: pembacaan yang sah tetapi tidak pernah
+dipertanggungjawabkan. Admin yang memang berhak membuka profil siapa pun tetap
+harus bisa ditanya *"kenapa kamu membuka profil orang ini pada 3 Agustus?"*, dan
+jawabannya harus sudah ada sebelum pertanyaannya muncul.
+
+Karena itu jalur non-pemilik dibuat **tidak punya bentuk tanpa alasan**.
+`bacaSensitif` menuntut `reason`, menolak yang kosong **sebelum satu byte pun
+dibaca**, dan menulis jejaknya sendiri. Tidak ada pemanggil yang bisa "lupa"
+mengaudit — bukan karena ada yang mengingatkan, melainkan karena mengaudit bukan
+langkah terpisah yang bisa dilewati.
+
+Repository kini punya **dua jalur baca dengan `select` yang benar-benar
+berbeda**. Ini perbedaan yang menentukan, dan bukan kosmetik: pada
+`findSafeByUserId` kolom sensitifnya **tidak pernah meninggalkan PostgreSQL**,
+jadi kebocoran lewat serialisasi tak sengaja, pesan galat, atau heap dump bukan
+sekadar tidak boleh terjadi — ia tidak mungkin, sebab datanya memang tidak ada di
+memori proses. Itu jaminan yang berbeda kelas dari "membaca semuanya lalu
+membuang sebagian".
+
+**Utang `SELECT … FOR UPDATE` yang ditinggalkan PR-037 (D2) dibayar di sini.**
+Gerbang consent kini mengunci barisnya, jadi pencabutan yang commit tepat di
+antara pemeriksaan dan penulisan tidak lagi bisa terlewat.
+
+Tidak ada endpoint baru (dokumen phase: *"API Changes: tidak ada (internal)"*),
+tidak ada migrasi, tidak ada perubahan frontend. Yang lahir adalah **kontrak dan
+penjaganya**, sengaja lebih dulu daripada ketiga konsumennya — admin/support
+(Phase 13), matching (PR-069), disclosure per lamaran (PR-075).
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` 67 berkas / **850 lulus** (1 skip tak terkait, DB nyata aktif),
+`@nawasena/schemas` 32/32, `@nawasena/api-client` 53/53, `@nawasena/web`
+523/523. Drift OpenAPI hijau (tidak ada endpoint baru), build web + budget bundle
+hijau (112,4 KB / 200 KB), Playwright a11y **43/43**.
+
+### Scope selesai
+
+* **`packages/schemas/src/audit.ts`** — kontrak meta `PROFILE_SENSITIVE_READ`
+  diperluas:
+  * `sensitiveAccessPurposeSchema` — enum tertutup empat nilai (`selfService`,
+    `support`, `matching`, `disclosure`).
+  * `sensitiveAccessReasonSchema` — teks 1–200 karakter, di-`trim`.
+  * meta kini `{ purpose, fields, reason, count? }`; `reason` **wajib**.
+* **`apps/api/src/modules/profiles/repositories/profile.repository.ts`** —
+  * `SafeProfileRow` (6 kolom) dan `SeekerProfileRow extends SafeProfileRow`.
+  * `KOLOM_AMAN` / `KOLOM_SENSITIF` sebagai dua `select` terpisah.
+  * `findByUserId` dipecah menjadi `findSafeByUserId` dan
+    `findSensitiveByUserId`.
+  * gerbang consent memakai `SELECT … FOR UPDATE` lewat `Prisma.sql`.
+* **`apps/api/src/modules/profiles/services/sensitive-access.service.ts`**
+  (baru, 245 baris) — `bacaAman`, `bacaSensitif`, `flushAudit`, `tertahan`,
+  berikut tabel `KEBIJAKAN_AUDIT` dan ember agregat harian.
+* **`apps/api/src/core/http/errors.ts`** — `ALASAN_AKSES_DIPERLUKAN` (403,
+  *"Akses data disabilitas harus menyertakan alasan"*).
+* **`apps/api/src/modules/profiles/index.ts`** — `ProfilesModule.sensitiveAccess`;
+  repository dan crypto dirakit **sekali** lalu dibagi.
+* **`apps/api/src/boot.ts`** — perakitan modul profil dinaikkan keluar dari
+  callback `routes`; hook shutdown menuliskan hitungan agregat yang tertahan.
+* **`docs/akses-data-sensitif.md`** (baru) — AC-5: jalur mana untuk keperluan
+  apa, tabel kebijakan, bentuk baris agregat, dan peringatan `reason`.
+* **`docs/audit-action-catalog.md`** — baris meta diperbarui + dua paragraf
+  penjelas (`purpose` menentukan **bagaimana** baris ditulis; `reason` adalah
+  satu-satunya teks bebas di seluruh katalog).
+* **`apps/api/__tests__/pemindai-kode.ts`** (baru) — `tanpaKomentar` dipindahkan
+  keluar dari berkas test (lihat D6).
+
+### Keputusan teknis
+
+**D1 — `selfService` dikeluarkan oleh TIPE, bukan oleh pemeriksaan.**
+`TujuanAksesLain = Exclude<SensitiveAccessPurpose, "selfService">` membuat
+tujuan itu **tidak bisa disebut** lewat `bacaSensitif`. Kalau ia boleh disebut,
+siapa pun bisa membaca profil orang lain sambil mengaku sedang melayani dirinya
+sendiri — dan kebijakan "self service tidak dicatat" berubah dari keringanan yang
+masuk akal menjadi lubang. Pemilik membaca datanya sendiri lewat
+`profiles.service.snapshotFor`, yang **tidak pernah menerima id dari input**;
+identitasnya selalu dari sesi, jadi tidak ada pembacaan pihak lain yang bisa
+disembunyikan di baliknya. Penjaga tipenya diuji dengan `@ts-expect-error`.
+
+**D2 — kebijakan audit ditulis sebagai DATA, bukan cabang `if`.**
+`KEBIJAKAN_AUDIT` bertipe `Record<SensitiveAccessPurpose, …>`, jadi tujuan baru
+**tidak bisa lahir tanpa seseorang memilih jawabannya** — typecheck yang
+menagihnya. Cabang `if` yang tersebar akan membuat tujuan kelima diam-diam jatuh
+ke perilaku bawaan yang kebetulan berlaku, dan "kebetulan" adalah kata yang tidak
+boleh muncul dalam kalimat tentang audit.
+
+**D3 — `selfService` tidak dicatat, dan itu keputusan, bukan kelalaian.**
+Membaca profil sendiri terjadi setiap kali halaman profil dibuka. Satu baris per
+pembukaan halaman akan menenggelamkan pembacaan oleh pihak lain — satu-satunya
+yang benar-benar perlu ditemukan saat menyelidiki — di bawah ribuan baris yang
+tidak pernah menarik siapa pun. Audit yang penuh kebisingan berhenti berguna
+sebagai audit. Dan secara hukum tidak ada pengungkapan ketika subjek dan
+pembacanya orang yang sama.
+
+**D4 — baris agregat memakai `entityId: null`, bukan salah satu subjek.**
+AC-4 menuntut audit matching teragregasi harian. Barisnya berbicara tentang **satu
+job**, bukan satu orang; menunjuk salah satu subjek secara sembarang akan terbaca
+sebagai *"profil inilah yang dibaca"* oleh siapa pun yang menyelidikinya nanti —
+tuduhan yang salah, tertulis oleh sistem sendiri. `meta.count` memikul jumlahnya.
+`reason` dan `requestId` diambil dari panggilan **pertama** di ember: keduanya
+menjawab "apa yang memulai pembacaan massal ini", dan jawaban itu tidak berubah
+karena batch-nya panjang.
+
+**D5 — audit ditulis MESKI barisnya tidak ada.**
+Percobaan membuka profil yang ternyata kosong tetap percobaan membuka profil
+seseorang. Kalau hanya pembacaan yang berhasil yang tercatat, menyisir **siapa
+yang punya** data disabilitas menjadi gratis — dan justru keberadaan datanya yang
+paling sensitif di sini, bukan isinya.
+
+**D6 — `tanpaKomentar` dipindahkan keluar dari berkas test.**
+Penjaga jangkauan baru membutuhkan pemindai yang sama dengan
+`soft-delete-jangkauan.test.ts` (PR-021a). Meng-import berkas `.test.ts` membuat
+vitest **menjalankan ulang seluruh test di dalamnya** di bawah konteks berkas
+pengimpor: sembilan test yang sama muncul dua kali di laporan, dan kegagalannya
+menunjuk berkas yang tidak menulisnya. Fungsinya kini tinggal di
+`__tests__/pemindai-kode.ts`, yang tidak berakhiran `.test.ts` sehingga pola
+`include` di `vitest.config.ts` tidak mengumpulkannya.
+
+**D7 — `consentSensitiveAt` TIDAK ikut ke `SafeProfileRow`,** meski ia bukan data
+disabilitas. Tanggal consent menyatakan bahwa orang ini pernah menyetujui
+penyimpanan data disabilitasnya — kesimpulan yang sama dengan datanya sendiri.
+Metadata yang membocorkan kesimpulan yang sama dengan datanya bukan metadata yang
+aman.
+
+**D8 — `reason` adalah teks bebas, dan itu melanggar aturan katalog dengan
+sengaja.** Seluruh meta audit lain memakai enum atau angka justru supaya PII
+tidak punya jalan masuk. Pengecualiannya dibuat karena pertanyaan yang diajukan
+orang saat menyelidiki pembacaan data disabilitas bukan "kapan" melainkan
+**"kenapa"**, dan enum tertutup atas alasan hanya akan menghasilkan satu nilai
+`lainnya` yang dipakai untuk segalanya. Harganya nyata dan ditanggung operator —
+lihat "Risiko yang ditemukan".
+
+### Utang yang SENGAJA ditinggalkan
+
+* **Ember agregat hidup DI MEMORI.** Proses yang dibunuh paksa (`SIGKILL`, OOM)
+  kehilangan hitungan yang belum tertulis. Yang hilang adalah **angka**, bukan
+  kejadian: profilnya tetap terbaca dan job matching yang menyebabkannya
+  meninggalkan jejaknya sendiri di log job. Menjadikannya tahan-mati menuntut
+  tabel penampung tersendiri — biaya yang tidak sebanding untuk mengamankan
+  sebuah hitungan. Shutdown yang tertib sudah ditutup lewat hook di `boot.ts`.
+* **`bacaSensitif` tidak memeriksa otorisasi,** dan itu memang bukan tugasnya:
+  ia menjamin pembacaan meninggalkan jejak, bukan bahwa pemanggilnya berhak.
+  Pemanggil wajib berada di balik `access.role("admin")` atau setara. Konsumen
+  pertamanya (Phase 13) yang akan memasang gerbang itu; hari ini belum ada
+  pemanggil sama sekali, jadi tidak ada yang tidak terjaga.
+* **Agregasi harian per-proses, bukan per-kluster.** Dua replika API akan
+  menghasilkan dua baris agregat per hari untuk pelaku yang sama. Terbaca benar
+  (jumlahnya tetap benar bila dijumlahkan), dan penyatuannya menuntut penyimpanan
+  bersama — yaitu utang yang sama dengan poin pertama.
+
+### Verifikasi
+
+* **AC-1 (setiap panggilan sensitif → baris audit ber-alasan)** diuji di dua
+  lapis: unit terhadap `auditLog` tiruan, dan **integrasi terhadap PostgreSQL
+  sungguhan** (`akses-sensitif-db.test.ts`) yang memeriksa `action`, `entityId`,
+  dan isi `meta` pada baris yang benar-benar tertulis.
+* **AC-2 (tipe)** diuji **compile-time** dengan `expectTypeOf<SafeProfile>()
+  .not.toHaveProperty(...)` untuk ketiga kolom, ditambah bukti **runtime** di DB
+  nyata: hasil `bacaAman` dibandingkan penuh dengan `toEqual`, lalu diperiksa
+  tidak punya ketiga kunci itu. Test pendamping membuktikan barisnya memang
+  **berisi** — tanpa itu, penjaga di atas bisa lulus hanya karena datanya kosong.
+* **AC-3 (tanpa alasan → error)** diuji sampai ke urutannya: `AppError` terlempar
+  **dan** `jejak` audit tetap kosong — yaitu penolakannya terjadi sebelum
+  pembacaan, bukan sesudahnya.
+* **AC-4 (agregasi harian)** diuji dengan **1000 pembacaan berturut-turut** yang
+  menghasilkan **nol** baris audit sampai `flushAudit()`, lalu tepat satu baris
+  ber-`count: 1000` dan `entityId: null`. Pergantian hari diuji lewat `clock`
+  yang disuntik: ember kemarin ditulis saat pembacaan pertama hari ini tiba.
+* **AC-5 (dokumentasi)** dijaga otomatis — satu test membaca
+  `docs/akses-data-sensitif.md` dan menuntut setiap `purpose` di `KEBIJAKAN_AUDIT`
+  benar-benar disebut di sana, jadi tujuan baru tidak bisa masuk tanpa
+  dokumennya. Katalog audit dijaga penjaga yang sudah ada
+  (`audit-catalog.test.ts`) — dan penjaga itu **memang merah** saat meta baru
+  ditambahkan tanpa dokumennya, yang berarti ia bekerja.
+* **Utang PR-037 (`FOR UPDATE`) dibuktikan tertutup, bukan diklaim.** Testnya
+  memegang transaksi penahan di klien Prisma **kedua**, memberi aba-aba lewat
+  promise `terkunci` supaya urutannya deterministik (bukan lomba), lalu
+  memastikan penulisan sensitif **ditolak** dan ciphertext yang tersimpan masih
+  isi lama. **Repository sempat dikembalikan ke `SELECT` biasa milik PR-037 untuk
+  memastikan test ini MERAH tanpa perbaikannya** — dan memang merah.
+* **Penjaga jangkauan dibuktikan tidak hampa** dengan cara yang sama: pemanggilan
+  `findSensitiveByUserId` ditanam sementara di berkas yang tidak terdaftar, dan
+  penjaganya menangkapnya. Penjaganya juga memeriksa dirinya sendiri — daftar
+  pemanggil yang kosong (mis. karena fungsinya berganti nama) membuat test
+  pertama merah.
+
+### Risiko yang ditemukan
+
+* **`reason` bisa memuat PII, dan tidak ada validasi yang bisa mencegahnya.**
+  Ini risiko yang **dibuat dengan sengaja** (D8), bukan yang terlewat. Batas 200
+  karakter menahan panjangnya; sisanya adalah pelatihan operator. Yang
+  memperberatnya: `audit_logs` bertahan **2 tahun** (SDD §6.4), jadi PII yang
+  masuk ke sini hidup jauh melewati baris yang memilikinya. Mitigasi yang
+  dipasang hari ini adalah **menuliskannya di dua dokumen** yang memang dibaca
+  orang saat menulis kode (`akses-data-sensitif.md`, `audit-action-catalog.md`)
+  berikut contoh benar/salah yang eksplisit. Mitigasi yang layak dipertimbangkan
+  kelak: pemindai PII sederhana (pola nomor HP/email) yang **menolak**, bukan
+  yang menyunting diam-diam.
+* **Penjaga jangkauan adalah pemindai teks, bukan analisis tipe.** Ia menangkap
+  `repo.findSensitiveByUserId(...)` tetapi tidak menangkap pemanggilan lewat
+  alias atau destructuring yang menghilangkan namanya. Itu batas yang diketahui:
+  penjaga ini menaikkan biaya melanggar dari "tidak sengaja" menjadi "harus
+  berusaha", dan itulah yang bisa dicapai tanpa infrastruktur analisis tipe.
+* **`upsertByUserId` kini memakai raw SQL dengan nama kolom fisik**
+  (`user_id`, `consent_sensitive_at`). Perubahan nama kolom di `schema.prisma`
+  tidak akan membuat typecheck merah di sini — ia akan gagal saat runtime. Diuji
+  oleh `akses-sensitif-db.test.ts` terhadap DB nyata, jadi CI menangkapnya; tetapi
+  perlu diingat saat migrasi menyentuh tabel ini.
+* **Manual verification (inspeksi `audit_logs` dengan tangan)** pada Testing
+  Checklist belum dijalankan seseorang. Yang setara sudah otomatis dan lebih kuat
+  (baris audit diperiksa isinya di DB nyata), tetapi kolomnya ditandai jujur
+  sebagai belum ada pemeriksaan tangan.
+
+### Next steps
+
+* **PR-040** — form profil multi-bagian di web; konsumen pertama endpoint
+  PR-038, dan waktu yang tepat mendaftarkan keduanya di `openapi.ts`.
+* **Phase 13 (admin/support)** — konsumen **pertama** `bacaSensitif`. Wajib
+  memasang `access.role("admin")` di depannya dan meminta alasan dari operator
+  lewat UI, bukan mengarang alasan tetap di kode — alasan yang selalu sama tidak
+  menjawab pertanyaan apa pun.
+* **PR-069 (matching)** — pemakai jalur `agregat`. Perlu memanggil `flushAudit()`
+  di akhir setiap batch, jangan bergantung pada hook shutdown saja.
+* **PR-075 (disclosure per lamaran)** — pemakai `purpose: "disclosure"`. Satu
+  peristiwa, satu subjek, satu baris.
+* **PR baru (belum ada nomornya)** — pemindai PII untuk `reason` yang menolak
+  di depan, bila insiden pertama membuktikan pelatihan operator saja tidak cukup.
