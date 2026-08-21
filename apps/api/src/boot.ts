@@ -129,6 +129,22 @@ export async function startApi(options: BootOptions): Promise<void> {
           logger,
         }),
       );
+      // Modul profil dirakit LEBIH DULU daripada dipasang: modul `users` di
+      // bawah membutuhkan bagian ekspor PDP miliknya (PR-038), dan satu-satunya
+      // jalan masuk ke agregator ekspor adalah parameter. Router-nya sendiri
+      // baru dipasang setelah itu — urutan `app.use` tidak berpengaruh, path
+      // ketiganya tidak beririsan.
+      const profiles = createProfilesModule({
+        prisma,
+        routes: routeRegistry.forModule("/api/v1"),
+        // Kunci yang SAMA dengan yang sudah lolos gerbang di index.ts —
+        // modul tidak pernah membaca env sendiri (ADR-007, ADR-015).
+        fieldKeys,
+        auditLog,
+        // Penerbit `profile.updated` (PR-038); pelanggannya lahir di PR-069.
+        events,
+      });
+
       app.use(
         createUsersModule({
           prisma,
@@ -137,6 +153,9 @@ export async function startApi(options: BootOptions): Promise<void> {
           redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
+          // Bagian `profile` berkas ekspor — akun, profil karier, riwayat kerja,
+          // pendidikan, dan keahlian dalam satu berkas (PR-038).
+          contributors: [profiles.exportContributor],
         }),
       );
       app.use(
@@ -149,16 +168,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           events,
         }),
       );
-      app.use(
-        createProfilesModule({
-          prisma,
-          routes: routeRegistry.forModule("/api/v1"),
-          // Kunci yang SAMA dengan yang sudah lolos gerbang di index.ts —
-          // modul tidak pernah membaca env sendiri (ADR-007, ADR-015).
-          fieldKeys,
-          auditLog,
-        }),
-      );
+      app.use(profiles.router);
     },
   });
 

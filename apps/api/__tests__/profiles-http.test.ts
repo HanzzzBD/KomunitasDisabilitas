@@ -32,6 +32,7 @@ import {
   createTokenService,
 } from "../src/core/auth/index.js";
 import { SESSION_KEYS } from "./helpers/session.js";
+import { busUji } from "./helpers/events.js";
 
 const A = "018f4c1e-0000-7000-8000-00000000aaaa";
 const B = "018f4c1e-0000-7000-8000-00000000bbbb";
@@ -178,7 +179,8 @@ async function boot(options: { baris?: BarisProfil[] } = {}) {
           auditLog: (actor, action, entity, entityId, meta) => {
             audit.push({ action, entity, entityId, meta, requestId: actor.requestId });
           },
-        }),
+          events: busUji(),
+        }).router,
       );
     },
   });
@@ -683,14 +685,30 @@ describe("PUT /api/v1/me/profile — validasi taksonomi (AC-5)", () => {
 });
 
 describe("deklarasi akses route (PR-019)", () => {
-  it("kedua route terdaftar dan sama-sama menuntut sesi", async () => {
+  it("seluruh route modul terdaftar dan sama-sama menuntut sesi", async () => {
     const { registry } = await boot();
 
     const daftar = registry.list();
     expect(daftar.map((e) => `${e.method} ${e.path}`).sort()).toEqual([
+      "DELETE /api/v1/me/educations/:id",
+      "DELETE /api/v1/me/experiences/:id",
+      "DELETE /api/v1/me/skills/:id",
+      "GET /api/v1/me/educations",
+      "GET /api/v1/me/experiences",
       "GET /api/v1/me/profile",
+      "GET /api/v1/me/skills",
+      "POST /api/v1/me/educations",
+      "POST /api/v1/me/experiences",
+      "POST /api/v1/me/skills",
+      "PUT /api/v1/me/educations/:id",
+      "PUT /api/v1/me/experiences/:id",
       "PUT /api/v1/me/profile",
+      "PUT /api/v1/me/skills/:id",
     ]);
+    // Termasuk yang ber-param `:id` (PR-038) — `authenticated`, BUKAN `self`.
+    // `:id` adalah id item, dan `requireSelf("id")` akan membandingkannya dengan
+    // userId pemilik sesi lalu menolak setiap permintaan yang sah. Yang menjaga
+    // kepemilikan ada di repository (`where: { id, userId }`).
     for (const entri of daftar) {
       expect(entri.access.kind).toBe("authenticated");
     }
