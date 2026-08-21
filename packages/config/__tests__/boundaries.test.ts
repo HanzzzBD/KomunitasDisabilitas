@@ -48,6 +48,36 @@ describe("preset boundaries (@nawasena/config/eslint/boundaries)", () => {
     expect(ruleIds).toContain("boundaries/element-types");
   });
 
+  it("menolak impor lintas modul yang ditulis dengan penentu `.js` (ESM/NodeNext)", async () => {
+    // KASUS REGRESI, dan inilah yang paling penting di berkas ini.
+    //
+    // SELURUH berkas di `apps/api/src` memakai penentu ber-ekstensi `.js`
+    // (NodeNext); tidak satu pun memakai bentuk tanpa ekstensi yang dipakai
+    // fixture-fixture di atas. Selama hanya bentuk tanpa ekstensi yang diuji,
+    // gerbang ini HIJAU atas kode yang tidak pernah benar-benar diperiksanya:
+    // resolver gagal memetakan `.js` ke berkas `.ts` yang ada, dependensinya
+    // tidak terklasifikasi, dan `boundaries` melewatinya tanpa sepatah kata.
+    //
+    // Kegagalan seperti itu tidak pernah merah — jadi tidak ada yang
+    // menyelidikinya. Test ini yang membuatnya merah.
+    const { ruleIds } = await lintFile(
+      "violations/cross-module-repo/src/modules/jobs/services/jobs-esm.service.ts",
+    );
+    expect(ruleIds).toContain("boundaries/element-types");
+  });
+
+  it("menolak impor BARREL modul lain — repository tidak boleh dijangkau lewat pintu belakang", async () => {
+    // Penyetelan aturan `module-shared` (lihat boundaries.cjs) mengizinkan
+    // `index.ts` menyentuh lapisan modulnya SENDIRI. Test ini menjaga batas
+    // penyetelan itu: izin tersebut TIDAK boleh merembet menjadi "modul A boleh
+    // impor index modul B". Barrel tiap modul mengekspor ulang repository-nya,
+    // jadi jalur itu akan membatalkan seluruh guna aturan nomor 2.
+    const { ruleIds } = await lintFile(
+      "violations/cross-module-barrel/src/modules/jobs/services/jobs.service.ts",
+    );
+    expect(ruleIds).toContain("boundaries/element-types");
+  });
+
   it("menolak impor SDK AI di luar core/ai (external)", async () => {
     const { ruleIds } = await lintFile(
       "violations/ai-sdk-outside-core/src/modules/matching/services/matching.service.ts",
@@ -68,6 +98,10 @@ describe("preset boundaries (@nawasena/config/eslint/boundaries)", () => {
       "src/modules/jobs/controllers/jobs.controller.ts",
       "src/modules/jobs/services/jobs.service.ts",
       "src/modules/jobs/repositories/jobs.repository.ts",
+      // Akar perakitan modul: menyentuh keempat lapisan modulnya sendiri,
+      // dengan penentu `.js` seperti kode sungguhan. Pola inilah yang dipakai
+      // keenam modul di apps/api.
+      "src/modules/jobs/index.ts",
       "src/core/ai/gateway.ts",
     ];
     for (const f of files) {

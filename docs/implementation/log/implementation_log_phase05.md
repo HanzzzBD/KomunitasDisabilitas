@@ -439,6 +439,11 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
 ### Risiko yang ditemukan
 
 * **GERBANG `boundaries/element-types` SELAMA INI TIDAK MEMERIKSA APA PUN.**
+  > **DIPERBAIKI 2026-08-21** — lihat "Perbaikan gerbang `boundaries` —
+  > resolver ESM/NodeNext" di akhir berkas ini. Analisis di bawah terbukti
+  > benar sampai ke sebabnya, termasuk ramalan bahwa memperbaikinya akan
+  > membuat seluruh `modules/*/index.ts` merah sekaligus (42 dari 44 temuan).
+
   Ini temuan paling penting dari PR ini, dan ia **tidak disebabkan PR ini** —
   ia pre-existing sejak PR-002.
 
@@ -1005,3 +1010,144 @@ sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
   linier di budget bundel.
 * **Phase 11 (applications)** — konsumen `disclosureDefault`, yang di halaman ini
   baru bisa disetel. Dialog disclosure per lamaran (PR-075) yang membacanya.
+
+---
+
+## Perbaikan gerbang `boundaries` — resolver ESM/NodeNext
+
+> **Phase:** 05 (di luar backlog; utang yang ditemukan PR-038)
+> **Tanggal:** 2026-08-21
+> **Status:** Selesai — menutup risiko T1 "Erosi arsitektur" (CLAUDE.md §11)
+
+### Ringkasan hasil
+
+PR-038 menemukan bahwa **gerbang `boundaries/element-types` tidak pernah
+memeriksa apa pun** sejak PR-002, dan mencatatnya sebagai utang yang terlalu
+besar untuk ditumpangkan ke PR profil. Ini PR yang membayarnya.
+
+Sebabnya satu baris konfigurasi. `apps/api` memakai `"module": "NodeNext"`,
+sehingga setiap impor relatif WAJIB menyebut ekstensi runtime-nya
+(`./profiles.service.js`) meski berkas di disk adalah `.ts`. Resolver `node`
+tidak memetakan `.js` → `.ts`, jadi **setiap impor relatif di `apps/api` gagal
+di-resolve** — dan dependensi yang gagal di-resolve tidak punya `type`, sehingga
+`dependencyRelationship()` mengembalikan `null` dan aturannya **dilewati
+diam-diam, bukan dilaporkan**. `boundaries/no-unknown` dimatikan di preset, jadi
+tidak ada satu pun sinyal.
+
+Yang tersisa adalah gerbang yang terlihat di repo, disebut di CLAUDE.md §11
+sebagai penjaga risiko T1, dan tidak menjaga apa pun.
+
+### Verifikasi bahwa lubangnya nyata (dilakukan LEBIH DULU)
+
+Dua pembuktian, keduanya sebelum satu baris perbaikan ditulis:
+
+1. **Di preset.** Fixture pelanggaran baru
+   (`violations/cross-module-repo/.../jobs-esm.service.ts`) — pelanggaran yang
+   sama persis dengan fixture yang sudah ada, hanya ditulis dengan penentu
+   `.js`. Hasilnya `expected [] to include 'boundaries/element-types'`: **nol
+   pesan**, bukan pesan yang berbeda.
+2. **Di repo sungguhan.** Ditanam satu impor terlarang di
+   `modules/profiles/services/profiles.service.ts` → repository modul `users`.
+   `pnpm --filter @nawasena/api lint` **exit 0**.
+
+### Perbaikan
+
+**`packages/config/eslint/resolver-ts.cjs`** (baru) — resolver
+`eslint-module-utils` antarmuka v2 yang memetakan penentu ESM ke berkas sumber
+yang sungguhan ada: `./x.js` → `x.ts`/`x.tsx`, berikut bentuk tanpa ekstensi dan
+direktori ber-`index`. Dipasang **sebelum** resolver `node`, yang tetap
+terpasang.
+
+### Keputusan teknis
+
+**D1 — resolver sendiri, BUKAN `eslint-import-resolver-typescript`.** Paket itu
+bisa melakukan pekerjaan yang sama, tetapi ia juga me-resolve paket workspace ke
+sumbernya. `isExternal()` di plugin menilai "eksternal" dari nama DAN dari
+apakah path-nya memuat `node_modules`, jadi memakainya akan mengubah klasifikasi
+seluruh `@nawasena/*` — perubahan perilaku yang jauh melampaui cacat yang sedang
+diperbaiki, di PR yang justru harus sempit. Ia juga menuntut daftar `project`
+tsconfig, sementara fixture preset **sengaja** berada di luar tsconfig mana pun.
+
+**D2 — lingkup resolver sengaja sempit: hanya penentu relatif/absolut.** Penentu
+telanjang (`express`, `@nawasena/schemas`) diserahkan apa adanya ke resolver
+`node` yang tetap terpasang sesudahnya. Artinya klasifikasi "eksternal" — dan
+karenanya seluruh aturan `boundaries/external` (larangan SDK AI, ADR-012) —
+**berperilaku persis seperti sebelum PR ini**. Yang berubah hanya impor relatif
+yang selama ini tak terlihat.
+
+**D3 — `module-shared` kini boleh menyentuh lapisan modulnya SENDIRI, dan itu
+bukan pelemahan.** Setelah resolvernya benar, muncul 44 temuan di 8 berkas.
+**42 di antaranya** adalah pola yang sama: `modules/*/index.ts` merakit router,
+controller, service, dan repository modulnya menjadi satu modul siap pasang.
+
+Pola itu bukan pelanggaran yang luput — ia **template modul yang
+didokumentasikan repo ini sendiri** (CLAUDE.md §5.3), dipakai keenam modul yang
+ada, dan merupakan bentuk DI manual via factory (ADR-002). Aturan yang melarang
+akar perakitan merakit apa pun adalah aturan yang salah, bukan kode yang salah.
+
+Izinnya **dibatasi ke modul yang sama** (`${from.module}`). Itu yang menjaga
+aturan sesungguhnya tetap utuh: `index.ts` modul A tetap tidak bisa menyentuh
+apa pun milik modul B. Dibuktikan tidak hampa — pelanggaran lintas modul ditanam
+sementara di fixture `index.ts`, dan penjaganya menangkapnya dengan pesan yang
+tepat.
+
+**D4 — izin itu SENGAJA TIDAK dibuat dua arah.** Yang tidak ditambahkan:
+"elemen mana pun boleh mengimpor `module-shared` modul LAIN". `index.ts` tiap
+modul **mengekspor ulang repository-nya** (lihat `modules/users/index.ts` baris
+63–70), jadi mengizinkan "modul A boleh impor barrel modul B" akan membuat
+repository modul B terjangkau lewat pintu belakang — persis lubang yang aturan
+nomor 2 ada untuk menutupnya. Ada fixture regresi tersendiri untuk batas ini
+(`violations/cross-module-barrel/`).
+
+**D5 — satu pelanggaran lintas modul yang SUNGGUHAN diperbaiki, bukan
+diizinkan.** Dari 44 temuan, satu bukan pola perakitan dan bukan pelanggaran
+tanaman: `modules/auth/services/retention.service.ts` mengimpor
+`../../users/index.js` untuk tipe `RetentionPolicy`. Impornya diarahkan ke
+berkas service-nya langsung (`../../users/services/retention.service.js`) —
+`RetentionPolicy` memang tinggal di sana, dan antar-modul memang hanya lewat
+lapisan service. Menambah izin agar impor lama itu lolos berarti membuka D4.
+
+### Verifikasi
+
+* **Pelanggaran tanaman ditolak** dengan pesan yang tepat:
+  `File is of type 'service' with module 'profiles'. Dependency is of type
+  'repository' with module 'users'`. Sesudah dibuktikan, berkasnya dikembalikan
+  utuh (`git diff` kosong).
+* **`apps/api` bersih**: 0 temuan `boundaries/*` di seluruh `src`.
+* **Kasus regresi permanen** ditambahkan ke preset, bukan sekadar diperiksa
+  sekali: pelanggaran ber-`.js`, dan impor barrel lintas modul. Fixture perakitan
+  modul (`src/modules/jobs/index.ts`) ikut ditulis dengan penentu `.js`, sehingga
+  fixture-nya kini **menyerupai kode yang dijaganya** — pelajaran yang dicatat
+  PR-038 sebagai sebab lubang ini bertahan begitu lama.
+* Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+  `@nawasena/config` **24** (dari 22), sisanya tak berubah (`api` 850+1 skip,
+  `web` 559, `ui` 173, `api-client` 69, `schemas` 32, `a11y` 74). Drift OpenAPI
+  hijau, build web hijau, Playwright a11y **52/52**.
+
+### Risiko yang ditemukan
+
+* **Barrel modul mengekspor ulang repository.** D4 menutup jalur masuknya dari
+  luar, tetapi keadaan yang membuatnya berbahaya masih ada: `index.ts` tiap modul
+  memang mengekspor `create*Repository`. Hari ini tidak ada yang bisa
+  memanfaatkannya (lintas modul lewat barrel ditolak, dan `boot.ts` sebagai akar
+  perakitan aplikasi memang berhak), tetapi mempersempit permukaan ekspor barrel
+  akan membuat pertahanannya berlapis alih-alih tunggal. Kandidat PR tersendiri;
+  `boundaries/entry-point` dan `boundaries/no-private` — keduanya masih `off` —
+  adalah alat yang tepat untuknya.
+* **`boundaries/no-unknown` masih `off`.** Itulah sebabnya kegagalan resolusi
+  tidak berbunyi selama ini. Menyalakannya akan mengubah setiap dependensi yang
+  tak terklasifikasi menjadi merah — termasuk impor paket workspace dari dalam
+  modul, yang jumlahnya banyak dan semuanya sah. Dibiarkan `off` **untuk
+  sekarang**, dan ini dicatat sebagai keputusan: penjaga terhadap penjaganya
+  kini dipegang oleh kasus regresi di preset, yang akan merah bila resolvernya
+  rusak lagi. Itu lebih sempit daripada `no-unknown`, tetapi ia benar-benar
+  menyala.
+* **Resolver ini dirawat sendiri.** Ia 40 baris tanpa dependensi, tetapi ia tetap
+  kode yang harus ikut berubah bila konvensi impor repo berubah (mis. bila suatu
+  saat memakai `paths` tsconfig). Ditulis apa adanya di berkasnya.
+
+### Next steps
+
+* **Phase 05 → `main`** — utang yang menahannya sudah dibayar.
+* **PR baru (belum ada nomornya)** — persempit permukaan ekspor `modules/*/index.ts`
+  dan pertimbangkan menyalakan `boundaries/entry-point`/`no-private`.
