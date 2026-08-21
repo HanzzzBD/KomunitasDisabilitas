@@ -137,6 +137,20 @@ export const ERROR_CATALOG = {
     message: "Kami belum bisa memastikan identitas Anda saat ini",
     hint: "Coba lagi beberapa saat, atau hubungi kami untuk dibantu menghapus akun",
   },
+  // --- Profil pencari kerja (PR-037) ---
+  // 403, bukan 400: bentuk inputnya sah dan pengguna memang berhak atas
+  // profilnya sendiri — yang belum ada adalah IZIN untuk menyimpan kelas data
+  // ini (UU PDP 27/2022 menuntut consent terpisah dan eksplisit).
+  //
+  // Pesannya sengaja tidak berbunyi "Anda tidak berhak": pengguna TIDAK sedang
+  // melakukan sesuatu yang terlarang, ia hanya belum menyetujui sesuatu yang
+  // memang haknya untuk tidak setujui. Kalimat yang menuduh pada langkah
+  // seperti ini adalah cara tercepat membuat orang berhenti mengisi profilnya.
+  CONSENT_SENSITIF_DIPERLUKAN: {
+    status: 403,
+    message: "Kami belum boleh menyimpan data disabilitas Anda",
+    hint: "Centang dulu persetujuan penyimpanan data disabilitas, lalu simpan lagi",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

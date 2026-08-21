@@ -9,7 +9,12 @@ import {
   paginationQuerySchema,
   pdpPurgeJobSchema,
   requestOtpSchema,
+  safeProfileSchema,
+  seekerProfileResponseSchema,
+  SEEKER_PROFILE_KOSONG,
+  updateSeekerProfileSchema,
   type RequestOtp,
+  type SafeProfile,
 } from "../src/index.js";
 import { renderOpenApiJson, buildOpenApiDocument } from "../src/openapi.js";
 
@@ -86,6 +91,56 @@ describe("amplop respons preferensi aksesibilitas (PR-035)", () => {
   it("menolak amplop yang isinya tidak lengkap", () => {
     const { screenReaderHint: _buang, ...kurang } = ACCESSIBILITY_DEFAULTS;
     expect(accessibilityResponseSchema.safeParse({ data: kurang }).success).toBe(false);
+  });
+});
+
+describe("pemisahan aman/sensitif profil (PR-037)", () => {
+  /** Nama kolom sensitif menurut schema.prisma — sumber kebenarannya. */
+  const SENSITIF = ["disabilityTypes", "accommodationNeeds"];
+
+  it("bagian AMAN tidak punya tempat bagi field sensitif", () => {
+    // Inilah mitigasi risiko PR-037 ("kebocoran via serialisasi tak sengaja")
+    // dalam bentuk yang bisa gagal: `safeProfileSchema` adalah bentuk yang
+    // dipakai response non-pemilik, dan menambahkan field sensitif ke dalamnya
+    // harus menjadi kegagalan yang berisik — bukan keputusan yang lolos review
+    // karena tidak ada yang menyadarinya. PR-039 melanjutkannya ke repository.
+    const kunci = Object.keys(safeProfileSchema.shape);
+    for (const field of SENSITIF) {
+      expect(kunci, `${field} tidak boleh ada di SafeProfile`).not.toContain(field);
+    }
+    // Penjaga anti-hampa: shape yang kosong akan membuat pemeriksaan di atas
+    // hijau tanpa memeriksa apa pun.
+    expect(kunci).toContain("headline");
+    expect(kunci).toContain("disclosureDefault");
+  });
+
+  it("tipe SafeProfile menolak field sensitif secara compile-time", () => {
+    expectTypeOf<SafeProfile>().not.toHaveProperty("disabilityTypes");
+    expectTypeOf<SafeProfile>().not.toHaveProperty("sensitive");
+  });
+
+  it("profil kosong memenuhi kontraknya sendiri", () => {
+    // `SEEKER_PROFILE_KOSONG` adalah jawaban bagi akun yang belum pernah
+    // menyentuh /me/profile. Konstanta yang tidak lolos skemanya sendiri berarti
+    // setiap akun baru menerima jawaban yang ditolak klien.
+    expect(seekerProfileResponseSchema.safeParse({ data: SEEKER_PROFILE_KOSONG }).success).toBe(
+      true,
+    );
+  });
+
+  it("MENOLAK profil telanjang tanpa amplop `{ data }`", () => {
+    expect(seekerProfileResponseSchema.safeParse(SEEKER_PROFILE_KOSONG).success).toBe(false);
+  });
+
+  it("badan PUT kosong sah — tidak ada field yang wajib disebut", () => {
+    // PUT bersifat GABUNG, bukan ganti seluruhnya: klien hanya mengirim bagian
+    // yang ia ubah (form simpan-per-bagian, PR-040).
+    expect(updateSeekerProfileSchema.parse({})).toEqual({});
+  });
+
+  it("string kosong dan spasi menjadi null, bukan tersimpan apa adanya", () => {
+    const parsed = updateSeekerProfileSchema.parse({ headline: "   ", city: "" });
+    expect(parsed).toEqual({ headline: null, city: null });
   });
 });
 

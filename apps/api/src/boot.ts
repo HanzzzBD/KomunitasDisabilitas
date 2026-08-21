@@ -25,6 +25,7 @@ import {
 } from "./modules/auth/index.js";
 import { createUsersModule } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
+import { createProfilesModule } from "./modules/profiles/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -50,7 +51,6 @@ export interface BootOptions {
 /** Rakit seluruh dependensi lalu mulai listen. Melempar bila gagal start. */
 export async function startApi(options: BootOptions): Promise<void> {
   const { env, fieldKeys, sessionKeys, queueConfigs } = options;
-  void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
 
   const logger = createLogger(env);
   const db = createDbClient(env);
@@ -147,6 +147,16 @@ export async function startApi(options: BootOptions): Promise<void> {
           // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk
           // akun yang baru lahir (PR-034).
           events,
+        }),
+      );
+      app.use(
+        createProfilesModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          // Kunci yang SAMA dengan yang sudah lolos gerbang di index.ts —
+          // modul tidak pernah membaca env sendiri (ADR-007, ADR-015).
+          fieldKeys,
+          auditLog,
         }),
       );
     },

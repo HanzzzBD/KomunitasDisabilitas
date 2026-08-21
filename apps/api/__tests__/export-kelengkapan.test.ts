@@ -40,10 +40,17 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  */
 const DITUNDA: Readonly<Record<string, string>> = {
   accessibility_profiles: "modul accessibility (Phase 04) — preferensi UI milik pengguna",
-  seeker_profiles: "PR-037 — termasuk field terenkripsi yang didekripsi hanya untuk pemiliknya (ADR-007)",
-  experiences: "PR-037 — riwayat kerja",
-  educations: "PR-037 — riwayat pendidikan",
-  skills: "PR-037 — daftar keterampilan",
+  // PR-037 membangun modulnya (GET/PUT /me/profile, enkripsi, consent) tetapi
+  // SENGAJA belum mendaftarkan bagian ekspornya. Alasannya bukan kelupaan:
+  // domain profil belum utuh sampai sub-entitas karier lahir di PR-038, dan
+  // ekspor yang memuat "profil" tanpa riwayat kerja/pendidikan/keahlian adalah
+  // ekspor yang tampak lengkap padahal bukan — kegagalan yang justru paling
+  // sulit dilaporkan pengguna. Keempatnya masuk sekaligus di PR-038.
+  seeker_profiles:
+    "PR-038 — termasuk field terenkripsi yang didekripsi hanya untuk pemiliknya (ADR-007); modulnya sudah ada sejak PR-037",
+  experiences: "PR-038 — riwayat kerja, bersama sisa domain profil",
+  educations: "PR-038 — riwayat pendidikan, bersama sisa domain profil",
+  skills: "PR-038 — daftar keterampilan, bersama sisa domain profil",
   resumes: "modul resumes (Phase 09) — CV beserta isinya",
   applications: "modul applications (Phase 12) — riwayat lamaran & status",
   notifications: "modul notifications (Phase 07) — riwayat pemberitahuan",

@@ -114,8 +114,24 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     purpose: z.enum(["selfService", "support", "matching", "disclosure"]),
     fields: z.array(sensitiveFieldSchema).min(1),
   }),
+  // `operation` LAHIR DI PR-037, dan sengaja lahir bersama penulis pertamanya.
+  //
+  // Tanpa field itu, penyimpanan data disabilitas dan PENCABUTAN consent
+  // (yang menghapus data itu) menghasilkan baris audit yang identik. Padahal
+  // pertanyaan yang benar-benar diajukan orang saat menyelidiki adalah
+  // "kapan data saya dihapus?" — dan jejak yang tidak bisa menjawabnya gagal
+  // pada satu-satunya hal yang membuatnya ada.
+  //
+  // Menambahkannya sebagai field WAJIB aman JUSTRU karena dilakukan sekarang:
+  // belum ada satu pun baris PROFILE_SENSITIVE_UPDATED di mana pun, jadi tidak
+  // ada audit lama yang mendadak ditolak sanitizer (bandingkan alasan
+  // AUTH_LOGIN_FAILED di atas, yang sudah punya sejarah).
+  //
+  // `fields` boleh KOSONG di sini: pemberian consent adalah peristiwa PDP yang
+  // layak dicatat meski belum satu field pun diisi.
   [AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED]: z.object({
-    fields: z.array(sensitiveFieldSchema).min(1),
+    operation: z.enum(["consentGranted", "consentRevoked", "fieldsUpdated"]),
+    fields: z.array(sensitiveFieldSchema),
   }),
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: z.object({
     from: applicationStatusSchema,
