@@ -10,8 +10,14 @@
 // `modules/accessibility`: userId SELALU datang dari sesi, TIDAK PERNAH dari
 // input. Tidak ada satu pun fungsi di sini yang punya parameter untuk menyebut
 // pengguna lain — bukan pemeriksaan yang bisa lupa dipasang, melainkan saluran
-// yang tidak ada. Akses non-pemilik (support, matching) lahir di PR-039 lewat
-// jalur tersendiri yang wajib menyertakan alasan.
+// yang tidak ada.
+//
+// Akses non-pemilik (support, matching, disclosure) SUDAH ADA sejak PR-039,
+// tetapi bukan di sini: ia tinggal di `sensitive-access.service.ts`, wajib
+// menyertakan alasan, dan menulis jejaknya sendiri. Aturan di atas karena itu
+// tetap berlaku utuh atas berkas ini — dan pemisahan berkasnya justru yang
+// membuatnya bisa tetap berlaku. Kapan memakai jalur mana:
+// docs/akses-data-sensitif.md.
 import {
   ACCOMMODATION_NEEDS_KOSONG,
   AUDIT_ACTION,
@@ -31,8 +37,15 @@ import type {
   SeekerProfileRow,
 } from "../repositories/profile.repository.js";
 
-/** Entitas audit modul ini (tanpa PII). */
-const AUDIT_ENTITY = "profiles.seeker";
+/**
+ * Entitas audit modul ini (tanpa PII).
+ *
+ * Diekspor untuk `sensitive-access.service.ts` (PR-039): jejak tulis dan jejak
+ * BACA atas data yang sama harus memakai nama entitas yang sama, atau
+ * penyelidikan yang mencari "semua yang terjadi pada profil orang ini" akan
+ * menemukan separuhnya.
+ */
+export const AUDIT_ENTITY = "profiles.seeker";
 
 /** Konteks pemanggil — bentuknya sama dengan `UsersActor` (PR-020). */
 export interface ProfilesActor {
@@ -55,7 +68,7 @@ export interface ProfilesServiceDeps {
 }
 
 /** Nama field sensitif — dipakai patch DB dan meta audit sekaligus. */
-const FIELD_SENSITIF = ["disabilityTypes", "accommodationNeeds"] as const;
+export const FIELD_SENSITIF = ["disabilityTypes", "accommodationNeeds"] as const;
 type FieldSensitif = (typeof FIELD_SENSITIF)[number];
 
 /**
@@ -71,7 +84,7 @@ type FieldSensitif = (typeof FIELD_SENSITIF)[number];
  * Pemetaan eksplisit, bukan spread: andai repository kelak ikut membawa kolom
  * baru, kolom itu tetap tidak punya jalan keluar dari sini.
  */
-function keProfil(row: SeekerProfileRow, crypto: FieldCrypto): SeekerProfile {
+export function keProfil(row: SeekerProfileRow, crypto: FieldCrypto): SeekerProfile {
   const aman = {
     headline: row.headline,
     summary: row.summary,
@@ -114,7 +127,7 @@ export function createProfilesService(deps: ProfilesServiceDeps) {
    * lebih buruk daripada jejak yang tidak ada.
    */
   async function snapshotFor(userId: string): Promise<SeekerProfile> {
-    const row = await profileRepository.findByUserId(userId);
+    const row = await profileRepository.findSensitiveByUserId(userId);
     if (row === null) return { ...SEEKER_PROFILE_KOSONG };
     return keProfil(row, crypto);
   }
@@ -153,7 +166,7 @@ export function createProfilesService(deps: ProfilesServiceDeps) {
      *      perubahan akan berbohong setiap kali transaksinya gagal.
      */
     async updateMe(actor: ProfilesActor, input: UpdateSeekerProfile): Promise<SeekerProfile> {
-      const sebelum = await profileRepository.findByUserId(actor.userId);
+      const sebelum = await profileRepository.findSensitiveByUserId(actor.userId);
       const patch: SeekerProfilePatch = {};
 
       if (input.headline !== undefined) patch.headline = input.headline;

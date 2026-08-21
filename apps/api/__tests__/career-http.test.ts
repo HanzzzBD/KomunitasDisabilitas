@@ -86,12 +86,16 @@ function fakePrisma(isi: { experience: Baris[]; education: Baris[]; skill: Baris
     findUnique: () => Promise.resolve(null),
     upsert: ({ create }: { create: Record<string, unknown> }) => Promise.resolve(create),
   };
+  // Penjaga consent (PR-039) membaca lewat `SELECT … FOR UPDATE`. Berkas ini
+  // tidak menguji jalur sensitif sama sekali — profilnya selalu kosong — jadi
+  // kueri itu cukup dijawab "tidak ada baris".
+  const queryRaw = () => Promise.resolve([]);
   const client = {
     seekerProfile,
     experience: tabel(isi.experience),
     education: tabel(isi.education),
     skill: tabel(isi.skill),
-    $transaction: <T>(fn: (tx: unknown) => Promise<T>) => fn({ seekerProfile }),
+    $transaction: <T>(fn: (tx: unknown) => Promise<T>) => fn({ seekerProfile, $queryRaw: queryRaw }),
   };
   return client as unknown as PrismaClient;
 }

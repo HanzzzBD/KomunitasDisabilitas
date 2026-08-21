@@ -25,6 +25,7 @@ import {
   createSkillsService,
 } from "./services/career.service.js";
 import { createProfileExportContributor } from "./services/profile-export.service.js";
+import { createSensitiveAccess } from "./services/sensitive-access.service.js";
 import { createProfilesController } from "./controllers/profiles.controller.js";
 import { createKarierController } from "./controllers/career.controller.js";
 import { createProfilesRouter } from "./routers/index.js";
@@ -63,14 +64,32 @@ export interface ProfilesModule {
    * ketergantungannya terbaca di composition root, bukan tersembunyi.
    */
   exportContributor: ReturnType<typeof createProfileExportContributor>;
+  /**
+   * Kontrol akses data sensitif terpusat (PR-039).
+   *
+   * BELUM ADA SATU PUN PEMANGGILNYA HARI INI, dan itu disengaja — persis seperti
+   * `core/events` yang lahir sebelum pelanggan pertamanya. Konsumennya sudah
+   * bernama dan sudah terjadwal: admin/support (Phase 13), matching (PR-069),
+   * disclosure per lamaran (PR-075). Yang tidak boleh terjadi adalah ketiganya
+   * lahir lebih dulu, masing-masing membaca kolom sensitif dengan caranya
+   * sendiri, lalu audit dipasang belakangan pada tiga tempat yang sudah
+   * berbeda-beda.
+   *
+   * Dikembalikan, bukan dipasang sebagai route: PR ini TIDAK menambah endpoint
+   * apa pun (lihat dokumen phase — "API Changes: tidak ada, internal").
+   */
+  sensitiveAccess: ReturnType<typeof createSensitiveAccess>;
 }
 
 export function createProfilesModule(deps: ProfilesModuleDeps): ProfilesModule {
   const karier = { events: deps.events };
 
+  const profileRepository = createProfileRepository(deps.prisma);
+  const crypto = createFieldCrypto(deps.fieldKeys);
+
   const profiles = createProfilesService({
-    profileRepository: createProfileRepository(deps.prisma),
-    crypto: createFieldCrypto(deps.fieldKeys),
+    profileRepository,
+    crypto,
     auditLog: deps.auditLog,
     events: deps.events,
   });
@@ -98,6 +117,14 @@ export function createProfilesModule(deps: ProfilesModuleDeps): ProfilesModule {
       educations,
       skills,
     }),
+    // Repository dan crypto yang SAMA dengan yang melayani pemiliknya. Instance
+    // kedua akan berarti dua tempat yang harus sama-sama benar saat kunci
+    // dirotasi (docs/runbook-keys.md).
+    sensitiveAccess: createSensitiveAccess({
+      profileRepository,
+      crypto,
+      auditLog: deps.auditLog,
+    }),
   };
 }
 
@@ -105,6 +132,7 @@ export {
   createProfileRepository,
   type HasilSimpan,
   type ProfileRepository,
+  type SafeProfileRow,
   type SeekerProfilePatch,
   type SeekerProfileRow,
 } from "./repositories/profile.repository.js";
@@ -122,6 +150,7 @@ export {
 } from "./repositories/career.repository.js";
 export {
   createProfilesService,
+  keProfil,
   type ProfilesActor,
   type ProfilesService,
 } from "./services/profiles.service.js";
@@ -136,6 +165,13 @@ export {
   createProfileExportContributor,
   type ProfileExportDeps,
 } from "./services/profile-export.service.js";
+export {
+  createSensitiveAccess,
+  KEBIJAKAN_AUDIT,
+  type SensitiveAccess,
+  type SensitiveAccessDeps,
+  type TujuanAksesLain,
+} from "./services/sensitive-access.service.js";
 export {
   createProfilesController,
   type ProfilesController,

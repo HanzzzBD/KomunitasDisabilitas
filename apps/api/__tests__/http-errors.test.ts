@@ -25,6 +25,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "ALASAN_AKSES_DIPERLUKAN": {
+          "hint": "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
+          "message": "Akses data disabilitas harus menyertakan alasan",
+          "status": 403,
+        },
         "BELUM_SIAP": {
           "hint": "Tunggu sebentar, lalu coba lagi",
           "message": "Layanan sedang tidak siap",
