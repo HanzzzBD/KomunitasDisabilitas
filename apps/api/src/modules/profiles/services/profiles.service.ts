@@ -22,6 +22,7 @@ import {
   type UpdateSeekerProfile,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
+import type { EventBus } from "../../../core/events/index.js";
 import type { FieldCrypto } from "../../../core/crypto/index.js";
 import { appError } from "../../../core/http/index.js";
 import type {
@@ -44,6 +45,11 @@ export interface ProfilesServiceDeps {
   /** Pintu enkripsi field (core/crypto). Kuncinya divalidasi saat boot. */
   crypto: FieldCrypto;
   auditLog: AuditLog;
+  /**
+   * Bus event domain (PR-038). Dipakai untuk menerbitkan `profile.updated` —
+   * pemicu perhitungan ulang embedding di PR-069.
+   */
+  events: EventBus;
   /** Sumber waktu; disuntik test. */
   clock?: () => Date;
 }
@@ -95,8 +101,23 @@ function keProfil(row: SeekerProfileRow, crypto: FieldCrypto): SeekerProfile {
 }
 
 export function createProfilesService(deps: ProfilesServiceDeps) {
-  const { profileRepository, crypto, auditLog } = deps;
+  const { profileRepository, crypto, auditLog, events } = deps;
   const now = deps.clock ?? (() => new Date());
+
+  /**
+   * Profil pemilik TANPA konteks permintaan — dipakai kontributor ekspor PDP
+   * (`profile-export.service.ts`) dan `getMe` di bawah.
+   *
+   * Ada supaya kontributor tidak perlu MENGARANG `requestId` demi memenuhi
+   * bentuk `ProfilesActor`. Id permintaan karangan akan tampak sah di jejak mana
+   * pun ia muncul, dan jejak yang menunjuk permintaan yang tidak pernah ada
+   * lebih buruk daripada jejak yang tidak ada.
+   */
+  async function snapshotFor(userId: string): Promise<SeekerProfile> {
+    const row = await profileRepository.findByUserId(userId);
+    if (row === null) return { ...SEEKER_PROFILE_KOSONG };
+    return keProfil(row, crypto);
+  }
 
   return {
     /**
@@ -113,11 +134,11 @@ export function createProfilesService(deps: ProfilesServiceDeps) {
      * menenggelamkan `PROFILE_SENSITIVE_READ` yang memang perlu jarang —
      * pembacaan oleh pihak LAIN, yang lahir di PR-039.
      */
-    async getMe(actor: ProfilesActor): Promise<SeekerProfile> {
-      const row = await profileRepository.findByUserId(actor.userId);
-      if (row === null) return { ...SEEKER_PROFILE_KOSONG };
-      return keProfil(row, crypto);
+    getMe(actor: ProfilesActor): Promise<SeekerProfile> {
+      return snapshotFor(actor.userId);
     },
+
+    snapshotFor,
 
     /**
      * PUT /me/profile — simpan perubahan sebagian.
@@ -210,6 +231,20 @@ export function createProfilesService(deps: ProfilesServiceDeps) {
       if (memberiConsent) catat("consentGranted", []);
       if (mencabutConsent) catat("consentRevoked", FIELD_SENSITIF);
       if (ditulis.length > 0) catat("fieldsUpdated", ditulis);
+
+      // --- Event ---------------------------------------------------------
+      // SETIAP permintaan yang sampai di sini menerbitkan `profile.updated`,
+      // termasuk yang badannya kosong. Membandingkan "sebelum" dan "sesudah"
+      // untuk menekan event yang tidak mengubah apa pun terdengar rapi, tetapi
+      // perbandingan itu harus ikut menyertakan kolom terenkripsi — yang berarti
+      // mendekripsi dua kali demi menghemat satu pesan yang pelanggannya memang
+      // idempoten (PR-069 menghitung ulang embedding dari keadaan terkini,
+      // bukan dari isi event).
+      events.emit("profile.updated", {
+        userId: actor.userId,
+        section: "profile",
+        updatedAt: now().toISOString(),
+      });
 
       return keProfil(hasil.row, crypto);
     },

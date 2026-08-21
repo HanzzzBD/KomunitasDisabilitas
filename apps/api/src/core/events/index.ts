@@ -21,7 +21,11 @@
 //      lowongannya SUDAH tertutup di database. Membiarkan pelanggan yang gagal
 //      menggagalkan job akan membatalkan pekerjaan yang sudah benar, lalu
 //      mengulanginya — dan pengulangan itu menerbitkan event yang sama lagi.
-import type { JobClosedEvent, UserRegisteredEvent } from "@nawasena/schemas";
+import type {
+  JobClosedEvent,
+  ProfileUpdatedEvent,
+  UserRegisteredEvent,
+} from "@nawasena/schemas";
 import type { Logger } from "../logger/index.js";
 
 /**
@@ -37,6 +41,18 @@ export interface DomainEvents {
   /** Akun baru dibuat (PR-034). Penerbitnya modul auth, DI PROSES API —
    *  jadi pelanggannya pun harus hidup di proses yang sama (batas 1 di atas). */
   "auth.user_registered": UserRegisteredEvent;
+  /**
+   * Profil karier atau salah satu sub-entitasnya berubah (PR-038). Penerbitnya
+   * modul profiles, DI PROSES API. Pelanggan pertamanya belum lahir: perhitungan
+   * ulang embedding profil ada di PR-069.
+   *
+   * Ketika pelanggan itu lahir, batas 2 di atas menjadi penting — event yang
+   * hilang saat proses mati berarti embedding yang tidak pernah dihitung ulang,
+   * dan tidak ada yang akan mencobanya lagi. Konsumen PR-069 karena itu harus
+   * berupa job antrean yang DIPICU event ini, bukan pekerjaan yang dilakukan di
+   * dalam handler-nya.
+   */
+  "profile.updated": ProfileUpdatedEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;

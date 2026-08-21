@@ -12,8 +12,15 @@ import type { UpdateSeekerProfile } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import type { ProfilesActor, ProfilesService } from "../services/profiles.service.js";
 
-/** requestId dari pino-http; fallback bila middleware logger tidak terpasang. */
-function actorOf(req: Request): ProfilesActor {
+/**
+ * requestId dari pino-http; fallback bila middleware logger tidak terpasang.
+ *
+ * Diekspor untuk dipakai `career.controller.ts` — satu-satunya cara controller
+ * modul ini menyusun identitas pemanggil, dan itu memang harus satu-satunya:
+ * fungsi kedua yang "juga" membaca aktor adalah tempat identitas mulai bisa
+ * datang dari badan permintaan.
+ */
+export function actorOf(req: Request): ProfilesActor {
   return {
     userId: authOf(req).userId,
     requestId: typeof req.id === "string" ? req.id : randomUUID(),

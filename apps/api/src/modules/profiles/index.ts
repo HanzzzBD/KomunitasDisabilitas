@@ -10,10 +10,23 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
+import type { EventBus } from "../../core/events/index.js";
 import { createFieldCrypto, type FieldKeys } from "../../core/crypto/index.js";
 import { createProfileRepository } from "./repositories/profile.repository.js";
+import {
+  createEducationRepository,
+  createExperienceRepository,
+  createSkillRepository,
+} from "./repositories/career.repository.js";
 import { createProfilesService } from "./services/profiles.service.js";
+import {
+  createEducationsService,
+  createExperiencesService,
+  createSkillsService,
+} from "./services/career.service.js";
+import { createProfileExportContributor } from "./services/profile-export.service.js";
 import { createProfilesController } from "./controllers/profiles.controller.js";
+import { createKarierController } from "./controllers/career.controller.js";
 import { createProfilesRouter } from "./routers/index.js";
 
 export interface ProfilesModuleDeps {
@@ -29,16 +42,63 @@ export interface ProfilesModuleDeps {
    * pencabutan consent-nya meninggalkan jejak.
    */
   auditLog: AuditLog;
+  /**
+   * Penerbit `profile.updated` (PR-038). Pelanggannya belum ada — perhitungan
+   * ulang embedding lahir di PR-069 — dan bus-nya memang boleh tanpa pelanggan:
+   * `emit` menjadi no-op yang tetap bertipe benar.
+   */
+  events: EventBus;
 }
 
-export function createProfilesModule(deps: ProfilesModuleDeps): Router {
-  const service = createProfilesService({
+export interface ProfilesModule {
+  router: Router;
+  /**
+   * Bagian `profile` berkas ekspor PDP, untuk diserahkan ke `createUsersModule`
+   * (PR-038, utang yang ditinggalkan PR-037).
+   *
+   * DIKEMBALIKAN, tidak didaftarkan sendiri. Agregator ekspornya milik modul
+   * `users`, dan satu-satunya jalan masuk ke sana adalah parameter — bukan
+   * registry global yang bisa diisi kapan saja oleh siapa saja. Akibatnya
+   * boot.ts harus merakit modul ini lebih dulu, dan itu memang yang diinginkan:
+   * ketergantungannya terbaca di composition root, bukan tersembunyi.
+   */
+  exportContributor: ReturnType<typeof createProfileExportContributor>;
+}
+
+export function createProfilesModule(deps: ProfilesModuleDeps): ProfilesModule {
+  const karier = { events: deps.events };
+
+  const profiles = createProfilesService({
     profileRepository: createProfileRepository(deps.prisma),
     crypto: createFieldCrypto(deps.fieldKeys),
     auditLog: deps.auditLog,
+    events: deps.events,
   });
+  const experiences = createExperiencesService(createExperienceRepository(deps.prisma), karier);
+  const educations = createEducationsService(createEducationRepository(deps.prisma), karier);
+  const skills = createSkillsService(createSkillRepository(deps.prisma), karier);
 
-  return createProfilesRouter(createProfilesController(service), deps.routes);
+  return {
+    router: createProfilesRouter(
+      createProfilesController(profiles),
+      {
+        experiences: createKarierController(experiences),
+        educations: createKarierController(educations),
+        skills: createKarierController(skills),
+      },
+      deps.routes,
+    ),
+    // Service yang SAMA dengan yang melayani endpoint — bukan salinan kedua.
+    // Ekspor yang membaca lewat jalur berbeda adalah ekspor yang bisa menyimpang
+    // dari apa yang dilihat pemiliknya di layar, dan tidak ada test yang akan
+    // menangkap perbedaan itu sampai seseorang membandingkan keduanya.
+    exportContributor: createProfileExportContributor({
+      profiles,
+      experiences,
+      educations,
+      skills,
+    }),
+  };
 }
 
 export {
@@ -49,12 +109,39 @@ export {
   type SeekerProfileRow,
 } from "./repositories/profile.repository.js";
 export {
+  createEducationRepository,
+  createExperienceRepository,
+  createSkillRepository,
+  type CareerRepository,
+  type EducationData,
+  type EducationRow,
+  type ExperienceData,
+  type ExperienceRow,
+  type SkillData,
+  type SkillRow,
+} from "./repositories/career.repository.js";
+export {
   createProfilesService,
   type ProfilesActor,
   type ProfilesService,
 } from "./services/profiles.service.js";
 export {
+  createBagianKarier,
+  createEducationsService,
+  createExperiencesService,
+  createSkillsService,
+  type BagianKarier,
+} from "./services/career.service.js";
+export {
+  createProfileExportContributor,
+  type ProfileExportDeps,
+} from "./services/profile-export.service.js";
+export {
   createProfilesController,
   type ProfilesController,
 } from "./controllers/profiles.controller.js";
-export { createProfilesRouter } from "./routers/index.js";
+export {
+  createKarierController,
+  type KarierController,
+} from "./controllers/career.controller.js";
+export { createProfilesRouter, type KarierControllers } from "./routers/index.js";

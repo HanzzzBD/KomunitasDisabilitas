@@ -214,3 +214,314 @@ hijau.
   tepat untuk `SELECT … FOR UPDATE` pada gerbang consent (D2).
 * **PR-040** — form profil multi-bagian di web; consent muncul sebagai pilihan
   eksplisit yang bisa dicabut, bukan checkbox yang tercentang lebih dulu.
+
+---
+
+## PR-038 — Profiles BE: Experiences/Educations/Skills
+
+> **Phase:** [05 - User Profile](../phase-05-user-profile.md#pr-038---profiles-be--experienceseducationsskills)
+> **Tanggal:** 2026-08-21
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Profil karier akhirnya punya isi. Tiga sub-entitas — riwayat kerja, pendidikan,
+dan keahlian — masuk sebagai **dua belas endpoint** di bawah `/api/v1/me/*`,
+masing-masing dengan CRUD penuh. Berbeda dengan PR-037, tidak ada satu pun data
+sensitif di sini: ketiganya data karier biasa, tanpa enkripsi dan tanpa consent.
+
+Yang menggantikan gerbang consent sebagai perhatian utama adalah **kepemilikan**.
+Setiap query di `career.repository.ts` menyebut `userId` bersama `id`, termasuk
+yang sudah punya `id`. Itu bukan pengulangan yang bisa dihemat: tanpa `userId` di
+klausa yang sama, satu-satunya penghalang seseorang mengubah riwayat kerja orang
+lain adalah pemeriksaan di lapisan atas — dan pemeriksaan yang terpisah dari
+query-nya cepat atau lambat lupa dipasang pada satu jalur baru. Di sini jalur yang
+lupa memeriksa **tidak bisa ditulis**: tidak ada fungsi repository yang menerima
+`id` tanpa `userId`. Akibatnya baris milik orang lain berperilaku persis seperti
+baris yang tidak ada — **404, bukan 403**, sebab 403 atas UUID milik orang lain
+memberi tahu penebak bahwa id itu ADA.
+
+Event domain `profile.updated` terbit pada **setiap** mutasi profil maupun
+sub-entitasnya. Pelanggannya belum lahir (perhitungan ulang embedding = PR-069);
+yang ada sekarang adalah kontraknya, dan penerbitnya yang sudah benar.
+
+**Utang PDP yang ditinggalkan PR-037 dibayar di PR ini.** Bagian `profile` berkas
+ekspor kini memuat profil beserta ketiga sub-entitasnya sekaligus — keempat tabel
+pindah dari `DITUNDA` ke `TERDAFTAR` di `export-kelengkapan.test.ts`.
+
+Tidak ada migrasi database (ketiga tabel berdiri sejak PR-010) dan tidak ada
+perubahan frontend (PR-040).
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` 64 berkas / **819 lulus** (1 skip tak terkait),
+`@nawasena/schemas` 32/32, `@nawasena/api-client` 53/53, `@nawasena/web`
+523/523. Drift OpenAPI hijau, build web + budget bundle hijau (112,3 KB /
+200 KB).
+
+> **Temuan di luar scope PR ini, dicatat di sini karena ditemukan di sini:**
+> gerbang `boundaries/element-types` **tidak pernah benar-benar memeriksa kode
+> repo ini**. Lihat "Risiko yang ditemukan" — layak menjadi PR tersendiri.
+
+### Scope selesai
+
+* **`packages/schemas/src/profiles.ts`** (274 → 516 baris) — kontrak bersama:
+  * `dateOnlySchema` — `YYYY-MM-DD`, divalidasi ulang lewat *round-trip* (lihat D3).
+  * `experienceSchema` / `educationSchema` / `skillSchema` + pasangan
+    `create*`/`update*`-nya. Semua `.strict()`; `update*` juga `.partial()`.
+  * `EDUCATION_YEAR_MIN` / `EDUCATION_YEAR_MAX` — batas tahun pendidikan.
+  * `careerItemParamsSchema` — param `:id` (id **item**, bukan id pengguna).
+  * `profileSectionSchema` + `profileUpdatedEventSchema` — kontrak event domain.
+* **`packages/schemas/src/export.ts`** — `exportProfileSchema`, dan field
+  `profile` **wajib** di `dataExportSchema`. `EXPORT_FORMAT_VERSION` tetap 1:
+  menambah bagian adalah perubahan aditif.
+* **`apps/api/src/core/events/index.ts`** — `"profile.updated"` masuk peta
+  `DomainEvents`, berikut catatan bahwa konsumen PR-069 harus berupa job antrean
+  yang dipicu event ini, bukan pekerjaan di dalam handler-nya.
+* **`apps/api/src/modules/profiles/`** — modul PR-037 tumbuh:
+  * `repositories/career.repository.ts` (204) — tiga repository dengan kontrak
+    seragam `CareerRepository<Row, Data>`; urutan bawaan sebagai konstanta.
+  * `services/career.service.ts` (296) — satu alur untuk tiga entitas
+    (`createBagianKarier`) + tiga perakit konkret yang menyuntikkan pemetaan
+    kontrak↔baris dan pemeriksaan tanggal.
+  * `services/profile-export.service.ts` (75) — kontributor bagian `profile`.
+  * `controllers/career.controller.ts` (72), `routers/index.ts` (35 → 105).
+  * `index.ts` (60 → 147) — `createProfilesModule` kini mengembalikan
+    `{ router, exportContributor }`.
+  * `services/profiles.service.ts` — `snapshotFor(userId)` + penerbitan
+    `profile.updated` pada `PUT /me/profile`.
+* **`apps/api/src/boot.ts`** — modul profiles dirakit **sebelum** modul users,
+  supaya kontributor ekspornya bisa diserahkan lewat parameter.
+* **Test:** `career-http.test.ts` (475, 22 test), `career-db.test.ts` (255,
+  7 test), `career-export.test.ts` (174, 7 test), + 9 test kontrak di
+  `packages/schemas`. Total **45 test baru**.
+
+### Keputusan teknis
+
+**D1 — Satu alur untuk tiga entitas, bukan tiga salinan.**
+`createBagianKarier` menampung alur yang identik (pastikan milik pemanggil →
+ubah → terbitkan event); yang berbeda per entitas hanya pemetaan kontrak↔baris
+dan pemeriksaan tambahan, dan ketiganya disuntikkan. Alasannya bukan hemat baris:
+salinan ketiga adalah tempat pemeriksaan kepemilikan atau penerbitan event
+pertama kali terlewat, tanpa satu pun gejala.
+
+**D2 — `access.authenticated()`, bukan `access.self("id")`.**
+`:id` adalah id **item**, bukan id pengguna. `requireSelf("id")` akan
+membandingkannya dengan userId pemilik sesi dan menolak **setiap** permintaan
+yang sah. Kepemilikan dijaga di tempat yang tidak bisa dilewati — klausa `where`
+repository. Dijaga test registry route yang menuntut keempat belas route
+berdeklarasi `authenticated`.
+
+**D3 — Validasi tanggal lewat round-trip, bukan sekadar `new Date`.**
+Pengurai string ISO hanya menuntut hari berada di 01–31 tanpa memeriksa panjang
+bulannya: `2026-02-31` **bukan** menjadi Invalid Date melainkan diam-diam
+bergeser menjadi 3 Maret. Riwayat kerja yang tanggalnya bergeser sendiri adalah
+kesalahan yang tidak akan pernah dilaporkan siapa pun — pemiliknya mengira ia
+salah ingat. Karena itu hasil uraiannya dibaca kembali dan harus sama persis.
+Ditemukan oleh test, bukan oleh review.
+
+**D4 — Urutan tanggal diperiksa DUA kali, di skema dan di service.**
+Yang di skema hanya melihat badan permintaan; permintaan ubah yang hanya
+mengirim `endDate` baru bisa dinilai setelah digabung dengan baris tersimpan.
+Tanpa pemeriksaan gabungan, dua permintaan yang masing-masing sah menghasilkan
+baris yang selesainya mendahului mulainya. Keduanya diuji terpisah.
+
+**D5 — `NULLS LAST` pada urutan bawaan.**
+Riwayat tanpa tanggal bukan riwayat paling baru — ia riwayat yang belum lengkap,
+dan menaruhnya di puncak berarti CV seseorang dibuka oleh baris yang paling
+sedikit ia isi. `id desc` menengahi seri, dan untuk `skills` (tanpa kolom
+tanggal) `id desc` **adalah** urutan terbaru dulu: UUID v7 memuat waktu pembuatan
+di 48 bit pertama (SDD §14). Ada test yang akan merah bila id kelak berganti v4.
+
+**D6 — id dibuat server, `id` di badan permintaan ditolak sebagai field asing.**
+id pilihan klien adalah id yang bisa ditebak, dan baris yang idnya bisa ditebak
+adalah baris yang bisa ditabrak dengan sengaja. `.strict()` juga menolak `userId`
+— percobaan menitipkan kepemilikan lewat badan permintaan berakhir 400, bukan
+diabaikan diam-diam.
+
+**D7 — `updateOwned` memakai dua statement tanpa transaksi.**
+`updateMany` (yang menyaring `userId`) lalu `findFirst`. Satu-satunya yang bisa
+menghapus baris itu di antaranya adalah **pemiliknya sendiri** dari permintaan
+lain, dan 404 pada kasus itu justru jawaban yang benar — barisnya memang sudah
+tidak ada saat jawabannya disusun. Berbeda dengan gerbang consent PR-037, tidak
+ada keadaan berbahaya yang bisa lolos di celah ini.
+
+**D8 — Bagian ekspor: SATU `profile`, bukan empat bagian sejajar.**
+Riwayat kerja, pendidikan, dan keahlian tidak berarti apa-apa lepas dari profil
+yang memilikinya; memecahnya menjadi empat key membuat pembaca berkas merakit
+ulang hubungan yang sudah jelas. Peta di `export-kelengkapan.test.ts` adalah
+tabel→bagian, jadi empat tabel boleh menunjuk bagian yang sama.
+
+**D9 — Bagian sensitif IKUT diekspor, terdekripsi.**
+Itu inti hak portabilitas: data yang paling dilindungi adalah data yang paling
+berhak dibawa pemiliknya. Yang menjaganya tetap milik pemilik adalah
+endpoint-nya (`/me/export`, sesi sendiri) dan gerbang consent yang sudah ada di
+`snapshotFor` — consent dicabut berarti `sensitive: null` tanpa ciphertext-nya
+pernah disentuh.
+
+**D10 — `field profile` WAJIB di `dataExportSchema`, bukan opsional.**
+Setiap akun punya profil; barisnya mungkin belum pernah ditulis, tetapi bentuk
+kosongnya tetap ada. Field opsional berarti ekspor tanpa profil tetap lolos
+validasi — persis kegagalan senyap yang `.strict()` ada untuk cegah. Konsekuensi
+yang dibayar: `users-export*.test.ts` dan fixture `api-client` harus menyediakan
+bagian itu. Itu memang gunanya field wajib.
+
+**D11 — `snapshotFor(userId)` / `listFor(userId)` ditambahkan, bukan mengarang
+`requestId`.** Kontributor ekspor hanya menerima `userId`, sedangkan service
+menerima `ProfilesActor`. Id permintaan karangan akan tampak sah di jejak mana
+pun ia muncul, dan jejak yang menunjuk permintaan yang tidak pernah ada lebih
+buruk daripada jejak yang tidak ada.
+
+**D12 — `effectType: "same"` pada transform zod, DAN urutan `.nullable()` diubah
+supaya pernyataan itu benar.** Skema akomodasi ikut terbawa ke dokumen OpenAPI
+begitu `/me/export` memuat profil, dan zod-openapi tidak bisa menentukan tipe
+`ZodEffects` — pembuatan dokumen **gagal**, bukan sekadar kurang rapi. Alih-alih
+menempelkan `effectType` sebagai mantra, `.nullable()` dipindah ke **sebelum**
+`.transform()`: perilakunya identik (null tetap null, string kosong tetap menjadi
+null) tetapi tipe masuk dan keluar menjadi sama-sama `string | null`, sehingga
+`"same"` menjadi pernyataan yang benar. Ditangkap `typecheck`, bukan review.
+
+**D13 — `openapi.ts` tetap tidak memuat path `/me/*` profil.**
+Mengikuti preseden PR-034 dan PR-037. Yang berubah: bagian `profile` kini muncul
+di dokumen **lewat** response `/me/export`, jadi seluruh skema karier sudah
+terdokumentasi sebagai komponen meski endpoint-nya belum. Utangnya menyusut,
+tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
+
+### Utang yang SENGAJA ditinggalkan
+
+* **Path `/me/experiences`, `/me/educations`, `/me/skills` belum masuk
+  `openapi.ts`.** Ini utang yang **bertambah** dua PR berturut-turut (PR-037
+  menundanya, PR-038 mengikutinya), dan layak disebut sebagai utang alih-alih
+  konvensi: dua belas endpoint yang tidak terdokumentasi adalah dua belas
+  endpoint yang klien mobile (Phase 15) tidak bisa hasilkan client-nya secara
+  otomatis. Waktu yang tepat membayarnya adalah saat konsumen pertamanya lahir
+  (PR-040), supaya dokumennya ditulis terhadap pemakaian yang nyata.
+* **`SELECT … FOR UPDATE` pada gerbang consent PR-037** — masih ditunda ke
+  PR-039, tidak tersentuh PR ini.
+* **Batas panjang daftar belum ada.** Tidak ada batas jumlah riwayat kerja,
+  pendidikan, atau keahlian per pengguna, dan `GET` mengembalikan seluruhnya
+  tanpa pagination. Untuk MVP (< 5.000 pengguna, daftar yang diisi tangan) itu
+  memadai; yang akan menjadikannya masalah adalah klien otomatis, dan
+  penjagaannya adalah rate limit — Phase 17.
+
+### Verifikasi
+
+* **AC-1 (CRUD + otorisasi)** diuji berparameter untuk **ketiga** entitas
+  sekaligus: siklus penuh buat→baca→ubah→hapus, ditambah kasus kepemilikan yang
+  memeriksa dua hal terpisah — permintaannya ditolak 404, **dan** barisnya
+  benar-benar tidak tersentuh. Diuji lagi terhadap PostgreSQL sungguhan di
+  `career-db.test.ts`.
+* **Tabel palsu di `career-http.test.ts` sengaja MENGABAIKAN `select`,** sehingga
+  baris yang kembali membawa `userId` — kolom yang tidak boleh muncul di
+  response. Fake yang menghormati `select` akan menyembunyikannya dan membuat
+  pemetaan eksplisit di service tampak tidak perlu diuji. Ada assertion khusus
+  bahwa `userId` tidak bocor.
+* **AC-2 (`profile.updated`)** diuji lewat **pelanggan bus sungguhan**, bukan
+  mata-mata atas `emit`: yang ingin dibuktikan adalah pelanggan menerima payload
+  yang benar. Diuji tiga arah — terbit pada create/update/delete, membawa
+  `section` yang sesuai entitasnya, dan **tidak** terbit saat mutasinya gagal.
+* **AC-3 (validasi)** — 7 test: urutan tanggal dalam satu permintaan dan
+  terpisah, tanggal yang tidak ada di kalender, panjang teks, field asing, batas
+  tahun pendidikan, teks wajib yang hanya berisi spasi.
+* **AC-4 (urutan)** diuji **hanya** terhadap PostgreSQL sungguhan — yang
+  menjalankannya `ORDER BY … NULLS LAST`, yang tidak punya padanan di fake.
+* **AC-5 (cascade delete)** diuji dengan menghapus akun lalu menghitung baris
+  ketiga tabel. Yang menjalankannya FK `ON DELETE CASCADE` di migrasi 02, bukan
+  satu baris kode pun — tanpa test ini, penghapusan akun akan meninggalkan
+  riwayat kerja seseorang di database setelah ia meminta datanya hilang, tanpa
+  satu pun error.
+* **Kontributor ekspor** diuji sampai ke bentuk berkas penuh: bagiannya lolos
+  `dataExportSchema.parse`, data sensitif ikut terdekripsi, consent yang dicabut
+  menghasilkan `sensitive: null` (bukan key yang hilang), dan keempat sumbernya
+  menerima `userId` yang sama.
+* **Registry route** diuji mendeklarasikan tepat empat belas route, seluruhnya
+  `authenticated`.
+
+### Risiko yang ditemukan
+
+* **GERBANG `boundaries/element-types` SELAMA INI TIDAK MEMERIKSA APA PUN.**
+  Ini temuan paling penting dari PR ini, dan ia **tidak disebabkan PR ini** —
+  ia pre-existing sejak PR-002.
+
+  Ditemukan tidak sengaja: Windows Defender menandai
+  `eslint-plugin-boundaries/index.js` sebagai malware (false positive) dan
+  menghapusnya, sehingga `pnpm lint` untuk `apps/api` gagal memuat plugin. Saat
+  memulihkannya (berkas entry-nya hanya `module.exports = require("./src/index")`
+  — 41 byte, ditulis ulang tangan), pemeriksaan "apakah gerbangnya benar-benar
+  bekerja" dilakukan dengan menaruh pelanggaran sengaja: satu service modul
+  `profiles` yang mengimpor repository modul `users`. **Lint tetap hijau.**
+
+  Sebabnya resolusi impor. Seluruh kode repo ini memakai penentu ESM
+  ber-ekstensi (`from "../../users/repositories/user.repository.js"`), sedangkan
+  `import/resolver` di preset hanya `node` dengan daftar ekstensi — resolver itu
+  mencari berkas `user.repository.js` yang memang tidak ada (aslinya `.ts`),
+  gagal, lalu boundaries **melewati** dependensi yang tidak bisa ia klasifikasi.
+  `boundaries/no-unknown` dimatikan di preset, jadi tidak ada satu pun sinyal.
+  Pelanggaran yang sama TANPA `.js` langsung terdeteksi — itulah yang
+  membuktikan lubangnya.
+
+  Fixture penjaga presetnya (`packages/config/fixtures/`) semuanya memakai impor
+  **tanpa ekstensi**, jadi keempat test preset lulus sempurna sambil menjaga
+  konfigurasi yang tidak berlaku bagi kode sungguhan. Ini pelajarannya:
+  **penjaga yang diuji terhadap fixture yang tidak menyerupai kode yang
+  dijaganya tidak menjaga apa pun.**
+
+  PR ini **tidak** memperbaikinya: menyalakan resolver yang benar (mis.
+  `eslint-import-resolver-typescript`) akan membuat seluruh `modules/*/index.ts`
+  merah sekaligus — preset tidak mengizinkan `module-shared` merakit lapisannya
+  sendiri, pola yang dipakai SETIAP modul di repo ini. Itu perubahan preset +
+  audit menyeluruh, bukan tumpangan di PR profil.
+
+  **Yang sudah diperiksa untuk PR ini:** modul `profiles` di-lint dengan
+  ekstensi `.js` dilepas sementara, sehingga aturan boundaries benar-benar
+  berjalan. Hasilnya 8 pelanggaran, **seluruhnya** pola `module-shared` →
+  lapisan sendiri di `index.ts` yang sama dengan modul lain; impor lintas modul
+  satu-satunya milik PR ini —
+  `profile-export.service.ts` → `users/services/export.service.js` — **bersih**,
+  sesuai aturan service→service. Setelah pemeriksaan, berkasnya dikembalikan.
+
+  Risiko yang tersisa dicatat apa adanya: T1 "Erosi arsitektur" di CLAUDE.md §11
+  bersandar pada gerbang ini, dan gerbang itu sedang tidak menjaga apa-apa.
+* **`career-db.test.ts` dilewati diam-diam bila DB tidak terjangkau** (pola sama
+  dengan PR-037). Di lokal tanpa Docker, AC-4 dan AC-5 **tidak benar-benar
+  diperiksa** meski `pnpm test` hijau. Sudah dijalankan dan lulus 7/7 terhadap
+  PostgreSQL sungguhan sebelum PR ini dikirim.
+* **`2026-02-31` sempat lolos validasi** dan akan tersimpan sebagai 3 Maret.
+  Ditemukan test, bukan review. Dicatat karena pelajarannya umum: `new Date`
+  atas string ISO **bukan** validator tanggal.
+* **Gerbang `a11y` di CI merah pada percobaan pertama, dan itu benar.** Tiga
+  test e2e `apps/web/e2e/ekspor-data.spec.ts` gagal karena berkas ekspor tiruan
+  di `palsukan-api.ts` belum memuat bagian `profile` yang kini wajib; klien
+  memarse jawabannya terhadap `dataExportSchema`, jadi tombol "Unduh data saya"
+  ditekan dan **tidak terjadi apa-apa** — persis kegagalan senyap yang berkas
+  test itu ada untuk menangkap. Diperbaiki dengan melengkapi berkas tiruannya.
+  Yang layak dicatat: `pnpm test` **tidak** menjalankan Playwright, jadi
+  regresi ini tidak mungkin terlihat dari gerbang lokal mana pun — satu-satunya
+  cara menemukannya lebih awal adalah menjalankan `test:a11y` sendiri, dan itu
+  kini dilakukan (43/43 lulus di lokal sebelum push kedua).
+* **Perubahan kontrak ekspor merembet ke tiga berkas test di luar modul ini**
+  (`users-export.test.ts`, `users-export-http.test.ts`,
+  `packages/api-client/__tests__/users.test.ts`). Itu bukan gangguan melainkan
+  penjaga yang bekerja: bagian ekspor yang wajib memang harus membuat setiap
+  perakit berkas gagal sampai ia menyediakannya. Yang perlu diperhatikan justru
+  arah sebaliknya — kontributor stub di berkas-berkas itu memenuhi kontrak tanpa
+  membuktikan isinya, jadi isi sungguhannya diuji terpisah di
+  `career-export.test.ts`.
+* **Manual verification (`curl`) pada Testing Checklist belum dijalankan
+  seseorang.** Yang setara sudah otomatis dan lebih kuat (22 test HTTP terhadap
+  server Express sungguhan dengan token RS256 nyata), tetapi kolomnya tetap
+  ditandai jujur sebagai belum ada pemeriksaan tangan.
+
+### Next steps
+
+* **PR-039** — pemisahan akses safe/sensitive ber-audit; sekaligus tempat yang
+  tepat untuk `SELECT … FOR UPDATE` pada gerbang consent (PR-037 D2).
+* **PR-040** — form profil multi-bagian di web; konsumen pertama kedua belas
+  endpoint ini, dan waktu yang tepat mendaftarkannya di `openapi.ts`.
+* **PR baru (belum ada nomornya)** — memperbaiki resolusi impor
+  `eslint-plugin-boundaries` supaya gerbang arsitektur benar-benar berjalan,
+  berikut amandemen preset untuk pola `module-shared` → lapisan sendiri, dan
+  audit atas pelanggaran yang selama ini tak terlihat. Fixture presetnya wajib
+  ikut memakai penentu ber-ekstensi `.js`.
+* **PR-069** — pelanggan `profile.updated`: perhitungan ulang embedding profil.
+  Harus berupa job antrean yang dipicu event, bukan pekerjaan di dalam
+  handler-nya — bus ini in-process dan tanpa persistensi.

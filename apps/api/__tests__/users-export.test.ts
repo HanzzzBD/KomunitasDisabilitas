@@ -5,7 +5,12 @@
 // kontrak. Bentuk berkas yang benar-benar sampai ke klien diuji lewat HTTP
 // (users-export-http.test.ts).
 import { describe, it, expect, vi } from "vitest";
-import { AUDIT_ACTION, EXPORT_FORMAT_VERSION } from "@nawasena/schemas";
+import {
+  AUDIT_ACTION,
+  EXPORT_FORMAT_VERSION,
+  SEEKER_PROFILE_KOSONG,
+  type ExportProfile,
+} from "@nawasena/schemas";
 import { AppError } from "../src/core/http/index.js";
 import {
   createAccountContributor,
@@ -38,6 +43,25 @@ function barisAkun(ubah: Partial<ExportAccountRow> = {}): ExportAccountRow {
     ...ubah,
   };
 }
+
+/**
+ * Bagian `profile` sekadar cukup untuk memenuhi kontrak (PR-038).
+ *
+ * Berkas ekspor kini WAJIB memuatnya, jadi test yang merakit ekspor harus
+ * menyediakannya — dan itu memang gunanya field wajib. Isi sungguhannya diuji di
+ * career-export.test.ts; di sini yang diuji adalah agregatornya.
+ */
+const PROFIL_KOSONG: ExportProfile = {
+  ...SEEKER_PROFILE_KOSONG,
+  experiences: [],
+  educations: [],
+  skills: [],
+};
+
+const kontributorProfil: ExportContributor = {
+  bagian: "profile",
+  kumpulkan: async () => PROFIL_KOSONG,
+};
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
 function fakeRedis(): ExportRedisLike & { nilai: Map<string, number>; ttlNilai: Map<string, number> } {
@@ -75,6 +99,7 @@ function rakit(options: { contributors?: readonly ExportContributor[]; redis?: E
   const service = createExportService({
     contributors: options.contributors ?? [
       createAccountContributor({ findAccountForExport: async () => barisAkun() }),
+      kontributorProfil,
     ],
     quotaRepository: createExportQuotaRepository(redis),
     auditLog: audit.auditLog,
@@ -153,6 +178,7 @@ describe("agregator ekspor", () => {
     const { service } = rakit({
       contributors: [
         createAccountContributor({ findAccountForExport: async () => barisAkun() }),
+        kontributorProfil,
         { bagian: "resumes", kumpulkan: async () => [{ id: "cv-1" }] },
       ],
     });
@@ -162,7 +188,10 @@ describe("agregator ekspor", () => {
 
   it("kontributor yang menghasilkan bentuk salah juga menggagalkan", async () => {
     const { service } = rakit({
-      contributors: [{ bagian: "account", kumpulkan: async () => ({ id: "bukan-uuid" }) }],
+      contributors: [
+        { bagian: "account", kumpulkan: async () => ({ id: "bukan-uuid" }) },
+        kontributorProfil,
+      ],
     });
 
     await expect(service.exportMe(actor)).rejects.toThrow();
@@ -175,7 +204,7 @@ describe("agregator ekspor", () => {
 
     const berkas = await service.exportMe(actor);
 
-    expect(Object.keys(berkas)).toEqual(["formatVersion", "exportedAt", "account"]);
+    expect(Object.keys(berkas)).toEqual(["formatVersion", "exportedAt", "account", "profile"]);
   });
 });
 
@@ -189,7 +218,11 @@ describe("audit ekspor", () => {
     expect(audit.entri[0]).toMatchObject({
       action: AUDIT_ACTION.DATA_EXPORTED,
       entityId: USER_ID,
-      meta: { format: "json", formatVersion: EXPORT_FORMAT_VERSION, sections: ["account"] },
+      meta: {
+        format: "json",
+        formatVersion: EXPORT_FORMAT_VERSION,
+        sections: ["account", "profile"],
+      },
     });
   });
 
@@ -240,7 +273,7 @@ describe("kuota ekspor", () => {
     // biaya penyalahgunaan tetap dibayar server.
     const dasar = createAccountContributor({ findAccountForExport: async () => barisAkun() });
     const kumpulkan = vi.fn((userId: string) => dasar.kumpulkan(userId));
-    const { service } = rakit({ contributors: [{ bagian: "account", kumpulkan }] });
+    const { service } = rakit({ contributors: [{ bagian: "account", kumpulkan }, kontributorProfil] });
 
     for (let i = 0; i < EXPORT_POLICY.maxPerWindow; i += 1) await service.exportMe(actor);
     expect(kumpulkan).toHaveBeenCalledTimes(EXPORT_POLICY.maxPerWindow); // spy benar tersambung

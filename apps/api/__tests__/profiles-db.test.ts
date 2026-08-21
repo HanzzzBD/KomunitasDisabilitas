@@ -23,6 +23,7 @@ import {
   type ProfilesActor,
 } from "../src/modules/profiles/services/profiles.service.js";
 import { AppError } from "../src/core/http/index.js";
+import { busUji } from "./helpers/events.js";
 
 const prisma = new PrismaClient();
 let dbTersedia = false;
@@ -43,6 +44,9 @@ const service = createProfilesService({
   profileRepository: createProfileRepository(prisma as unknown as AppPrisma),
   crypto,
   auditLog: (_actor, action, _entity, _entityId, meta) => audit.push({ action, meta }),
+  // Bus nyata tanpa pelanggan (PR-038): `emit` menjadi no-op yang tetap bertipe
+  // benar. Yang menguji penerbitannya adalah career-http.test.ts.
+  events: busUji(),
 });
 
 /** Nomor uji berprefiks khusus supaya pembersihan tidak menyentuh data lain. */
