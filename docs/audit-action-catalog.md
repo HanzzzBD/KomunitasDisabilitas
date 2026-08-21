@@ -7,7 +7,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `AUTH_REFRESH_REUSED` | Refresh token tercabut dipakai lagi — indikasi pencurian | `revokedCount` |
 | `ACCOUNT_EMAIL_CHANGED` | Pemilik mengubah/mengosongkan email akun | `hadPreviousEmail`, `cleared` |
 | `PROFILE_SENSITIVE_READ` | Baca data disabilitas/akomodasi | `purpose`, `fields` |
-| `PROFILE_SENSITIVE_UPDATED` | Ubah data disabilitas/akomodasi | `fields` |
+| `PROFILE_SENSITIVE_UPDATED` | Simpan/hapus data disabilitas/akomodasi, dan pemberian/pencabutan consent-nya | `operation`, `fields` |
 | `APPLICATION_STATUS_CHANGED` | Perubahan status lamaran | `from`, `to` |
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
 | `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |
@@ -20,5 +20,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 Jangan masukkan nama, telepon, email, nilai disabilitas, kebutuhan akomodasi, token, atau nilai field sensitif lain ke `meta`. Katalog dipetakan pada PR modul terkait; baca massal dicatat per-job, bukan per-record.
 
 Perhatikan `ACCOUNT_DELETED`: `stage` dibaca sebagai **rangkaian**, bukan tiga kejadian lepas. `rejected` berulang atas satu akun berarti ada yang memegang access token-nya tetapi tidak memegang kredensialnya; `requested` tanpa `completed` berarti pembuktian lolos tetapi transaksi penghapusan gagal — akun itu perlu diperiksa tangan sebelum purge (PR-023).
+
+Perhatikan `PROFILE_SENSITIVE_UPDATED`: `operation` membedakan tiga peristiwa yang berbeda arah — `consentGranted` (pengguna mengizinkan penyimpanan data disabilitas), `fieldsUpdated` (isinya berubah), dan `consentRevoked` (izin dicabut, dan seluruh field sensitif DIHAPUS). Tanpa pembedaan itu, "kapan data saya dihapus?" tidak bisa dijawab dari audit — dan itu justru pertanyaan yang membuat jejak ini ada. Satu permintaan boleh menghasilkan DUA baris (mis. memberi consent sekaligus mengisi data); keduanya berbagi `requestId`.
 
 Perhatikan `ACCOUNT_EMAIL_CHANGED`: yang dicatat adalah **fakta perubahannya**, bukan alamatnya. `audit_logs` bertahan 2 tahun (SDD §6.4) — menaruh email di sana berarti menyimpan PII jauh melewati baris yang memilikinya. Alamat saat ini selalu bisa dibaca dari `users` lewat jalur yang punya kontrol aksesnya sendiri.
