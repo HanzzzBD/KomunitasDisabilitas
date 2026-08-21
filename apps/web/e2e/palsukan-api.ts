@@ -38,6 +38,37 @@ const BERKAS_UJI = {
   formatVersion: 1,
   exportedAt: "2026-01-15T20:00:00.000Z",
   account: { ...PROFIL_UJI, emailVerified: true, authMethods: ["otp"] },
+  // Bagian `profile` WAJIB sejak PR-038 — profil karier beserta riwayat kerja,
+  // pendidikan, dan keahlian. Klien memarse jawabannya terhadap
+  // `dataExportSchema`, jadi berkas uji yang kekurangan bagian wajib tidak
+  // menghasilkan unduhan sama sekali: tombolnya ditekan dan tidak terjadi
+  // apa-apa. Itulah yang menjatuhkan ketiga test di berkas ini saat bagiannya
+  // ditambahkan ke kontrak.
+  profile: {
+    headline: "Analis data",
+    summary: null,
+    city: "Yogyakarta",
+    province: null,
+    openToRemote: true,
+    disclosureDefault: "ask_each_time",
+    // Consent tidak diberikan → `sensitive` null. Bukan sekadar bentuk yang
+    // paling mudah: berkas uji yang memuat data disabilitas akan menyalinnya ke
+    // artefak CI setiap kali test ini gagal.
+    consentSensitiveAt: null,
+    sensitive: null,
+    experiences: [
+      {
+        id: "01912345-89ab-7def-8123-4567890abc01",
+        title: "Analis Data",
+        company: "PT Contoh",
+        startDate: "2020-01-15",
+        endDate: null,
+        description: null,
+      },
+    ],
+    educations: [],
+    skills: [],
+  },
 } as const;
 
 /**

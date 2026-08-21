@@ -488,6 +488,16 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
 * **`2026-02-31` sempat lolos validasi** dan akan tersimpan sebagai 3 Maret.
   Ditemukan test, bukan review. Dicatat karena pelajarannya umum: `new Date`
   atas string ISO **bukan** validator tanggal.
+* **Gerbang `a11y` di CI merah pada percobaan pertama, dan itu benar.** Tiga
+  test e2e `apps/web/e2e/ekspor-data.spec.ts` gagal karena berkas ekspor tiruan
+  di `palsukan-api.ts` belum memuat bagian `profile` yang kini wajib; klien
+  memarse jawabannya terhadap `dataExportSchema`, jadi tombol "Unduh data saya"
+  ditekan dan **tidak terjadi apa-apa** — persis kegagalan senyap yang berkas
+  test itu ada untuk menangkap. Diperbaiki dengan melengkapi berkas tiruannya.
+  Yang layak dicatat: `pnpm test` **tidak** menjalankan Playwright, jadi
+  regresi ini tidak mungkin terlihat dari gerbang lokal mana pun — satu-satunya
+  cara menemukannya lebih awal adalah menjalankan `test:a11y` sendiri, dan itu
+  kini dilakukan (43/43 lulus di lokal sebelum push kedua).
 * **Perubahan kontrak ekspor merembet ke tiga berkas test di luar modul ini**
   (`users-export.test.ts`, `users-export-http.test.ts`,
   `packages/api-client/__tests__/users.test.ts`). Itu bukan gangguan melainkan
