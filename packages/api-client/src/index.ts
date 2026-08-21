@@ -23,5 +23,20 @@ export {
   updateAccessibility,
   accessibilityKeys,
 } from "./endpoints/accessibility.js";
+export {
+  getProfile,
+  updateProfile,
+  experiencesApi,
+  educationsApi,
+  skillsApi,
+  profilesKeys,
+  type BagianKarierApi,
+  type BuatPengalaman,
+  type UbahPengalaman,
+  type BuatPendidikan,
+  type UbahPendidikan,
+  type BuatKeahlian,
+  type UbahKeahlian,
+} from "./endpoints/profiles.js";
 export { deleteAccount } from "./endpoints/account.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

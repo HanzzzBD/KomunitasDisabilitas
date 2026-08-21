@@ -11,7 +11,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { gabungKelas } from "./gabung-kelas.js";
 
-export type VarianTombol = "utama" | "sekunder" | "hening";
+export type VarianTombol = "utama" | "sekunder" | "hening" | "bahaya";
 export type UkuranTombol = "sedang" | "kecil";
 
 export interface TombolProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -38,6 +38,20 @@ const VARIAN: Record<VarianTombol, string> = {
   // terlihat pada mode kontras tinggi maupun cetak.
   sekunder: "bg-white text-gray-900 border border-gray-400 hover:bg-gray-100",
   hening: "bg-transparent text-gray-900 hover:bg-gray-100",
+  // 5,9:1 (putih di atas red-700) — di atas ambang AA untuk teks normal.
+  //
+  // DIPROMOSIKAN DI PR-040, setelah pemakai KEDUANYA lahir. `dialog-hapus-akun.tsx`
+  // (PR-033c-1) menuliskan kelas yang sama sebagai konstanta lokal beserta
+  // catatan bahwa varian ini "menunggu pemakai kedua" — satu pemakai belum cukup
+  // untuk menetapkan bentuknya. Pemakai kedua itu adalah pencabutan consent data
+  // disabilitas, dan dua salinan kelas warna adalah dua salinan yang cepat atau
+  // lambat berbeda kontrasnya.
+  //
+  // WARNANYA PENGUAT, BUKAN PENANDA UTAMA: WCAG 1.4.1 melarang menyandarkan makna
+  // pada warna saja, dan yang benar-benar membedakan tombol ini adalah LABELNYA
+  // ("Ya, hapus data saya", bukan "OK"). Varian ini tidak membebaskan pemakainya
+  // dari kewajiban itu.
+  bahaya: "bg-red-700 text-white hover:bg-red-800",
 };
 
 /**

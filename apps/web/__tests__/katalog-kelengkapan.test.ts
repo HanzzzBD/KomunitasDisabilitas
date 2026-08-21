@@ -143,12 +143,90 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   // itu; menamainya lain di mode sederhana berarti pengguna menekan satu kata
   // lalu mendarat di halaman berjudul kata yang lain.
   "shell.pintas.label":
-    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata, " +
-    "salah satunya istilah produk yang tidak disederhanakan.",
+    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata " +
+    "sehari-hari sejak PR-040 ('Pintasan halaman'); tidak ada bentuk yang lebih sederhana.",
   "shell.pintas.aksesibilitas":
     "Label tautan dua kata yang keduanya muncul lagi di halaman tujuan ('Pengaturan' sebagai " +
     "judul halaman, 'Aksesibilitas' sebagai judul panel). Pengguna mencocokkan kata yang tadi " +
     "ia tekan — mengubahnya di mode sederhana justru memutus pencocokan itu.",
+
+  // --- profil (PR-040) ---
+  // Pola yang sama dengan auth, pengaturan, dan onboarding: yang tersisa
+  // identik di sini adalah LABEL dan POLA KALIMAT, bukan penjelasan. SETIAP
+  // penjelasan di katalog profil punya varian sederhananya sendiri — dan itu
+  // yang paling menentukan, sebab bagian tengah halaman ini meminta data
+  // disabilitas seseorang.
+  //
+  // Satu kelompok perlu dibaca dua kali, yaitu label pencabutan consent. Ia
+  // sengaja identik di kedua varian: kalimatnya menyebut akibatnya secara
+  // harfiah ("hapus data saya"), dan satu-satunya cara memendekkannya adalah
+  // MENGABURKAN apa yang akan terjadi. Pada tindakan yang menghapus data
+  // tentang tubuh seseorang, kabur jauh lebih berbahaya daripada panjang —
+  // penalaran yang sama persis dengan `pengaturan.hapus.tombol`.
+  "profil.cobaLagi": "Label tombol dua kata, sama dengan `shell.luring.cobaLagi`.",
+  "profil.aksi.simpan":
+    "Label tombol tiga kata sehari-hari. Ia muncul di SETIAP bagian halaman ini; " +
+    "dua kata berbeda untuk tombol yang sama membuat pengguna menyangka bagiannya berbeda pula.",
+  "profil.status.tersimpan":
+    "Pola pengumuman, bukan kalimat: isinya hanya nama bagian, dan nama itu sudah " +
+    "disederhanakan di kuncinya masing-masing.",
+  "profil.dasar.judul": "Label dua kata sehari-hari; nama bagian tidak punya bentuk lebih sederhana.",
+  "profil.dasar.headline":
+    "Label dua kata sehari-hari. Penjelasannya ada di `profil.dasar.headlineBantuan`, " +
+    "yang PUNYA varian sederhananya sendiri.",
+  "profil.dasar.kota": "Satu kata sehari-hari.",
+  "profil.dasar.provinsi": "Satu kata sehari-hari.",
+  "profil.dasar.disclosureNever": "Dua kata sehari-hari; pilihan paling tegas, dan ketegasannya justru terletak pada kependekannya.",
+  "profil.dasar.disclosureSelalu": "Tiga kata sehari-hari, sudah menyebut akibatnya secara harfiah.",
+  "profil.sensitif.penanda":
+    "Penanda dua kata yang dibacakan screen reader. Ia harus SAMA di kedua varian: pengguna " +
+    "yang berpindah mode dan melihat penanda berganti nama tidak punya cara memastikan " +
+    "penandanya menandai hal yang sama.",
+  "profil.sensitif.cabut":
+    "Menyebut akibatnya secara harfiah ('tarik izin dan hapus data ini'). Menyederhanakannya " +
+    "hanya bisa dengan mengaburkan salah satu dari dua akibat itu.",
+  "profil.sensitif.cabutKonfirmasi":
+    "Pertanyaan empat kata sehari-hari yang menyebut persis apa yang akan terjadi.",
+  "profil.sensitif.cabutYa":
+    "Label tombol paling menentukan di halaman ini. Ia menyebut persis apa yang akan terjadi; " +
+    "varian yang lebih pendek akan mengurangi kejelasan tepat di tempat yang paling menuntutnya.",
+  "profil.sensitif.cabutBatal": "Satu kata sehari-hari; jalan keluar harus dikenali seketika.",
+  "profil.sensitif.dicabut":
+    "Dua kalimat pendek berkata sehari-hari, masing-masing satu gagasan — bentuk yang " +
+    "justru dituju panduan bahasa sederhana. Tidak ada yang tersisa untuk disederhanakan.",
+  "profil.akomodasi.ruang_kerja_tenang": "Tiga kata sehari-hari yang sudah menyebut kebutuhannya secara harfiah.",
+  "profil.akomodasi.juru_bahasa_isyarat":
+    "Sebutan resmi DAN sehari-hari untuk profesi ini. Menggantinya di mode sederhana berarti " +
+    "menamai satu hal dengan dua nama — dan pengguna Tuli, yang paling mungkin memilih opsi " +
+    "ini, adalah yang paling dirugikan bila namanya tidak konsisten.",
+  "profil.karier.tambah": "Pola label tombol: satu kata kerja sehari-hari plus nama bagian, dan nama itu sudah disederhanakan sendiri.",
+  "profil.karier.ubah": "Satu kata sehari-hari.",
+  "profil.karier.hapus": "Satu kata sehari-hari; tindakan perusak harus dikenali seketika.",
+  "profil.karier.batal": "Satu kata sehari-hari; sama dengan `profil.sensitif.cabutBatal`.",
+  "profil.karier.simpanBaris": "Satu kata sehari-hari, sama dengan kata pertama `profil.aksi.simpan`.",
+  "profil.karier.hapusLabel":
+    "Pola nama aksi untuk screen reader: satu kata kerja plus judul baris yang diisi pengguna sendiri.",
+  "profil.karier.ubahLabel":
+    "Pola nama aksi untuk screen reader: satu kata kerja plus judul baris yang diisi pengguna sendiri.",
+  "profil.karier.ditambah": "Pola pengumuman: judul baris milik pengguna plus dua kata sehari-hari.",
+  "profil.karier.diubah": "Pola pengumuman: judul baris milik pengguna plus dua kata sehari-hari.",
+  "profil.karier.dihapus": "Pola pengumuman: judul baris milik pengguna plus dua kata sehari-hari.",
+  "profil.pengalaman.judul":
+    "Dua kata sehari-hari. Ia muncul sebagai judul bagian DAN di dalam label tombol " +
+    "'Tambah pengalaman kerja'; dua kata berbeda membuat pengguna menyangka keduanya bagian lain.",
+  "profil.pengalaman.satuan":
+    "Potongan yang disisipkan ke label tombol dan pengumuman. Harus SAMA dengan judul bagiannya " +
+    "(`profil.pengalaman.judul`) — pengguna mencocokkan kata yang tadi ia tekan.",
+  "profil.pengalaman.company": "Label dua kata sehari-hari.",
+  "profil.pengalaman.description":
+    "Sudah berupa pertanyaan sehari-hari empat kata; menyederhanakannya hanya mengubah kata " +
+    "tanpa menambah kejelasan.",
+  "profil.pendidikan.institution":
+    "Label empat kata sehari-hari yang sudah menyebut kedua kemungkinannya ('sekolah atau kampus') " +
+    "alih-alih memakai satu istilah payung.",
+  "profil.pendidikan.degreeBantuan": "Tiga contoh, tanpa kalimat. Tidak ada yang tersisa untuk disederhanakan.",
+  "profil.pendidikan.year": "Label dua kata sehari-hari.",
+  "profil.keahlian.levelBantuan": "Tiga contoh, tanpa kalimat. Tidak ada yang tersisa untuk disederhanakan.",
 
   // --- shell (PR-032a) ---
   "shell.judulDokumen":

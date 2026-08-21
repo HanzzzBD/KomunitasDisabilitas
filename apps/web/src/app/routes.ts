@@ -105,6 +105,24 @@ export const ruteApp: RouteObject[] = [
         ],
       },
       {
+        // Profil karier (PR-040) — SAUDARA `pengaturan`, bukan anaknya.
+        //
+        // Panel pengaturan menjawab "bagaimana aplikasi ini berperilaku untuk
+        // saya". Profil karier bukan setelan: ia ISI yang dipakai mencarikan
+        // pekerjaan, dan ia akan menjadi tujuan tautan dari beranda, dari hasil
+        // pencocokan (PR-069), dan dari alur melamar (Phase 11). Menyarangkannya
+        // di bawah `/pengaturan` membuat setiap tautan itu mengantar pengguna ke
+        // layar bernavigasi setelan, di tengah pekerjaan yang bukan menyetel.
+        //
+        // Penjagaan sesinya ada di dalam komponen `Profil`, alasan yang sama
+        // seperti `Pengaturan` dan `Onboarding`: berkas ini `.ts` murni data.
+        path: "profil",
+        lazy: async () => {
+          const { Profil } = await import("../routes/profil.js");
+          return { Component: Profil };
+        },
+      },
+      {
         // Onboarding aksesibilitas (PR-035) — SAUDARA `pengaturan`, bukan
         // anaknya: ia alur pertama-kali, bukan panel setelan. Menyarangkannya
         // di bawah `/pengaturan` akan menyeret kerangka navigasi panel ikut
