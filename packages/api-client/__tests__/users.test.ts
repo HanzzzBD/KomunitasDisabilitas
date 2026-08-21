@@ -21,6 +21,22 @@ const EKSPOR = {
     createdAt: "2026-01-15T20:00:00.000Z",
     authMethods: ["otp"],
   },
+  // Bagian `profile` WAJIB sejak PR-038 — akun, profil karier, dan ketiga
+  // sub-entitasnya dalam satu berkas. Fixture yang kekurangan bagian wajib
+  // akan ditolak parse-nya, dan itulah tepatnya yang dijaga test ini.
+  profile: {
+    headline: null,
+    summary: null,
+    city: null,
+    province: null,
+    openToRemote: false,
+    disclosureDefault: "ask_each_time",
+    consentSensitiveAt: null,
+    sensitive: null,
+    experiences: [],
+    educations: [],
+    skills: [],
+  },
 };
 
 const PROFIL = {

@@ -63,6 +63,7 @@ describe("auditLog — penulisan Prisma", () => {
       {
         purpose: "support",
         fields: ["disabilityTypes"],
+        reason: "tiket #4821",
         phone: "nomor-dummy",
       },
     );
@@ -80,6 +81,7 @@ describe("auditLog — penulisan Prisma", () => {
       requestId,
       purpose: "support",
       fields: ["disabilityTypes"],
+      reason: "tiket #4821",
     });
     expect(JSON.stringify(row?.meta)).not.toContain("nomor-dummy");
   });

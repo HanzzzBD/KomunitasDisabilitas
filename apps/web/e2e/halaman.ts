@@ -109,6 +109,25 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   },
   { nama: "pengaturan — aksesibilitas", jalur: "/pengaturan/aksesibilitas", butuhSesi: true },
 
+  // Profil karier (PR-040) — DUA entri untuk SATU alamat, satu per keadaan
+  // bagian sensitifnya. Keadaan kedua BUKAN kelengkapan yang berlebihan:
+  // kolom ragam disabilitas dan kebutuhan akomodasi TIDAK ADA di DOM sebelum
+  // kotak consent dicentang (lihat bagian-sensitif.tsx), jadi entri pertama
+  // memeriksa halaman yang belum memuat satu pun kendali yang menjadi alasan
+  // halaman ini ada.
+  { nama: "profil — belum ada consent", jalur: "/profil", butuhSesi: true },
+  {
+    nama: "profil — kolom sensitif terbuka",
+    jalur: "/profil",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      // `:text-is` = cocok PERSIS. `:has-text` akan ikut menangkap kalimat
+      // bantuan di bawah kotaknya, yang memuat kata yang sama.
+      await page.click('text=Saya mengizinkan Nawasena menyimpan data disabilitas saya');
+      await page.waitForSelector('legend:text-is("Ragam disabilitas Anda (boleh lebih dari satu)")');
+    },
+  },
+
   // Wizard onboarding (PR-035) — EMPAT entri untuk SATU alamat, satu per
   // langkah. AC-nya menuntut axe dijalankan PER LANGKAH, bukan sekali untuk
   // seluruh alur: tiap langkah membawa jenis kendali yang berbeda (kotak

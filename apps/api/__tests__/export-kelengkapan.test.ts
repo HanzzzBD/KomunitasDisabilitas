@@ -26,6 +26,14 @@ const schema = bacaSchemaPrisma();
 /** Bagian yang BENAR-BENAR ada di berkas ekspor hari ini. */
 const TERDAFTAR: Readonly<Record<string, string>> = {
   users: "account",
+  // Keempatnya menyumbang SATU bagian (`profile`), dan itu memang benar: riwayat
+  // kerja, pendidikan, dan keahlian tidak berarti apa-apa lepas dari profil yang
+  // memilikinya. Peta di sini table→bagian, bukan bagian→table, jadi banyak
+  // tabel boleh menunjuk bagian yang sama.
+  seeker_profiles: "profile",
+  experiences: "profile",
+  educations: "profile",
+  skills: "profile",
 };
 
 /**
@@ -40,10 +48,6 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  */
 const DITUNDA: Readonly<Record<string, string>> = {
   accessibility_profiles: "modul accessibility (Phase 04) — preferensi UI milik pengguna",
-  seeker_profiles: "PR-037 — termasuk field terenkripsi yang didekripsi hanya untuk pemiliknya (ADR-007)",
-  experiences: "PR-037 — riwayat kerja",
-  educations: "PR-037 — riwayat pendidikan",
-  skills: "PR-037 — daftar keterampilan",
   resumes: "modul resumes (Phase 09) — CV beserta isinya",
   applications: "modul applications (Phase 12) — riwayat lamaran & status",
   notifications: "modul notifications (Phase 07) — riwayat pemberitahuan",
@@ -153,10 +157,15 @@ describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", (
     }
   });
 
-  it("daftar DITUNDA memuat seluruh kategori yang dijanjikan AC-1", () => {
+  it("seluruh kategori yang dijanjikan AC-1 terdaftar ATAU masih tercatat sebagai utang", () => {
     // AC-1 menyebut: akun, preferensi, profil, CV, lamaran, notifikasi.
-    // `account` sudah terdaftar; lima sisanya harus terlacak sebagai utang,
-    // bukan menguap begitu dokumen phase ditutup.
+    //
+    // Pemeriksaannya sengaja "terdaftar ATAU ditunda", bukan "ditunda" saja.
+    // Bentuk lamanya menuntut `seeker_profiles` ada di DITUNDA — yang berarti
+    // MEMBAYAR utang itu (PR-038) membuat penjaganya merah, dan penjaga yang
+    // menghukum perbaikan adalah penjaga yang akhirnya dilonggarkan orang.
+    // Yang benar-benar dijaga adalah bahwa tidak satu pun kategori menguap
+    // begitu dokumen phase-nya ditutup.
     for (const tabel of [
       "accessibility_profiles",
       "seeker_profiles",
@@ -164,7 +173,10 @@ describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", (
       "applications",
       "notifications",
     ]) {
-      expect(DITUNDA, `${tabel} hilang dari daftar utang AC-1`).toHaveProperty(tabel);
+      expect(
+        tabel in TERDAFTAR || tabel in DITUNDA,
+        `${tabel} hilang dari ekspor DAN dari daftar utang AC-1`,
+      ).toBe(true);
     }
   });
 });

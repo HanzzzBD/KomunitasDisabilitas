@@ -16,7 +16,7 @@
 // melanjutkan dari langkah tiga besok pagi. Zustand di repo ini disediakan
 // untuk keadaan yang menyeberangi route (preferensi, sesi); memakainya di sini
 // akan menjadi contoh pertama yang bertentangan dengan itu.
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { updateAccessibility, type ApiClient } from "@nawasena/api-client";
 import type { A11yStore } from "@nawasena/a11y";
@@ -50,9 +50,16 @@ export interface WizardProps {
   klien: ApiClient;
   /** Dipanggil setelah penanda selesai ditulis — pemanggil yang memindahkan halaman. */
   onKeluar: () => void;
+  /**
+   * Tautan ke halaman profil karier, ditampilkan di langkah ringkasan (PR-040).
+   *
+   * Diteruskan apa adanya, tidak dirakit di sini: alasannya sama dengan
+   * `onKeluar` — lapisan ini tidak tahu apa pun tentang router.
+   */
+  tautanProfil?: ReactNode;
 }
 
-export function Wizard({ store, klien, onKeluar }: WizardProps) {
+export function Wizard({ store, klien, onKeluar, tautanProfil }: WizardProps) {
   const t = useTeks();
   const [state, kirim] = useReducer(reduksiWizard, undefined, initStateWizard);
 
@@ -219,7 +226,12 @@ export function Wizard({ store, klien, onKeluar }: WizardProps) {
         )}
         {langkah === "preferensi" && <LangkahPreferensi store={store} />}
         {langkah === "ringkasan" && (
-          <LangkahRingkasan store={store} ragam={ragam} setuju={setuju} />
+          <LangkahRingkasan
+            store={store}
+            ragam={ragam}
+            setuju={setuju}
+            tautanProfil={tautanProfil}
+          />
         )}
       </section>
 

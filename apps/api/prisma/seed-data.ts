@@ -8,6 +8,7 @@
 //   Kebutuhan akomodasi persona terwakili di preferensi UI + akomodasi jobs.
 // - ID fixture stabil: prisma/fixtures.ts + dokumentasi prisma/FIXTURES.md.
 import type { PrismaClient } from "@prisma/client";
+import type { AccommodationNeed, DisabilityType } from "@nawasena/schemas";
 import { uuidV7 } from "../src/core/ids/index.js";
 import { FIXTURE, FIXTURE_PHONES } from "./fixtures.js";
 
@@ -135,6 +136,13 @@ const PERSONAS: PersonaSpec[] = [
 ];
 
 // Taksonomi akomodasi (selaras companies.accommodations_available & jobs.accommodations).
+//
+// `satisfies` mengikatnya pada `accommodationNeedSchema` di @nawasena/schemas
+// (PR-037), yang juga dipakai kebutuhan akomodasi pencari kerja. Kedua sisi
+// itulah yang kelak dipertemukan matching (PR-069) — dan dua daftar yang
+// berbeda tipis adalah cara paling tenang untuk membuat pencocokan gagal tanpa
+// satu pun error. Nilai yang salah ketik di sini kini typecheck merah, bukan
+// lowongan yang diam-diam tidak pernah cocok dengan siapa pun.
 const AKOM = {
   ramp: "akses_kursi_roda",
   sr: "ramah_screen_reader",
@@ -142,7 +150,7 @@ const AKOM = {
   fleks: "jam_kerja_fleksibel",
   tenang: "ruang_kerja_tenang",
   isyarat: "juru_bahasa_isyarat",
-} as const;
+} as const satisfies Record<string, AccommodationNeed>;
 
 interface JobSpec {
   key: string;
@@ -151,8 +159,10 @@ interface JobSpec {
   description: string;
   workMode: "onsite" | "hybrid" | "remote";
   employmentType: "full_time" | "part_time" | "contract" | "internship" | "freelance";
-  accommodations: string[];
-  welcomed?: string[];
+  accommodations: AccommodationNeed[];
+  /** Terikat taksonomi PR-037: sisi lowongan dan sisi pencari kerja harus
+   *  memakai nilai yang SAMA agar matching (PR-069) bisa mempertemukannya. */
+  welcomed?: DisabilityType[];
   status?: "draft" | "published" | "closed";
   salary?: [number, number];
 }

@@ -11,7 +11,15 @@
 // dikecilkan demi menghemat disk — dan orang yang mengecilkannya tidak akan
 // pernah tahu bahwa ia baru saja memperpendek kemampuan kita melihat pencurian
 // sesi.
-import type { RetentionPolicy } from "../../users/index.js";
+// Menunjuk BERKAS SERVICE-nya langsung, bukan `../../users/index.js`.
+//
+// Antar-modul hanya lewat lapisan SERVICE (ADR-001, CLAUDE.md §5.3), dan
+// `RetentionPolicy` memang tinggal di service modul `users`. Menunjuk barrel
+// modulnya terlihat lebih rapi tetapi menempuh jalan yang salah: `index.ts`
+// modul `users` mengekspor ulang REPOSITORY-nya juga, sehingga jalur itu — bila
+// diizinkan — membuat repository modul lain terjangkau lewat pintu belakang.
+// Gerbang `boundaries` menolaknya sejak resolvernya diperbaiki.
+import type { RetentionPolicy } from "../../users/services/retention.service.js";
 import type { RefreshTokenRepository } from "../repositories/refresh-token.repository.js";
 
 /** Umur (hari) per kategori — datang dari env, default SDD §6.4. */

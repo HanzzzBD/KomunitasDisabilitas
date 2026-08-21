@@ -25,6 +25,7 @@ import {
 } from "./modules/auth/index.js";
 import { createUsersModule } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
+import { createProfilesModule } from "./modules/profiles/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -50,7 +51,6 @@ export interface BootOptions {
 /** Rakit seluruh dependensi lalu mulai listen. Melempar bila gagal start. */
 export async function startApi(options: BootOptions): Promise<void> {
   const { env, fieldKeys, sessionKeys, queueConfigs } = options;
-  void fieldKeys; // dipakai modul profiles (PR-037) — divalidasi di boot sejak sekarang.
 
   const logger = createLogger(env);
   const db = createDbClient(env);
@@ -91,6 +91,25 @@ export async function startApi(options: BootOptions): Promise<void> {
     internalGuard: createInternalAuth(env.INTERNAL_TOKEN),
   });
   const routeRegistry = createRouteRegistry({ guardsFor: guards.guardsFor });
+
+  // Modul profil dirakit LEBIH DULU daripada dipasang, dan DI LUAR callback
+  // `routes` — dua alasan yang keduanya nyata:
+  //   1. modul `users` membutuhkan bagian ekspor PDP miliknya (PR-038), dan
+  //      satu-satunya jalan masuk ke agregator ekspor adalah parameter;
+  //   2. hook shutdown di bawah perlu menjangkau `sensitiveAccess` untuk
+  //      menuliskan hitungan audit agregat yang masih tertahan (PR-039).
+  // Registrar-nya menulis ke Router-nya sendiri, jadi merakit di sini dan
+  // memasang di dalam callback tidak mengubah apa pun bagi Express.
+  const profiles = createProfilesModule({
+    prisma,
+    routes: routeRegistry.forModule("/api/v1"),
+    // Kunci yang SAMA dengan yang sudah lolos gerbang di index.ts — modul tidak
+    // pernah membaca env sendiri (ADR-007, ADR-015).
+    fieldKeys,
+    auditLog,
+    // Penerbit `profile.updated` (PR-038); pelanggannya lahir di PR-069.
+    events,
+  });
 
   const api = createServer(env, logger, {
     routes: (app) => {
@@ -137,6 +156,9 @@ export async function startApi(options: BootOptions): Promise<void> {
           redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
+          // Bagian `profile` berkas ekspor — akun, profil karier, riwayat kerja,
+          // pendidikan, dan keahlian dalam satu berkas (PR-038).
+          contributors: [profiles.exportContributor],
         }),
       );
       app.use(
@@ -149,6 +171,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           events,
         }),
       );
+      app.use(profiles.router);
     },
   });
 
@@ -159,6 +182,17 @@ export async function startApi(options: BootOptions): Promise<void> {
   logger.info({ rute: routeRegistry.list().length }, "Deklarasi akses route lengkap");
 
   registerShutdownHooks(api, logger, undefined, async () => {
+    // Hitungan audit agregat (PR-039) ditulis SEBELUM koneksi ditutup —
+    // sesudahnya tidak ada lagi yang bisa menuliskannya. Penulisannya sendiri
+    // fire-and-forget seperti seluruh audit lain (core/audit), jadi proses yang
+    // dibunuh paksa tetap kehilangannya; yang dijaga di sini adalah berhenti
+    // dengan tertib, bukan berhenti mendadak.
+    const tertahan = profiles.sensitiveAccess.tertahan();
+    if (tertahan > 0) {
+      profiles.sensitiveAccess.flushAudit();
+      logger.info({ tertahan }, "Audit akses sensitif teragregasi ditulis saat shutdown");
+    }
+
     // Setelah server berhenti menerima koneksi: tutup koneksi infra.
     await Promise.allSettled([
       queues.close(),

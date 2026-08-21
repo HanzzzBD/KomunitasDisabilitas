@@ -26,6 +26,10 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+// `tanpaKomentar` tinggal di berkas biasa supaya penjaga lain bisa memakainya
+// TANPA meng-import berkas test ini — import berkas `.test.ts` membuat vitest
+// menjalankan ulang seluruh testnya di bawah konteks pengimpor (PR-039).
+import { tanpaKomentar } from "./pemindai-kode.js";
 
 const SRC = join(__dirname, "..", "src");
 const WORKER_SRC = join(__dirname, "..", "..", "worker", "src");
@@ -45,70 +49,6 @@ const RELASI_DIIZINKAN: ReadonlyArray<{ file: string; alasan: string }> = [];
 
 // ===== Pemindai =====================================================
 // Fungsi murni, diuji terhadap contoh di bawah sebelum dilepas ke repo.
-
-/**
- * Buang komentar, PERTAHANKAN string dan baris baru.
- *
- * Wajib: `core/db/soft-delete.ts` memuat `include: { user: true }` di dalam
- * komentar penjelasnya sendiri. Tanpa langkah ini, penjaga akan menuduh
- * dokumentasi yang justru menerangkannya — dan orang akan mematikan penjaganya,
- * bukan memperbaikinya.
- */
-export function tanpaKomentar(kode: string): string {
-  let hasil = "";
-  let mode: "kode" | "baris" | "blok" | "'" | '"' | "`" = "kode";
-
-  for (let i = 0; i < kode.length; i += 1) {
-    const c = kode[i] as string;
-    const d = kode[i + 1];
-
-    if (mode === "kode") {
-      if (c === "/" && d === "/") {
-        mode = "baris";
-        i += 1;
-      } else if (c === "/" && d === "*") {
-        mode = "blok";
-        i += 1;
-      } else if (c === "'" || c === '"' || c === "`") {
-        mode = c;
-        hasil += c;
-      } else {
-        hasil += c;
-      }
-      continue;
-    }
-
-    if (mode === "baris") {
-      // Baris baru dipertahankan supaya nomor baris laporan tetap jujur.
-      if (c === "\n") {
-        mode = "kode";
-        hasil += c;
-      }
-      continue;
-    }
-
-    if (mode === "blok") {
-      if (c === "*" && d === "/") {
-        mode = "kode";
-        i += 1;
-      } else if (c === "\n") {
-        hasil += c;
-      }
-      continue;
-    }
-
-    // Di dalam string: escape apa pun ikut apa adanya.
-    if (c === "\\") {
-      hasil += c + (d ?? "");
-      i += 1;
-      continue;
-    }
-    if (c === mode) mode = "kode";
-    hasil += c;
-  }
-
-  return hasil;
-}
 
 /** Isi blok `{...}` yang dimulai di `posisi`; kurung di dalam string diabaikan. */
 function blokObjek(kode: string, posisi: number): string {

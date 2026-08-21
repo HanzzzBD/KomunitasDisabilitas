@@ -390,7 +390,7 @@ describe("pintasan ke panel aksesibilitas", () => {
     await renderBersesi("/");
 
     expect(
-      await screen.findByRole("navigation", { name: "Pintasan aksesibilitas" }, { timeout: 5000 }),
+      await screen.findByRole("navigation", { name: "Pintasan halaman" }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 });

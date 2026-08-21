@@ -1,8 +1,8 @@
 # CLAUDE.md — Project Context & Development Guide
 
-> **Last Updated:** 2026-08-07  
-> **Project:** Nawasena (Inclusive Career Ecosystem for People with Disabilities)  
-> **Documentation Source:** PRD v1.1, SDD v1.1, ADRs 001–018, docs/implementation/ (backlog)
+> **Last Updated:** 2026-08-21  
+> **Project:** Nawasena — Masa Depan Karier Tanpa Batas  
+> **Documentation Source:** PRD v1.2, SDD v1.2, ADRs 001–019, docs/implementation/ (backlog)
 
 ---
 
@@ -29,7 +29,7 @@
 
 ### Roadmap Implementasi Terbaru
 - Dokumentasi implementasi terbaru tersedia di [docs/implementation/README.md](./docs/implementation/README.md)
-- Backlog dibagi ke dalam **19 phase** dan **119 PR** untuk 8 sprint + soak/release (Phase 19 = Community, pasca-v1.0.0)
+- Backlog dibagi ke dalam **20 phase** dan **126 PR** untuk 8 sprint + soak/release. Backlog MVP tetap PR-001..PR-112; dua phase di luar sprint MVP: Phase 19 = Community (pasca-v1.0.0), Phase 20 = SignBridge Lab & Jalur v2 (paralel, bukan dependensi rilis)
 - Phase yang terdefinisi mencakup foundation, auth, web base, accessibility, profile, AI gateway, notifications, companies/jobs, resume PDF, AI CV builder, matching engine, applications, admin analytics, SignBridge, mobile, infrastructure/observability, security hardening, release, dan community (pasca-MVP)
 
 ### Dokumentasi Log Implementasi
@@ -432,10 +432,11 @@ ProjectKomunitasDisabilitas/
 │   └── a11y/             (accessibility utilities & hooks)
 ├── docs/
 │   ├── adr/              (architecture decision records + README.md sebagai indexnya)
-│   ├── implementation/   (engineering backlog: 19 phases / 119 PR + README.md index)
+│   ├── implementation/   (engineering backlog: 20 phases / 126 PR + README.md index)
 │   │   ├── log/          (implementation logs per completed phase)
 │   │   └── *.md          (phase docs)
 │   ├── audit-action-catalog.md
+│   ├── akses-data-sensitif.md   (jalur baca data disabilitas, PR-039)
 │   ├── rbac-route-registry.md   (konvensi guard & route registry, PR-019)
 │   └── runbook-keys.md
 ├── .github/
@@ -463,7 +464,7 @@ ProjectKomunitasDisabilitas/
 | [PRD.md](./PRD.md) | Product Requirements Document v1.1 — business goals, user personas, features |
 | [SDD.md](./SDD.md) | Software Design Document v1.1 — technical architecture, module design, risks/mitigations |
 | [DESIGN.md](./DESIGN.md) | Product Design — UI flows, accessibility specs, design system |
-| [docs/implementation/README.md](./docs/implementation/README.md) | **Engineering backlog & implementation plan index** — 19 phases, 119 PR, sprint roadmap, dependency graph, matriks traceability FR/NFR. Ini pengganti rujukan docs/PR-PLAN.md di dokumen lama — file itu tidak pernah ada di repo. |
+| [docs/implementation/README.md](./docs/implementation/README.md) | **Engineering backlog & implementation plan index** — 20 phases, 126 PR, sprint roadmap, dependency graph, matriks traceability FR/NFR. Ini pengganti rujukan docs/PR-PLAN.md di dokumen lama — file itu tidak pernah ada di repo. |
 | [docs/implementation/phase-01-foundation.md](./docs/implementation/phase-01-foundation.md) | Phase 1 foundation PRs and execution scope |
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
 | [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
@@ -471,6 +472,7 @@ ProjectKomunitasDisabilitas/
 | `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.dev.yml` | Stack dev: PostgreSQL, `redis-cache`, `redis-queue`, api, worker. **Dua Redis terpisah dengan sengaja** (ADR-004): cache boleh di-evict (`allkeys-lru`), queue tidak boleh (`noeviction` + AOF). Overlay staging/produksi menyusul di Phase 16. |
 | `docs/rbac-route-registry.md` | Konvensi guard RBAC & route registry (PR-019) — wajib dibaca sebelum menambah endpoint |
+| [docs/akses-data-sensitif.md](./docs/akses-data-sensitif.md) | Jalur mana untuk membaca data disabilitas/akomodasi (PR-039) — wajib dibaca sebelum menyentuh `seeker_profiles.disability_types`/`accommodation_needs`. Jalur bakunya `bacaAman`; membaca profil **orang lain** menuntut alasan tertulis dan selalu berjejak di `audit_logs`. Berkas baru yang memanggil `findSensitiveByUserId` membuat CI merah sampai keputusannya dicatat. |
 | [docs/panduan-bahasa-sederhana.md](./docs/panduan-bahasa-sederhana.md) | Cara menulis varian `id-simple` pada katalog i18n (PR-029b) — wajib dibaca sebelum menambah teks UI. Entri yang varian sederhananya disalin mentah dari `id` membuat CI merah. |
 
 ---
@@ -634,6 +636,7 @@ pnpm turbo prune --scope=@nawasena/api
 |---------|------|---------|
 | 1.0 | 2026-07-17 | Initial creation from PRD v1.1, SDD v1.1, ADRs, backlog v3.0 |
 | 1.1 | 2026-08-07 | Sinkronisasi dokumen: rujukan docs/PR-PLAN.md (tidak pernah ada) diarahkan ke docs/implementation/, perintah Docker/compose dibetulkan, deploy.sh & deploy.yml ditandai belum ada, Phase 19 masuk total (119 PR / 19 phase). Ditambah tiga penjaga otomatis agar dokumen tidak melenceng lagi. |
+| 1.2 | 2026-08-21 | Dasar Phase 19 diselamatkan dari `e9855f8`: PRD v1.2, SDD v1.2 (§5.4 modul `community`), dan amandemen ADR-013 2026-07-24 ditempelkan ke atas dokumen yang berlaku. Nama produk mengikuti PRD v1.2 — **Masa Depan Karier Tanpa Batas**. Rujukan ADR dibetulkan 018 → 019 (ADR-019 sudah ada sejak Tailwind v4). Hitungan backlog 119 PR / 19 phase → 126 / 20 menyusul Phase 20 (PR #103). |
 
 ---
 

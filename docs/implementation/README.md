@@ -6,7 +6,7 @@
 | **Tanggal** | 2026-07-15 |
 | **Source of truth** | PRD v1.1 (bisnis) + SDD v1.1 (teknis) + ADR-001..018 (docs/adr/) |
 | **Skala kompleksitas** | XS < 1 hari - S 1-2 hari - M 2-4 hari - L 4-7 hari - XL dilarang |
-| **Total** | 119 PR - 19 phase - 8 sprint (+2 minggu soak/rilis). Phase 19 (Community) dikerjakan SETELAH v1.0.0 stabil dan tidak menempati sprint MVP mana pun. |
+| **Total** | 126 PR - 20 phase - 8 sprint (+2 minggu soak/rilis). Backlog MVP tetap **PR-001..PR-112**. Dua phase di luar sprint MVP: Phase 19 (Community) dikerjakan SETELAH v1.0.0 stabil; Phase 20 (SignBridge Lab & Jalur v2) berjalan paralel dan **bukan dependensi rilis**. |
 
 Panduan untuk AI coding agent: kerjakan PR sesuai **Execution Order** di bawah; sebelum memulai sebuah PR, baca file phase-nya (Objective/Scope/Technical Notes/AC) + pastikan seluruh PR di kolom Dependencies sudah merged. Satu PR = satu branch = satu unit review.
 
@@ -39,6 +39,7 @@ Rollback baku (dirujuk sebagai **RB-Std**): revert merge → CI build ulang imag
 | 17 | Security Hardening & PDP Compliance | [phase-17-security-pdp-hardening.md](phase-17-security-pdp-hardening.md) | PR-105..PR-108 (4) | 8 |
 | 18 | Release | [phase-18-release.md](phase-18-release.md) | PR-109..PR-112 (4) | 8+ (minggu 17-18) |
 | 19 | Community (pasca-MVP) | [phase-19-community.md](phase-19-community.md) | PR-113..PR-119 (7) | setelah v1.0.0 stabil |
+| 20 | SignBridge Lab & Jalur v2 | [phase-20-signbridge-lab.md](phase-20-signbridge-lab.md) | PR-120..PR-126 (7) | di luar sprint MVP - paralel |
 
 ## Execution Order
 
@@ -411,7 +412,7 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 | §7.1 AI Gateway (kuota/cache/router/breaker/ai_usage) | PR-041–PR-046 |
 | §7.2 Matching pipeline (embed→filter→skor→rerank→cache) | PR-069–PR-074 |
 | §7.3 Prompt berversi + privasi AI + injection guard | PR-044 |
-| §7.4 SignBridge v1 (v2 = kontrak dokumen, ADR-010) | PR-084–PR-086 |
+| §7.4 SignBridge v1 (v2 = kontrak dokumen, ADR-010; jalur & gerbang v2 = Phase 20) | PR-084–PR-086, PR-126 |
 | §8.1 Auth (OTP/Google/JWT rotating) | PR-016–PR-018 |
 | §8.2 RBAC + safe/sensitive access | PR-019, PR-039, PR-106 |
 | §8.3 Audit logging | PR-014 |
@@ -438,9 +439,9 @@ Verifikasi akhir terhadap PRD v1.1 + SDD v1.1:
 
 1. **Seluruh FR PRD (FR-1 s.d. FR-8)** terpetakan ke ≥1 PR — tidak ada yang hilang (matrix di atas).
 2. **Seluruh NFR PRD** (WCAG gate, kinerja 3G, keamanan/PDP, ketersediaan/DR) terpetakan.
-3. **Seluruh bagian SDD §3–§21** terpetakan. Dua pengecualian yang disengaja dan BUKAN missing: §7.4 SignBridge **v2** tanpa PR kode (kontrak dokumen saja — gerbang riset Fase 3, ADR-010); §19 scalability = pemicu terdokumentasi untuk masa depan, bukan pekerjaan MVP.
+3. **Seluruh bagian SDD §3–§21** terpetakan. Dua pengecualian yang disengaja dan BUKAN missing: §7.4 SignBridge **v2** tanpa PR kode **di dalam backlog MVP** (kontrak dokumen saja — gerbang riset Fase 3, ADR-010; sejak 2026-08-21 jalur dan gerbangnya punya rumah di [Phase 20](phase-20-signbridge-lab.md), yang berada di luar sprint MVP dan bukan dependensi rilis); §19 scalability = pemicu terdokumentasi untuk masa depan, bukan pekerjaan MVP.
 4. **Gap audit v2.0 tetap tertutup di v3.0**: G1 simplify-text (PR-087), G2 analytics funnel (PR-082), G3 retention (PR-024), G4 landing (PR-032), G5 company public page (PR-054), G6 OpenAPI/staging-auth/secrets-scan (PR-004/097/108), G7 migrasi inkremental eksplisit (PR-009–011, 048, 049, 065, 083).
-5. **Di luar scope by design** (roadmap ADR-013, bukan missing): employer portal, interview simulator, STT caption, forum/mentoring/webinar/training, SignBridge v2, iOS, offline dasar, Meilisearch, Prometheus/Grafana, voice interface. Chat AI CV di mobile menyusul segera pasca-RC (dicatat di PR-092 Out of Scope).
+5. **Di luar scope by design** (roadmap ADR-013, bukan missing): employer portal, interview simulator, STT caption, forum/mentoring/webinar/training, SignBridge v2 (di luar **MVP** — jalurnya di Phase 20), iOS, offline dasar, Meilisearch, Prometheus/Grafana, voice interface. Chat AI CV di mobile menyusul segera pasca-RC (dicatat di PR-092 Out of Scope).
 6. **Prasyarat non-teknis dijahit sebagai Acceptance Criteria** (agar tidak terlupakan meski bukan kerja koding): ≥100 lowongan kurasi (PR-111), rekrutmen + kompensasi penguji disabilitas (PR-110), konten juru bahasa BISINDO (PR-084 — risiko anggaran PRD §17), review legal privasi (PR-107).
 
 **Kesimpulan: 119 PR · 19 phase · 8 sprint (+2 minggu soak/rilis) · 0 requirement PRD/SDD tak terpetakan · 0 PR berukuran XL.** Backlog siap dikonversi ke GitHub Issues/Jira: 1 PR = 1 issue, Phase = Epic, Sprint = Milestone.

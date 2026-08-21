@@ -37,6 +37,12 @@ SDD dan seluruh artefak teknis mendesain **rinci hanya Fase 1 (MVP)**. Fitur eko
 * Event domain bersifat additive — payload boleh bertambah field tanpa breaking (SDD §5.3).
 * Review arsitektur ringan tiap akhir fase untuk memvalidasi reserved boundaries terhadap pembelajaran terbaru.
 
+## Amendment - 2026-07-24
+
+PRD v1.2 mempromosikan Community dari reserved boundary menjadi Phase 19 post-MVP. SDD v1.2 kini memuat desain teknis ringkas untuk modul `community`, skema data, API, moderasi, dan batas privasinya.
+
+Amendment ini tidak mengubah scope atau dependensi PR-001..PR-112: Community hanya dimulai setelah v1.0.0 stabil. Mentoring, webinar/training, dan SignBridge v2 tetap reserved boundaries dan memerlukan siklus desain tersendiri saat diprioritaskan.
+
 ## Referensi
 
 Deskripsi Nawasena; PRD §14; SDD §1, §6.1, §15, §19. Terkait: ADR-001, ADR-010.

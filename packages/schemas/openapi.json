@@ -1074,12 +1074,16 @@
           },
           "account": {
             "$ref": "#/components/schemas/ExportAccount"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ExportProfile"
           }
         },
         "required": [
           "formatVersion",
           "exportedAt",
-          "account"
+          "account",
+          "profile"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -1157,6 +1161,277 @@
           "authMethods"
         ],
         "description": "Data identitas akun"
+      },
+      "ExportProfile": {
+        "type": "object",
+        "properties": {
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "openToRemote": {
+            "type": "boolean"
+          },
+          "disclosureDefault": {
+            "type": "string",
+            "enum": [
+              "never",
+              "ask_each_time",
+              "always"
+            ],
+            "description": "Bawaan pengungkapan disabilitas saat melamar"
+          },
+          "consentSensitiveAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "sensitive": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SensitiveProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "experiences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Experience"
+            }
+          },
+          "educations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Education"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Skill"
+            }
+          }
+        },
+        "required": [
+          "headline",
+          "summary",
+          "city",
+          "province",
+          "openToRemote",
+          "disclosureDefault",
+          "consentSensitiveAt",
+          "sensitive",
+          "experiences",
+          "educations",
+          "skills"
+        ],
+        "description": "Profil karier lengkap milik pemiliknya"
+      },
+      "SensitiveProfile": {
+        "type": "object",
+        "properties": {
+          "disabilityTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            }
+          },
+          "accommodationNeeds": {
+            "$ref": "#/components/schemas/AccommodationNeeds"
+          }
+        },
+        "required": [
+          "disabilityTypes",
+          "accommodationNeeds"
+        ],
+        "description": "Data disabilitas (TERENKRIPSI di DB)"
+      },
+      "AccommodationNeeds": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            },
+            "maxItems": 6
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "tags",
+          "notes"
+        ],
+        "description": "Kebutuhan akomodasi (TERENKRIPSI)"
+      },
+      "Experience": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "company",
+          "startDate",
+          "endDate",
+          "description"
+        ],
+        "description": "Satu riwayat pekerjaan"
+      },
+      "Education": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "institution": {
+            "type": "string"
+          },
+          "degree": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "institution",
+          "degree",
+          "field",
+          "year"
+        ],
+        "description": "Satu riwayat pendidikan"
+      },
+      "Skill": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "name": {
+            "type": "string"
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "level"
+        ],
+        "description": "Satu keahlian"
       }
     }
   }

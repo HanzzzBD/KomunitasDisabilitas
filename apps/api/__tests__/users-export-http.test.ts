@@ -9,7 +9,11 @@ import { describe, it, expect, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import type { PrismaClient } from "@prisma/client";
 import type { AuditAction, UserRole } from "@nawasena/schemas";
-import { dataExportSchema, EXPORT_FORMAT_VERSION } from "@nawasena/schemas";
+import {
+  dataExportSchema,
+  EXPORT_FORMAT_VERSION,
+  SEEKER_PROFILE_KOSONG,
+} from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
@@ -170,6 +174,22 @@ async function boot() {
           auditLog: (_actor, action, _entity, entityId, meta) => {
             audit.push({ action, entityId, meta });
           },
+          // Bagian `profile` kini WAJIB ada di kontrak (PR-038). Yang dipasang
+          // di sini penampung kosong, bukan modul profiles sungguhan: berkas
+          // ini menguji endpoint ekspornya, dan merakit modul kedua hanya untuk
+          // memenuhi satu field akan membuat kegagalannya kelak menunjuk modul
+          // yang salah. Isi bagian itu diuji di career-export.test.ts.
+          contributors: [
+            {
+              bagian: "profile",
+              kumpulkan: async () => ({
+                ...SEEKER_PROFILE_KOSONG,
+                experiences: [],
+                educations: [],
+                skills: [],
+              }),
+            },
+          ],
         }),
       );
     },
@@ -293,7 +313,11 @@ describe("GET /api/v1/me/export — audit & log", () => {
     expect(audit[0]).toMatchObject({
       action: "DATA_EXPORTED",
       entityId: A,
-      meta: { format: "json", formatVersion: EXPORT_FORMAT_VERSION, sections: ["account"] },
+      meta: {
+        format: "json",
+        formatVersion: EXPORT_FORMAT_VERSION,
+        sections: ["account", "profile"],
+      },
     });
   });
 

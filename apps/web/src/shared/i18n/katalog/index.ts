@@ -8,6 +8,7 @@ import { katalogAuth } from "./auth.js";
 import { katalogBeranda } from "./beranda.js";
 import { katalogPengaturan } from "./pengaturan.js";
 import { katalogOnboarding } from "./onboarding.js";
+import { katalogProfil } from "./profil.js";
 
 /**
  * Katalog gabungan. Tiap fitur menyumbang kuncinya sendiri di sini.
@@ -20,6 +21,7 @@ export const katalog = {
   ...katalogBeranda,
   ...katalogPengaturan,
   ...katalogOnboarding,
+  ...katalogProfil,
 } as const;
 
 /**
@@ -38,6 +40,7 @@ export const fiturKatalog = [
   { nama: "beranda", entri: katalogBeranda },
   { nama: "pengaturan", entri: katalogPengaturan },
   { nama: "onboarding", entri: katalogOnboarding },
+  { nama: "profil", entri: katalogProfil },
 ] as const;
 
 /**

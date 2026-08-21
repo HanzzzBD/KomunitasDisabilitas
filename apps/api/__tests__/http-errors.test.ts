@@ -25,6 +25,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "ALASAN_AKSES_DIPERLUKAN": {
+          "hint": "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
+          "message": "Akses data disabilitas harus menyertakan alasan",
+          "status": 403,
+        },
         "BELUM_SIAP": {
           "hint": "Tunggu sebentar, lalu coba lagi",
           "message": "Layanan sedang tidak siap",
@@ -34,6 +39,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
           "message": "Cara konfirmasi itu tidak bisa dipakai untuk akun Anda",
           "status": 400,
+        },
+        "CONSENT_SENSITIF_DIPERLUKAN": {
+          "hint": "Centang dulu persetujuan penyimpanan data disabilitas, lalu simpan lagi",
+          "message": "Kami belum boleh menyimpan data disabilitas Anda",
+          "status": 403,
         },
         "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
           "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",

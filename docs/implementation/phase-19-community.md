@@ -10,23 +10,27 @@ conventions: see README.md (Konvensi Global & RB-Std)
 
 # Phase 19 - Community (post-MVP)
 
-> **STATUS: RENCANA YANG BELUM TERSAMBUNG — baca ini dulu.**
+> **STATUS: tersambung dan diratifikasi — menunggu giliran, bukan menunggu dasar.**
 >
 > Dokumen ini diselamatkan apa adanya dari commit `e9855f8` (2026-07-26) di branch
-> `wip-rename-nawasena-docs`, yang tidak pernah di-merge. Isinya utuh dan tidak diubah,
-> tetapi **dasar-dasarnya belum ada di repo ini**:
+> `wip-rename-nawasena-docs`, yang tidak pernah di-merge. Isinya utuh dan tidak diubah.
 >
-> * `source_of_truth` di atas menyebut **PRD v1.2**, **SDD v1.2**, dan **amandemen ADR-013
->   2026-07-24**. Ketiganya belum masuk — `PRD.md` dan `SDD.md` di repo masih v1.1, dan
->   `docs/adr/ADR-013-scope-mvp-reserved-boundaries.md` belum memuat amandemen itu. Semuanya
->   masih tertinggal di branch `wip-rename-nawasena-docs` (`e9855f8`).
-> * Dokumen ini **belum terdaftar** di [README.md](README.md) (indeks masih Implementation
->   Plan v3.0 / 112 PR / 18 phase), dan [phase-18-release.md](phase-18-release.md) masih
->   menyatakan tidak ada phase sesudahnya.
+> **Ketiga dasarnya sudah masuk repo pada 2026-08-21:**
 >
-> Jadi: perlakukan sebagai **bahan perencanaan yang tersimpan**, bukan rencana yang sudah
-> diratifikasi. Phase 19 tidak dimulai sebelum PR-112 (v1.0.0) live dan stabil **dan**
-> ketiga dasar di atas diselesaikan lebih dulu.
+> * **PRD v1.2** — USP #5 (ruang komunitas), US-20/US-21, FR-7.5–7.7, dan blok roadmap
+>   Phase 19. Dipindahkan dari `e9855f8` ke atas `PRD.md` yang berlaku, bukan menimpanya,
+>   sehingga perbaikan yang sudah masuk lebih dulu tetap utuh.
+> * **SDD v1.2** — §5.4 (desain modul `community`), modul `community` di tabel §5.2, entitas
+>   dan relasi di §6.1, serta keputusan soft-status/anonimisasi di §6.2 butir 6.
+> * **Amandemen ADR-013 (2026-07-24)** — mempromosikan Community dari reserved boundary
+>   menjadi Phase 19 post-MVP, tanpa mengubah scope PR-001..PR-112.
+>
+> Dua peringatan lain pada versi sebelumnya sudah **usang dan dihapus**: dokumen ini kini
+> terdaftar di [README.md](README.md), dan [phase-18-release.md](phase-18-release.md) sudah
+> menunjuk Phase 19 sebagai kelanjutannya.
+>
+> **Satu prasyarat yang tetap berlaku:** Phase 19 tidak dimulai sebelum **PR-112 (v1.0.0)
+> live dan stabil**. PR-001..PR-112 tidak berubah oleh phase ini.
 
 ## Overview
 

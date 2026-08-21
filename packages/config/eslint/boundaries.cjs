@@ -26,8 +26,21 @@ module.exports = {
   settings: {
     ...(base.settings || {}),
     "boundaries/dependency-nodes": ["import", "require"],
-    // Resolver harus tahu ekstensi TypeScript agar impor relatif ter-klasifikasi.
+    // RESOLVER. Urutannya berarti, dan salah satunya menentukan apakah gerbang
+    // ini menjaga sesuatu sama sekali.
+    //
+    // `resolver-ts.cjs` memetakan penentu ESM/NodeNext (`./x.js`) ke berkas
+    // yang sungguhan ada (`x.ts`). Tanpa itu, SETIAP impor relatif di
+    // `apps/api` gagal di-resolve — dan dependensi yang gagal di-resolve
+    // DILEWATI DIAM-DIAM oleh plugin ini, bukan dilaporkan. Penjelasan lengkap
+    // beserta cara membuktikannya ada di berkas itu.
+    //
+    // `node` TETAP terpasang sesudahnya, dan itu disengaja: ia yang melayani
+    // penentu telanjang (`express`, `@nawasena/schemas`). Membiarkannya
+    // menjaga klasifikasi "eksternal" persis seperti sebelumnya — yang
+    // diperbaiki PR ini hanya impor relatif yang selama ini tak terlihat.
     "import/resolver": {
+      [require.resolve("./resolver-ts.cjs")]: {},
       node: { extensions: [".ts", ".tsx", ".js", ".jsx", ".json"] },
     },
     "boundaries/elements": [
@@ -119,10 +132,38 @@ module.exports = {
             from: "repository",
             allow: ["core", ["repository", { module: "${from.module}" }], "module-shared"],
           },
-          // File shared modul: boleh core + shared modul yang sama.
+          // File shared modul (`index.ts`, `types.ts`) — AKAR PERAKITAN modul.
+          //
+          // Ia boleh menyentuh SELURUH lapisan modulnya SENDIRI, dan itu bukan
+          // kelonggaran melainkan pengakuan atas apa yang berkas ini memang
+          // ada untuk melakukannya. Template modul di CLAUDE.md §5.3
+          // mendaftarkan `index.ts` sebagai berkas yang merakit router,
+          // controller, service, dan repository menjadi satu modul siap pasang
+          // (DI manual via factory, ADR-002). Tanpa izin ini, pola yang
+          // didokumentasikan sendiri oleh repo ini mustahil ditulis — dan
+          // keenam modul yang ada hari ini semuanya melanggarnya.
+          //
+          // DIBATASI KE MODUL YANG SAMA (`${from.module}`). Inilah yang menjaga
+          // aturan sesungguhnya tetap utuh: `index.ts` modul A tetap TIDAK bisa
+          // menyentuh apa pun milik modul B.
+          //
+          // Yang SENGAJA TIDAK ditambahkan: izin bagi elemen lain menyentuh
+          // `module-shared` modul LAIN. `index.ts` tiap modul mengekspor ulang
+          // repository-nya (lihat `modules/users/index.ts`), jadi mengizinkan
+          // "modul A boleh impor index modul B" akan membuat repository modul B
+          // terjangkau lewat pintu belakang — persis lubang yang aturan nomor 2
+          // di atas ada untuk menutupnya. Antar-modul tetap HANYA lewat service.
           {
             from: "module-shared",
-            allow: ["core", "core-ai", ["module-shared", { module: "${from.module}" }]],
+            allow: [
+              "core",
+              "core-ai",
+              ["module-shared", { module: "${from.module}" }],
+              ["router", { module: "${from.module}" }],
+              ["controller", { module: "${from.module}" }],
+              ["service", { module: "${from.module}" }],
+              ["repository", { module: "${from.module}" }],
+            ],
           },
         ],
       },
