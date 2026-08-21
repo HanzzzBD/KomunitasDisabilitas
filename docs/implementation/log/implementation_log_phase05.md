@@ -763,3 +763,245 @@ lihat "Risiko yang ditemukan".
   peristiwa, satu subjek, satu baris.
 * **PR baru (belum ada nomornya)** — pemindai PII untuk `reason` yang menolak
   di depan, bila insiden pertama membuktikan pelatihan operator saja tidak cukup.
+
+---
+
+## PR-040 — Profile FE: Form Multi-Bagian + Consent + Akomodasi
+
+> **Phase:** [05 - User Profile](../phase-05-user-profile.md#pr-040---profile-fe--form-multi-bagian--consent--akomodasi)
+> **Tanggal:** 2026-08-21
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Endpoint profil sudah ada sejak PR-037 dan PR-038; sampai PR ini tidak ada satu
+pun pemakainya. Sekarang ada halaman `/profil` yang memakai keempat belas
+operasi itu, dan bentuknya ditentukan oleh satu keputusan: **tiga bagian, tiga
+tombol simpan, tiga jalur kegagalan yang terpisah.**
+
+Itu bukan penataan visual. Halaman ini punya lebih dari tiga puluh kolom, dan
+formulir sepanjang itu yang hangus seluruhnya karena satu tanggal salah tidak
+akan diisi untuk kedua kalinya. Bagi pengguna yang mengetik dengan satu tangan,
+dengan tombol saklar, atau dengan suara — yaitu sebagian besar orang yang dituju
+produk ini — "isi ulang dari awal" bukan gangguan kecil melainkan alasan
+berhenti memakai produknya.
+
+**Bagian tengahnya adalah satu-satunya tempat di seluruh aplikasi yang meminta
+data pribadi spesifik** (UU PDP 27/2022), dan tiga aturan di sana tidak dilanggar
+demi kerapian: consent tidak pernah tercentang lebih dulu; kolomnya **tidak ada
+di DOM** sebelum izin diberikan; dan pencabutan tersedia di halaman yang sama,
+berkonfirmasi, dengan kalimat yang menyebut akibatnya secara harfiah.
+
+Wizard onboarding (PR-035) **tidak diubah perilakunya** — lihat D1. Ia tetap
+tidak mengirim data disabilitas ke mana pun, dan keempat penjaga AC-5 miliknya
+tetap utuh; yang ditambahkan hanya satu tautan ke `/profil` di langkah ringkasan.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/web` **558 lulus** (dari 523), `@nawasena/ui` 173 (dari 162),
+`@nawasena/api-client` 69 (dari 53), `@nawasena/api` 850 (+1 skip tak terkait),
+`@nawasena/schemas` 32, `@nawasena/a11y` 74, `@nawasena/config` 22. Drift OpenAPI
+hijau, build web + budget bundle hijau (**115,1 KB / 200 KB**), Playwright a11y
+**52/52** (dari 43).
+
+### Scope selesai
+
+* **`packages/api-client/src/endpoints/profiles.ts`** (baru) — 14 operasi:
+  `getProfile`/`updateProfile` plus `experiencesApi`/`educationsApi`/`skillsApi`,
+  ketiganya dari satu pabrik. `profilesKeys` melingkupi cache dengan `sub`.
+* **`packages/ui/src/area-teks.tsx`** (baru) — `<textarea>` yang menyambung diri
+  ke `KolomForm` lewat konteks, sama seperti `Masukan`.
+* **`packages/ui/src/tombol.tsx`** — varian `bahaya` **dipromosikan** dari
+  konstanta lokal di `dialog-hapus-akun.tsx` (lihat D5).
+* **`apps/web/src/features/profil/`** (baru, 6 berkas) — `bagian.tsx` (kerangka
+  satu bagian), `bagian-dasar.tsx`, `bagian-sensitif.tsx`, `daftar-karier.tsx`
+  (generik), `karier.tsx` (konfigurasi ketiganya sebagai data), `pesan-galat.ts`.
+* **`apps/web/src/routes/profil.tsx`** (baru) — halaman, terlindungi.
+* **`apps/web/src/shared/i18n/katalog/profil.ts`** (baru) — 62 kunci, keduanya
+  bervarian.
+* **`apps/web/src/app/tata-letak.tsx`** + `katalog/shell.ts` — pintasan tingkat
+  atas mendapat tautan KEDUA (lihat D4); nama landmark-nya ikut berubah.
+* **`apps/web/src/features/onboarding/`** — `langkah-ringkasan.tsx` dan
+  `wizard.tsx` menerima `tautanProfil` sebagai *node*; perilakunya tidak berubah.
+* **`apps/web/e2e/`** — `profil.spec.ts` (baru, 7 test), dua entri baru di
+  `halaman.ts`, endpoint profil di `palsukan-api.ts`.
+
+### Keputusan teknis
+
+**D1 — wizard onboarding TIDAK diubah menjadi pengirim data; ia mengantar ke
+`/profil`.** Dokumen phase menulis "integrasi wizard PR-035 (bagian sensitif kini
+aktif penuh)", dan itu bisa dibaca dua cara. Membuat wizard menyimpan data
+disabilitas begitu consent dicentang menuntut **menulis ulang tiga kalimat
+katalognya** — yang hari ini menyatakan apa adanya bahwa datanya "belum dikirim"
+dan "tidak tersimpan" — dan merevisi empat penjaga AC-5 yang memastikan itu
+benar. Jalur yang dipilih menghindari keduanya: kalimatnya tetap benar, penjaganya
+tetap utuh, dan consent yang sesungguhnya diminta di layar yang **juga menawarkan
+pencabutannya**. Consent yang diberikan di layar tanpa jalan keluar bukan consent
+yang setara. *(Keputusan diambil bersama pemilik repo saat implementasi.)*
+
+**D2 — halaman di `/profil`, bukan `/pengaturan/profil`.** Panel pengaturan
+menjawab "bagaimana aplikasi ini berperilaku untuk saya". Profil karier bukan
+setelan: ia ISI yang dipakai mencarikan pekerjaan, dan ia akan menjadi tujuan
+tautan dari beranda, dari hasil pencocokan (PR-069), dan dari alur melamar
+(Phase 11). Menyarangkannya di bawah pengaturan membuat setiap tautan itu
+mengantar pengguna ke layar bernavigasi setelan, di tengah pekerjaan yang bukan
+menyetel apa pun.
+
+**D3 — kolom sensitif TIDAK ADA di DOM sebelum consent, bukan sekadar
+dinonaktifkan.** Kolom yang ada tetapi mati masih dijelajahi screen reader, masih
+terbaca sebagai formulir yang siap diisi, dan mengundang orang mengisinya lebih
+dulu — lalu izin menjadi formalitas yang ia klik agar isiannya tidak terbuang.
+Membuka centang consent juga **membuang** isian yang terlanjur ditulis: yang
+tersisa di layar setelah izin ditarik tidak boleh berupa data disabilitas yang
+siap terkirim pada penyimpanan berikutnya. Setelah consent ada, kotaknya
+**hilang** dan satu-satunya jalan mencabut adalah tombol berkonfirmasi — dua
+jalan menuju tindakan yang sama berarti yang tanpa peringatan akan tertekan tidak
+sengaja oleh seseorang.
+
+**D4 — pintasan tingkat atas mendapat tautan kedua.** PR-036 memasang satu tautan
+dan mencatat bahwa menu lengkap ditunda "karena halaman-halamannya sendiri
+sebagian belum ada". Salah satunya kini ada, dan alasan tautan pertama berlaku
+persis: tanpa entri, satu-satunya jalan ke `/profil` adalah mengetikkan alamat —
+dan halaman yang alamatnya harus ditebak sama saja dengan halaman yang tidak ada.
+Yang MASIH ditunda adalah menunya; dua tautan bukan menu. Nama landmark-nya ikut
+berubah dari "Pintasan aksesibilitas" menjadi "Pintasan halaman": nama lama
+menjanjikan isi yang tidak lagi benar.
+
+**D5 — varian `bahaya` dipromosikan ke `packages/ui`, atas undangan yang sudah
+tertulis di kodenya.** `dialog-hapus-akun.tsx` (PR-033c-1) menyimpan kelas
+warnanya sebagai konstanta lokal beserta catatan: "varian `bahaya` menunggu
+pemakai kedua; satu pemakai belum cukup untuk menetapkan bentuknya". Pemakai
+kedua itu adalah pencabutan consent, dan dua salinan kelas warna adalah dua
+salinan yang cepat atau lambat berbeda kontrasnya. Pemakai lama ikut dipindahkan
+supaya tidak ada dua definisi.
+
+**D6 — pesan galat per kolom datang dari SKEMA, tidak ditulis ulang di katalog
+i18n.** Skema yang sama dipakai server untuk menolak permintaan yang sama, jadi
+menuliskannya dua kali berarti pengguna bisa membaca dua kalimat berbeda untuk
+satu kesalahan — tergantung mana yang kebetulan menangkapnya lebih dulu. Pesan di
+`packages/schemas` memang sudah ditulis dalam Bahasa Indonesia sederhana justru
+untuk dibaca di sini. **Konsekuensinya dinyatakan:** pesan-pesan itu **tidak punya
+varian `id-simple`** — lihat "Utang".
+
+**D7 — `create`/`update` klien memakai `z.input`, bukan `z.infer`.**
+`CreateExperience` dan kerabatnya adalah tipe SESUDAH `.default(null)` diterapkan,
+sehingga setiap field beroleh bawaan tampak WAJIB. Memakainya akan menuntut
+pemanggil menuliskan `company: null, startDate: null, endDate: null,
+description: null` hanya untuk menambah satu pekerjaan yang ia tahu judulnya saja
+— persis kebalikan dari guna `.default()`.
+
+**D8 — tanggal sebagai kolom TEKS, bukan `<input type="date">`.** Pemilih tanggal
+bawaan peramban berbeda-beda perilakunya dengan screen reader dan sebagian besar
+menuntut interaksi kalender yang sulit dijangkau keyboard, sementara yang diminta
+di sini hanyalah bulan dan tahun sebuah pekerjaan. Formatnya dijelaskan di teks
+bantuan, dan skema zod yang sama dengan server menolak yang salah bentuk —
+termasuk `2026-02-31`, yang lolos pemeriksaan bentuk dan tetap salah (PR-038).
+
+### Cacat yang ditemukan SAAT MENULIS TEST, bukan sesudahnya
+
+**`required` diam-diam mematikan seluruh validasi kita.** Kolom wajib menulis
+atribut `required` (lewat `KolomForm`), yang perlu dipertahankan — screen reader
+mengumumkan "wajib diisi" darinya. Tetapi `required` juga membuat peramban
+**memblokir submit** dan menampilkan gelembungnya sendiri: dalam bahasa peramban,
+dengan gaya yang tidak bisa diatur, hilang setelah beberapa detik, dan **tidak
+tersambung ke kolomnya** lewat `aria-describedby`. Akibatnya `onSubmit` tidak
+pernah terpanggil dan seluruh pesan galat berbahasa Indonesia kita tidak pernah
+berjalan.
+
+Gejalanya: menekan Simpan pada formulir kosong tidak menghasilkan apa pun yang
+bisa dilihat maupun didengar. Ditangkap oleh test AC-5 yang menuntut pesannya
+muncul; diperbaiki dengan `noValidate` pada formulirnya, yang **memilih validasi
+mana yang berlaku** alih-alih mematikannya. Ada test e2e tersendiri untuk ini,
+sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
+
+### Utang yang SENGAJA ditinggalkan
+
+* **Pesan validasi skema tidak punya varian `id-simple`.** Konsekuensi langsung
+  D6, dan pilihan yang lebih baik daripada dua sumber kebenaran. Kalimatnya
+  sudah pendek dan berkata sehari-hari ("Nama posisi tidak boleh kosong"), jadi
+  jaraknya ke varian sederhana kecil — tetapi jaraknya bukan nol, dan itu
+  dinyatakan di sini alih-alih didiamkan. Perbaikan yang benar adalah memberi
+  `packages/schemas` mekanisme dua varian, bukan menyalin pesannya ke katalog.
+* **`/me/profile` dan ke-12 route karier belum terdaftar di `openapi.ts`.**
+  BUKAN utang yang dibuat PR ini: `/me/accessibility` (PR-034) juga belum, jadi
+  polanya sudah ada sebelum halaman ini lahir. Dokumen phase menyatakan "API
+  Changes: tidak ada (konsumsi)", dan mendaftarkan lima path berisi 14 operasi
+  akan menggandakan ukuran PR yang sudah besar. Layak menjadi PR tersendiri yang
+  membereskan ketiganya sekaligus.
+* **Bundel awal naik 112,4 → 115,1 KB.** Halamannya sendiri lazy; yang naik
+  adalah **katalog i18n**, yang dimuat eager karena teks shell membutuhkannya
+  sejak render pertama. Artinya setiap fitur berikutnya ikut menambah bundel awal
+  dengan seluruh teksnya. Masih 84,9 KB di bawah budget, tetapi polanya linier —
+  pemecahan katalog per rute akan diperlukan sebelum Phase 08 (lowongan) dan
+  Phase 09 (CV) menambah katalognya masing-masing.
+* **Bagian karier tidak punya konfirmasi hapus.** Tombol Hapus menghapus
+  seketika. Yang menahan salah tekan hari ini adalah `aria-label` yang menyebut
+  baris mana ("Hapus Analis Data", bukan "Hapus") dan pengumuman sesudahnya.
+  Dialog konfirmasi untuk setiap baris akan membuat pengisian daftar panjang
+  jauh lebih melelahkan; keputusan yang lebih baik adalah **urungkan** (undo)
+  pada pengumumannya, dan itu menuntut endpoint yang belum ada.
+
+### Verifikasi
+
+* **AC-1 (isi & edit end-to-end)** diuji dua lapis: jsdom (nilai server muncul di
+  kolomnya, perubahan terkirim sebagai PUT berisi yang diketik) dan Playwright di
+  peramban sungguhan. Termasuk kasus yang mudah terlewat: **kolom yang
+  DIKOSONGKAN ikut terkirim**, sebab formulir yang menghilangkan kolom kosongnya
+  membuat pengguna tidak bisa menghapus judul profil yang terlanjur ia tulis.
+* **AC-2 (simpan per bagian)** diuji sebagai ISOLASI, bukan sebagai "ada tiga
+  tombol": kegagalan bagian dasar diperiksa TIDAK memunculkan galat di dua bagian
+  lain, dan isian bagian lain tetap utuh. Ditambah penjaga bahwa pengumuman
+  "sudah disimpan" **terhapus** begitu satu huruf berubah — pengumuman yang
+  bertahan menyatakan sesuatu yang tidak lagi benar.
+* **AC-3 (consent diberikan DAN dicabut)** diperiksa dari **badan permintaan yang
+  benar-benar dikirim**, bukan dari keadaan komponen: pencabutan mengirim
+  `{ consentSensitive: false }` dan tidak ada yang lain (skema menolak "cabut
+  sambil menyimpan"). Alur penuh — beri izin, isi, cabut, data hilang dari layar —
+  ditempuh di peramban sungguhan.
+* **AC-4 (keyboard-only)** diuji dengan fokus + `Space`/`Enter` sungguhan, bukan
+  `click()`, termasuk kendali yang **baru lahir** setelah consent dicentang —
+  kendali yang muncul sesudah render pertama adalah yang paling sering terlewat
+  dari urutan Tab.
+* **AC-5 (pesan galat per kolom)** diuji sampai ke sambungan ARIA-nya: pesannya
+  ada, kolomnya `aria-invalid="true"`, dan teks yang ditunjuk `aria-describedby`
+  benar-benar memuat kalimatnya. Ditambah bahwa permintaan **tidak berangkat**
+  saat validasi gagal, dan pesannya **hilang** setelah diperbaiki.
+* **axe** dijalankan pada halaman ini di dua keadaan (tanpa consent, dengan kolom
+  sensitif terbuka) di jsdom DAN di peramban lewat dua entri registry. Keadaan
+  kedua bukan kelengkapan berlebihan: tanpa consent, kolom yang menjadi alasan
+  halaman ini ada tidak berada di DOM sama sekali.
+* **Mode teks sederhana** (Testing Checklist) diuji otomatis alih-alih diperiksa
+  tangan: halaman dirender dengan `simpleLanguage`, lalu judul, deskripsi, label
+  consent, dan judul bagian karier diperiksa memakai varian `id-simple`-nya.
+
+### Risiko yang ditemukan
+
+* **PR ini besar** — jauh di atas ambang 500 LOC di CLAUDE.md §9. Backlog memang
+  mendefinisikan PR-040 sebagai satu PR, dan memecahnya menjadi "form dasar" lalu
+  "consent" lalu "karier" akan meninggalkan halaman setengah jadi di branch phase
+  di antara keduanya. Dicatat sebagai pelanggaran yang disadari, bukan terlewat.
+* **`profilesKeys` dilingkupi `sub` yang dibaca TANPA verifikasi tanda tangan**
+  (`idPenggunaSaatIni`, PR-035). Itu boleh untuk pelingkupan cache — token palsu
+  paling buruk membuat entri tersimpan di laci yang salah, bukan membuka akses ke
+  apa pun — tetapi ia jangan sekali-kali dipakai untuk keputusan otorisasi.
+  Preseden dan alasannya sudah tertulis di `penyedia-a11y.tsx`, yang memakai pola
+  yang sama untuk persoalan yang sama.
+* **Label ragam disabilitas DIPINJAM dari katalog onboarding**
+  (`onboarding.ragam.*`), tidak disalin. Sengaja: pengguna melihat daftar yang
+  sama dua kali, dan dua salinan teks adalah dua salinan yang cepat atau lambat
+  berbeda bunyinya. Harganya adalah ketergantungan `features/profil` →
+  `features/onboarding` yang tidak dijaga apa pun hari ini; bila katalog
+  onboarding kelak dipecah, tautan itu ikut putus tanpa gejala di typecheck
+  (kunci yang hilang memang merah, tetapi kunci yang **berubah artinya** tidak).
+
+### Next steps
+
+* **Phase 06 (AI Gateway)** — pemakai berikutnya `profile.updated` (PR-069)
+  membaca profil yang kini benar-benar bisa diisi orang.
+* **PR baru (belum ada nomornya)** — daftarkan `/me/profile`,
+  `/me/accessibility`, dan ke-12 route karier di `openapi.ts` sekaligus.
+* **PR baru (belum ada nomornya)** — mekanisme dua varian untuk pesan validasi
+  `packages/schemas`, supaya D6 tidak lagi berbiaya varian sederhana.
+* **Sebelum Phase 08** — pecah katalog i18n per rute; polanya sudah terlihat
+  linier di budget bundel.
+* **Phase 11 (applications)** — konsumen `disclosureDefault`, yang di halaman ini
+  baru bisa disetel. Dialog disclosure per lamaran (PR-075) yang membacanya.

@@ -63,17 +63,6 @@ export interface DialogHapusAkunProps {
 }
 
 /**
- * Gaya tombol perusak.
- *
- * Warnanya penguat, BUKAN penanda utama: WCAG 1.4.1 melarang menyandarkan
- * makna pada warna saja, dan yang benar-benar membedakan tombol ini adalah
- * labelnya — "Hapus akun saya sekarang", bukan "OK". Varian `bahaya` di
- * `packages/ui` menunggu pemakai kedua; satu pemakai belum cukup untuk
- * menetapkan bentuknya (alasan yang sama dengan pemindahan `galat-api`).
- */
-const GAYA_HAPUS = "bg-red-700 text-white hover:bg-red-800";
-
-/**
  * Judul & deskripsi per langkah sebagai DATA.
  *
  * Bukan rantai ternary: dengan empat langkah ia sudah tidak terbaca, dan
@@ -193,7 +182,7 @@ export function DialogHapusAkun({ klien, cara, onSelesai }: DialogHapusAkunProps
             </TutupDialog>
             {kirimKode.isSuccess ? (
               <Tombol
-                className={GAYA_HAPUS}
+                varian="bahaya"
                 // `aria-disabled`, bukan `disabled`: tombol yang dinonaktifkan
                 // saat memegang fokus melemparkan fokus ke awal dokumen — dan
                 // di dalam dialog itu berarti keluar dari jerat fokusnya.

@@ -302,6 +302,14 @@ export const katalogOnboarding = {
     id: "Anda tidak memberi izin, dan itu tidak menghalangi apa pun.",
     "id-simple": "Anda tidak memberi izin. Itu tidak apa-apa.",
   },
+  "onboarding.ringkasan.simpanKeProfil": {
+    // Jalan keluar bagi pengguna yang MEMANG ingin menyimpan pilihannya
+    // (PR-040). Kalimatnya menyebut tempatnya, bukan tindakannya saja: yang
+    // menekan ini berpindah halaman, dan janji "simpan" tanpa menyebut ke mana
+    // akan terbaca seolah penyimpanannya terjadi di sini.
+    id: "Simpan ini di halaman profil karier saya",
+    "id-simple": "Simpan ini di halaman profil kerja saya",
+  },
   "onboarding.ringkasan.tidakDikirim": {
     id: "Bagian ini tidak ikut disimpan ke akun Anda dan tidak dikirim ke server kami.",
     "id-simple": "Bagian ini tidak kami simpan. Bagian ini juga tidak kami kirim.",

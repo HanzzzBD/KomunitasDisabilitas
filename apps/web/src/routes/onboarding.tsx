@@ -16,7 +16,7 @@
 //      pengguna ke wizard yang barusan ia tinggalkan — jebakan yang terasa
 //      seperti tombol kembali yang rusak (alasan yang sama dengan
 //      `Terlindungi` dan dengan alur hapus akun di `pengaturan-akun.tsx`).
-import { Navigate, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 import { Wizard, wizardOnboardingAktif } from "../features/onboarding/index.js";
 import { useA11yStoreWeb } from "../app/penyedia-a11y.js";
@@ -42,6 +42,17 @@ export function Onboarding() {
       <Wizard
         store={store}
         klien={klien}
+        // Tautan dirakit DI SINI, bukan di dalam wizard: `features/` tidak
+        // boleh menyentuh router web (features/README.md). Wizard hanya
+        // menempatkannya.
+        tautanProfil={
+          <Link
+            to="/profil"
+            className="inline-flex min-h-sentuh items-center self-start rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("onboarding.ringkasan.simpanKeProfil")}
+          </Link>
+        }
         onKeluar={() => {
           void navigate("/", { replace: true });
         }}

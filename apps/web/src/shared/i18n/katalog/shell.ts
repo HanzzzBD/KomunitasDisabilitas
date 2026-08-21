@@ -32,17 +32,35 @@ export const katalogShell = {
     // "Konten" adalah kata yang dipakai pembuat situs, bukan pembacanya.
     "id-simple": "Langsung ke isi halaman",
   },
-  // --- Pintasan aksesibilitas (PR-036) ---
+  // --- Pintasan tingkat atas (PR-036; ditambah satu di PR-040) ---
   //
-  // SATU-SATUNYA navigasi tingkat atas di aplikasi ini, dan ia sengaja hanya
-  // menunjuk satu tempat. Menu lengkap adalah keputusan produk yang belum
-  // diambil; yang mendesak adalah agar panel preferensi bisa dicapai tanpa
-  // mengetikkan alamat — lihat catatannya di `app/tata-letak.tsx`.
+  // SATU-SATUNYA navigasi tingkat atas di aplikasi ini. PR-036 memasangnya
+  // dengan SATU tautan dan mencatat bahwa menu lengkap adalah keputusan produk
+  // yang belum diambil "karena halaman-halamannya sendiri sebagian belum ada".
+  //
+  // Salah satunya kini ADA: halaman profil karier (PR-040). Alasan yang sama
+  // dengan tautan pertama berlaku persis — tanpa entri di sini, satu-satunya
+  // jalan ke `/profil` adalah mengetikkan alamatnya, dan halaman yang harus
+  // ditebak alamatnya sama saja dengan halaman yang tidak ada. Yang MASIH
+  // ditunda adalah menu lengkapnya; dua tautan bukan menu.
   "shell.pintas.label": {
     // Nama landmark navigasi — dibacakan saat pengguna screen reader melompat
     // antar landmark, bukan ditampilkan di layar.
-    id: "Pintasan aksesibilitas",
-    "id-simple": "Pintasan aksesibilitas",
+    //
+    // DIUBAH DI PR-040 dari "Pintasan aksesibilitas". Sejak tautan profil
+    // masuk, nama lamanya menjanjikan isi yang tidak lagi benar: pengguna
+    // screen reader yang melompat ke landmark bernama "aksesibilitas" lalu
+    // menemukan tautan profil di dalamnya tidak salah membaca — namanya yang
+    // salah.
+    id: "Pintasan halaman",
+    "id-simple": "Pintasan halaman",
+  },
+  "shell.pintas.profil": {
+    // Menyebut kata yang sama dengan judul halaman tujuannya ("Profil karier
+    // saya"), dipendekkan supaya muat di bilah sempit ponsel. Pengguna
+    // mencocokkan kata yang tadi ia tekan dengan judul yang terbuka.
+    id: "Profil karier",
+    "id-simple": "Profil kerja",
   },
   "shell.pintas.aksesibilitas": {
     // Menyebut DUA kata yang akan ia temui di halaman tujuan: "Pengaturan"

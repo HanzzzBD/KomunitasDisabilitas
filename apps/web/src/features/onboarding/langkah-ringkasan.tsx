@@ -10,6 +10,7 @@
 // layar. Ia ditampilkan justru supaya pengguna melihat apa yang ia jawab tadi —
 // dan supaya kalimat "belum dikirim ke mana pun" berdiri tepat di sebelah
 // datanya, bukan di layar yang sudah ia tinggalkan.
+import type { ReactNode } from "react";
 import type { A11yStore } from "@nawasena/a11y";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { RAGAM } from "./langkah-ragam-disabilitas.js";
@@ -49,9 +50,27 @@ export interface LangkahRingkasanProps {
   store: A11yStore;
   ragam: readonly string[];
   setuju: boolean;
+  /**
+   * Tautan ke halaman profil karier (PR-040) — DITERIMA JADI, bukan dirakit
+   * di sini.
+   *
+   * `features/` tidak boleh bergantung pada router web (features/README.md):
+   * ia dipakai ulang mobile, yang tidak punya `<Link>`. Perpindahan halaman
+   * karena itu selalu datang dari pemanggil — pola yang sama dengan `onKeluar`
+   * pada `Wizard`. Diterima sebagai NODE, bukan callback, supaya yang dirender
+   * tetap sebuah tautan sungguhan: tombol yang memanggil `navigate()` tidak
+   * bisa dibuka di tab baru, tidak menampilkan alamat tujuan di bilah status,
+   * dan tidak dikenali sebagai tautan oleh screen reader.
+   */
+  tautanProfil?: ReactNode;
 }
 
-export function LangkahRingkasan({ store, ragam, setuju }: LangkahRingkasanProps) {
+export function LangkahRingkasan({
+  store,
+  ragam,
+  setuju,
+  tautanProfil,
+}: LangkahRingkasanProps) {
   const t = useTeks();
   const efektif = store.getState().efektif();
 
@@ -105,6 +124,21 @@ export function LangkahRingkasan({ store, ragam, setuju }: LangkahRingkasanProps
         <p className="text-base font-semibold text-gray-900">
           {t("onboarding.ringkasan.tidakDikirim")}
         </p>
+
+        {/*
+          JALAN KELUAR bagi yang memang ingin menyimpannya (PR-040).
+
+          Kalimat di atas menyatakan datanya TIDAK dikirim ke mana pun, dan itu
+          tetap benar: wizard ini tidak pernah mengirimnya. Tetapi pernyataan
+          itu sendirian meninggalkan pengguna yang justru INGIN kebutuhan
+          akomodasinya diketahui tanpa satu pun petunjuk ke mana harus pergi —
+          dan yang paling dirugikan adalah orang yang paling membutuhkan
+          akomodasi itu.
+
+          Tautan, bukan pengiriman diam-diam: consent yang sesungguhnya diminta
+          di halaman tujuan, di layar yang sekaligus menawarkan pencabutannya.
+        */}
+        {tautanProfil}
       </section>
     </div>
   );

@@ -72,6 +72,26 @@ const BERKAS_UJI = {
 } as const;
 
 /**
+ * Profil karier uji untuk `GET/PUT /me/profile` (PR-037/PR-038; dipakai PR-040).
+ *
+ * `sensitive` NULL dan `consentSensitiveAt` NULL — keadaan pengguna yang belum
+ * memberi izin. Dua alasan, dan keduanya nyata: itulah keadaan yang dilihat
+ * setiap pengguna baru (jadi ia yang paling perlu dijaga), dan berkas uji yang
+ * memuat data disabilitas akan menyalinnya ke artefak CI setiap kali test ini
+ * gagal — alasan yang sama dengan `BERKAS_UJI` di atas.
+ */
+const PROFIL_KARIER_UJI = {
+  headline: "Analis data",
+  summary: null,
+  city: "Yogyakarta",
+  province: null,
+  openToRemote: true,
+  disclosureDefault: "ask_each_time",
+  consentSensitiveAt: null,
+  sensitive: null,
+} as const;
+
+/**
  * Preferensi uji untuk `GET/PUT /me/accessibility` (PR-034; dipakai PR-035).
  *
  * Seluruhnya BAWAAN. Nilai yang sudah berbeda dari bawaan akan membuat
@@ -124,6 +144,90 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
       return route.fulfill(
         jsonkan(200, { data: { ...PREFERENSI_UJI, ...(kirim as Record<string, unknown>) } }),
+      );
+    }
+    // --- Profil karier (PR-040) ---
+    //
+    // DIPERIKSA SEBELUM `/me`, sebab urutan cabang di sini menentukan siapa
+    // yang menelan alamat siapa. Ketiga sub-entitas ikut dijawab: halaman
+    // profil memuat keempatnya sekaligus, dan yang tidak terjawab akan
+    // menampilkan kegagalan — yang lalu terbaca sebagai pelanggaran
+    // aksesibilitas oleh gerbang ini.
+    if (jalur.endsWith("/me/profile")) {
+      // `PUT` MEMANTULKAN badan permintaan, dengan alasan yang sama seperti
+      // `/me/accessibility` di atas: jawaban yang tidak mencerminkan yang
+      // barusan dikirim membuat setiap cacat "yang tersimpan bukan yang
+      // diisi" lolos tanpa gejala.
+      //
+      // `consentSensitive` DITERJEMAHKAN, bukan dipantulkan apa adanya: ia
+      // sakelar di badan PERMINTAAN, sementara jawabannya memakai
+      // `consentSensitiveAt` + `sensitive`. Meniru pemetaan itu di sini
+      // adalah satu-satunya cara layar pencabutan consent bisa diperiksa
+      // sama sekali.
+      if (route.request().method() !== "PUT") {
+        return route.fulfill(jsonkan(200, { data: PROFIL_KARIER_UJI }));
+      }
+
+      const kirim = route.request().postDataJSON() as Record<string, unknown>;
+      const { consentSensitive, disabilityTypes, accommodationNeeds, ...aman } = kirim;
+
+      if (consentSensitive === false) {
+        return route.fulfill(
+          jsonkan(200, {
+            data: { ...PROFIL_KARIER_UJI, ...aman, consentSensitiveAt: null, sensitive: null },
+          }),
+        );
+      }
+
+      const adaSensitif = disabilityTypes !== undefined || accommodationNeeds !== undefined;
+      return route.fulfill(
+        jsonkan(200, {
+          data: {
+            ...PROFIL_KARIER_UJI,
+            ...aman,
+            consentSensitiveAt:
+              consentSensitive === true ? "2026-02-01T03:00:00.000Z" : PROFIL_KARIER_UJI.consentSensitiveAt,
+            sensitive: adaSensitif
+              ? {
+                  disabilityTypes: disabilityTypes ?? [],
+                  accommodationNeeds: accommodationNeeds ?? { tags: [], notes: null },
+                }
+              : PROFIL_KARIER_UJI.sensitive,
+          },
+        }),
+      );
+    }
+    if (
+      jalur.endsWith("/me/experiences") ||
+      jalur.endsWith("/me/educations") ||
+      jalur.endsWith("/me/skills")
+    ) {
+      // Daftar KOSONG, dan itu disengaja. Yang diperiksa gerbang ini adalah
+      // keadaan yang paling sering dilihat pengguna baru — daftar kosong
+      // beserta kalimat penjelasnya — dan keadaan kosong justru yang paling
+      // mudah luput dari perhatian saat mengembangkan dengan data contoh.
+      if (route.request().method() === "GET") return route.fulfill(jsonkan(200, { data: [] }));
+      if (route.request().method() === "POST") {
+        return route.fulfill(
+          jsonkan(201, {
+            data: {
+              id: "01912345-89ab-7def-8123-4567890abc99",
+              ...(route.request().postDataJSON() as Record<string, unknown>),
+            },
+          }),
+        );
+      }
+      return route.fulfill(jsonkan(200, { data: {} }));
+    }
+    if (/\/me\/(experiences|educations|skills)\/[^/]+$/.test(jalur)) {
+      if (route.request().method() === "DELETE") return route.fulfill({ status: 204, body: "" });
+      return route.fulfill(
+        jsonkan(200, {
+          data: {
+            id: jalur.split("/").pop(),
+            ...(route.request().postDataJSON() as Record<string, unknown>),
+          },
+        }),
       );
     }
     if (jalur.endsWith("/me/export")) {

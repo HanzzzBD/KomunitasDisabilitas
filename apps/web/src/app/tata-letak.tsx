@@ -116,10 +116,13 @@ export function TataLetak() {
         mengetikkan alamatnya, dan pengguna yang paling membutuhkan panel ini
         justru yang paling kecil kemungkinannya menebak alamat.
 
-        SATU TAUTAN, BUKAN BILAH NAVIGASI. Menu lengkap adalah keputusan produk
-        yang belum diambil (halaman-halamannya sendiri sebagian belum ada), dan
-        merakitnya di sini hanya akan mendahului keputusan itu dengan bentuk
-        yang lahir sebagai efek samping PR preferensi.
+        DUA TAUTAN SEJAK PR-040, BUKAN BILAH NAVIGASI. Catatan aslinya menunda
+        menu lengkap karena "halaman-halamannya sendiri sebagian belum ada".
+        Halaman profil karier kini ada, dan alasan tautan pertama berlaku
+        untuknya persis: tanpa tautan, satu-satunya jalan ke sana adalah
+        mengetikkan alamat — dan halaman yang alamatnya harus ditebak sama saja
+        dengan halaman yang tidak ada. Yang MASIH ditunda adalah menunya; dua
+        tautan bukan menu, dan penundaan itu tetap keputusan produk.
 
         HANYA SAAT SUDAH MASUK: alamatnya terlindungi (`Terlindungi` di
         `/pengaturan`), jadi tautan bagi pengunjung yang belum masuk berjanji
@@ -130,7 +133,13 @@ export function TataLetak() {
         `tata-letak.test.tsx`.
       */}
       {status === "masuk" && (
-        <nav aria-label={t("shell.pintas.label")} className="flex justify-end p-2">
+        <nav aria-label={t("shell.pintas.label")} className="flex flex-wrap justify-end gap-2 p-2">
+          <Link
+            to="/profil"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.profil")}
+          </Link>
           <Link
             to="/pengaturan/aksesibilitas"
             className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
