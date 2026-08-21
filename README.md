@@ -1,6 +1,6 @@
-# Nawasena — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Masa Depan Karier Tanpa Batas
 
-Platform pencarian kerja berbasis AI yang dirancang khusus dan sepenuhnya aksesibel bagi penyandang disabilitas di Indonesia (Tuli, Netra, Daksa, Autisme, dan disabilitas ganda). Standar aksesibilitas: **WCAG 2.2 Level AA** (end-to-end).
+Nawasena adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka. Kami membangun pengalaman yang optimistis, profesional, dan *accessible by design*, dengan standar **WCAG 2.2 Level AA** end-to-end.
 
 Dokumen produk & teknis: [PRD.md](./PRD.md) · [SDD.md](./SDD.md) · [DESIGN.md](./DESIGN.md) · [ADR](./docs/adr/) · [Rencana implementasi](./docs/implementation/README.md)
 

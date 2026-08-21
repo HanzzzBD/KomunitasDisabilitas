@@ -1,27 +1,28 @@
 # Software Design Document (SDD)
 
-# Nawasena — Inclusive Career Ecosystem for People with Disabilities
+# Nawasena — Masa Depan Karier Tanpa Batas
 
 | | |
 |---|---|
-| **Versi** | 1.1 |
-| **Nama produk** | **Nawasena** (resmi & final — menggantikan "Inklusia AI" pada versi 1.0) |
-| **Tanggal** | 15 Juli 2026 |
+| **Versi** | 1.2 |
+| **Nama produk** | **Nawasena** |
+| **Tagline** | **Masa Depan Karier Tanpa Batas** |
+| **Tanggal** | 24 Juli 2026 |
 | **Status** | Baseline untuk implementasi MVP (Fase 1) |
-| **Sumber kebenaran** | PRD.md v1.0 + Deskripsi.txt + hasil architecture discovery |
-| **Scope** | MVP (Fase 1 PRD) secara detail; fitur ekosistem (forum, mentoring, webinar, SignBridge v2) sebagai titik ekstensi terdokumentasi |
+| **Sumber kebenaran** | PRD.md v1.2 + Deskripsi.txt + hasil architecture discovery |
+| **Scope** | MVP (Fase 1 PRD) dan desain ringkas Phase 19 Community; fitur ekosistem lain sebagai titik ekstensi terdokumentasi |
 
 ---
 
 ## 1. Executive Summary
 
-Dokumen ini mendefinisikan desain teknis **Nawasena** — platform kerja inklusif berbasis AI untuk penyandang disabilitas Indonesia (Tuli, Netra, Daksa, Autisme, ganda), sesuai PRD v1.0.
+Dokumen ini mendefinisikan desain teknis **Nawasena** — platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka, sesuai PRD v1.2.
 
 **Bentuk arsitektur:** monolith modular **Express + Prisma** di atas **PostgreSQL 18 + pgvector** dan **Redis + BullMQ**, berjalan dalam **Docker Compose di satu VPS** (prod + staging terpisah per compose project). Klien: **React (Vite) SPA** untuk web dan **React Native (Expo)** untuk Android (iOS di Fase 2), berbagi kode melalui **monorepo Turborepo**. Seluruh fitur AI berjalan melalui satu **AI Gateway** internal (Gemini free tier utama, Groq fallback) dengan kuota per pengguna dan degradasi anggun ke jalur non-AI.
 
 **Keputusan kunci hasil discovery** (detail di §21 ADR):
 
-1. Scope SDD = MVP dengan titik ekstensi ekosistem (bukan desain penuh ekosistem).
+1. Scope SDD = MVP rinci, ditambah desain ringkas Community untuk Phase 19; fitur ekosistem lain tetap berupa titik ekstensi.
 2. **SignBridge bertahap**: v1 (STT caption, TTS, kamus video BISINDO) masuk roadmap dekat; v2 (penerjemah isyarat computer vision dua arah) didesain hanya sebagai *service boundary* + kontrak API, dikembangkan sebagai riset Fase 3 tanpa memblokir MVP.
 3. Express + Prisma dipilih pengguna; karena Express tidak memaksakan struktur, SDD ini **mewajibkan konvensi modul** (§15) yang harus dipatuhi seluruh kode backend.
 4. Online-only untuk MVP (offline/PWA menyusul), web + Android dulu.
@@ -53,7 +54,7 @@ Dokumen ini mendefinisikan desain teknis **Nawasena** — platform kerja inklusi
                                             │ HTTPS
                                             ▼
    ┌───────────────────────────────────────────────────────────────────┐
-   │                      SISTEM NAWASENA (1 VPS)                       │
+   │                      SISTEM Nawasena (1 VPS)                       │
    │   API monolith modular + worker + PostgreSQL + Redis + Nginx      │
    └───┬───────────┬────────────┬────────────┬────────────┬────────────┘
        │           │            │            │            │
@@ -138,7 +139,7 @@ RUNTIME (per environment: prod & staging, compose project terpisah di 1 VPS):
 3. **Semua panggilan AI async atau streaming melalui AI Gateway** — tidak ada modul yang memanggil provider AI langsung.
 4. **Graceful degradation kelas satu** — setiap fitur AI punya jalur non-AI yang berfungsi penuh (form manual, pencarian FTS, sort by date).
 5. **Aksesibilitas sebagai arsitektur, bukan lapisan** — profil aksesibilitas pengguna adalah state global yang dikonsumsi seluruh UI (§4.3); CI menolak build yang gagal cek axe.
-6. **Ekstensi ekosistem via kontrak, bukan spekulasi** — forum/mentoring/webinar/SignBridge v2 mendapat *reserved module boundary* dan tabel yang tidak dibuat sekarang, hanya dicantumkan sebagai rencana (§19).
+6. **Ekstensi ekosistem via kontrak, bukan spekulasi** — Community memiliki desain implementasi untuk Phase 19; mentoring/webinar/SignBridge v2 tetap mendapat *reserved module boundary* dan tabel tidak dibuat sekarang (§19).
 
 ---
 
@@ -150,7 +151,7 @@ RUNTIME (per environment: prod & staging, compose project terpisah di 1 VPS):
 src/
   app/                 # bootstrap: router, providers, error boundary
   routes/              # per halaman: onboarding/, jobs/, applications/,
-                       #   resume/, profile/, admin/
+                       #   resume/, profile/, community/, admin/
   features/            # logika per fitur (hooks + komponen fitur)
     accessibility/     # wizard onboarding, panel preferensi
     resume-builder/    # chat AI + editor CV + fallback form
@@ -257,6 +258,7 @@ apps/worker/src/
 | `ai` (fitur) | sesi CV-chat, finalize, kuota endpoint | core/ai, queue |
 | `notifications` | in-app, FCM, email; preferensi kanal | queue |
 | `admin` | agregasi metrik, moderasi, verifikasi | semua (read) |
+| `community` | ruang komunitas, keanggotaan, post, balasan, laporan, moderasi | notifications, admin, core/audit |
 | `signbridge` | **reserved**: MVP hanya kamus video BISINDO (CRUD admin + list publik); kontrak v2 di §19 | — |
 
 ### 5.3 Pola penting
@@ -265,6 +267,23 @@ apps/worker/src/
 - **Event domain in-process:** `EventEmitter` tipenya dijaga (mis. `application.status_changed` → modul notifications & admin metrics mendengarkan). Bila kelak dipecah service, event ini menjadi antrian — kontraknya sudah stabil sejak sekarang.
 - **Transaksi:** operasi multi-tabel via `prisma.$transaction`; service tidak pernah setengah-commit.
 - **Error envelope:** semua error → `{code, message, hint}`; `message` bahasa Indonesia sederhana (ramah screen reader), `code` stabil untuk klien, stack hanya ke Sentry/pino.
+
+### 5.4 Community module (Phase 19, post-MVP)
+
+Community adalah modul monolith baru, bukan service terpisah. Admin membuat ruang berdasarkan `topic` atau `city`; pengguna aktif dapat menjadi anggota, membuat post teks, dan membalas satu tingkat. Tidak ada pesan pribadi, upload media, live chat, atau user-created group pada fase ini.
+
+| Entitas | Field inti | Aturan penting |
+|---|---|---|
+| `communities` | `id, slug, name, description, type(topic/city), city?, status, created_by` | Hanya admin membuat/mengarsipkan ruang; slug unik. |
+| `community_memberships` | `community_id, user_id, status(active/blocked), joined_at` | Unique `(community_id, user_id)`; membership diperlukan untuk menulis. |
+| `community_posts` | `id, community_id, author_id, body, status(published/hidden/removed), created_at, updated_at` | Teks polos; penulis dapat mengubah/menghapus post sendiri selama masih published. |
+| `community_comments` | `id, post_id, author_id, body, status, created_at` | Satu tingkat saja; tidak ada nested reply. |
+| `community_reports` | `id, reporter_id, target_type, target_id, reason, status(open/resolved/rejected), resolved_by, resolved_at` | Laporan tidak terlihat oleh pemilik konten. |
+
+- Otorisasi: role `admin` memoderasi; pengguna hanya mengakses membership dan kontennya sendiri. Employer tidak memiliki akses khusus ke konten komunitas.
+- Privasi: modul tidak membaca `disability_types`, `accommodation_needs`, CV, maupun lamaran. Penghapusan akun menganonimkan `author_id` pada post/komentar dan menghapus membership/report milik pengguna sesuai pekerjaan PDP yang ada.
+- Moderasi: tindakan hide, restore, atau remove harus menyimpan reason di `audit_logs`; event `community.content_moderated` mengirim notifikasi ke pemilik konten.
+- Abuse control: validasi Zod, plain text tersanitasi, rate limit per user untuk create/report, dan maksimum panjang konten yang ditetapkan konfigurasi.
 
 ---
 
@@ -282,8 +301,11 @@ users 1──* ai_usage
 jobs ──(embedding)
 audit_logs (append-only, merujuk actor_id/entity)
 sign_videos *──1 users(admin)          -- kamus BISINDO (SignBridge v1)
+users 1──* community_memberships *──1 communities
+communities 1──* community_posts 1──* community_comments
+users 1──* community_posts / community_comments / community_reports
 -- Fase 2 (reserved, belum dibuat): company_reviews, interview_sessions,
---   employer_members; Fase 3: forums, mentorships, trainings, sign_sessions
+--   employer_members; Fase 3: mentorships, trainings, sign_sessions
 ```
 
 Skema kolom lengkap mengikuti PRD §10 (tidak diulang di sini); di bawah ini keputusan arsitektural yang menambah/menegaskan PRD.
@@ -295,6 +317,7 @@ Skema kolom lengkap mengikuti PRD §10 (tidak diulang di sini); di bawah ini kep
 3. **`match_scores`** adalah cache materialisasi, boleh dihapus kapan pun; selalu bisa dihitung ulang.
 4. **`status_history`** di applications: array JSONB append-only `{from,to,by,at}` — cukup untuk MVP; dipromosikan ke tabel bila perlu analitik SQL.
 5. **`sign_videos`** (baru, SignBridge v1): `id, phrase text, category, video_url, thumbnail_url, duration_s, created_by, status(draft/published)` + FTS pada `phrase`.
+6. **Community Phase 19:** post/komentar memakai soft status, bukan hard delete, agar keputusan moderasi dan laporan tetap dapat diaudit. `author_id` dapat menjadi NULL saat PDP purge setelah metadata penulis dianonimkan; body konten hanya dipertahankan bila kebijakan retensi mengizinkan.
 
 ### 6.3 Strategi indeks
 
@@ -308,6 +331,9 @@ Skema kolom lengkap mengikuti PRD §10 (tidak diulang di sini); di bawah ini kep
 | ai_usage | btree `(user_id, feature, created_at)` | kuota harian |
 | audit_logs | BRIN `created_at` | append-only besar, hemat |
 | match_scores | PK `(user_id, job_id)` + btree `computed_at` | invalidasi cache |
+| community_memberships | unique `(community_id, user_id)`; btree `(user_id, joined_at DESC)` | join idempotent, daftar komunitas pengguna |
+| community_posts | btree `(community_id, status, created_at DESC)`; GIN FTS `body` | feed komunitas dan pencarian ringan |
+| community_reports | btree `(status, created_at ASC)` | antrean moderasi admin |
 
 Kebijakan: mulai dengan indeks di atas saja; tambahan wajib lewat bukti `pg_stat_statements` (menghindari over-indexing yang memperlambat write).
 
@@ -318,16 +344,13 @@ Kebijakan: mulai dengan indeks di atas saja; tambahan wajib lewat bukti `pg_stat
 | Akun dihapus (soft delete) | purge/anonimisasi ≤ 30 hari | job `pdp-purge` harian (worker) |
 | `ai_usage` | 90 hari (agregat bulanan dipertahankan) | job harian |
 | `match_scores` | 7 hari sejak `computed_at` | job harian |
-| `refresh_tokens` kedaluwarsa (tak pernah dicabut) | 90 hari sejak `expires_at` | job harian |
-| `refresh_tokens` dicabut (rotasi/logout/hapus akun) | 180 hari sejak `revoked_at` | job harian |
-| `refresh_tokens` dicabut karena **reuse terdeteksi** | 2 tahun sejak `revoked_at` | job harian |
 | `audit_logs` | 2 tahun | arsip ke R2 lalu hapus |
 | Transkrip sesi cv-chat | 30 hari setelah finalize | job harian |
+| Post/komentar Community milik akun dihapus | identitas dianonimkan <= 30 hari; audit moderasi tetap sesuai retensi audit | job `pdp-purge` harian |
+| `community_reports` | 2 tahun setelah resolusi | arsip dan purge mengikuti kebijakan audit |
 | Backup | 30 hari | lifecycle rule R2 |
 
 Anonimisasi mempertahankan agregat North Star (hired count) tanpa PII.
-
-**`refresh_tokens` sengaja TIDAK diperlakukan seragam** (keputusan owner 2026-08-04). Baris yang **dicabut** adalah satu-satunya cara reuse detection (§8.1) membedakan token curian dari token yang tidak dikenal: begitu barisnya hilang, replay terbaca sebagai "tidak dikenal" dan keluarga token tidak pernah dicabut. Karena itu angka 180 hari di atas **bukan** setelan kebersihan — ia adalah **jendela deteksi reuse**. Baris yang dicabut karena reuse disamakan dengan `audit_logs` (2 tahun) sebab baris DB dan baris auditnya adalah dua paruh bukti yang sama. Retensi ini tidak menahan hak hapus UU PDP: akun terhapus membawa serta `refresh_tokens`-nya lewat `ON DELETE CASCADE`.
 
 ### 6.5 Enkripsi
 
@@ -545,6 +568,8 @@ Mengikat pada kontrak PRD §11 (tidak diulang penuh). Penegasan desain:
   - `GET /sign-videos?query=&category=` dan CRUD `/admin/sign-videos` (SignBridge v1)
   - `POST /ai/simplify-text` (mode bahasa sederhana untuk konten dinamis; berkuota)
   - `GET /me/export` (hak portabilitas data UU PDP, JSON)
+  - Community Phase 19: `GET /communities?city=&topic=`, `GET /communities/:slug`, `POST /communities/:id/join`, `DELETE /communities/:id/membership`, `GET/POST /communities/:id/posts`, `GET /community-posts/:id`, `POST /community-posts/:id/comments`, dan `POST /community-content/:targetType/:targetId/reports`.
+  - Admin Community Phase 19: CRUD `/admin/communities`, `GET /admin/community-reports`, serta `POST /admin/community-content/:targetType/:targetId/moderate` dengan action `hide|restore|remove` dan reason wajib.
 
 ---
 
@@ -640,16 +665,19 @@ Struktur, lapisan, dan aturan dependensi didefinisikan di §5.1–5.2 (mengikat,
 
 ```
 Events (in-process, typed):
-  auth.user_registered        → notifications (welcome), admin (metric), accessibility (default preferences row, PR-034)
+  auth.user_registered        → notifications (welcome), admin (metric)
   application.submitted       → notifications, admin
   application.status_changed  → notifications, admin
   application.hired_confirmed → admin (North Star)
   job.published               → matching (enqueue embed-job)
   profile.updated             → matching (enqueue embed-profile, invalidate cache)
   company.verified            → notifications (admin internal)
+  community.member_joined     → admin (metric)
+  community.content_reported  → notifications (admin internal)
+  community.content_moderated → notifications (pemilik konten), admin (metric)
 
 Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
-  employers/  reviews/  interviews/(simulator)  forum/  mentoring/
+  employers/  reviews/  interviews/(simulator)  mentoring/
   trainings/  signbridge-v2 (eksternal service, kontrak §7.4)
 ```
 
@@ -657,24 +685,17 @@ Reserved boundaries (Fase 2/3 — TIDAK diimplementasi sekarang):
 
 ## 16. Queue Design (BullMQ / Redis)
 
-> **Koreksi 2026-08-01 (PR-015):** separator nama queue dan job id semula ditulis `:`. **BullMQ melarang karakter `:` pada nama queue MAUPUN custom job id** (dipakai untuk namespacing key Redis) — `new Queue("ai:embed")` melempar `Queue name cannot contain :`. Kesalahan ini baru ketahuan saat integration test berjalan terhadap Redis nyata di CI. Seluruh nama di bawah karena itu memakai `-`; domain dan pekerjaan tetap terbaca.
-
 | Queue | Producer → Processor | Concurrency | Retry/Backoff | Timeout | Catatan |
 |---|---|---|---|---|---|
-| `ai-extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
-| `ai-rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
-| `ai-embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
-| `pdf-render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
-| `notify-push` / `notify-email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
-| `maintenance-pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
-| `maintenance-retention` | cron harian 02:47 WIB | 1 | manual | 10 m | §6.4; *ditambahkan PR-024a — lihat catatan* |
-| `maintenance-backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
+| `ai:extract-resume` | ai.finalize → worker | 2 | 2×, exp 5 s | 60 s | hasil zod-validated |
+| `ai:rerank-feed` | matching → worker | 2 | 1× | 30 s | gagal → template degradasi |
+| `ai:embed` | jobs/profiles events → worker | 4 | 3×, exp 10 s | 30 s | batch bila antrean menumpuk |
+| `pdf:render` | resumes → worker | 1 | 2× | 90 s | Puppeteer; concurrency 1 jaga RAM |
+| `notify:push` / `notify:email` | events → worker | 8 / 4 | 3×, exp 30 s | 15 s | idempotent per notification id |
+| `maintenance:pdp-purge` | cron harian 03:17 WIB | 1 | manual | 10 m | §6.4 |
+| `maintenance:backup` | cron harian 02:07 WIB | 1 | alert bila gagal | 30 m | §18 |
 
-> **`maintenance-retention` (ditambahkan 2026-08-08, PR-024a):** tabel di atas semula tidak punya baris untuk kebijakan retensi §6.4, padahal §6.4 menyebut "job harian" untuk lima jenis data. Celahnya ditambal di sini. Jadwal **02:47 WIB** dipilih agar berjalan SEBELUM `pdp-purge` (03:17): purge menghapus `ai_usage` milik akun terpurge tanpa memandang umur, jadi menjalankan agregasi bulanan lebih dulu memperkecil jendela pemakaian AI yang hilang dari agregat sebelum sempat dihitung. `manual` (tanpa retry otomatis) sama seperti `pdp-purge` — operasi destruktif yang gagal di tengah batch harus dilihat manusia, bukan diulang membuta.
-
-Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue (queue pendamping `<queue>-dlq`) → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract-{sessionId}`, dibangun lewat `buildJobId()` di `core/queue`) untuk anti-duplikat; queue dan cache memakai **dua service Redis terpisah** — cache boleh LRU-evict, queue wajib `noeviction` (ADR-004 revisi PR-008; rumusan lama "dua DB index" tidak dapat memenuhi kebutuhan eviction yang berbeda karena `maxmemory-policy` berlaku per instance).
-
-Kolom **Retry** di tabel ini berarti jumlah RETRY, sedangkan opsi `attempts` BullMQ menghitung percobaan pertama — pemetaan `attempts = retry + 1` dilakukan sekali di `QUEUE_DEFAULTS` (`apps/api/src/core/queue/definitions.ts`). Kolom **Timeout** ditegakkan worker, bukan opsi job: BullMQ v5 tidak lagi punya `timeout` per job.
+Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue → job gagal-final tampil di dashboard admin + alert; job id deterministik (`extract:{sessionId}`) untuk anti-duplikat; Redis untuk queue memakai DB index terpisah dari cache (cache boleh LRU-evict, queue tidak boleh).
 
 ---
 
@@ -714,7 +735,8 @@ Target desain tahun 1: 5.000 pengguna, ~500 DAU — head-room besar pada topolog
 | RAM DB tertekan / IOPS jenuh | pindah Postgres ke managed DB / VPS DB terpisah | ganti `DATABASE_URL` |
 | > ~20rb user / antrean AI menumpuk | worker di VPS kedua (BullMQ lintas host via Redis) | tidak ada |
 | Katalog > 10rb lowongan / FTS lambat | tambah Meilisearch (sinkron via event `job.published`) | modul jobs: adapter search |
-| Fitur ekosistem (forum/mentoring) tervalidasi | modul baru dalam monolith dulu; pecah service hanya bila beban terbukti | boundaries §15 memudahkan |
+| Community feed atau moderasi mulai membebani API | cache read feed; worker hanya untuk notifikasi; pecah service hanya bila beban terbukti | modul `community` sudah terisolasi |
+| Fitur ekosistem lain (mentoring/training) tervalidasi | modul baru dalam monolith dulu; pecah service hanya bila beban terbukti | boundaries §15 memudahkan |
 | SignBridge v2 lolos gerbang riset | service GPU terpisah di belakang AI Gateway (§7.4) | tambah provider route |
 | Multi-VPS | Docker Compose → k3s ATAU tetap compose + LB Cloudflare; observability naik ke Prometheus/Grafana/Loki | infra saja |
 
