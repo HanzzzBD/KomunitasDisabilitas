@@ -23,6 +23,8 @@ Nawasena menggunakan **Redis** sebagai cache, penghitung kuota, rate limiter, da
 
 Spesifikasi tiap queue (concurrency, retry, backoff, timeout, DLQ) mengikuti SDD §16.
 
+> **Amandemen 2026-08-31 (PR-043):** penghitung **kuota AI** tinggal di `redis-queue`, bukan di `redis-cache`. Pemisahan dua service di atas dibuat berdasarkan kebutuhan **daya tahan**, bukan berdasarkan nama beban kerjanya; `allkeys-lru` mengusir kunci sembarang saat memori menipis, dan kunci kuota yang terusir memulihkan jatah seorang pengguna sekaligus menihilkan pagu harian global — tepat pada saat trafik paling tinggi. Kalimat "Redis sebagai … penghitung kuota" di atas karenanya berarti `redis-queue` untuk kuota AI; rate limiter HTTP, OTP, dan kuota ekspor PDP (PR-022) tetap di `redis-cache`, sebab kehilangan kunci di sana hanya mengembalikan jatah kepada pemiliknya sendiri. Dua syarat mengikat penumpang non-antrean ini: prefiks `ai:kuota:` (tidak mungkin bertabrakan dengan namespace `bull:`) dan **TTL pada setiap kunci**, supaya jumlah kunci tetap terbatas dan instans `noeviction` tidak pernah terdorong menolak tulisan — yang justru akan mematikan antrean.
+
 ## Consequences
 
 ### Positif

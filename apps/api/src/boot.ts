@@ -26,6 +26,8 @@ import {
 import { createUsersModule } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
+import { createAiModule } from "./modules/ai/index.js";
+import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -46,11 +48,13 @@ export interface BootOptions {
   /** Sudah tervalidasi di index.ts; undefined = fitur sesi mati (503). */
   sessionKeys: SessionKeys | undefined;
   queueConfigs: QueueConfigs;
+  /** Sudah tervalidasi di index.ts; dipakai mesin kuota AI (PR-043). */
+  quotaConfig: AiQuotaConfig;
 }
 
 /** Rakit seluruh dependensi lalu mulai listen. Melempar bila gagal start. */
 export async function startApi(options: BootOptions): Promise<void> {
-  const { env, fieldKeys, sessionKeys, queueConfigs } = options;
+  const { env, fieldKeys, sessionKeys, queueConfigs, quotaConfig } = options;
 
   const logger = createLogger(env);
   const db = createDbClient(env);
@@ -81,6 +85,27 @@ export async function startApi(options: BootOptions): Promise<void> {
     connection: { url: env.REDIS_QUEUE_URL },
   });
   const dlqQueues = createRawQueuePool({ url: env.REDIS_QUEUE_URL });
+
+  // Kuota AI (PR-043) di atas klien `redis.queue`, BUKAN `redis.cache`.
+  // Instans cache berjalan `allkeys-lru` (ADR-004): kunci yang terusir di sana
+  // akan diam-diam memulihkan jatah seorang pengguna DAN menihilkan pagu global
+  // justru saat memori sedang tertekan — kebalikan dari gunanya penghitung ini.
+  // Penjelasan lengkap beserta dua penjaganya (prefiks `ai:kuota:` + TTL pada
+  // setiap kunci) ada di kepala core/ai/quota.ts.
+  const aiQuota = createAiQuota({
+    redis: redis.queue,
+    config: quotaConfig,
+    logger,
+    failOpen: env.AI_QUOTA_FAIL_OPEN,
+  });
+  if (env.AI_QUOTA_FAIL_OPEN) {
+    // Berisik dengan sengaja: keadaan ini mencabut seluruh kendali biaya AI saat
+    // Redis bermasalah, dan tidak boleh berlalu tanpa jejak di log boot.
+    logger.warn(
+      { failOpen: true },
+      "AI_QUOTA_FAIL_OPEN aktif — panggilan AI dilewatkan bila penghitung kuota tak terbaca",
+    );
+  }
 
   // RBAC (PR-019). Penjaga dirakit SEKALI di sini — inilah composition root
   // tempat core/auth (bebas Prisma) bertemu repository modul auth.
@@ -169,6 +194,12 @@ export async function startApi(options: BootOptions): Promise<void> {
           // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk
           // akun yang baru lahir (PR-034).
           events,
+        }),
+      );
+      app.use(
+        createAiModule({
+          quota: aiQuota,
+          routes: routeRegistry.forModule("/api/v1"),
         }),
       );
       app.use(profiles.router);
