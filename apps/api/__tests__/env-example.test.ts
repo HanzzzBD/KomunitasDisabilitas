@@ -53,6 +53,11 @@ describe("apps/api/.env.example — sinkron dengan skema env", () => {
       .map((m) => m[1] as string)
       // Override antrean bersifat pola (QUEUE_<NAMA>_<FIELD>), bukan daftar tetap.
       .filter((nama) => !nama.startsWith("QUEUE_") && !nama.startsWith("FIELD_KEY_V"))
+      // Jatah kuota AI juga pola (AI_QUOTA_<FITUR>_PER_DAY, PR-043): dibaca
+      // core/ai/quota-config.ts, bukan skema zod env — sama seperti QUEUE_*.
+      // Sengaja SEMPIT (harus berakhiran _PER_DAY): AI_QUOTA_FAIL_OPEN adalah
+      // variabel skema biasa dan tetap wajib dikenali di kedua arah.
+      .filter((nama) => !/^AI_QUOTA_[A-Z0-9_]+_PER_DAY$/.test(nama))
       .filter((nama) => !dikenal.has(nama));
 
     expect([...new Set(asing)]).toEqual([]);

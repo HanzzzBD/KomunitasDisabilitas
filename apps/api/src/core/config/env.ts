@@ -208,6 +208,23 @@ const envSchema = z.object({
    * satu provider terbukti bermasalah dan kita perlu mematikannya tanpa deploy.
    */
   AI_ROUTER_FORCE_PROVIDER: z.enum(["gemini", "groq"]).optional(),
+  // --- Kuota AI (PR-043, SDD 7.1) ---
+  //
+  // Angka jatahnya TIDAK di sini: ia berpola (AI_QUOTA_<FITUR>_PER_DAY) dan
+  // dibaca `core/ai/quota-config.ts`, sama seperti override antrean
+  // (QUEUE_<NAMA>_<FIELD>) yang juga tidak didaftar satu per satu di skema ini.
+  //
+  // Yang di sini hanya tuas perilaku saat penghitung kuota TIDAK BISA DIBACA.
+  // Bawaannya `false` = gagal tertutup: panggilan AI ditolak dengan 429 dan
+  // fitur beralih ke jalur non-AI (ADR-005). Menyalakannya berarti seluruh
+  // kendali biaya mati selama gangguan Redis — sah sebagai keputusan operator
+  // yang sedang menonton, tidak pernah sebagai bawaan.
+  AI_QUOTA_FAIL_OPEN: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("false")
+    .transform((nilai) => nilai === "true"),
 });
 
 /**

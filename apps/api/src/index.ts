@@ -22,6 +22,10 @@ import { loadEnv, EnvError } from "./core/config/index.js";
 import { parseFieldKeys, FieldKeyError, type FieldKeys } from "./core/crypto/index.js";
 import { parseSessionKeys, SessionKeyError, type SessionKeys } from "./core/auth/index.js";
 import { loadQueueConfigs } from "./core/queue/index.js";
+// Jalur SEMPIT, bukan barrel `./core/ai/index.js`: berkas quota-config hanya
+// menyentuh zod + core/config, sedangkan barrel core/ai menyeret core/http.
+// Aturan di kepala berkas ini berlaku penuh untuk impor ini.
+import { loadAiQuotaConfig } from "./core/ai/quota-config.js";
 
 let env;
 try {
@@ -67,6 +71,17 @@ try {
   process.exit(1);
 }
 
+// Kuota AI juga fail-fast (PR-043): `AI_QUOTA_*` yang salah ketik ketahuan saat
+// boot, bukan saat pengguna pertama menekan tombol AI dan mendapati jatahnya
+// bukan yang disetel operator. Nilai 0 SAH — itulah tuas darurat "AI dimatikan".
+let quotaConfig;
+try {
+  quotaConfig = loadAiQuotaConfig();
+} catch (err) {
+  console.error(err instanceof EnvError ? err.message : err);
+  process.exit(1);
+}
+
 // Semua gerbang lolos → baru rakit aplikasi (import dinamis, lihat catatan di atas).
 const { startApi } = await import("./boot.js");
-await startApi({ env, fieldKeys, sessionKeys, queueConfigs });
+await startApi({ env, fieldKeys, sessionKeys, queueConfigs, quotaConfig });

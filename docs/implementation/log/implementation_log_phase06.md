@@ -315,3 +315,119 @@ lingkungan verifikasi). QC satu iterasi, PASS bersih, tanpa Required Fixes.
 * **PR-046** — Kontrak degradasi baku; pemetaan `AiProviderError` ke
   `ERROR_CATALOG`; keputusan `AiRouterDeps.breakerOptions` (pakai atau lepas
   ekspornya) belum diambil di PR ini.
+
+---
+
+## PR-043a — Quota Engine (penegakan) + `GET /ai/quota`
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md#pr-043---quota-engine--ai_usage--get-aiquota)
+> **Tanggal:** 2026-08-31
+> **Status:** Selesai (separuh penegakan; pencatatan `ai_usage` = PR-043b)
+
+### Ringkasan hasil
+
+PR-043 dipecah atas keputusan owner: kerjanya ~600 LOC produksi, di atas batas 500 LOC
+(CLAUDE.md §9). **043a memuat jalur penegakan** — kode error, konfigurasi kuota, batas
+hari WIB, mesin kuota, gerbang boot, dan endpoint `GET /api/v1/ai/quota`. **043b** akan
+memuat kolom `ai_usage.prompt_version`, antrean `ai-usage-record`, recorder, processor
+worker, `AiClient`, dan utang `onFallbackFailure` PR-042.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 — `@nawasena/api`
+76 berkas / **852 lulus** (144 skip pra-ada: butuh Docker, tidak terkait). **56** test
+kuota baru (ai-quota 23, ai-quota-config 15, ai-quota-wib 10, ai-quota-http 8),
+**tidak satu pun** ikut kelompok skip atau butuh Docker: mesin kuota menerima
+`QuotaRedisLike` yang sempit, jadi penegakannya dibuktikan dengan fake in-memory + jam
+yang disuntik.
+
+### Scope selesai
+
+* **`core/http/errors.ts`** — entri katalog `KUOTA_AI_HABIS` (429). `AppError` sudah
+  menulis `Retry-After` dari `retryAfterSeconds`, jadi tidak ada mekanisme error kedua.
+* **`core/ai/quota-config.ts`** — `AI_QUOTA_DEFAULTS` (cv-chat 30, finalize 5,
+  simplify-text 20, rerank 3 dari SDD §7.1; cv-check 5, interview-sim 10, embed 50
+  eksplisit) + `loadAiQuotaConfig()` membaca `AI_QUOTA_<FITUR>_PER_DAY` /
+  `AI_QUOTA_GLOBAL_PER_DAY`, melempar `EnvError`. Pagu global bawaan 1200 = tier gratis
+  1500 − buffer 20%.
+* **`core/ai/waktu-wib.ts`** — `hariWib` / `detikKeTengahMalamWib` lewat `Intl`, murni,
+  tanpa library tanggal dan tanpa fake timer.
+* **`core/ai/quota.ts`** — `createAiQuota`: reserve-then-refund, penghitung per pengguna
+  DAN pagu global, `ringkasan()` untuk jalur baca, `isKuotaHabis` + `bolehDikembalikan`.
+* **`src/index.ts`** — gerbang fail-fast keempat lewat impor SEMPIT
+  `./core/ai/quota-config.js` (bukan barrel `core/ai`); `boot.ts` merakit kuota di atas
+  `redis.queue` dan memasang modul `ai`.
+* **`modules/ai/`** — router → controller → service (tanpa repository: yang dijawab
+  seluruhnya ada di Redis). `GET /ai/quota` dengan `access.authenticated()`.
+* **`core/config/env.ts` + `.env.example`** — `AI_QUOTA_FAIL_OPEN` (default `false`) dan
+  blok pola `AI_QUOTA_*` (mengikuti cara `QUEUE_<NAMA>_<FIELD>` didokumentasikan).
+
+### Keputusan teknis
+
+* **D1 — `AppError` + kode katalog, BUKAN `DegradedError` baru.** `DegradedError` milik
+  PR-046 (phase-06 L418-424) dan `AppError` adalah satu-satunya pemetaan error→HTTP yang
+  ada, lengkap dengan `Retry-After`. Pemanggil WAJIB memakai predikat `isKuotaHabis()`,
+  jangan perbandingan kelas — PR-046 bebas menurunkan kelas baru berkode sama. Akibatnya
+  nama tipe literal `DegradedError` di AC-1 **tidak** terpenuhi secara harfiah; perilaku
+  yang diminta AC-1 (respons degradasi, bukan 500, `Retry-After` terpasang) terpenuhi
+  penuh lewat mekanisme yang sudah ada.
+* **D2 — Penghitung di `redis-queue`, bukan `redis-cache`** (amandemen ADR-004
+  2026-08-31). `allkeys-lru` akan diam-diam memulihkan jatah dan menihilkan pagu global
+  saat memori tertekan. Dua penjaga: prefiks `ai:kuota:v1:` dan TTL pada setiap kunci.
+* **D3 — Reset harian lewat KUNCI BERTANGGAL, bukan TTL bergulir.** TTL murni pengumpul
+  sampah. TTL-sebagai-reset akan mereset pada jam berbeda per pengguna (AC-2 tak
+  terbuktikan) dan mengunci pengguna selamanya bila `EXPIRE` gagal. Diverifikasi QC
+  secara independen terhadap perhitungan manual UTC+7 untuk seluruh 1440 menit dalam satu
+  hari (2026-08-31) — nol selisih, termasuk kedua sisi batas tengah malam WIB.
+* **D4 — Gagal tertutup saat Redis tak terjangkau**, dengan tuas operator
+  `AI_QUOTA_FAIL_OPEN=true` yang diperingatkan saat boot. Setiap fitur AI wajib punya
+  jalur non-AI (ADR-005), jadi menolak = degradasi; gagal terbuka mencabut seluruh
+  kendali biaya tepat saat tidak ada yang bisa membaca penghitungnya. Tuas ini **tidak**
+  bisa mengalahkan killswitch kuota `0`: pemeriksaan `0` berjalan sebelum I/O Redis apa
+  pun, tanpa syarat terhadap `failOpen` (diverifikasi: 0 perintah Redis terkirim saat
+  kuota = 0).
+* **D5 — Tidak ada refund untuk `AI_SAFETY_BLOCK`** (juga `AI_INVALID_OUTPUT` dan
+  `AI_RATE_LIMIT`). Mengembalikan vonis penyaring keamanan membuat penjajakannya gratis.
+* **D6 — Pagu global TIDAK diekspos ke pengguna** — jawabannya hanya
+  `globalTersedia: boolean`; angkanya data operasional (PR-103).
+
+### Verifikasi
+
+* AC-1: `ai-quota.test.ts` — panggilan melewati jatah → 429 + `Retry-After` (bukan 500),
+  `isKuotaHabis` true, envelope Bahasa Indonesia lengkap.
+* AC-2: `ai-quota-wib.test.ts` (16:59:59Z hari N, 17:00:00Z hari N+1) + `ai-quota.test.ts`
+  (melintasi tengah malam → jatah penuh lagi; TTL terpasang pada setiap kunci).
+* AC-4: pagu global menolak pengguna yang jatah pribadinya masih ada, dan jatah pribadi
+  itu dikembalikan; satu akun tidak bisa menguras anggaran bersama.
+* AC-5: `ai-quota-config.test.ts` — default = angka SDD, override env, `0` = fitur mati,
+  salah ketik → `EnvError`; daftar fitur dibandingkan dengan enum `AiFeature` Prisma.
+* AC-6: `ai-quota-http.test.ts` — 401 tanpa token, 200 hanya angka pemanggil (query
+  `?userId=` tidak berpengaruh), angka pagu global tidak pernah ikut keluar, Redis mati →
+  503 `BELUM_SIAP`, dan `registry.list()` mencatat `GET /api/v1/ai/quota` = authenticated.
+
+### Risiko yang ditemukan
+
+* **AC-3 belum terpenuhi** — pencatatan `ai_usage` (fitur/provider/token/versi prompt)
+  seluruhnya ada di PR-043b. Sampai PR itu mendarat, kuota ditegakkan tanpa jejak biaya
+  per panggilan di DB.
+* **Mesin kuota belum punya consumer produksi.** `AiClient` yang mengikat gateway →
+  kuota → recorder lahir di 043b; hari ini `periksaDanPakai`/`kembalikan` hanya dipanggil
+  test, dan `GET /ai/quota` hanya membaca. Jadi kuota belum benar-benar mengurangi
+  panggilan LLM mana pun sampai 043b terpasang.
+* **Over-count sementara saat panggilan bersamaan** — dibatasi jumlah permintaan
+  in-flight dan pulih sendiri lewat DECR.
+* **Kegagalan Redis parsial setelah `INCR` pengguna** — bila panggilan `EXPIRE`/TTL
+  berikutnya gagal, jalur gagal-tertutup menolak tanpa mengembalikan unit yang sudah
+  ter-`INCR`: konservatif (tidak pernah mencetak kuota gratis) tapi merugikan pengguna
+  satu panggilan. Perbaikan (refund pada kegagalan parsial) masuk 043b.
+* **Dedup pengembalian (`kembalikan`) memakai `WeakSet` in-memory** berbasis identitas
+  objek reservasi — aman hari ini karena tidak ada jalur serialisasi reservasi di 043a,
+  TETAPI 043b wajib menggantinya dengan penanda idempotensi yang tahan-serialisasi (mis.
+  id reservasi di Redis) begitu `AiClient` melewatkan reservasi lintas antrean/proses.
+  Temuan security review, LOW/teoretis, tidak memblokir 043a.
+* **Utang PR-042 (`router.ts:134` `catch {}`)** belum dibayar — masuk 043b.
+
+### Next steps
+
+* **PR-043b** — kolom `ai_usage.prompt_version` + migrasi, antrean `ai-usage-record`,
+  recorder + processor worker, `AiClient`, `onFallbackFailure`.
+* **PR-044/045/046** — prompt registry + cache semantik, SSE streaming, kontrak degradasi
+  (`withDegradation`, `meta.degraded`) yang akan mengkanonkan `KUOTA_AI_HABIS`.

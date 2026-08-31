@@ -162,6 +162,23 @@ export const ERROR_CATALOG = {
     message: "Akses data disabilitas harus menyertakan alasan",
     hint: "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
   },
+  // --- Kuota AI (PR-043, SDD §7.1) ---
+  // 429, bukan 403: permintaannya sah dan pemanggilnya berhak — yang habis
+  // adalah JATAH HARIAN-nya, dan jatah selalu kembali. Karena itu error ini
+  // SELALU dibuat dengan `retryAfterSeconds` (detik menuju tengah malam WIB),
+  // supaya klien tahu kapan boleh mencoba lagi alih-alih menebak.
+  //
+  // Satu kode untuk tiga penolakan berbeda — jatah pribadi habis, pagu harian
+  // global tercapai, dan penghitung kuota tidak bisa dibaca (fail closed).
+  // Membedakannya kepada klien tidak mengubah satu pun tindak lanjutnya
+  // (tunggu, atau pakai jalur non-AI), sedangkan menyebut "pagu global" kepada
+  // pengguna justru memberi tahu penyalahguna bahwa anggaran sedang tipis.
+  // Yang membedakan tetap terbaca manusia lewat `message`/`hint` kontekstual.
+  KUOTA_AI_HABIS: {
+    status: 429,
+    message: "Jatah bantuan AI Anda hari ini sudah habis",
+    hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",
