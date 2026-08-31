@@ -183,6 +183,31 @@ const envSchema = z.object({
     .min(1000, { message: "minimal 1000 (1 detik)" })
     .max(60_000, { message: "maksimal 60000 (60 detik)" })
     .default(15_000),
+  // --- AI Gateway / Groq — provider cadangan (PR-042, ADR-005) ---
+  // Opsional sendirian, alasan yang sama dengan GEMINI_API_KEY. Tanpa kunci ini
+  // gateway tetap terbentuk dan Gemini tetap jalan; yang hilang hanya jalur
+  // cadangan saat Gemini penuh/tumbang.
+  GROQ_API_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /** Nama model lewat env — katalog Groq berganti nama lebih sering dari rilis kita. */
+  GROQ_CHAT_MODEL: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .default("llama-3.3-70b-versatile"),
+  /** Base URL hanya diganti untuk test/staging; adapter menambahkan /openai/v1/…. */
+  GROQ_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.groq.com"),
+  /** Batas tunggu satu panggilan Groq; batasnya sama dengan GEMINI_TIMEOUT_MS. */
+  GROQ_TIMEOUT_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .max(60_000, { message: "maksimal 60000 (60 detik)" })
+    .default(15_000),
+  /**
+   * Tuas rollback router (PR-042). Bila di-set, SELURUH panggilan AI dipaksa ke
+   * satu provider: tanpa fallback, tanpa circuit breaker. Gunanya saat salah
+   * satu provider terbukti bermasalah dan kita perlu mematikannya tanpa deploy.
+   */
+  AI_ROUTER_FORCE_PROVIDER: z.enum(["gemini", "groq"]).optional(),
 });
 
 /**

@@ -183,3 +183,135 @@ diuji berisiko mengembalikan sukses-kosong-senyap untuk kode blokir Gemini di lu
 * **PR-046** — Kontrak degradasi baku; tempat `AiProviderError` akhirnya dipetakan
   ke `ERROR_CATALOG`, dan tempat yang tepat memutuskan nasib
   `createUnavailableAiGateway`/`AI_ERROR_MESSAGES` bila tidak jadi dipakai.
+
+---
+
+## PR-042 — Adapter Groq + Router + Circuit Breaker
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md#pr-042---adapter-groq--router--circuit-breaker)
+> **Tanggal:** 2026-08-31
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`gateway.ts` sekarang merangkai dua provider (Gemini + Groq) lewat router dan circuit
+breaker per provider, tanpa mengubah bentuk publik (`createAiGateway`, `AiGatewayEnv`,
+`createUnavailableAiGateway`). Adapter Groq mengikuti disiplin PR-041: `fetch` mentah +
+`FetchLike` di-inject, tanpa `groq-sdk`. Kebijakan failover dipisah per kapabilitas —
+chat/chatJson boleh berpindah provider, embed tidak pernah. `core/ai` tetap tanpa
+consumer (`boot.ts`/`index.ts` tidak disentuh).
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 — `@nawasena/api`
+72 berkas / **796 lulus** (144 skip pra-ada, tak terkait, Docker tidak aktif di
+lingkungan verifikasi). QC satu iterasi, PASS bersih, tanpa Required Fixes.
+
+### Scope selesai
+
+* **`apps/api/src/core/ai/providers/groq.ts`** — `createGroqProvider`, kontrak REST
+  `POST {base}/openai/v1/chat/completions`, `Authorization: Bearer`, JSON mode via
+  `response_format:{type:"json_object"}`. `embed()` melempar `AI_PROVIDER_UNAVAILABLE`
+  langsung — Groq tidak punya endpoint embedding.
+* **`apps/api/src/core/ai/breaker.ts`** — `createCircuitBreaker` per provider: 5 galat
+  berturut-turut membuka sirkuit, jendela 60 detik, lalu satu probe half-open;
+  `clock?: () => Date` di-inject (bukan fake timer, konvensi repo).
+* **`apps/api/src/core/ai/router.ts`** — `AiRouterDeps` (`primary`, `fallback`,
+  `forceProvider?`), mengimplementasikan `AiProvider`. Set `KODE_ALIH` membatasi kode
+  yang memicu failover/breaker ke empat sinyal kesehatan saja.
+* **`apps/api/src/core/ai/gateway.ts`** — membangun kedua provider (kunci kosong →
+  stand-in `createBelumDikonfigurasi`), membungkusnya dalam router.
+* **`apps/api/src/core/config/env.ts`** + **`.env.example`** — `GROQ_API_KEY`
+  (opsional), `GROQ_BASE_URL` (default `https://api.groq.com`), `GROQ_CHAT_MODEL`
+  (default `llama-3.3-70b-versatile`), `GROQ_TIMEOUT_MS`, `AI_ROUTER_FORCE_PROVIDER`
+  (`z.enum(["gemini","groq"])`, opsional).
+* **Test (51 test, tiga berkas baru):** `ai-groq-provider.test.ts` (22),
+  `ai-router.test.ts` (19 + 1 tambahan QC = 20), `ai-breaker.test.ts` (10);
+  `ai-gateway.test.ts` diperluas untuk env dua-kunci dan jalur paksa provider.
+
+### Keputusan teknis
+
+* **D1 — Adapter Groq `fetch` mentah + `FetchLike` di-inject, tanpa `groq-sdk`,
+  mencerminkan pola `gemini.ts`.** Kontrak REST diverifikasi terhadap dokumentasi
+  resmi Groq: `POST https://api.groq.com/openai/v1/chat/completions`, auth
+  `Authorization: Bearer`, JSON mode lewat `response_format:{type:"json_object"}`.
+  Bentuk badan galat Groq tidak terdokumentasi, sehingga ditangani defensif dan
+  tidak pernah dibaca (`groq.ts:127-133`).
+* **D2 — Kebijakan failover per kapabilitas: chat/chatJson jatuh ke Groq, embed
+  TIDAK PERNAH.** Groq memang tidak punya endpoint embedding, dan vektor dari ruang
+  berbeda akan meracuni kemiripan pgvector (ADR-003). `embed()` melempar
+  `AiProviderError` terkendali agar job BullMQ pemanggil bisa retry lewat kebijakan
+  antreannya sendiri, bukan diam-diam pindah provider.
+* **D3 — Failover hanya pada sinyal kesehatan provider** (`AI_RATE_LIMIT`,
+  `AI_PROVIDER_UNAVAILABLE`, `AI_TIMEOUT`, `AI_NETWORK_ERROR`), **tidak pernah**
+  pada `AI_SAFETY_BLOCK` / `AI_INVALID_OUTPUT` / `AI_NOT_CONFIGURED` — dua yang
+  pertama adalah penilaian isi, bukan sinyal kesehatan; mengalihkannya akan mencuci
+  vonis keamanan lewat provider lain (model berbeda, filter berbeda).
+* **D4 — Breaker per provider: 5 galat berturut-turut membuka, jendela 60 detik,
+  lalu tepat satu probe half-open;** probe sukses menutup, probe gagal membuka
+  ulang dengan jendela baru. State in-process per replika (**bukan Redis**) —
+  konsekuensinya dicatat sebagai risiko: dengan 2 replika, tiap replika belajar
+  sendiri (§11 CLAUDE.md).
+* **D5 — Waktu lewat `clock?: () => Date` yang di-inject** (konvensi ~12 service di
+  repo ini), bukan fake timer — `AbortSignal.timeout` tidak menghormati
+  `vi.useFakeTimers()`.
+* **D6 — `AI_ROUTER_FORCE_PROVIDER` (enum tertutup `gemini`/`groq`)** sebagai tuas
+  rollback ke satu provider tunggal, melewati breaker dan fallback sekaligus.
+* **D7 — Provider yang benar-benar melayani dilaporkan per panggilan** (`response.
+  provider`) — hook yang dikonsumsi perekam `ai_usage` di PR-043.
+* **D8 — Saat fallback ikut gagal, pemanggil melihat galat PRIMARY**, bukan galat
+  fallback (mis. `AI_NOT_CONFIGURED` dari Groq yang belum diisi kuncinya) — sebab
+  sebenarnya adalah padamnya provider utama; QC menerima aturan ini (lihat Risiko).
+
+### Verifikasi
+
+* AC-1 (Gemini 429/5xx → Groq): `ai-router.test.ts` (429/500/503 + AI_TIMEOUT/
+  AI_NETWORK_ERROR, chat dan chatJson).
+* AC-2 (breaker 5-galat/60s/satu probe): `ai-breaker.test.ts` (10 test) + level
+  router; QC menjalankan probe konkurensi langsung (skrip tsx, bukan dari laporan)
+  membuktikan tepat satu probe diterima.
+* AC-3 (embed tidak pernah fallback): `ai-router.test.ts` — galat Gemini diteruskan
+  apa adanya, Groq tidak pernah disentuh.
+* AC-4 (provider yang melayani dilaporkan): blok AC-4/AC-5 (jalur fallback) + blok
+  `AI_ROUTER_FORCE_PROVIDER` (jalur paksa).
+* AC-5 (bentuk respons dinormalisasi): uji diff `Object.keys` — hanya
+  `text|data|usage|provider|model` yang melintasi adapter, tidak ada
+  `choices`/`finish_reason` bocor.
+* Mutation test sungguhan (bukan hanya diklaim): threshold off-by-one pada breaker
+  → 4 test merah; menambahkan `AI_SAFETY_BLOCK` ke `KODE_ALIH` → 2 test merah.
+  Security review independen: kunci hanya di header `authorization`, badan galat
+  tidak pernah dibaca, `AI_ROUTER_FORCE_PROVIDER` enum tertutup, fallback menerima
+  request dengan identitas referensi sama (tidak ada augmentasi payload).
+
+### Risiko yang ditemukan
+
+* **Breaker in-process per replika** — bukan jaminan lintas-replika, hanya
+  proteksi per-proses dari membombardir provider yang mati. Redis-backed breaker
+  ditunda (rasionalisasi sama seperti PR-041: `redis-cache` bisa evict di tengah
+  outage, `redis-queue` khusus BullMQ per ADR-004).
+* **`router.ts:134` menelan galat fallback dengan `catch {}` kosong** — `GROQ_API_KEY`
+  yang SALAH (bukan yang kosong) tidak terlihat operator hari ini. QC menyarankan
+  melampirkan `{ cause }` (tidak membocorkan apa pun karena pesan `AiProviderError`
+  sudah dipatok) dan agar perekam PR-043 mencatat kegagalan fallback secara eksplisit.
+* **Galat in-flight yang datang terlambat saat breaker sudah terbuka** akan
+  me-restart jendela 60 detik dari saat itu — dibuktikan (dibuka t=0, galat
+  terlambat t=50s, masih terbuka di t=60s). Dibatasi oleh konkurensi in-flight dan
+  sembuh sendiri; QC menilai non-blocking.
+* **`AiRouterDeps.breakerOptions` belum punya pemanggil** — `gateway.ts` selalu
+  memakai `breakers` langsung; opsi ini disiapkan untuk penyesuaian clock/threshold
+  di kemudian hari tapi mati kode hari ini.
+* **`gateway.ts:88` pesan log "chat memakai Groq" tidak akurat** ketika
+  `GEMINI_API_KEY` kosong — `chat()` melempar `AI_NOT_CONFIGURED` tanpa pernah
+  menghubungi Groq (`AI_NOT_CONFIGURED` sengaja di luar `KODE_ALIH`). Bukan AC,
+  bukan regresi (perilaku sama sejak PR-041), belum ada consumer. **Jangan
+  dokumentasikan "Groq-only" sebagai konfigurasi yang bekerja** — satu-satunya
+  jalur Groq-only nyata adalah `AI_ROUTER_FORCE_PROVIDER=groq`.
+
+### Next steps
+
+* **PR-043** — Quota engine + `ai_usage` + `GET /ai/quota`. Wajib: catat kegagalan
+  fallback yang saat ini ditelan `router.ts:134` (lampirkan `{ cause }`), dan
+  konsumsi `response.provider` untuk pencatatan pemakaian per provider.
+* **PR-044** — Prompt registry + cache semantik + injection guard.
+* **PR-045** — SSE streaming (`chatStream`).
+* **PR-046** — Kontrak degradasi baku; pemetaan `AiProviderError` ke
+  `ERROR_CATALOG`; keputusan `AiRouterDeps.breakerOptions` (pakai atau lepas
+  ekspornya) belum diambil di PR ini.
