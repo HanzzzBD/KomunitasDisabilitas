@@ -30,6 +30,7 @@ export const QUEUE_NAME = {
   MAINTENANCE_PDP_PURGE: "maintenance-pdp-purge",
   MAINTENANCE_RETENTION: "maintenance-retention",
   MAINTENANCE_BACKUP: "maintenance-backup",
+  AI_USAGE_RECORD: "ai-usage-record",
 } as const;
 
 export const queueNameSchema = z.enum([
@@ -42,6 +43,7 @@ export const queueNameSchema = z.enum([
   QUEUE_NAME.MAINTENANCE_PDP_PURGE,
   QUEUE_NAME.MAINTENANCE_RETENTION,
   QUEUE_NAME.MAINTENANCE_BACKUP,
+  QUEUE_NAME.AI_USAGE_RECORD,
 ]);
 
 export type QueueName = z.infer<typeof queueNameSchema>;
@@ -219,3 +221,69 @@ export const retentionReportSchema = z.object({
 });
 
 export type RetentionReport = z.infer<typeof retentionReportSchema>;
+
+/**
+ * Fitur AI yang punya jatah kuota — SALINAN KETIGA daftar yang sama.
+ *
+ * Dua salinan lain: enum `AiFeature` di `schema.prisma` (tipe kolom
+ * `ai_usage.feature`) dan `AI_FEATURES` di `apps/api/src/core/ai/quota-config.ts`.
+ * Ketiganya sengaja tidak saling mengimpor: paket ini tidak boleh bergantung
+ * pada Prisma (ia juga dipakai web & mobile), dan `quota-config.ts` berdiri di
+ * jalur sempit gerbang boot yang tidak boleh menyeret dependensi baru. Penjaga
+ * kesamaannya adalah test (`ai-quota-config.test.ts`), bukan tipe — nilai DAN
+ * urutannya dibandingkan tiga arah.
+ */
+export const aiFeatureSchema = z.enum([
+  "cv_chat",
+  "cv_finalize",
+  "cv_check",
+  "simplify_text",
+  "interview_sim",
+  "rerank",
+  "embed",
+]);
+
+export type AiFeatureName = z.infer<typeof aiFeatureSchema>;
+
+/**
+ * Payload job `ai-usage-record` (PR-043b) — satu panggilan AI sukses = satu job
+ * = satu baris `ai_usage`.
+ *
+ * TANPA ISI PROMPT ATAU JAWABAN. Yang lewat batas proses ini hanya metadata
+ * biaya: siapa, fitur apa, provider mana, berapa token. Karena itu skemanya
+ * `.strict()` dan bukan `.passthrough()`: kunci asing — mis. seseorang kelak
+ * menempelkan `prompt` "sebentar saja untuk debug" — DITOLAK keras sehingga
+ * job-nya gagal dan masuk DLQ, terlihat di `GET /internal/queues`. Membuang
+ * kunci itu diam-diam adalah kebocoran yang lolos review berikutnya.
+ *
+ * `id` dibuat API (kolom `ai_usage.id` sengaja tanpa default DB): ia yang
+ * membuat penulisan idempoten. Retry BullMQ membawa payload yang sama, jadi
+ * UUID-nya sama, jadi penulisan kedua menabrak primary key dan ditelan.
+ *
+ * `createdAt` juga dibuat API, bukan `now()` saat worker menulis. Backlog
+ * antrean yang melewati pergantian bulan — atau job DLQ yang di-replay manual —
+ * akan mendarat di bulan yang salah, dan `finalkanBulanAiUsage` memfinalkan satu
+ * bulan SEKALI tanpa pernah menghitung ulang: kesalahannya permanen dan senyap.
+ */
+export const aiUsageRecordJobSchema = z
+  .object({
+    id: z.string().uuid(),
+    userId: z.string().uuid(),
+    feature: aiFeatureSchema,
+    provider: z.string().min(1).max(40),
+    tokensIn: z.number().int().min(0),
+    tokensOut: z.number().int().min(0),
+    /**
+     * Versi template prompt (SDD §7.3). OPSIONAL, bukan nullable: "belum ada
+     * registry prompt berversi" cukup dinyatakan dengan ketiadaan kunci — dua
+     * cara mengatakan hal yang sama akan bercabang di setiap pembaca, dan
+     * `JSON.stringify` lewat Redis memang menghapus kunci `undefined`. Registry
+     * lahir di PR-044; sampai saat itu kunci ini tidak pernah terisi.
+     */
+    promptVersion: z.string().min(1).max(40).optional(),
+    /** ISO-8601 waktu panggilan AI, bukan waktu worker menulis. */
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
+export type AiUsageRecordJob = z.infer<typeof aiUsageRecordJobSchema>;

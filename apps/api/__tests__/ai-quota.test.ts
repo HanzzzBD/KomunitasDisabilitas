@@ -425,3 +425,161 @@ describe("Redis tak terjangkau", () => {
     expect(dasar.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
   });
 });
+
+describe("kegagalan Redis PARSIAL — INCR berhasil, EXPIRE gagal (utang PR-043a, dibayar PR-043b)", () => {
+  /** Redis yang melayani INCR/DECR tetapi selalu menolak EXPIRE. */
+  function redisTanpaExpire(): { redis: RedisKuotaPalsu; dasar: RedisKuotaPalsu } {
+    const dasar = redisKuotaPalsu();
+    const redis: RedisKuotaPalsu = {
+      ...dasar,
+      expire: () => Promise.reject(new Error("EXPIRE gagal (Redis sekarat)")),
+    };
+    return { redis, dasar };
+  }
+
+  it("gagal tertutup: panggilan ditolak, dan jatah pengguna TIDAK tertinggal terpotong", async () => {
+    // `naikkan` melempar juga ketika INCR-nya SUDAH berhasil dan yang gagal
+    // adalah EXPIRE sesudahnya. Tanpa pengembalian di jalur itu, pengguna
+    // kehilangan satu unit jatah untuk panggilan yang tidak pernah ia terima —
+    // kerugian senyap yang hanya terlihat sebagai "kuota saya kurang satu".
+    const { redis, dasar } = redisTanpaExpire();
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).rejects.toSatisfy(
+      isKuotaHabis,
+    );
+
+    expect(dasar.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
+  });
+
+  it("fail open: panggilan dilewatkan, dan jatahnya tetap dikembalikan", async () => {
+    const { redis, dasar } = redisTanpaExpire();
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+      failOpen: true,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).resolves.toMatchObject({
+      tercatat: false,
+    });
+
+    expect(dasar.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
+  });
+
+  it("penjaga ini tidak hampa: INCR-nya memang sempat berhasil sebelum dikembalikan", async () => {
+    // Kalau `incr` diam-diam ikut gagal, kedua test di atas akan hijau tanpa
+    // membuktikan apa pun — nilainya nol sejak awal. Di sini nilainya dibuat
+    // naik lebih dulu oleh panggilan lain yang sehat.
+    const { redis, dasar } = redisTanpaExpire();
+    expect(await redis.incr(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(1);
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).rejects.toSatisfy(
+      isKuotaHabis,
+    );
+
+    // Naik ke 2 oleh `naikkan`, lalu turun kembali ke 1 (milik panggilan sehat).
+    expect(dasar.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(1);
+  });
+});
+
+describe("kegagalan Redis pada INCR ITU SENDIRI — jatah TIDAK boleh dikembalikan", () => {
+  /**
+   * Redis yang menolak INCR tetapi melayani DECR. Inilah pasangan berbahaya
+   * dari blok di atas: pengembalian yang benar saat EXPIRE gagal menjadi
+   * pembagian jatah GRATIS bila dijalankan saat INCR-lah yang gagal, sebab
+   * DECR menurunkan penghitung yang tidak pernah naik.
+   */
+  function redisTanpaIncr(awal: Record<string, number> = {}): {
+    redis: RedisKuotaPalsu;
+    dasar: RedisKuotaPalsu;
+  } {
+    const dasar = redisKuotaPalsu(awal);
+    const redis: RedisKuotaPalsu = {
+      ...dasar,
+      incr: () => Promise.reject(new Error("INCR gagal (Redis sekarat)")),
+    };
+    return { redis, dasar };
+  }
+
+  it("penghitung pengguna tidak berubah — bukan berkurang satu", async () => {
+    const kunci = kunciKuotaUser(HARI, A, "cv_chat");
+    // Penghitung sudah berjalan hari ini: 3 panggilan sehat sebelumnya. Justru
+    // di sinilah kebocorannya terlihat — dari nol, DECR tertahan lantai nol dan
+    // bug-nya tak kasat mata.
+    const { redis, dasar } = redisTanpaIncr({ [kunci]: 3 });
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).rejects.toSatisfy(
+      isKuotaHabis,
+    );
+
+    expect(dasar.nilai(kunci)).toBe(3);
+  });
+
+  it("fail open: panggilan dilewatkan, penghitung tetap tidak berubah", async () => {
+    const kunci = kunciKuotaUser(HARI, A, "cv_chat");
+    // Tuas fail-open memperberat kebocoran: panggilan lolos DAN — sebelum
+    // perbaikan ini — satu unit jatah dikembalikan cuma-cuma.
+    const { redis, dasar } = redisTanpaIncr({ [kunci]: 3 });
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+      failOpen: true,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).resolves.toMatchObject({
+      tercatat: false,
+    });
+
+    expect(dasar.nilai(kunci)).toBe(3);
+  });
+
+  it("pagu global gagal di INCR: jatah pribadi dikembalikan, pagu global tidak", async () => {
+    // Kenaikan pribadi SUDAH mendarat beberapa baris sebelumnya, jadi ia wajib
+    // dikembalikan; kenaikan global tidak pernah terjadi, jadi ia wajib TIDAK.
+    const kunciUser = kunciKuotaUser(HARI, A, "cv_chat");
+    const kunciGlobal = kunciKuotaGlobal(HARI);
+    const dasar = redisKuotaPalsu({ [kunciGlobal]: 7 });
+    const redis: RedisKuotaPalsu = {
+      ...dasar,
+      incr: (key) =>
+        key === kunciGlobal
+          ? Promise.reject(new Error("INCR global gagal"))
+          : dasar.incr(key),
+    };
+    const quota = createAiQuota({
+      redis,
+      config: konfigurasi(),
+      logger: loggerSenyap,
+      clock: () => SIANG,
+    });
+
+    await expect(quota.periksaDanPakai({ userId: A, feature: "cv_chat" })).rejects.toSatisfy(
+      isKuotaHabis,
+    );
+
+    expect(dasar.nilai(kunciUser)).toBe(0);
+    expect(dasar.nilai(kunciGlobal)).toBe(7);
+  });
+});

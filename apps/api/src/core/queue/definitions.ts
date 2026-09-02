@@ -109,6 +109,28 @@ export const QUEUE_DEFAULTS: QueueConfigs = {
     timeoutMs: 1_800_000, // 30 menit
     ...QUEUE_RETENTION,
   },
+  // PR-043b — jejak biaya per panggilan AI. Angkanya diturunkan dari sifat
+  // pekerjaannya, bukan disalin dari queue tetangga:
+  // - concurrency 2: satu INSERT kecil per job, dan puncaknya sudah dibatasi
+  //   pagu global AI (~1.500 panggilan/hari). Angka lebih besar hanya merebut
+  //   slot worker dari `pdf-render` (RAM-bound, concurrency 1) tanpa masalah
+  //   throughput yang perlu dipecahkan.
+  // - attempts 4 (= 3 retry): job hilang = baris jejak biaya hilang selamanya.
+  //   Retry aman TANPA risiko baris dobel karena idempoten by construction
+  //   (UUID baris dibuat API; P2002 & P2003 ditelan processor).
+  // - backoff 10 detik eksponensial: mode gagalnya adalah Postgres tumbang atau
+  //   jenuh. 10/20/40 detik ≈ 70 detik, cukup melewati restart dan jauh lebih
+  //   cepat daripada batas yang benar-benar penting (agregasi bulanan). Bukan
+  //   30 detik seperti `notify-*`: tidak ada provider luar yang perlu disopani.
+  // - timeout 15 detik: satu INSERT. Lebih lambat dari itu berarti DB sakit, dan
+  //   anggaran pendek mengembalikan slot alih-alih memakunya.
+  "ai-usage-record": {
+    concurrency: 2,
+    attempts: 4,
+    backoffMs: 10_000,
+    timeoutMs: 15_000,
+    ...QUEUE_RETENTION,
+  },
 };
 
 /**

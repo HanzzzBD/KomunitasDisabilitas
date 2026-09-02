@@ -203,7 +203,7 @@ Bisnis: biaya AI tetap ~Rp0 dan adil antar pengguna (PRD §9). Teknis: counter R
 
 **Backend Changes:**
 
-* `core/ai/quota.ts` + modul `ai` (router kuota).
+* `core/ai/quota.ts` + modul `ai` (router kuota); `core/ai/client.ts` (`AiClient`) + recorder/repository `ai_usage` + processor worker (PR-043b).
 
 **Frontend Changes:**
 
@@ -215,7 +215,13 @@ Bisnis: biaya AI tetap ~Rp0 dan adil antar pengguna (PRD §9). Teknis: counter R
 
 **Database Changes:**
 
-* Tidak ada (ai_usage dari PR-011).
+* Kolom `ai_usage.prompt_version` (nullable, migrasi 10, PR-043b) + antrean `ai-usage-record` (SDD §16).
+
+  > **Koreksi 2026-09-02 (PR-043b).** Baris ini semula berbunyi "Tidak ada
+  > (ai_usage dari PR-011)" dan bertentangan dengan AC-nya sendiri: tabel
+  > PR-011 tidak punya kolom versi prompt, sedangkan AC menuntut "ai_usage
+  > tercatat per panggilan (fitur, provider, token, **versi prompt**)". Yang
+  > dibetulkan adalah dokumennya, bukan AC-nya.
 
 **API Changes:**
 

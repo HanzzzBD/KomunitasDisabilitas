@@ -472,13 +472,16 @@ model MatchScore {
 
 /// Penegakan kuota + audit pemakaian AI (SDD §7.2); retensi 90 hari.
 model AiUsage {
-  id        String    @id @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  feature   AiFeature
-  provider  String
-  tokensIn  Int       @default(0) @map("tokens_in")
-  tokensOut Int       @default(0) @map("tokens_out")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id            String    @id @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  feature       AiFeature
+  provider      String
+  tokensIn      Int       @default(0) @map("tokens_in")
+  tokensOut     Int       @default(0) @map("tokens_out")
+  /// Versi template prompt (SDD §7.3, migrasi 10). NULL = belum ada registry
+  /// prompt berversi (registry lahir di PR-044), BUKAN "versi tak diketahui".
+  promptVersion String?   @map("prompt_version")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

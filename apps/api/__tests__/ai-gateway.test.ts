@@ -100,6 +100,23 @@ describe("createAiGateway — hanya GEMINI_API_KEY", () => {
       gateway.chat({ messages: [{ role: "user", content: "halo" }] }),
     ).rejects.toMatchObject({ code: "AI_RATE_LIMIT", provider: "gemini" });
   });
+
+  it("AC-10 — kegagalan cadangan DICATAT warn di perakitan nyata, bukan hanya di seam test", async () => {
+    // Hook `onFallbackFailure` tidak berarti apa-apa bila composition root lupa
+    // menyambungkannya: kegagalan cadangan akan tetap tak pernah terlihat.
+    // Inilah yang membuktikan sambungan itu ada di gateway sungguhan.
+    const log = logger();
+    const fetchMock = vi.fn(() => Promise.resolve(new Response("{}", { status: 429 })));
+    const gateway = createAiGateway({ ...ENV, GEMINI_API_KEY: "kunci-uji" }, log, fetchMock);
+
+    await expect(
+      gateway.chat({ messages: [{ role: "user", content: "halo" }] }),
+    ).rejects.toMatchObject({ code: "AI_RATE_LIMIT" });
+
+    const catatan = log.warn.mock.calls.map((c) => JSON.stringify(c));
+    expect(catatan.some((c) => c.includes("Provider cadangan ikut gagal"))).toBe(true);
+    expect(catatan.some((c) => c.includes("AI_RATE_LIMIT"))).toBe(true);
+  });
 });
 
 describe("createAiGateway — kedua kunci terisi", () => {

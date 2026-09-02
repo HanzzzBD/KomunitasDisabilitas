@@ -1,6 +1,7 @@
 // Konfigurasi kuota AI (PR-043, AC-5: "semua angka kuota dari config, bukan
 // hardcode") + tuas darurat mematikan AI tanpa deploy.
 import { describe, it, expect } from "vitest";
+import { aiFeatureSchema } from "@nawasena/schemas";
 import { EnvError } from "../src/core/config/index.js";
 import {
   AI_FEATURES,
@@ -13,6 +14,16 @@ import {
   loadAiQuotaConfig,
 } from "../src/core/ai/quota-config.js";
 import { bacaSchemaPrisma } from "./helpers/prisma-schema.js";
+
+/** Nilai `enum AiFeature` di schema.prisma, URUTAN ASLI dipertahankan. */
+function nilaiEnumPrisma(): string[] {
+  const enumAi = /enum\s+AiFeature\s*\{([\s\S]*?)\}/.exec(bacaSchemaPrisma());
+  expect(enumAi).not.toBeNull();
+  return (enumAi?.[1] ?? "")
+    .split("\n")
+    .map((baris) => baris.trim())
+    .filter((baris) => baris.length > 0 && !baris.startsWith("//"));
+}
 
 describe("daftar fitur berkuota", () => {
   it("penjaga ini tidak lulus secara hampa", () => {
@@ -32,6 +43,26 @@ describe("daftar fitur berkuota", () => {
       .map((baris) => baris.trim())
       .filter((baris) => baris.length > 0 && !baris.startsWith("//"));
     expect([...AI_FEATURES].sort()).toEqual(nilai.sort());
+  });
+
+  it("TIGA salinan daftar fitur tidak melenceng — nilai DAN urutan (PR-043b)", () => {
+    // Daftar fitur AI hidup di tiga tempat yang sengaja tidak saling mengimpor:
+    //   1. `enum AiFeature` di schema.prisma  — kolom `ai_usage.feature`;
+    //   2. `AI_FEATURES` di core/ai           — jatah kuota (impor Prisma dilarang
+    //                                           di jalur gerbang boot);
+    //   3. `aiFeatureSchema` di @nawasena/schemas — payload job `ai-usage-record`.
+    //
+    // Menambah fitur di satu tempat saja gagal DIAM-DIAM dengan tiga cara
+    // berbeda: kuota membaca fitur tanpa jatah sebagai NOL (fitur mati diam),
+    // payload job ditolak zod (jejak biayanya hilang), atau baris DB ditolak
+    // enum. Urutan ikut dijaga, bukan kerapian: daftar yang urutannya berbeda
+    // adalah tanda paling awal bahwa salah satu salinan disunting sendirian —
+    // dan `aiQuotaEnvVars()` memang beriterasi menurut urutan `AI_FEATURES`.
+    expect([...AI_FEATURES]).toEqual(nilaiEnumPrisma());
+    expect([...aiFeatureSchema.options]).toEqual([...AI_FEATURES]);
+    // Penjaga tidak boleh lulus secara hampa bila ketiganya kebetulan kosong.
+    expect(aiFeatureSchema.options.length).toBe(AI_FEATURES.length);
+    expect(nilaiEnumPrisma().length).toBeGreaterThan(3);
   });
 
   it("setiap fitur punya jatah bawaan yang eksplisit", () => {

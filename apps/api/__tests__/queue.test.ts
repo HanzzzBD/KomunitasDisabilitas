@@ -82,6 +82,15 @@ describe("QUEUE_DEFAULTS — tabel SDD §16", () => {
     expect(QUEUE_DEFAULTS[QUEUE_NAME.PDF_RENDER].concurrency).toBe(1);
     expect(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_PUSH].concurrency).toBe(8);
 
+    // PR-043b — jejak biaya AI: satu INSERT kecil, tetapi job yang hilang
+    // berarti baris jejak biaya yang hilang, jadi retry-nya 3×.
+    expect(QUEUE_DEFAULTS[QUEUE_NAME.AI_USAGE_RECORD]).toMatchObject({
+      concurrency: 2,
+      attempts: 4,
+      backoffMs: 10_000,
+      timeoutMs: 15_000,
+    });
+
     // "manual" / "alert bila gagal" = tanpa retry otomatis.
     expect(QUEUE_DEFAULTS[QUEUE_NAME.MAINTENANCE_PDP_PURGE].attempts).toBe(1);
     expect(QUEUE_DEFAULTS[QUEUE_NAME.MAINTENANCE_BACKUP].attempts).toBe(1);
