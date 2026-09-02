@@ -63,6 +63,25 @@ export interface AiRouterDeps {
   breakers?: { primary: CircuitBreaker; fallback: CircuitBreaker };
   /** Opsi breaker baku bila `breakers` tidak diberikan. */
   breakerOptions?: CircuitBreakerOptions;
+  /**
+   * Dipanggil saat provider CADANGAN ikut gagal (utang PR-042, dibayar PR-043b).
+   *
+   * Inilah satu-satunya tempat kegagalan cadangan pernah terlihat manusia: yang
+   * dilempar ke pemanggil selalu error PRIMER (lihat `denganCadangan`), jadi
+   * tanpa hook ini error cadangan hilang tanpa jejak apa pun.
+   *
+   * SINKRON dan `void` dengan sengaja. Hook ini berjalan di jalur yang sudah
+   * dalam perjalanan melempar; membuatnya `async` memaksa `await` di dalam
+   * `catch` dan membiarkan hook yang lambat menahan error yang sedang ditunggu
+   * pemanggil.
+   */
+  onFallbackFailure?: (info: {
+    /** Error CADANGAN — tidak pernah sampai ke pemanggil. */
+    error: unknown;
+    /** Error PRIMER, yang benar-benar dilempar ke pemanggil. */
+    primary: AiProviderError;
+    fallbackName: string;
+  }) => void;
 }
 
 /** Satu percobaan ke satu provider, dengan breaker-nya. */
@@ -131,12 +150,21 @@ export function createAiRouter(deps: AiRouterDeps): AiProvider {
 
     try {
       return await lewatBreaker(fallback, breakers.fallback, panggil);
-    } catch {
+    } catch (err) {
       // Cadangan gagal juga: yang dilihat pemanggil adalah error PROVIDER UTAMA.
       // Peralihan tadi adalah usaha penyelamatan yang tidak pernah ia minta, dan
       // menonjolkan kegagalannya akan salah menunjuk penyebab — mis. "Layanan AI
       // belum dikonfigurasi" (kunci Groq kosong) padahal yang terjadi adalah
-      // Gemini kehabisan kuota.
+      // Gemini kehabisan kuota. Yang hilang bersamanya adalah kemampuan MELIHAT
+      // kegagalan cadangan sama sekali; hook di bawah mengembalikannya tanpa
+      // mengubah apa yang dilempar.
+      try {
+        deps.onFallbackFailure?.({ error: err, primary: awal, fallbackName: fallback.name });
+      } catch {
+        // Hook adalah observability, dan ia TIDAK boleh mengubah diagnosis.
+        // Penelanan di sini disengaja dan bertempat: yang ditelan adalah
+        // kegagalan PENCATAT, bukan kegagalan provider cadangan.
+      }
       throw awal;
     }
   }

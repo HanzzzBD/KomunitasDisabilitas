@@ -360,3 +360,95 @@ describe("createAiRouter — tuas rollback AI_ROUTER_FORCE_PROVIDER", () => {
     expect(groqFetch).not.toHaveBeenCalled();
   });
 });
+
+describe("createAiRouter — AC-10 (utang PR-042): kegagalan cadangan akhirnya TERLIHAT", () => {
+  // Sebelum PR-043b, `router.ts` menelan kegagalan provider cadangan dengan
+  // `catch {}` telanjang: error primer tetap dilempar (benar), tetapi tidak ada
+  // satu pun tempat di mana kegagalan cadangan pernah terlihat manusia. Hook
+  // `onFallbackFailure` mengembalikan penglihatan itu TANPA mengubah diagnosis.
+
+  it("hook menerima error CADANGAN, sementara pemanggil tetap menerima error PRIMER", async () => {
+    const dilihatHook = vi.fn();
+    const router = createAiRouter({
+      primary: providerGagal("gemini", "AI_RATE_LIMIT"),
+      fallback: providerGagal("groq", "AI_NOT_CONFIGURED"),
+      onFallbackFailure: dilihatHook,
+    });
+
+    await expect(router.chat(PERMINTAAN)).rejects.toMatchObject({
+      code: "AI_RATE_LIMIT",
+      provider: "gemini",
+    });
+
+    expect(dilihatHook).toHaveBeenCalledTimes(1);
+    const info = dilihatHook.mock.calls[0]?.[0] as {
+      error: AiProviderError;
+      primary: AiProviderError;
+      fallbackName: string;
+    };
+    // Inilah satu-satunya tempat AI_NOT_CONFIGURED pernah muncul.
+    expect(info.error).toMatchObject({ code: "AI_NOT_CONFIGURED", provider: "groq" });
+    expect(info.primary).toMatchObject({ code: "AI_RATE_LIMIT", provider: "gemini" });
+    expect(info.fallbackName).toBe("groq");
+  });
+
+  it("hook yang SENDIRI melempar tidak mengubah error yang keluar", async () => {
+    // Hook adalah observability. Pencatat yang rusak tidak boleh mengganti
+    // diagnosis yang sedang dibawa ke pemanggil — itu akan membuat kegagalan
+    // paling jarang diuji berubah menjadi kegagalan yang salah nama.
+    const router = createAiRouter({
+      primary: providerGagal("gemini", "AI_TIMEOUT"),
+      fallback: providerGagal("groq", "AI_PROVIDER_UNAVAILABLE"),
+      onFallbackFailure: () => {
+        throw new Error("pencatat rusak");
+      },
+    });
+
+    await expect(router.chat(PERMINTAAN)).rejects.toMatchObject({
+      code: "AI_TIMEOUT",
+      provider: "gemini",
+    });
+  });
+
+  it("chatJson berbagi jalur yang sama — hook ikut terpanggil di sana", async () => {
+    const dilihatHook = vi.fn();
+    const router = createAiRouter({
+      primary: providerGagal("gemini", "AI_PROVIDER_UNAVAILABLE"),
+      fallback: providerGagal("groq", "AI_NETWORK_ERROR"),
+      onFallbackFailure: dilihatHook,
+    });
+
+    await expect(router.chatJson(PERMINTAAN, z.object({}))).rejects.toMatchObject({
+      code: "AI_PROVIDER_UNAVAILABLE",
+    });
+    expect(dilihatHook).toHaveBeenCalledTimes(1);
+  });
+
+  it("cadangan yang BERHASIL tidak membangunkan hook — ia bukan pencatat peralihan", async () => {
+    const dilihatHook = vi.fn();
+    const router = createAiRouter({
+      primary: providerGagal("gemini", "AI_RATE_LIMIT"),
+      fallback: providerBerhasil("groq").provider,
+      onFallbackFailure: dilihatHook,
+    });
+
+    await expect(router.chat(PERMINTAAN)).resolves.toMatchObject({ provider: "groq" });
+    expect(dilihatHook).not.toHaveBeenCalled();
+  });
+
+  it("vonis isi tidak pernah beralih, jadi hook pun tidak dipanggil", async () => {
+    // AI_SAFETY_BLOCK bukan sinyal kesehatan: tidak ada peralihan, tidak ada
+    // kegagalan cadangan, tidak ada yang perlu dicatat.
+    const dilihatHook = vi.fn();
+    const cadangan = providerBerhasil("groq");
+    const router = createAiRouter({
+      primary: providerGagal("gemini", "AI_SAFETY_BLOCK"),
+      fallback: cadangan.provider,
+      onFallbackFailure: dilihatHook,
+    });
+
+    await expect(router.chat(PERMINTAAN)).rejects.toMatchObject({ code: "AI_SAFETY_BLOCK" });
+    expect(dilihatHook).not.toHaveBeenCalled();
+    expect(cadangan.diterima).toHaveLength(0);
+  });
+});

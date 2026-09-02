@@ -195,6 +195,22 @@ function tolak(retryAfterSeconds: number, override?: { message: string; hint: st
   return appError(KODE_KUOTA_HABIS, { retryAfterSeconds, ...(override ?? {}) });
 }
 
+/**
+ * Kegagalan yang terjadi SESUDAH INCR mendarat (penyetelan TTL gagal).
+ *
+ * Bedanya dengan kegagalan `redis.incr` itu sendiri bersifat menentukan, dan
+ * itulah seluruh alasan kelas ini ada: hanya kenaikan yang BENAR-BENAR mendarat
+ * yang boleh dikembalikan. Mengembalikan kenaikan yang tak pernah terjadi
+ * menurunkan penghitung harian milik pengguna yang penghitungnya sudah berjalan
+ * — satu unit jatah cuma-cuma, persis pada saat Redis sedang sakit.
+ */
+class KenaikanTerpasang extends Error {
+  constructor(readonly nilai: number, override readonly cause: unknown) {
+    super("Kenaikan kuota AI mendarat, penyetelan TTL gagal");
+    this.name = "KenaikanTerpasang";
+  }
+}
+
 export function createAiQuota(deps: AiQuotaDeps): AiQuota {
   const { redis, config, logger } = deps;
   const clock = deps.clock ?? (() => new Date());
@@ -210,18 +226,30 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
     return nilai === undefined || nilai < 0 ? 0 : nilai;
   }
 
-  /** INCR + pastikan kunci punya TTL (lihat AI_QUOTA_TTL_GRACE_DETIK). */
+  /**
+   * INCR + pastikan kunci punya TTL (lihat AI_QUOTA_TTL_GRACE_DETIK).
+   *
+   * Melempar dua JENIS kegagalan yang tidak boleh tertukar: `redis.incr` yang
+   * gagal (kenaikan TIDAK mendarat — dilempar apa adanya) versus kegagalan
+   * sesudahnya (kenaikan SUDAH mendarat — dibungkus `KenaikanTerpasang`).
+   * Pemanggil memakai perbedaan itu untuk memutuskan boleh-tidaknya refund.
+   */
   async function naikkan(key: string, ttlDetik: number): Promise<number> {
+    // Di luar try: kegagalan di sini berarti kenaikannya tidak pernah terjadi.
     const nilai = await redis.incr(key);
-    if (nilai === 1) {
-      await redis.expire(key, ttlDetik);
+    try {
+      if (nilai === 1) {
+        await redis.expire(key, ttlDetik);
+        return nilai;
+      }
+      // TTL -1 = kunci tanpa kedaluwarsa (mis. EXPIRE gagal saat Redis sekarat).
+      // Di instans `noeviction` kunci abadi adalah kebocoran memori, jadi ia
+      // dipasang ulang — dan TIDAK PERNAH dibaca sebagai "jatah baru".
+      if ((await redis.ttl(key)) < 0) await redis.expire(key, ttlDetik);
       return nilai;
+    } catch (err) {
+      throw new KenaikanTerpasang(nilai, err);
     }
-    // TTL -1 = kunci tanpa kedaluwarsa (mis. EXPIRE gagal saat Redis sekarat).
-    // Di instans `noeviction` kunci abadi adalah kebocoran memori, jadi ia
-    // dipasang ulang — dan TIDAK PERNAH dibaca sebagai "jatah baru".
-    if ((await redis.ttl(key)) < 0) await redis.expire(key, ttlDetik);
-    return nilai;
   }
 
   /** DECR berlantai nol; kegagalannya dicatat, tidak pernah menggagalkan pemanggil. */
@@ -303,6 +331,17 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
       try {
         terpakaiUser = await naikkan(kunciUser, ttl);
       } catch (err) {
+        // KEGAGALAN PARSIAL (utang PR-043a, dibayar PR-043b). `naikkan` melempar
+        // juga ketika INCR-nya SUDAH berhasil dan yang gagal adalah EXPIRE/TTL
+        // sesudahnya — dan tanpa pengembalian ini, jalur gagal-tertutup di bawah
+        // menolak panggilan sambil meninggalkan satu unit jatah terpotong milik
+        // pengguna yang tidak menerima apa pun. `turunkan` menelan kegagalannya
+        // sendiri, jadi Redis yang benar-benar mati tetap jatuh ke `saatRedisGagal`.
+        //
+        // Syaratnya KETAT: hanya kenaikan yang benar-benar mendarat. Bila
+        // `redis.incr` sendiri yang gagal, DECR di sini akan menurunkan
+        // penghitung yang tidak pernah naik — membagikan jatah gratis.
+        if (err instanceof KenaikanTerpasang) await turunkan(kunciUser, ttl);
         return saatRedisGagal(err, dilewati);
       }
       if (terpakaiUser > batas) {
@@ -314,7 +353,12 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
       try {
         terpakaiGlobal = await naikkan(kunciGlobal, ttl);
       } catch (err) {
-        await turunkan(kunciUser, ttl); // jangan tinggalkan jatah pribadi terpotong
+        // Pagu global: sama seperti di atas, hanya kenaikan yang mendarat.
+        if (err instanceof KenaikanTerpasang) await turunkan(kunciGlobal, ttl);
+        // Jatah pribadi TANPA syarat: kenaikannya sudah pasti mendarat beberapa
+        // baris di atas, jadi meninggalkannya terpotong merugikan pengguna yang
+        // tidak menerima apa pun.
+        await turunkan(kunciUser, ttl);
         return saatRedisGagal(err, dilewati);
       }
       if (terpakaiGlobal > config.globalPerDay) {

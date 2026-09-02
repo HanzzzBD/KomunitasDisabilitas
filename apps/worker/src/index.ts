@@ -22,6 +22,7 @@ import {
 } from "@nawasena/api/core/queue";
 import { createPdpPurgeProcessor } from "./processors/pdp-purge.js";
 import { createRetentionProcessor } from "./processors/retention.js";
+import { createAiUsageProcessor } from "./processors/ai-usage.js";
 
 /**
  * Jadwal cron purge PDP — SDD §16: harian 03:17 WIB.
@@ -85,6 +86,11 @@ const PROCESSORS: ProcessorMap = {
     logger,
     env,
   }),
+  // PR-043b. TIDAK ikut `jadwalkan()` di bawah: queue ini event-driven —
+  // produsernya `AiClient` pada setiap panggilan AI yang berhasil. Sampai PR
+  // fitur AI pertama merakit `AiClient` di `boot.ts`, konsumen ini menganggur,
+  // dan menganggur adalah keadaan yang benar (bukan kegagalan).
+  [QUEUE_NAME.AI_USAGE_RECORD]: createAiUsageProcessor({ prisma, logger }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).

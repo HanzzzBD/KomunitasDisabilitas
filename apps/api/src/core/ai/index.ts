@@ -58,3 +58,15 @@ export {
   type QuotaRedisLike,
 } from "./quota.js";
 export { detikKeTengahMalamWib, hariWib, ZONA_WIB } from "./waktu-wib.js";
+
+// AiClient (PR-043b) — pengikat kuota → provider → jejak biaya. Ikut larangan
+// yang sama seperti blok kuota di atas: gerbang fail-fast di src/index.ts tidak
+// boleh mengimpor barrel ini.
+export {
+  createAiClient,
+  type AiCallContext,
+  type AiClient,
+  type AiClientDeps,
+  type AiUsagePeristiwa,
+  type AiUsageRecorder,
+} from "./client.js";

@@ -1,10 +1,13 @@
 // modules/ai — wiring modul (DI manual via factory, ADR-002).
 //
-// Modul ini SENGAJA tanpa repository. Yang dijawab `GET /ai/quota` seluruhnya
-// hidup di penghitung Redis milik `core/ai/quota.ts`; menambahkan repository
-// kosong hanya demi kelengkapan template akan melahirkan lapisan yang tidak
-// punya pekerjaan. Pencatatan `ai_usage` (yang memang butuh Prisma) menyusul di
-// PR-043b bersama recorder dan processor worker-nya.
+// Modul ini punya DUA jalur yang sengaja tidak bertemu di satu factory:
+// - `createAiModule` merakit `GET /ai/quota`, yang jawabannya seluruhnya hidup
+//   di penghitung Redis milik `core/ai/quota.ts` — tanpa repository sama sekali.
+// - Recorder `ai_usage` (PR-043b) adalah jalur TULIS yang dipakai `AiClient` di
+//   sisi api dan `AiUsageRepository` yang dipakai processor di `apps/worker`.
+//   Keduanya diekspor terpisah karena pemakainya bukan HTTP: merakitnya ke dalam
+//   `createAiModule` berarti memaksa worker menyeret router express yang tidak
+//   pernah ia jalankan.
 import type { Router } from "express";
 import type { AiQuota } from "../../core/ai/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
@@ -31,3 +34,13 @@ export {
 } from "./services/quota.service.js";
 export { createAiController, type AiController } from "./controllers/ai.controller.js";
 export { createAiQuotaRouter } from "./routers/index.js";
+export {
+  createAiUsageRecorder,
+  METRIK_ENQUEUE_GAGAL,
+  type AiUsageRecorderDeps,
+} from "./services/ai-usage.service.js";
+export {
+  createAiUsageRepository,
+  type AiUsageRepository,
+  type HasilSimpan,
+} from "./repositories/ai-usage.repository.js";

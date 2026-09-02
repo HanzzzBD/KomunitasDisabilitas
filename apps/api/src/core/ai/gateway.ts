@@ -124,6 +124,15 @@ export function createAiGateway(
   return createAiRouter({
     primary: gemini,
     fallback: groq,
+    // Satu-satunya tempat kegagalan provider cadangan pernah terlihat manusia
+    // (PR-043b, utang PR-042). Yang dilempar ke pemanggil tetap error PRIMER —
+    // hook ini hanya mencatat, dan `warn` (bukan `error`) karena keadaannya
+    // sudah dilaporkan sekali oleh error yang dilempar.
+    onFallbackFailure: (info) =>
+      logger.warn(
+        { err: info.error, provider: info.fallbackName, primary: info.primary.code },
+        "Provider cadangan ikut gagal — pemanggil menerima error provider utama",
+      ),
     ...(env.AI_ROUTER_FORCE_PROVIDER !== undefined
       ? { forceProvider: env.AI_ROUTER_FORCE_PROVIDER }
       : {}),

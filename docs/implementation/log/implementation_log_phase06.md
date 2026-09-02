@@ -431,3 +431,242 @@ yang disuntik.
   recorder + processor worker, `AiClient`, `onFallbackFailure`.
 * **PR-044/045/046** — prompt registry + cache semantik, SSE streaming, kontrak degradasi
   (`withDegradation`, `meta.degraded`) yang akan mengkanonkan `KUOTA_AI_HABIS`.
+
+---
+
+## PR-043b — Recorder `ai_usage` + `AiClient` + antrean `ai-usage-record`
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md#pr-043---quota-engine--ai_usage--get-aiquota)
+> **Tanggal:** 2026-09-02
+> **Status:** Selesai (separuh pencatatan; melengkapi penegakan PR-043a)
+
+### Ringkasan hasil
+
+Separuh kedua PR-043. **043a menegakkan** jatah; **043b mencatat biayanya** dan
+menyatukan keduanya di satu pintu: `AiClient` = kuota → provider → jejak biaya. Ikut
+terbayar di sini dua utang yang tertulis di log 043a: refund pada kegagalan Redis
+parsial, dan `catch {}` telanjang milik router PR-042.
+
+Jalur pencatatannya utuh dari ujung ke ujung — `AiClient` → `AiUsageRecorder` (enqueue)
+→ antrean `ai-usage-record` → processor worker → `AiUsageRepository.simpan` → baris
+`ai_usage`. Yang lewat batas proses HANYA metadata biaya: id, pengguna, fitur, provider,
+token, versi prompt, waktu panggilan. Tidak ada isi prompt, tidak ada jawaban model, dan
+skemanya `.strict()` supaya percobaan menempelkannya kelak GAGAL keras alih-alih terbuang
+diam-diam.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 — `@nawasena/api`
+**79 berkas / 904 lulus / 148 skipped**. Angka skip naik 144 → 148 justru KARENA PR ini:
+**4 dari 148 skip itu milik 043b sendiri** (`ai-usage-db.test.ts`, butuh Docker), bukan
+seluruhnya pra-ada. Rinciannya di "Risiko yang ditemukan".
+
+### Scope selesai
+
+* **Migrasi 10** `20260902090000_10_ai_usage_prompt_version` — `ALTER TABLE "ai_usage"
+  ADD COLUMN "prompt_version" TEXT`. Aditif & nullable sepenuhnya; `schema.prisma`
+  menyusul dengan `promptVersion String? @map("prompt_version")`. TANPA index (alasan di
+  D4).
+* **Antrean `ai-usage-record`** — `QUEUE_NAME`, `queueNameSchema` (z.enum eksplisit,
+  ditambah manual), `QUEUE_DEFAULTS` (2 / 4 attempts / exp 10 s / 15 s), baris tabel
+  SDD §16, satu baris contoh di `.env.example`.
+* **`aiUsageRecordJobSchema` + `aiFeatureSchema`** (`packages/schemas/src/queue.ts`) —
+  payload tertutup, `promptVersion` opsional, `createdAt` ISO dari sisi API.
+* **`core/ai/client.ts`** — `AiClient`, `AiCallContext`, `AiUsagePeristiwa`, port
+  `AiUsageRecorder`, `createAiClient`. Nol impor Prisma.
+* **`modules/ai/services/ai-usage.service.ts`** — `createAiUsageRecorder`: peristiwa →
+  zod → `queues.enqueue` dengan `jobId` deterministik; seluruh badan dibungkus try/catch
+  (`logger.error` + metrik `ai_usage.enqueue_gagal`) lalu resolve normal.
+* **`modules/ai/repositories/ai-usage.repository.ts`** — `simpan()` mengembalikan
+  `ditulis` / `duplikat` (P2002) / `pemilik-hilang` (P2003); kode Prisma lain DILEMPAR
+  supaya job retry lalu masuk DLQ.
+* **`apps/worker/src/processors/ai-usage.ts`** + entri ketiga `PROCESSORS`. Tanpa
+  `jadwalkan()` — queue ini event-driven, bukan cron.
+* **`core/ai/quota.ts`** — refund pada kegagalan Redis PARSIAL (utang 043a).
+* **`core/ai/router.ts` + `gateway.ts`** — hook `onFallbackFailure` menggantikan
+  `catch {}` (utang PR-042).
+* **Dokumen** — SDD §16 (baris queue baru) & §7.3 (catatan kolom), `PRD.md` blok skema
+  `ai_usage`, `phase-06-ai-gateway.md` ("Database Changes: Tidak ada" dikoreksi).
+
+### Keputusan teknis
+
+* **D1 — `AiClient` BUKAN `AiProvider`.** `AiProvider.chat(request)` sengaja tidak
+  membawa identitas maupun fitur; itulah yang membuat router boleh meneruskan permintaan
+  apa adanya ke cadangan (kesetaraan payload, PR-042). Menjadikan `AiClient` sebuah
+  `AiProvider` berarti menyelundupkan `userId` ke dalam `request` DAN membuat setiap
+  pemanggil `AiProvider` lama diam-diam melewati kuota. Antarmuka terpisah dengan
+  `AiCallContext` eksplisit.
+* **D2 — Provider yang direkam adalah `response.provider`, bukan `router.name`.**
+  `router.name` bernilai `"router"` (atau nama yang dipin `AI_ROUTER_FORCE_PROVIDER`);
+  yang membayar tagihan adalah adapter yang benar-benar menjawab. Satu jalur kode, tanpa
+  cabang khusus untuk `forceProvider`.
+* **D3 — `embed` dicatat token 0/0, disengaja.** `AiEmbedResponse` tidak punya `usage`
+  karena Gemini `embedContent` memang tidak mengembalikan `usageMetadata`. Yang dipilih
+  bukan tri-state "unknown" atau kolom nullable (keduanya memperluas skema tanpa satu pun
+  pembaca yang membutuhkannya), melainkan pengakuan bahwa **biaya embedding terlacak
+  lewat CACAH BARIS, bukan token** — satu baris `ai_usage` per embedding, dihitung
+  `ai_usage_monthly.requests`. Konsekuensi yang harus diketahui pembaca angka bulanan:
+  kolom token untuk fitur `embed` selalu 0.
+* **D4 — Kolom `prompt_version` TANPA index.** Tidak ada query hari ini yang memfilter
+  atasnya: `finalkanBulanAiUsage` menyebut kolom secara eksplisit dan `GROUP BY month,
+  feature, provider`; penghapusan 90 hari memakai `created_at`. `ai_usage` tulis-berat,
+  jadi index tanpa pembaca hanya memperlambat setiap tulisan pada tabel yang justru
+  sedang diretensi. Index lahir bersama pembacanya (PR-044/PR-103). Agregat bulanan
+  SENGAJA tidak dipecah per versi prompt — memecahnya mengubah PK `ai_usage_monthly` dan
+  membatalkan bulan yang sudah difinalkan.
+* **D5 — `createdAt` ikut payload (superset AC).** Tanpa itu `created_at` menjadi waktu
+  WORKER menulis. Backlog antrean yang melewati pergantian bulan, atau job DLQ yang
+  di-replay manual, akan mendarat di bulan yang salah — dan `finalkanBulanAiUsage`
+  memfinalkan satu bulan SEKALI tanpa pernah menghitung ulang, jadi kesalahannya permanen
+  dan senyap. Nol migrasi tambahan.
+* **D6 — P2003 ditelan bersama P2002.** `ai_usage.user_id` ber-`ON DELETE CASCADE`:
+  purge PDP (PR-023) atau penghapusan akun yang jatuh di ANTARA panggilan AI dan
+  penulisan barisnya menghasilkan pelanggaran foreign key, bukan duplikat. Baris untuk
+  pengguna yang sudah tidak ada memang tidak boleh ada; me-retry-nya 3× lalu mengirimnya
+  ke DLQ hanya derau. Kode Prisma lain tetap dilempar.
+* **D7 — Advisory WeakSet 043a DITUTUP, dedup dipertahankan.** Penelusuran: reservasi
+  dibuat di langkah 1 `jalankan()`, disimpan di satu `const` lokal, dipakai di langkah 2
+  pada fungsi yang sama, lalu mati bersama frame-nya. Ia tidak pernah (a) masuk payload
+  job — `aiUsageRecordJobSchema` `.strict()` tidak punya field reservasi dan menolak
+  kunci asing; (b) dikembalikan lewat batas API — `AiClient` mengembalikan respons AI;
+  (c) di-`JSON.stringify`; (d) disimpan. Tidak ada satu pun batas proses/serialisasi yang
+  dilintasinya, jadi dedup berbasis identitas objek tetap tepat, sementara penanda durable
+  di Redis hanya menambah satu RTT dan satu mode gagal baru pada jalur yang paling jarang
+  diuji. **Syaratnya kawat pemicu, bukan janji:** begitu ada kode yang memasukkan
+  reservasi ke payload job atau mengembalikannya lewat batas API, penanda idempotensi
+  durable menjadi WAJIB — dan penjaganya sudah ada tanpa biaya tambahan (test `.strict()`
+  + daftar field payload akan merah pada percobaan pertama menyelipkannya).
+* **D8 — Logika recorder di sisi api, processor worker sebagai adapter tipis.**
+  `apps/worker` berjalan `--passWithNoTests`; setiap baris keputusan yang tinggal di sana
+  adalah baris tak teruji. Yang tersisa di processor: `parse` + panggil + log.
+* **D9 — `boot.ts` SENGAJA belum di-wire.** Belum ada satu pun fitur yang memanggil AI
+  (fitur pertama = PR-045+/PR-047+), jadi merakit `aiClient` sekarang menghasilkan
+  `const` tanpa pemakai → `no-unused-vars` → lint merah, yang hanya bisa dipadamkan
+  dengan konsumen palsu atau `eslint-disable`. Keduanya lebih buruk daripada seam yang
+  tercatat; preseden PR-041 D6. **Konsekuensi yang harus dibaca terang: "kuota
+  menggerbangi LLM" hari ini dibuktikan oleh TEST, bukan oleh wiring produksi** — sebab
+  belum ada panggilan LLM produksi untuk digerbangi. Yang tetap ter-wire nyata: antrean
+  terdaftar + processor worker (konsumen menganggur sampai produsernya lahir).
+  Tiga baris yang ditambahkan PR fitur AI pertama (sesudah `boot.ts:100`, sebelum `:199`
+  — `aiQuota` dan `queues` sudah dalam scope yang sama):
+
+  ```ts
+  const aiProvider  = createAiGateway(env, logger);
+  const aiRecorder  = createAiUsageRecorder({ queues, logger, metrics: { increment: (n) => logger.warn({ metric: n }, "Metrik AI bertambah") } });
+  const aiClient    = createAiClient({ provider: aiProvider, quota: aiQuota, recorder: aiRecorder, logger });
+  ```
+
+* **D10 — `onFallbackFailure` sinkron dan `void`.** Hook berjalan di jalur yang sudah
+  dalam perjalanan melempar; membuatnya `async` memaksa `await` di dalam `catch` dan
+  membiarkan hook lambat menahan error yang sedang ditunggu pemanggil. Satu `catch {}`
+  tetap ada di `router.ts`, tetapi kini melingkupi **hook**, bukan kegagalan provider
+  cadangan, dan alasannya tertulis: hook adalah observability dan tidak boleh mengubah
+  diagnosis. Yang keluar ke pemanggil tetap error PRIMER, tanpa syarat.
+* **D11 — Hanya kenaikan yang MENDARAT yang boleh dikembalikan.** Refund pada kegagalan
+  Redis parsial (utang 043a) mula-mula ditulis tanpa syarat, dan itu keliru: `naikkan()`
+  melempar dari TIGA titik. `redis.incr` gagal berarti kenaikannya **tidak pernah
+  mendarat**; `redis.expire`/`redis.ttl` gagal berarti kenaikannya **sudah mendarat**.
+  Refund tanpa syarat menyamakan keduanya, sehingga "INCR gagal + DECR sehat" menurunkan
+  penghitung harian yang tidak pernah naik — **satu unit jatah gratis** bagi pengguna yang
+  penghitungnya sudah > 0 hari itu (lantai nol di `turunkan` hanya mencegah nilai negatif,
+  bukan 5 → 4). Diperberat `AI_QUOTA_FAIL_OPEN`: pada tuas itu satu peristiwa Redis sakit
+  menghasilkan panggilan yang LOLOS **dan** satu unit jatah gratis.
+  Perbaikannya: kelas penanda `KenaikanTerpasang` membungkus kegagalan PASCA-INCR,
+  sementara `redis.incr` sendiri berada **di luar** `try` sehingga kegagalannya dilempar
+  apa adanya dan tidak pernah dibungkus. Kedua call site me-refund hanya bila
+  `err instanceof KenaikanTerpasang`. Call site pagu global kini juga mengembalikan pagu
+  global bila INCR-nya sendiri mendarat (kelas bug yang sama, sebelumnya laten karena
+  hanya jatah pribadi yang dikembalikan); jatah pribadi di call site itu dikembalikan
+  tanpa syarat — sah, karena `naikkan(kunciUser)` sudah RETURN beberapa baris di atas,
+  jadi kenaikannya terbukti mendarat. **+3 test regresi di `ai-quota.test.ts` (26 → 29
+  kasus di berkas itu)**; mutasi yang melepas guard sisi pagu global membuatnya merah,
+  jadi penjaganya bergigi, bukan dekoratif. Temuan F2 security review, ditutup di PR ini.
+* **F3 (LOW, pra-ada, REPORT ONLY — tidak diperbaiki di sini).** `turunkan` bisa
+  meninggalkan kunci `ai:quota:...` bernilai 0 **tanpa TTL** bila `EXPIRE` terus gagal
+  (DECR → -1, INCR → 0, lalu `expire` melempar dan ditelan). Kuota berjalan di atas
+  `redis-queue` yang sengaja `noeviction` (ADR-004), jadi kunci semacam itu tidak pernah
+  dievict: kebocoran memori pada instans yang, bila OOM, menghentikan SELURUH antrean —
+  ketersediaan, bukan kerahasiaan; efek pada penghitungan kuota netral (nilainya 0).
+  Perbaikannya (`SET key 0 EX ttl` / skrip Lua, atau sapuan kunci tanpa TTL di job
+  maintenance) sengaja tidak diselundupkan ke PR ini. Dicatat sebagai utang.
+
+### Verifikasi
+
+* `pnpm lint` → 9/9 sukses. `pnpm typecheck` → 9/9 sukses (termasuk
+  `@nawasena/worker`, yang me-resolve `@nawasena/api/modules/ai` lewat entri `exports`
+  baru). `pnpm test` → 9/9 sukses; `@nawasena/api` **79 berkas / 904 lulus / 148 skipped**
+  — 144 skip pra-ada (butuh Docker) **+ 4 skip baru milik PR ini** (`ai-usage-db.test.ts`,
+  juga butuh Docker; lihat Risiko).
+* `prisma validate` → skema valid; migrasi 10 ditulis tangan mengikuti konvensi
+  `<stamp>_<nn>_<slug>` (tidak dijalankan terhadap DB hidup).
+* Penjaga yang tetap hijau tanpa dilonggarkan: `queue.test.ts` (mencakup seluruh queue,
+  retensi umum, nama tanpa `:`), `env-example.test.ts` (dua arah), `migrasi-skema.test.ts`,
+  `internal-queues.test.ts`, `crypto-boot.test.ts`, `retention.test.ts`,
+  `ai-router.test.ts`, `ai-quota*.test.ts`.
+* **AC-8 (kuota menggerbangi LLM) — penunjuk yang benar**, supaya tidak disalin keliru:
+  penolakan 429 + `retryAfterSeconds` ada di **`ai-quota.test.ts:91-99`**, katalog 429 di
+  **`http-errors.test.ts:93`**, dan header `Retry-After` ditulis generik di
+  **`core/http/handlers.ts:56`**. **BUKAN `ai-quota-http.test.ts`** — berkas itu hanya
+  menguji akses dan isi `GET /ai/quota`, dan tidak memuat satu pun assertion
+  429/`Retry-After`. Sisi klien digerbangi `ai-client.test.ts`, yang memakai mesin kuota
+  NYATA di atas Redis palsu (bukan stub kuota), dengan spy provider untuk membuktikan
+  `panggil()` tidak pernah dijalankan saat jatah habis.
+
+### Risiko yang ditemukan
+
+* **4 assertion `ai-usage-db.test.ts` (AC-1) BELUM PERNAH DIEKSEKUSI.** Docker mati di
+  mesin pengembangan, jadi keempatnya ter-`ctx.skip()` di setiap kali suite dijalankan —
+  merekalah 4 dari 148 skip itu. Assertion-nya belum pernah menyala hijau satu kali pun:
+  **CI adalah eksekusi pertamanya.** Konsekuensinya lugas — bila migrasi 10 salah (kolom
+  meleset, atau `finalkanBulanAiUsage` ternyata ikut mengelompokkan `prompt_version`
+  sehingga agregat bulanan berubah), yang menangkapnya pertama kali adalah CI, bukan
+  verifikasi lokal. Yang bisa ditegakkan tanpa DB sudah ditegakkan lewat pembacaan:
+  migrasinya aditif + nullable, dan agregasi retensi menyebut kolomnya EKSPLISIT dengan
+  `GROUP BY 1,2,3`. Itu membuat hijau PLAUSIBEL, bukan TERBUKTI.
+* **F1 (MEDIUM, security review) — kuota belum ditegakkan secara STRUKTURAL; dicatat
+  sebagai utang.** `createAiGateway` masih diekspor dari barrel `core/ai`, dan tidak ada
+  aturan lint maupun test penjaga yang melarang sebuah modul memanggil `provider.chat()`
+  langsung. Artinya PR fitur AI pertama yang merakit `createAiGateway` sendiri — alih-alih
+  `createAiClient` — akan memanggil LLM **tanpa kuota dan tanpa baris `ai_usage`**, dan
+  **tidak ada satu gerbang CI pun yang berubah merah**. Persis kelas kesalahan yang
+  dicegah di tingkat desain antarmuka (D1) tetapi tidak di tingkat penegakan.
+  **Reachability hari ini NOL**: tidak ada satu pun pemanggil produksi `createAiGateway`
+  (`boot.ts` tidak merakit AI sama sekali, D9) — itulah sebabnya ia tidak memblokir PR
+  ini. Remediasi **WAJIB menyertai PR fitur AI pertama**, bersama tiga baris wiring
+  `boot.ts` di D9: (a) test penjaga bergaya `route-registry.test.ts` yang menegakkan
+  `createAiGateway` hanya dipanggil di `core/ai/client.ts` dan `boot.ts`, ATAU (b) aturan
+  `no-restricted-imports` / `eslint-plugin-boundaries` yang melarang `modules/*`
+  mengimpor `createAiGateway`/`AiProvider` dari barrel `core/ai`. Biayanya satu berkas;
+  imbalannya "kuota menggerbangi LLM" berhenti bergantung pada ingatan penulis PR
+  berikutnya.
+* **`AiClient` belum punya pemanggil produksi (D9).** Jaminan "kuota menggerbangi LLM"
+  hari ini hanya sekuat test-nya. Pemulihan: tiga baris `boot.ts` di atas, ditambahkan
+  oleh PR fitur AI pertama.
+* **Panggilan gagal-tanpa-refund membakar token tanpa baris `ai_usage`.**
+  `AI_SAFETY_BLOCK` dan `AI_INVALID_OUTPUT` tidak layak refund (kebijakan 043a D5) dan
+  juga tidak menghasilkan baris — error provider tidak membawa `usage`. Akibatnya
+  `ai_usage_monthly` akan selalu sedikit LEBIH RENDAH daripada tagihan provider.
+  Terdeteksi lewat selisih dengan dashboard provider; bila perlu, PR-046 menambah
+  `outcome` pada payload bersama kontrak degradasi.
+* **"0 token" tidak terbedakan dari "provider diam"** — `angka()` di adapter memetakan
+  field usage yang hilang menjadi 0 (pra-ada sejak PR-041, tidak diperlebar di sini;
+  ditandai di komentar `client.ts`).
+* **AC "processor menulis tepat satu baris" tidak diuji di worker.** Konsekuensi langsung
+  D8: `apps/worker` berjalan `--passWithNoTests`. Yang benar-benar terbukti adalah
+  `AiUsageRepository.simpan` di sisi api dengan prisma palsu; adapter worker dijamin
+  review, bukan test. Ditulis di sini supaya tidak diasumsikan.
+* **Metrik `ai_usage.enqueue_gagal` belum punya sink produksi** — backend metrik belum ada
+  (ADR-017) dan `metrics` baru terpasang saat `boot.ts` di-wire (D9). Sampai saat itu
+  kegagalan enqueue terlihat lewat `logger.error` saja.
+
+### Next steps
+
+* **PR fitur AI pertama** — tambahkan tiga baris wiring `boot.ts` (D9) sekaligus
+  pemanggil `AiClient` yang sesungguhnya, **dan** penjaga F1 (test bergaya
+  `route-registry.test.ts` atau aturan `no-restricted-imports`) dalam PR yang sama.
+  Kedua-duanya, bukan salah satu: wiring tanpa penjaga hanya memindahkan lubangnya.
+* **PR-044** — registry prompt berversi; ia yang pertama kali mengisi
+  `ai_usage.prompt_version` (hari ini selalu NULL).
+* **Out of scope, dicatat:** (1) `SDD.md` §16 juga belum memuat `maintenance:retention`
+  (utang PR-024a, drift sejenis); (2) konsolidasi tiga salinan daftar fitur AI (enum
+  Prisma / `AI_FEATURES` / `aiFeatureSchema`) menjadi satu sumber — menyentuh jalur
+  sempit gerbang boot 043a, jadi PR tersendiri; (3) F3 — kunci kuota bernilai 0 tanpa TTL
+  pada Redis `noeviction` (lihat blok F3 di Keputusan teknis), report-only.
