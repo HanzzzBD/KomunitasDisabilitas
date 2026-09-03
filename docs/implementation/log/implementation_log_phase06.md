@@ -670,3 +670,277 @@ seluruhnya pra-ada. Rinciannya di "Risiko yang ditemukan".
   Prisma / `AI_FEATURES` / `aiFeatureSchema`) menjadi satu sumber — menyentuh jalur
   sempit gerbang boot 043a, jadi PR tersendiri; (3) F3 — kunci kuota bernilai 0 tanpa TTL
   pada Redis `noeviction` (lihat blok F3 di Keputusan teknis), report-only.
+
+---
+
+## PR-044a — Prompt Registry + Injection Guard
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md)
+> **Tanggal:** 2026-09-02
+> **Status:** Selesai (separuh pertama PR-044; cache = PR-044b)
+
+### Ringkasan hasil
+
+PR-044 dipecah dua. **044a membangun mekanisme prompt**: registry template
+berversi + guard injeksi. **044b membangun cache** dan hanya ia yang menyentuh
+`client.ts`, kuota, `ai_usage`, dan Redis. Alasan pemecahan bukan hanya ukuran
+(~1300 LOC vs pagu 500) melainkan sifat risiko: guard adalah permukaan KEAMANAN
+dan pantas dibaca sendirian, cache adalah keputusan kuota/privasi yang belum
+diputuskan. Preseden 043a/043b.
+
+Yang lahir di sini murni aditif dan PURE — tanpa I/O, tanpa Redis, tanpa Prisma,
+tanpa wiring `boot.ts`, tanpa env, tanpa migrasi, tanpa endpoint. `client.ts`
+TIDAK disentuh satu baris pun, jadi jahitan ke 044b tetap bersih. Sekaligus
+`AiCallContext.promptVersion` akhirnya punya PRODUSEN: `template.id`
+(`"spesimen.v1"`) yang memetakan ke tepat satu berkas.
+
+### Scope selesai
+
+* **`core/ai/guard.ts`** — sanitizer PERTAMA di repo (nol utilitas sanitasi/
+  escaping sebelumnya di `apps/**` + `packages/**`), jadi bentuknya menjadi
+  preseden dan diperlakukan begitu.
+  * Sisi masukan: `INSTRUKSI_ANTI_INJEKSI` (selalu `role: "system"`),
+    `bungkusDataTakTepercaya()` dengan penanda ber-NONCE + penggosokan penanda
+    palsu di dalam data, pembuang kontrol C0/C1 & zero-width, pemotongan
+    `maksKarakter` per code point.
+  * Sisi keluaran: `bersihkanTeksModel()` (strip + daftar `dibuang`),
+    `bersihkanTeksModelKetat()` (melempar `AI_INVALID_OUTPUT`),
+    `bersihkanKeluaran<T>()` untuk struktur bersarang.
+* **`core/ai/prompts/`** — `tipe.ts` (`TanpaDisabilitas`,
+  `PeriksaTanpaDisabilitas`, `PromptMeta`, `PromptTemplate`), `definisi.ts`
+  (`definePrompt`), `index.ts` (`PROMPT_REGISTRY` + re-ekspor), `spesimen.v1.ts`.
+* **Barrel `core/ai/index.ts`** — satu blok ekspor baru, berikut peringatan
+  gerbang boot yang sama seperti blok kuota/client.
+* **Penjaga baru** `__tests__/prompt-sensitif-jangkauan.test.ts` +
+  `__tests__/prompt-registry.test.ts` (assertion tipe AC-4 + kelengkapan
+  registry).
+* **Dokumen** — amandemen AC-4 & catatan pemecahan di `phase-06-ai-gateway.md`,
+  bagian "Data disabilitas dan prompt AI" di `docs/akses-data-sensitif.md`.
+
+### Keputusan teknis
+
+* **D1 — Guard ditegakkan di TEMPLATE, bukan di `AiClient`.** Saat sebuah
+  `AiChatRequest` sampai di `client.ts`, informasi "bagian mana yang tak
+  tepercaya" sudah hilang; yang tersisa hanya array pesan. Template adalah
+  satu-satunya tempat data tak tepercaya masih bisa dikenali.
+* **D2 — Default aman TERBALIK.** `definePrompt` yang merakit pesan, bukan
+  penulis template: setiap daun string di `Input` dibungkus KECUALI kuncinya
+  didaftarkan di `tepercaya`. Menulis nol baris menghasilkan perilaku paling
+  aman; satu-satunya kesalahan yang tersisa (mempercayai field yang salah)
+  muncul sebagai SATU baris di berkas template, tepat tempat review menangkapnya.
+* **D3 — Dua lapis penanda, dan keduanya perlu.** Nonce per panggilan membuat
+  penutup blok tidak bisa DITEBAK; penggosokan prefiks penanda di dalam data
+  menutup kasus nonce yang sudah BOCOR lewat pantulan prompt (pesan error, log
+  debug, keluaran stream). Nonce saja mati oleh refleksi; gosok saja adalah
+  batas ber-token yang diketahui umum.
+* **D4 — Keluaran DI-STRIP, bukan di-escape.** SDD §7.3 menuntut "tanpa HTML".
+  Mengubah tag menjadi entity justru menyimpan muatannya utuh dan memancing satu
+  titik di hilir yang me-render mentah. Polanya sengaja SEMPIT — "gaji < 5
+  juta", "a<b", dan "data: 5 orang" tetap utuh — karena sanitizer yang merusak
+  teks Indonesia yang sah akan DIMATIKAN orang, bukan diperbaiki.
+* **D5 — Sanitasi menumpang `output.transform(...)`.** Ia berjalan DI DALAM
+  `schema.safeParse` yang sudah dipanggil adapter (`providers/gemini.ts`), jadi
+  tidak ada langkah "ingat sanitasi" di mana pun. Urutannya mengikat: **zod
+  dulu, sanitasi sesudah** — membersihkan lebih dulu mengubah byte yang dihakimi
+  skema dan bisa menyulap keluaran cacat menjadi tampak sah.
+* **D6 — Registry = peta IDENTITAS, bukan peta pemanggilan.** `PROMPT_REGISTRY`
+  hanya menyimpan `{nama, versi, id}`. Lookup `string` ke template bertipe
+  sengaja tidak ada: ia tidak bisa diketik, dan ia akan menjadi pintu yang
+  melangkahi batas tipe AC-4. Fitur mengimpor KONSTANTA templatenya.
+* **D7 — Hanya jalur JSON.** Jalur teks polos punya jahitan sanitasi keluaran
+  yang harus diingat pemanggil, dan itu persis bentuk yang dihindari D2/D5.
+
+### Penyimpangan dari AC (WAJIB dibaca)
+
+* **AC-4 DIPERSEMPIT atas keputusan owner 2026-09-02.** AC aslinya: "Tipe input
+  prompt menolak `SensitiveProfile` (compile-time)". Yang diterapkan: menolak
+  **`disabilityTypes`/`disability_types` saja**, rekursif — `accommodationNeeds`
+  TETAP DITERIMA.
+  **Alasan.** `SensitiveProfile` MEMBUNDEL keduanya, sedangkan SDD §7.3
+  (`SDD.md:413`) secara eksplisit MENGIZINKAN kebutuhan akomodasi fungsional
+  masuk prompt bila fitur memerlukannya dan pengguna sudah consent. Menolak
+  seluruh tipe akan memblokir jalur yang SDD sahkan, dan PR fitur berikutnya
+  (PR-066/072) terpaksa MELEMAHKAN guard — persis saat guard biasanya dilemahkan
+  dengan buruk. Guard harus mengkodekan aturan privasi yang SEBENARNYA, bukan
+  aturan yang lebih tumpul.
+  **Efek praktisnya `SensitiveProfile` utuh tetap ditolak** (ia membawa kunci
+  itu), jadi yang hilang bukan perlindungannya melainkan ketumpulannya.
+  `phase-06-ai-gateway.md` ikut diamandemen (pola koreksi PR-043b).
+* **AC-1 dan AC-5 tidak dikerjakan di sini** — keduanya milik cache (PR-044b).
+* **AC-2 batasnya.** Unit test tidak bisa membuktikan LLM "menuruti" instruksi.
+  Yang dibuktikan adalah KONSTRUKSInya: data hanya muncul di dalam blok
+  berdelimiter, penutup palsu gagal menutup blok, dan data tak pernah menyentuh
+  `role: "system"`. Jangan dibaca sebagai jaminan perilaku model.
+
+### Penyimpangan dari desain
+
+* **`prompts/definisi.ts` ditambahkan** (desain menaruh `definePrompt` di
+  `prompts/index.ts`). Alasan: `index.ts` mengimpor `spesimen.v1.ts` untuk
+  merakit registry, sedangkan `spesimen.v1.ts` memanggil `definePrompt` —
+  siklus impor. Memisahkan definisinya menghapus siklus itu alih-alih
+  menggantungkannya pada hoisting deklarasi fungsi.
+* **Batas tipe dipindah dari posisi BATAS ke posisi ARGUMEN.** Bentuk yang
+  ditulis desain — `Input extends TanpaDisabilitas<Input>` — ditolak kompiler:
+  `TS2313: Type parameter 'Input' has a circular constraint`. Yang dipakai:
+  `spec: PromptSpec<Input, Output> & PeriksaTanpaDisabilitas<Input>`, dengan
+  `PeriksaTanpaDisabilitas<T> = T extends TanpaDisabilitas<T> ? unknown : {…never}`.
+  Efek penolakannya identik dan tetap di titik DEFINISI template.
+* **Field `output` diketik `ZodType<Output>`, BUKAN
+  `ZodType<Output, ZodTypeDef, unknown>`** seperti arahan hasil probe
+  orchestrator. Probe itu benar sejauh yang diukurnya (ZodEffects assignable ke
+  field), tetapi tidak mengukur sisi PEMAKAInya. Diuji ulang dengan `tsc` nyata:
+  `AiProvider.chatJson<T>(request, schema: ZodType<T>)` ikut menginferensi `T`
+  dari parameter Input skema, sehingga `ZodType<Output, ZodTypeDef, unknown>`
+  membuat `T = unknown` dan `response.data` KEHILANGAN tipenya
+  (`error TS2322: Type 'unknown' is not assignable to type 'Out'`). Karena
+  `bersihkanKeluaran` MEMPERTAHANKAN bentuk, `.transform()` di atas
+  `ZodType<Output>` menghasilkan `ZodEffects` yang assignable apa adanya — tanpa
+  cast dan tanpa mengubah tanda tangan `types.ts`.
+  **Konsekuensi yang harus diketahui:** skema keluaran template tidak boleh
+  memuat `.transform()` yang MENGUBAH bentuk. Itu batasan yang benar di sini —
+  JSON model wajib cocok dengan bentuk yang dideklarasikan.
+* **`tipe.ts` masuk allowlist penjaga jangkauan** (satu entri, beralasan): ia
+  yang mendefinisikan literal `disabilityTypes`/`disability_types`, dan tanpa
+  literalnya di kode tidak ada yang bisa ditolak TypeScript. Pola persis
+  `akses-sensitif-jangkauan.test.ts` ("tempat fungsinya didefinisikan").
+
+### Verifikasi
+
+* **Angka gerbang akhir:** `pnpm lint` **9/9** · `pnpm --filter @nawasena/api
+  exec tsc --noEmit` **exit 0** · `pnpm --filter @nawasena/api test` **82 berkas,
+  1173 lulus / 1 skip**. Berkas test baru: `ai-guard` 104 kasus,
+  `prompt-registry` 12, `prompt-sensitif-jangkauan` 6.
+  Satu-satunya skip yang tersisa BUKAN karena Docker mati: Postgres dan kedua
+  Redis dinyalakan lebih dulu, jadi seluruh test DB/Redis benar-benar dieksekusi
+  (termasuk assertion migrasi 10 milik PR-043b yang sebelumnya hanya pernah jalan
+  di CI). Cacah skip 148 → 1 karena itu, bukan karena ada test yang dilonggarkan.
+* **Assertion tingkat TIPE ditegakkan `tsc --noEmit`, BUKAN `vitest run`.**
+  Konsekuensinya perlu diketahui: test tipe yang "hijau" di runner tidak
+  membuktikan apa pun — pembuktiannya ada di gerbang typecheck.
+* **Gerbang AC-4 diuji BISA GAGAL, bukan hanya lulus.** `PeriksaTanpaDisabilitas`
+  sengaja dilemahkan menjadi selalu-lolos; `tsc` langsung melapor **7×
+  `TS2578: Unused '@ts-expect-error' directive`** di `prompt-registry.test.ts`
+  (baris 78, 87, 98, 110, 122, 134, 146), lalu berkasnya dipulihkan. Gerbang yang
+  tidak bisa gagal tidak membuktikan apa pun.
+  *(Angka 5× / baris 73-121 sempat tertulis di sini dan SALAH — ia diambil
+  sebelum dua kasus index-signature ditambahkan. Dikoreksi setelah QC
+  memverifikasi ulang; nomor verifikasi yang basi adalah cara paling mudah
+  sebuah log berubah menjadi fiksi.)*
+* **Kontrol positif ada dan wajib.** Dua definisi sah TANPA `@ts-expect-error`
+  (`{ accommodationNeeds }` dan `{ disabilityTypes?: undefined }`) menutup
+  kemungkinan constraint melebar menjadi "tolak semuanya" — yang akan membuat
+  seluruh `@ts-expect-error` hijau sambil tidak membuktikan apa-apa.
+* Assertion tipe dijalankan `tsc --noEmit` (langkah "Typecheck" di CI), **BUKAN**
+  `vitest run`: vitest men-transpile lewat esbuild dan tidak memeriksa tipe.
+  Kalimat itu ditulis di kepala suite supaya tidak salah dibaca.
+
+### Risiko yang ditemukan
+
+* **Guard tipe adalah tripwire NAMA, bukan bukti aliran data.** Ia tidak
+  menghentikan `catatan: "saya Tuli"` yang mengalir lewat field `string` biasa.
+  Penjaga jangkauan menutup dua jalan memutar (literal di berkas template,
+  `definePrompt` di luar folder), tetapi tidak yang ketiga itu. Ditulis eksplisit
+  di `docs/akses-data-sensitif.md` dan di kepala `tipe.ts`.
+* **`any` melewati batas tipe apa pun**, termasuk yang ini — sifat TypeScript,
+  bukan cacat guard. Yang tersisa adalah lint `--max-warnings=0` dan review.
+* **Sanitasi keluaran tidak pernah 100%.** Jaminan yang sesungguhnya tetap: zod
+  di adapter, dan keluaran model tidak pernah dieksekusi maupun dirender HTML
+  (`apps/web`, tidak disentuh PR ini).
+* **`spesimen.v1` bisa tergoda dipakai sebagai prompt produk.** Dijaga scanner
+  yang menolak impornya dari `src/modules/**`.
+* **Utang F1 (PR-043b) MASIH TERBUKA** dan tidak dibayar di sini: tidak ada
+  penjaga struktural yang melarang modul memanggil `createAiGateway` langsung
+  (melewati kuota + `ai_usage`). Reachability tetap NOL (belum ada pemanggil
+  produksi). Remediasi tetap wajib menyertai PR fitur AI pertama, bersama tiga
+  baris wiring `boot.ts` (D9 043b).
+
+### Security review — temuan, yang diperbaiki dan yang menjadi utang
+
+Berkas ini adalah **sanitizer pertama di repo**, jadi cacatnya adalah cacat
+PRESEDEN: dibiarkan, ia disalin ke mana-mana. Verdict **PASS-WITH-FINDINGS**,
+nol pemblokir, dan nol temuan yang REACHABLE hari ini (registry hanya memuat
+`spesimen.v1`, tidak ada pemanggil modul, `aiClient` belum di-wire).
+
+**Diperbaiki dalam PR ini (5):**
+
+1. **Tabel entity tidak lengkap untuk kelasnya sendiri.** `javascript&#58;alert(1)`
+   lolos utuh — pola pembuang mencari titik dua HARFIAH. Ditambah `:` (desimal,
+   heksa, `&colon;`).
+2. **Bentuk TANPA titik koma lolos seluruhnya** (`&#60script&#62`); peramban
+   memaafkannya, tabel kita tidak. Ditambah untuk `< > " ' :`, plus `&#x22;` dan
+   `&apos;` yang memang hilang — **dengan lookahead**, sebab `;?` polos memakan
+   awalan `&#340;` (Ŕ) dan menyisakan `"0;`. Diuji dua arah.
+3. **Penggosokan penanda dikalahkan karakter tak terlihat.** Daftar zero-width
+   buatan tangan melewatkan U+00AD, U+2060, U+FE0F, U+034F, U+202E, dan blok tag
+   U+E0000–E007F. Satu soft hyphen di tengah penanda sudah cukup — dan pada
+   skenario nonce bocor, penggosokan adalah lapisan TERAKHIR.
+   Perbaikannya butuh **TIGA generasi**, dan riwayat itu sengaja ditulis di
+   `guard.ts` supaya tidak ada yang "menyederhanakannya" kembali:
+   (i) daftar zero-width awal melewatkan U+00AD, U+2060, penanda arah, dan blok
+   tag U+E0000–E007F; (ii) penggantinya `\p{Cf}` hanya menutup 4 dari 6 karakter
+   yang komentarnya sendiri sebut — U+FE0F dan U+034F berkategori **Mn**, bukan
+   Cf (ditemukan QC); (iii) tambalan manual atas keduanya MASIH melewatkan 10
+   titik kode lain (U+115F, U+1160, U+17B4, U+17B5, U+180B–180D, U+180F, U+3164,
+   U+FFA0) — juga ditemukan QC. Hasil akhirnya satu properti:
+   **`\p{Default_Ignorable_Code_Point}`**, yang mencakup ke-405 titik kode
+   terpakai sekaligus. Berkas ini membuktikan peringatannya sendiri dua kali.
+   **Seluruh `\p{Mn}` sengaja TIDAK dibuang**: kategori itu memuat diakritik sah,
+   dan sanitizer yang merusak nama pelamar berhuruf Vietnam, Arab, Devanagari
+   atau Thai akan dimatikan orang, bukan diperbaiki. `Default_Ignorable` tidak
+   memuat satu pun diakritik itu — **diverifikasi, bukan diasumsikan**, dan
+   dijaga 5 test nama sungguhan.
+4. **AC-4 ditembus index signature.** `Record<string, unknown>` MEMUAT
+   `disabilityTypes` — kuncinya hanya belum disebutkan, jadi pemetaan bersyarat
+   tidak punya apa pun untuk dicocokkan. Seluruh rantai `bangun({disabilityTypes})`
+   sempat mengkompilasi, dan penjaga jangkauan tidak akan pernah melihatnya
+   (ia memindai `prompts/**`, bukan tempat panggilan). Ditutup
+   `PunyaIndexSignature<T>` → `never`.
+5. **Nonce gagal-TERBUKA.** Sumber yang kurang digit dipadatkan nol menjadi
+   `"00000000"` — nonce yang dapat ditebak siapa pun, tepat ketika sumber acaknya
+   rusak. Kini melempar.
+
+**Test yang sempat HAMPA — dicatat sebagai pelajaran, bukan disembunyikan.**
+Enam test parametrik untuk temuan (3) awalnya hanya menghitung terminator
+harfiah; hitungan itu benar baik saat penggosokan bekerja MAUPUN saat
+`tersembunyi()` dimatikan total. Ia lulus 92/92 di atas kode yang bocor. QC
+menemukannya lewat mutasi `tersembunyi() → return false`. Assertion yang
+membedakan (`toContain(PENGGANTI_PENANDA)` + penyisipnya lenyap) ditambahkan;
+mutasi yang sama kini menjatuhkan **9** test. QC memverifikasinya ulang secara
+mandiri, dan menambah mutasinya sendiri: mencabut hanya carve-out non-Cf
+menjatuhkan tepat 2 test (U+FE0F, U+034F) — baris itu memang menanggung beban.
+
+**Utang yang TIDAK dibayar di sini (LOW/INFO, semuanya belum reachable):**
+
+* Kunci objek dirender di luar pagar (`definisi.ts`) — hanya nama field, bukan
+  data pengguna, tetapi ia memang di luar penanda.
+* `<` menggantung selamat: `<img src=x onerror=alert(1)` tanpa `>` tidak dibuang.
+  Aturan yang sama yang menyelamatkan `a<b`. Aman selama keluaran tidak pernah
+  dirender HTML — dan itu memang jaminan arsitekturnya, bukan janji berkas ini.
+* `bersihkanKeluaran` melewati KUNCI objek, dan mengosongkan `Map`/`Set` diam-diam
+  (zod di repo ini tidak menghasilkan keduanya hari ini).
+* Nonce 32-bit (per panggilan, CSPRNG) — cukup untuk menaikkan biaya tebakan,
+  bukan rahasia kriptografis; penggosokanlah lapisan yang sesungguhnya.
+* RegExp disusun dari konstanta penanda tanpa escape — konstantanya kita sendiri,
+  jadi bukan jalur pengguna.
+
+**Batas sanitizer yang DITERIMA sadar (bukan celah tersembunyi):**
+`x<y>z` → `xz` (positif palsu nyata; `<` diikuti huruf memang ambigu dengan tag,
+sedangkan `gaji < 5 juta` yang berspasi selamat — menyempitkan lagi hanya menukar
+positif palsu dengan negatif palsu); `onerror=` telanjang di luar tag tidak
+dibuang (teks inert); zero-width dibuang di masukan tetapi tidak di keluaran;
+batas 5 lintasan menyisakan residu TERLIHAT — disengaja, sebab loop tanpa batas
+adalah vektor DoS. Security review mencoba menggiring batas itu agar menyisakan
+residu yang DAPAT DIEKSEKUSI dan gagal: `[^>]*` yang rakus meruntuhkan
+`<scr<script>ipt>` dalam satu lintasan.
+
+### Next steps
+
+* **PR-044b** — `core/ai/cache.ts` + AC-1/AC-5. Kontrak yang 044a wariskan dan
+  harus stabil: `PromptTemplate.id` (bahan hash kunci) dan `AiChatRequest` hasil
+  `bangun()` (`timeoutMs` dikecualikan dari kunci). Keputusan yang masih harus
+  diambil: (b) hit vs kuota, (c) hit vs `ai_usage`, (e) TTL/`userId`/PII. Nama
+  "Cache Semantik" di judul PR-044 KELIRU — spec sendiri menulis
+  hash(input+versi) = pencocokan persis; namai jujur di 044b.
+* **PR fitur AI pertama** — memakai `spesimenV1` sebagai contoh, bukan sebagai
+  prompt; menulis templatenya sendiri di `core/ai/prompts/`, dan mengisi
+  `AiCallContext.promptVersion` dengan `template.id`.

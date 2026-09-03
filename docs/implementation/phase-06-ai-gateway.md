@@ -330,11 +330,34 @@ RB-Std; versi prompt lama dapat diaktifkan kembali via config.
 
 #### Acceptance Criteria
 
-* [ ] Naikkan versi prompt → cache lama tidak terpakai (test).
-* [ ] Instruksi jahat dalam data ("abaikan aturan…") dinetralkan (suite injeksi).
-* [ ] Output HTML/script disanitasi (test).
-* [ ] Tipe input prompt menolak `SensitiveProfile` (compile-time).
-* [ ] Cache hit tercatat (metrik hemat kuota).
+* [ ] Naikkan versi prompt → cache lama tidak terpakai (test). *(PR-044b)*
+* [ ] Instruksi jahat dalam data ("abaikan aturan…") dinetralkan (suite injeksi). *(PR-044a)*
+* [ ] Output HTML/script disanitasi (test). *(PR-044a)*
+* [ ] Tipe input prompt menolak **`disabilityTypes`** (compile-time). *(PR-044a)*
+* [ ] Cache hit tercatat (metrik hemat kuota). *(PR-044b)*
+
+  > **Pemecahan 2026-09-02 (PR-044a/PR-044b).** PR-044 dipecah karena estimasinya
+  > ~1300 LOC (pagu CLAUDE.md §9 = 500) **dan** karena ketiga subsistemnya punya
+  > sifat risiko yang berbeda: guard adalah permukaan keamanan (sanitizer pertama
+  > di repo), cache adalah keputusan kuota/privasi yang belum diputuskan. Jahitan:
+  > **044a = registry prompt + guard injeksi** (tidak menyentuh Redis, kuota,
+  > `ai_usage`, maupun `client.ts`); **044b = cache**. Preseden: PR-043a/043b.
+  >
+  > **Amandemen AC-4 (2026-09-02, PR-044a).** Baris ini semula berbunyi "Tipe
+  > input prompt menolak `SensitiveProfile`". Yang dipersempit adalah AC-nya,
+  > bukan penegakannya. `SensitiveProfile`
+  > (`packages/schemas/src/profiles.ts`) MEMBUNDEL `disabilityTypes` **dan**
+  > `accommodationNeeds`, sedangkan SDD §7.3 secara eksplisit MENGIZINKAN
+  > kebutuhan akomodasi fungsional masuk prompt bila fitur memerlukannya dan
+  > pengguna sudah consent. Menolak seluruh tipe berarti memblokir jalur yang
+  > SDD sahkan — dan PR fitur berikutnya (PR-066/072) terpaksa MELEMAHKAN guard,
+  > persis saat guard biasanya dilemahkan dengan buruk. Yang ditegakkan
+  > `TanpaDisabilitas` karena itu adalah aturan privasi yang SEBENARNYA: kunci
+  > `disabilityTypes`/`disability_types`, rekursif menembus objek dan larik.
+  > Efek praktisnya `SensitiveProfile` utuh TETAP DITOLAK (ia membawa kunci itu),
+  > sedangkan `{ accommodationNeeds }` diterima. Dijaga
+  > `apps/api/__tests__/prompt-registry.test.ts` (berikut kontrol positifnya) dan
+  > `apps/api/__tests__/prompt-sensitif-jangkauan.test.ts`.
 
 #### Dependencies
 
