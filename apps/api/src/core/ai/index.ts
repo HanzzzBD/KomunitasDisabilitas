@@ -70,3 +70,38 @@ export {
   type AiUsagePeristiwa,
   type AiUsageRecorder,
 } from "./client.js";
+
+// Guard prompt + registry template (PR-044a). Larangan yang sama seperti dua
+// blok di atas: gerbang fail-fast di src/index.ts tidak boleh mengimpor barrel
+// ini. Keduanya MURNI — tanpa I/O, tanpa Redis, tanpa Prisma — jadi tidak ada
+// wiring `boot.ts` yang lahir bersama mereka.
+export {
+  bersihkanKeluaran,
+  bersihkanTeksModel,
+  bersihkanTeksModelKetat,
+  bungkusDataTakTepercaya,
+  INSTRUKSI_ANTI_INJEKSI,
+  MAKS_KARAKTER_DEFAULT,
+  MAKS_LINTASAN,
+  NONCE_PANJANG,
+  PENANDA_AKHIR,
+  PENANDA_AWAL,
+  PENGGANTI_PENANDA,
+  TANDA_DIPOTONG,
+  type HasilBersih,
+  type OpsiBungkus,
+} from "./guard.js";
+export {
+  definePrompt,
+  PROMPT_REGISTRY,
+  spesimenKeluaranSchema,
+  spesimenV1,
+  type KunciDisabilitas,
+  type PeriksaTanpaDisabilitas,
+  type PromptMeta,
+  type PromptSpec,
+  type PromptTemplate,
+  type SpesimenInput,
+  type SpesimenKeluaran,
+  type TanpaDisabilitas,
+} from "./prompts/index.js";
