@@ -1371,3 +1371,137 @@ angka yang terlalu kecil.
 * **Bila metrik per-fitur kelak dibutuhkan**, ubah PORT-nya
   (`increment(name, label?)`) sekaligus untuk tiga pemanggil lain — jangan
   menambahkan konvensi metrik kedua khusus cache.
+
+---
+
+## PR-045 — SSE Streaming (`core/http/sse.ts`, `core/ai/stream.ts`)
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md)
+> **Tanggal:** 2026-09-04
+> **Status:** Selesai (infrastruktur; belum terpasang ke route mana pun)
+
+### Ringkasan hasil
+
+Infrastruktur streaming AI: bingkai SSE, detak jantung, penyambungan ulang,
+tekanan balik, dan `chatStream()` pada gateway. **Belum ada endpoint** — itu
+PR-066, dan hook web-nya PR-068.
+
+Pemisahan berkas adalah keputusan utama PR ini: `core/http/sse.ts` TIDAK tahu
+apa-apa tentang AI, `core/ai/stream.ts` tidak tahu apa-apa tentang `res` milik
+Express, dan satu-satunya titik temunya adalah `alirkanKeSse`. Akibat langsung
+yang membuat pemisahan ini layak: **kelima Acceptance Criteria dapat diuji
+tanpa server, tanpa soket, tanpa provider, dan tanpa timer nyata** — 21 test
+di `sse.test.ts` dan 18 di `ai-stream.test.ts` memakai respons palsu,
+penjadwal manual, dan jam suntik. Aturan yang hanya bisa dibuktikan dengan
+menunggu adalah aturan yang test-nya akhirnya di-skip.
+
+Gate hijau: `pnpm --filter @nawasena/api test` → **Test Files 86 passed (86)**,
+**Tests 1271 passed | 1 skipped (1272)**; `tsc --noEmit` **exit 0**; `lint`
+**exit 0**; `prettier --check` bersih untuk keenam berkas yang disentuh.
+
+### Acceptance Criteria
+
+* **AC-1 — putus → sambung tanpa token duplikat/hilang.** Terpenuhi, dan inti
+  seluruh PR. Tiap event bernomor (`id:`); `Last-Event-Id` menentukan titik
+  putar ulang; hanya event `> lastEventId` dikirim ulang (tanpa duplikat).
+* **AC-2 — detak 15 detik saat menganggur.** Terpenuhi sebagai KOMENTAR SSE
+  (`: detak`), yang tidak memicu event di klien dan **tidak memajukan
+  penomoran** — memajukannya akan membuat sambung-ulang meminta event yang
+  tidak pernah ada.
+* **AC-3 — klien lambat tidak menumpuk memori.** Dua batas sekaligus:
+  `write()` yang mengembalikan `false` MENAHAN produsen sampai `drain`, dan
+  cincin event per sesi berkapasitas tetap (256) adalah plafon memorinya.
+* **AC-4 — galat mid-stream sebagai event terstruktur.** Event `error` dengan
+  amplop `{code,message,hint}` yang sama seperti error HTTP repo ini.
+* **AC-5 — kompatibel `proxy_buffering off`.** `X-Accel-Buffering: no` +
+  `Cache-Control: no-cache, no-transform`. Dicatat untuk PR-098.
+
+### Keputusan teknis
+
+* **Lompatan yang tidak tertutup DILAPORKAN, bukan disambung diam-diam.** Ini
+  keputusan paling penting di PR ini. Implementasi naif memutar ulang apa yang
+  kebetulan masih tersimpan lalu melanjutkan — klien menerima jawaban yang
+  MULUS namun BOLONG di tengah, tanpa error dan tanpa gejala. Bila bagian yang
+  hilang sudah ter-evict dari cincin, sambungan ditolak dengan
+  `SSE_LOMPATAN_TIDAK_TERTUTUP`. **Kehilangan yang dilaporkan bisa ditangani
+  produk; kehilangan yang disembunyikan tidak bisa.**
+* **Cadangan provider HANYA sebelum token pertama.** Aturan korektness, bukan
+  penyederhanaan: berpindah provider di tengah berarti menyambung dua jawaban
+  dari dua model menjadi satu paragraf — kalimat berubah arah di tengah, dan
+  klien tidak punya cara apa pun untuk mengetahuinya. Kegagalan SESUDAH token
+  pertama wajib muncul sebagai galat (AC-4).
+* **Penyangga sisa antar potongan pada pembaca SSE provider.** Potongan dari
+  `fetch` TIDAK sejajar dengan bingkai SSE. Pembaca yang mengurai per potongan
+  lulus sempurna di test yang memberi satu bingkai per potongan, lalu memotong
+  token secara acak di jaringan nyata — kegagalan yang hanya muncul di 3G,
+  yaitu justru jaringan yang PR ini ada untuk melayaninya.
+* **Normalisasi `\r\n` dan `\r`, bukan hanya `\n`.** SSE memperlakukan
+  ketiganya sebagai pemisah baris; memecah hanya pada `\n` meninggalkan `\r`
+  menggantung yang dibaca klien sebagai pemisah kedua.
+* **Kemampuan streaming sebagai antarmuka TERPISAH** (`AiStreamProvider`),
+  bukan ditempelkan ke `AiProvider`. `AiProvider` juga dipenuhi provider
+  "belum dikonfigurasi" dan pembungkus breaker/router; memaksa `chatStream` ke
+  sana berarti kegagalannya baru terlihat saat dipanggil. Terpisah, "bisa
+  streaming?" menjadi pertanyaan yang bisa dijawab sebelum satu byte dikirim
+  (`dukungStream`).
+* **Penjadwal detak DISUNTIK**, bukan `setInterval` langsung — aturan repo
+  yang sama dengan `breaker.ts`/`quota.ts`, dan alasannya sama: fake timer
+  tidak menggerakkan `AbortSignal.timeout`.
+* **Nama event divalidasi.** Sebuah `\n` di dalamnya menyuntikkan field SSE
+  palsu ke aliran — bentuk injeksi yang sama seperti header HTTP.
+
+### Batas yang DITERIMA sadar
+
+* **Penyangga sambung-ulang hidup DI MEMORI PROSES.** Dengan dua replika
+  (SDD §19), sambungan ulang yang mendarat di proses lain tidak menemukan
+  sesinya. Itu benar dan aman (klien memulai ulang), bukan diam-diam salah.
+  Membuatnya lintas-proses menuntut Redis per token — mahal, dan `redis.cache`
+  justru boleh meng-evict, yang mengembalikan persoalan bolong yang sama.
+  **Jalannya sticky routing di PR-098**, bukan Redis.
+* **Streaming BELUM memotong kuota dan belum menulis `ai_usage`.** `AiClient`
+  (PR-043b) membungkus `chat`/`json`/`embed`, bukan `chatStream`. Selama belum
+  ada endpoint, tidak ada yang terekspos — tetapi **PR-066 WAJIB menutup ini
+  sebelum route-nya hidup**, kalau tidak streaming menjadi jalur AI tanpa
+  kuota dan tanpa jejak biaya.
+* **Detak tidak menunggu `drain`.** Klien yang buffernya penuh sudah terbukti
+  hidup; memaksa detak mengantre di belakangnya hanya menambah beban.
+* **Verifikasi manual throttling 3G belum dilakukan** (checklist PR-045). Ia
+  menuntut endpoint, jadi jatuh ke PR-066/PR-068.
+
+### Verifikasi
+
+* `pnpm --filter @nawasena/api test` → **86 berkas / 1271 lulus / 1 skipped**.
+  Basis sebelum PR ini 84/1232/1; selisihnya persis +2 berkas dan +39 test
+  (21 SSE + 18 stream).
+* **Empat mutasi dijalankan, semuanya merah:** menghapus deteksi lompatan
+  (2 merah); detak tanpa cek menganggur (1 merah); menghapus normalisasi `\r`
+  (1 merah); cadangan provider dibolehkan sesudah token pertama (1 merah).
+  Seluruh berkas dipulihkan byte-identik (md5 dicocokkan).
+* **Catatan jebakan angka:** menjalankan suite dengan Docker MATI memberi
+  ~148 test skipped — itu test berbasis DB/Redis yang MELEWAT, bukan regresi.
+  Angka di atas diambil dengan container hidup.
+
+### Risiko yang ditemukan
+
+* **Belum ada satu pun yang MENJALANKAN kode ini.** `boot.ts` tidak merakit
+  apa pun dari PR ini, sama seperti `aiClient` (PR-043b) dan cache (PR-044b).
+  Tiga utang perakitan kini menumpuk di satu tempat dan sebaiknya dibayar
+  sekaligus saat fitur AI pertama mendarat.
+* **`SSE_SESI_TIDAK_DIKENAL` disebut di komentar kepala `sse.ts` tetapi belum
+  ada registry sesi** — pencarian sesi berdasarkan id adalah milik PR-066,
+  yang juga menentukan masa hidup dan plafon jumlah sesi. Tanpa plafon itu,
+  registry sesi adalah permukaan kehabisan memori; catat sebagai syarat masuk
+  PR-066.
+* **Ukuran PR ~1.417 baris** (743 produksi + 674 test), ~2,8× panduan §9.
+  Lebih kecil dari PR-044b tetapi tetap di atas panduan; mayoritas produksi
+  adalah komentar padat sesuai gaya repo.
+
+### Next steps
+
+* **PR-046** — `DegradedError` + lint no-direct-provider; ia yang memberi
+  `alirkanKeSse` peta error→degradasi yang sebenarnya.
+* **PR-066** — endpoint cv-chat: registry sesi (berplafon), auth di handshake
+  lewat HEADER (bukan token di query), **dan kuota + `ai_usage` untuk jalur
+  streaming**.
+* **PR-098** — nginx `proxy_buffering off` + sticky routing, keduanya sudah
+  disiapkan header dan batasnya di sini.
