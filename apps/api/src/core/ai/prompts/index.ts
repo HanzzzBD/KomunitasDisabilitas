@@ -19,7 +19,12 @@
 import { spesimenV1 } from "./spesimen.v1.js";
 import type { PromptMeta } from "./tipe.js";
 
-export { definePrompt, type PromptSpec } from "./definisi.js";
+export {
+  definePrompt,
+  PROMPT_CACHE_TTL_DEFAULT_DETIK,
+  PROMPT_CACHE_TTL_MAKS_DETIK,
+  type PromptSpec,
+} from "./definisi.js";
 export type {
   KunciDisabilitas,
   PeriksaTanpaDisabilitas,

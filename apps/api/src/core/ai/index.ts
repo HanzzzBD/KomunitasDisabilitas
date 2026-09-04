@@ -67,9 +67,24 @@ export {
   type AiCallContext,
   type AiClient,
   type AiClientDeps,
+  type AiPromptResponse,
   type AiUsagePeristiwa,
   type AiUsageRecorder,
 } from "./client.js";
+
+// Cache jawaban prompt (PR-044b). Ia menargetkan `redis.cache` (allkeys-lru) —
+// kebalikan kuota yang menargetkan `redis.queue`; alasannya di kepala cache.ts.
+export {
+  AI_CACHE_PREFIX,
+  createAiPromptCache,
+  kunciCachePrompt,
+  METRIK_CACHE_HIT,
+  METRIK_CACHE_MISS,
+  type AiPromptCache,
+  type AiPromptCacheDeps,
+  type CacheRedisLike,
+  type KonteksCachePrompt,
+} from "./cache.js";
 
 // Guard prompt + registry template (PR-044a). Larangan yang sama seperti dua
 // blok di atas: gerbang fail-fast di src/index.ts tidak boleh mengimpor barrel
@@ -93,6 +108,8 @@ export {
 } from "./guard.js";
 export {
   definePrompt,
+  PROMPT_CACHE_TTL_DEFAULT_DETIK,
+  PROMPT_CACHE_TTL_MAKS_DETIK,
   PROMPT_REGISTRY,
   spesimenKeluaranSchema,
   spesimenV1,

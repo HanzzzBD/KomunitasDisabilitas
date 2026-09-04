@@ -784,6 +784,8 @@ function kuotaPalsu(): AiQuota {
     userId: USER,
     feature: "cv_chat",
     tercatat: true,
+    // `global: true` — reservasi biasa: pagu global memang naik (PR-044b).
+    global: true,
   };
   return {
     periksaDanPakai: vi.fn(() => Promise.resolve(reservasi)),

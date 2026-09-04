@@ -128,6 +128,29 @@ describe("redaction — nilai secret tidak pernah menyentuh output (AC PR-006)",
     expect(JSON.stringify(lines[0])).not.toContain(SECRET);
   });
 
+  it("argumen perintah ioredis (err.command.args) di-redact, namanya tidak", () => {
+    // ioredis MENEMPELKAN perintah beserta argumennya ke error yang ia tolak,
+    // dan serializer bawaan pino menyalin setiap properti enumerable sebuah
+    // error ke baris log. Argumen itu memuat kunci Redis lengkap — yang di
+    // `core/ai/quota.ts` berisi `userId` dan di `core/ai/cache.ts` berisi
+    // `userId` PLUS jawaban AI utuh sebagai muatan `SET`. Pemicunya sehari-hari
+    // (`MISCONF`, `OOM`, `READONLY`, restart kontainer) dan tidak menuntut
+    // tindakan siapa pun. Log berada di luar jangkauan purge akun, jadi ini
+    // jalur keluar yang paling sulit dibersihkan.
+    const { logger, lines } = captureLogger();
+    const err = Object.assign(new Error("READONLY You can't write against a read only replica."), {
+      command: { name: "set", args: [`ai:prompt:v1:x:u:${SECRET}:hash`, SECRET, "EX", 3600] },
+    });
+
+    logger.warn({ err, template: "spesimen.v1" }, "uji");
+
+    const raw = JSON.stringify(lines[0]);
+    expect(raw).not.toContain(SECRET);
+    // Nama perintahnya tetap terbaca: "set" vs "get" adalah diagnosis yang
+    // berguna dan tidak membawa data siapa pun.
+    expect(raw).toContain('"name":"set"');
+  });
+
   it("field non-sensitif TIDAK ikut ter-redact (deny list tepat sasaran)", () => {
     const { logger, lines } = captureLogger();
     logger.info({ userIdHash: "abc123", durasiMs: 42 }, "uji");
