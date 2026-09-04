@@ -119,6 +119,37 @@ export interface PromptTemplate<Input, Output> extends PromptMeta {
   readonly system: string;
   readonly fewShot: readonly AiChatMessage[];
   readonly output: ZodType<Output>;
+  /**
+   * Sidik bagian STATIS template (`id` + `system` + `fewShot` + `temperature` +
+   * `maxOutputTokens` + `tepercaya` + `maksKarakter`), dihitung SEKALI di
+   * `definePrompt` — PR-044b, D3.
+   *
+   * Ia ikut menjadi bahan kunci cache, dan alasannya asimetri: sidik hanya bisa
+   * menyebabkan MISS tambahan, tidak pernah HIT basi. Ia menutup satu kasus
+   * nyata yang tidak punya penjaga lain — seseorang menyunting `system` tanpa
+   * menaikkan `versi`, sehingga template berperilaku baru tetapi kuncinya tetap
+   * dan jawaban prompt LAMA disajikan sebagai jawaban prompt baru.
+   *
+   * `tepercaya` dan `maksKarakter` ikut karena keduanya adalah PERTAHANAN
+   * ANTI-INJEKSI, bukan setelan gaya: mencabut kunci dari `tepercaya` adalah
+   * perbaikan atas paparan PR-044a, dan tanpa keduanya di sini perbaikan itu
+   * tidak menjangkau masukan yang sudah ter-cache sampai TTL-nya habis.
+   * `output` sengaja TIDAK ikut — ia tidak perlu: nilai cache DIPARSE ULANG
+   * lewat `template.output` yang berlaku SAAT DIBACA (`cache.ts`), jadi
+   * pengetatan skema berlaku seketika dan hanya bisa menambah miss.
+   *
+   * `id` tetap satu-satunya sumbu versi yang DINYATAKAN, dan tetap satu-satunya
+   * yang masuk `ai_usage.prompt_version`. Sidik ini bukan versi; ia jaring.
+   */
+  readonly sidik: string;
+  /**
+   * Lingkup entri cache. `"pengguna"` (baku) = kunci memuat `userId`.
+   * `"bersama"` hanya untuk template yang masukannya memang data publik.
+   * Lihat `PromptSpec.lingkup` untuk alasan default-terbaliknya.
+   */
+  readonly lingkup: "bersama" | "pengguna";
+  /** Umur entri cache dalam detik — sudah dijepit `definePrompt`. */
+  readonly cacheTtlDetik: number;
   /** Rakit permintaan chat; data tak tepercaya dibungkus di sini, bukan oleh pemanggil. */
   bangun(input: Input): AiChatRequest;
 }

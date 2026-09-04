@@ -19,6 +19,7 @@
 // dengan `template.output` di `chatJson`. Jalur teks polos sengaja TIDAK dibuat
 // di PR ini: ia punya jahitan sanitasi keluaran yang harus diingat pemanggil,
 // dan itu persis bentuk yang dihindari berkas ini.
+import { createHash } from "node:crypto";
 import { bersihkanKeluaran, bungkusDataTakTepercaya, INSTRUKSI_ANTI_INJEKSI } from "../guard.js";
 import type { AiChatMessage, AiChatRequest } from "../types.js";
 import type { PeriksaTanpaDisabilitas, PromptTemplate } from "./tipe.js";
@@ -47,6 +48,101 @@ export interface PromptSpec<Input, Output> {
   maksKarakter?: number;
   temperature?: number;
   maxOutputTokens?: number;
+  /**
+   * Nyatakan bahwa entri cache template ini BOLEH dipakai bersama semua
+   * pengguna (PR-044b). Absen = per-pengguna, dan itu default-terbalik yang
+   * sama seperti `tepercaya`: menulis nol baris jatuh ke sisi aman.
+   *
+   * Yang disimpan cache adalah JAWABAN AI ATAS MASUKAN — pada produk data
+   * disabilitas, entri bersama tanpa syarat adalah kebocoran lintas akun.
+   * Karena itu `"bersama"` hanya sah bila SELURUH masukan template memang data
+   * publik (mis. daftar lowongan yang di-rerank), bukan sekadar "sepertinya
+   * tidak sensitif". Setiap template yang menyetelnya wajib terdaftar berikut
+   * alasannya di `__tests__/prompt-cache-lingkup.test.ts` — build merah bila
+   * tidak, sebab tidak ada tipe yang bisa membuktikan "ini data publik".
+   */
+  lingkup?: "bersama";
+  /**
+   * Umur entri cache dalam detik. Absen = `PROMPT_CACHE_TTL_DEFAULT_DETIK`,
+   * dan nilai apa pun dijepit ke `PROMPT_CACHE_TTL_MAKS_DETIK`.
+   */
+  cacheTtlDetik?: number;
+}
+
+/**
+ * TTL baku entri cache prompt: satu jam.
+ *
+ * Cukup lama untuk menangkap pengulangan yang nyata (pengguna memuat ulang
+ * halaman, mencoba ulang, membandingkan dua lowongan), cukup pendek untuk tidak
+ * menjadi arsip jawaban AI atas data pengguna.
+ */
+export const PROMPT_CACHE_TTL_DEFAULT_DETIK = 3_600;
+
+/**
+ * PLAFON KERAS 24 jam — ini mitigasi PDP, bukan setelan kinerja.
+ *
+ * `__tests__/purge-kelengkapan.test.ts` hanya memindai model Prisma, jadi
+ * penghapusan akun TIDAK menjangkau entri Redis: sebuah entri ber-`userId`
+ * bertahan sampai TTL-nya habis atau LRU mengusirnya. Selama tidak ada jalur
+ * purge yang menyentuh Redis, satu-satunya batas atas yang kita punya adalah
+ * TTL — jadi ia dijepit di sini, di tempat yang tidak bisa dilewati penulis
+ * template, alih-alih dipercayakan pada review.
+ */
+export const PROMPT_CACHE_TTL_MAKS_DETIK = 86_400;
+
+/**
+ * Jepit TTL ke rentang yang sah.
+ *
+ * Batas bawah 1 detik bukan kosmetik: `SET … EX 0` ditolak Redis nyata sebagai
+ * "invalid expire time", jadi `cacheTtlDetik: 0` yang lolos ke sini akan
+ * mengubah setiap penulisan cache menjadi kegagalan diam (gagal terbuka →
+ * selamanya miss). Template yang memang tidak ingin di-cache belum punya cara
+ * menyatakannya, dan menyatakannya lewat TTL nol adalah cara yang salah.
+ */
+function jepitTtl(nilai: number | undefined): number {
+  if (nilai === undefined || !Number.isFinite(nilai)) return PROMPT_CACHE_TTL_DEFAULT_DETIK;
+  return Math.min(PROMPT_CACHE_TTL_MAKS_DETIK, Math.max(1, Math.trunc(nilai)));
+}
+
+/**
+ * Sidik bagian STATIS template — lihat `PromptTemplate.sidik`.
+ *
+ * Bahannya dirakit sebagai LARIK, bukan objek: urutan larik pasti, sedangkan
+ * urutan kunci objek adalah urutan penyisipan dan karena itu bisa berubah tanpa
+ * ada yang berubah maknanya. `undefined` dipetakan ke `null` supaya
+ * `temperature: undefined` dan `temperature: 0` tidak pernah bertemu di satu
+ * sidik yang sama.
+ *
+ * Dipotong 16 heksa (64 bit) karena tugasnya sempit: membedakan segelintir
+ * varian dari SATU `id` template. Ia tidak menjaga rahasia apa pun — nilainya
+ * hanya turunan teks yang kita tulis sendiri.
+ */
+function hitungSidik(bahan: {
+  id: string;
+  system: string;
+  fewShot: readonly AiChatMessage[];
+  temperature: number | undefined;
+  maxOutputTokens: number | undefined;
+  tepercaya: readonly string[];
+  maksKarakter: number | undefined;
+}): string {
+  const teks = JSON.stringify([
+    bahan.id,
+    bahan.system,
+    bahan.fewShot.map((pesan) => [pesan.role, pesan.content]),
+    bahan.temperature ?? null,
+    bahan.maxOutputTokens ?? null,
+    // PERTAHANAN ANTI-INJEKSI IKUT MENJADI BAHAN SIDIK. Membuang satu kunci dari
+    // `tepercaya` — atau mengecilkan `maksKarakter` — ADALAH perbaikan atas
+    // paparan injeksi PR-044a: sejak saat itu field tersebut dibungkus penanda
+    // ber-nonce dan dipotong. Tanpa keduanya di sini, perbaikan itu TIDAK
+    // menjangkau masukan yang sudah ter-cache sampai TTL-nya habis, dan yang
+    // disajikan adalah jawaban yang dihasilkan di bawah pembungkusan yang lebih
+    // longgar. DIURUTKAN supaya urutan penulisan daftar tidak mengubah sidik.
+    [...bahan.tepercaya].sort(),
+    bahan.maksKarakter ?? null,
+  ]);
+  return createHash("sha256").update(teks, "utf8").digest("hex").slice(0, 16);
 }
 
 /**
@@ -90,12 +186,28 @@ export function definePrompt<Input, Output>(
     ...(spec.maksKarakter === undefined ? {} : { maksKarakter: spec.maksKarakter }),
   };
 
+  const id = `${spec.nama}.v${spec.versi}`;
+
   return {
     nama: spec.nama,
     versi: spec.versi,
-    id: `${spec.nama}.v${spec.versi}`,
+    id,
     system: spec.system,
     fewShot,
+    // SEKALI, saat definisi — bukan per panggilan. Template adalah konstanta
+    // modul, jadi hash-nya konstanta pula; menghitungnya di jalur panas berarti
+    // membayar sha256 atas seluruh `system` + few-shot pada setiap permintaan.
+    sidik: hitungSidik({
+      id,
+      system: spec.system,
+      fewShot,
+      temperature: spec.temperature,
+      maxOutputTokens: spec.maxOutputTokens,
+      tepercaya: [...tepercaya].map(String),
+      maksKarakter: spec.maksKarakter,
+    }),
+    lingkup: spec.lingkup ?? "pengguna",
+    cacheTtlDetik: jepitTtl(spec.cacheTtlDetik),
     // Sanitasi menumpang `safeParse` yang SUDAH dipanggil adapter
     // (`providers/gemini.ts`), jadi ia berjalan sesudah validasi — urutan yang
     // mengikat, lihat catatan `bersihkanKeluaran`.

@@ -944,3 +944,430 @@ residu yang DAPAT DIEKSEKUSI dan gagal: `[^>]*` yang rakus meruntuhkan
 * **PR fitur AI pertama** — memakai `spesimenV1` sebagai contoh, bukan sebagai
   prompt; menulis templatenya sendiri di `core/ai/prompts/`, dan mengisi
   `AiCallContext.promptVersion` dengan `template.id`.
+
+---
+
+## PR-044b — Cache Prompt (`core/ai/cache.ts`)
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md)
+> **Tanggal:** 2026-09-04
+> **Status:** Selesai (separuh kedua PR-044; melengkapi registry PR-044a)
+
+### Ringkasan hasil
+
+Separuh kedua PR-044. **044a membangun mekanisme prompt** (registry berversi +
+guard injeksi); **044b membangun cache-nya**, dan hanya ia yang menyentuh
+`client.ts`, kuota, dan Redis. Yang diselesaikan di sini adalah dua AC yang
+sengaja ditinggalkan 044a: **AC-1** ("naikkan versi prompt → cache lama tidak
+terpakai") dan **AC-5** ("cache hit tercatat (metrik hemat kuota)").
+
+Nama "Cache Semantik" pada judul PR-044 memang KELIRU dan tidak dipakai: yang
+dibangun adalah pencocokan PERSIS atas `hash(input + template)`, sesuai spec-nya
+sendiri. Tidak ada cache embedding di sini.
+
+**AC-1 terpenuhi, dan terpenuhi LEBIH KUAT daripada bunyinya.** Kunci cache
+memuat `template.id` (`"<nama>.v<versi>"`), jadi menaikkan `versi` membuat entri
+lama TIDAK TERJANGKAU — bukan sekadar diabaikan. Di luar itu kunci juga memuat
+`template.sidik`, sidik atas bagian STATIS template, sehingga **menyunting isi
+template tanpa menaikkan `versi` pun membatalkan entrinya** — kasus yang bunyi
+AC-nya sendiri biarkan terbuka. Dibuktikan di tiga tingkat: tingkat kunci,
+tingkat cache (`tulis` nyata → `baca` nyata, diassert DUA arah), dan ujung ke
+ujung atas cacah panggilan `chatJson` (1 → 1 → 2), yakni atas observable yang
+benar-benar berbiaya.
+
+**AC-5 terpenuhi sebagai METRIK**, dan "metrik" itulah kata yang AC pakai:
+`ai_cache.hit` / `ai_cache.miss` lewat port metrik yang SUDAH ada di repo. Hit
+DAN miss sama-sama dicacah — tanpa penyebut, "hemat" tidak terbaca.
+
+Gate hijau: `pnpm --filter @nawasena/api test` → **Test Files 84 passed (84)**,
+**Tests 1232 passed | 1 skipped (1233)**; `tsc --noEmit` **exit 0**; `lint`
+**exit 0**.
+
+### Scope selesai
+
+* **`core/ai/cache.ts`** (baru) — `kunciCachePrompt()` (derivasi kunci),
+  `createAiPromptCache()` (`baca`/`tulis`), serialisasi kanonik + sha256,
+  konstanta `AI_CACHE_PREFIX = "ai:prompt:v1:"`, `METRIK_CACHE_HIT =
+  "ai_cache.hit"`, `METRIK_CACHE_MISS = "ai_cache.miss"`, dan antarmuka sempit
+  `CacheRedisLike` (pola `QuotaRedisLike`/`OtpRedisLike`) supaya aturannya bisa
+  dibuktikan tanpa Docker.
+  Bentuk kuncinya:
+  `ai:prompt:v1:<template.id>:<template.sidik>:<feature>:<pemilik>:<sha256(input)>`
+  dengan `pemilik` = `u:<userId>` (default) atau `bersama`.
+* **`core/ai/prompts/tipe.ts` + `definisi.ts`** — `PromptSpec.lingkup?`,
+  `PromptTemplate.lingkup` (default `"pengguna"`), `PromptTemplate.sidik`
+  (dihitung SEKALI di `definePrompt`), `cacheTtlDetik` + `jepitTtl`
+  (`PROMPT_CACHE_TTL_DEFAULT_DETIK` 3600, `PROMPT_CACHE_TTL_MAKS_DETIK` 86400).
+* **`core/ai/client.ts`** — jalur baru `AiClient.prompt(ctx, template, input)`:
+  cache → kuota → provider → baris `ai_usage` → tulis cache. `chat`/`json`/
+  `embed` TIDAK disentuh; `AiClientDeps.cache` opsional, dan absennya = perilaku
+  persis pra-PR (ada test-nya).
+* **`core/ai/quota.ts`** — `AiQuotaPemakaian.lewatiGlobal?`,
+  `AiQuotaReservasi.global` (WAJIB), DECR global bersyarat di `kembalikan`.
+* **Barrel `core/ai/index.ts`** — satu blok ekspor baru, berikut peringatan
+  gerbang boot yang sama seperti blok kuota/client/prompt.
+* **`core/logger/index.ts`** — satu jalur redaksi baru `"err.command.args"`
+  (lihat F1; ini SATU-SATUNYA suntingan PR ini di luar permukaannya sendiri).
+* **Penjaga & test baru** — `__tests__/ai-cache.test.ts` (46 kasus),
+  `__tests__/prompt-cache-lingkup.test.ts` (6, penjaga allow-list `lingkup`),
+  6 kasus tambahan di `ai-quota.test.ts`, 1 di `logger.test.ts`.
+
+### Keputusan owner (2026-09-03) — MENGIKAT, berikut konsekuensi jujurnya
+
+Tiga pertanyaan yang 044a tinggalkan terbuka diputuskan owner SEBELUM
+implementasi. Ketiganya mengikat; yang ditulis di bawah bukan hanya isinya,
+melainkan juga harga yang ikut dibeli.
+
+* **(b) Cache hit MEMOTONG jatah PENGGUNA, tetapi TIDAK memotong pagu GLOBAL.**
+  Alasannya fungsi masing-masing penghitung: jatah per pengguna adalah kendali
+  **anti-abuse**, pagu global adalah kendali **BIAYA** — dan cache hit tidak
+  berbiaya. Jahitannya memang sudah terpisah sejak 043a (`kunciKuotaUser` vs
+  `kunciKuotaGlobal`).
+  **Konsekuensi jujur:** pengguna TIDAK melihat jatahnya jadi lebih awet. Yang
+  diuntungkan cache adalah tier gratis platform, bukan orang yang mengetik. Bila
+  suatu hari sebuah fitur MENJANJIKAN "gratis kalau dari cache" kepada pengguna,
+  janji itu bertabrakan dengan keputusan ini, bukan dengan kodenya.
+* **(c) Hit TIDAK menulis baris `ai_usage`; cukup METRIK.** Hit tidak berbiaya,
+  jadi baris 0-token akan merusak rekonsiliasi tagihan yang baru dibangun
+  PR-043b — dan 0/0 di sana SUDAH punya arti lain ("embed", `client.ts` 043b).
+  AC-5 sendiri meminta metrik.
+  **Konsekuensi jujur, dan ini WAJIB diketahui siapa pun yang membaca
+  `ai_usage`: cacah PANGGILAN tidak lagi sama dengan cacah BARIS.** Begitu ada
+  pemanggil produksi, `SELECT count(*) FROM ai_usage` menjawab "berapa kali kita
+  membayar provider", BUKAN "berapa kali fitur dipakai". Angka kedua hanya
+  tersedia lewat `ai_cache.hit` + `ai_cache.miss`.
+* **(e) Kunci ber-`userId` sebagai DEFAULT; berbagi HANYA bila template
+  menyatakannya** (`lingkup: "bersama"`). Mengikuti default-terbalik 044a: lupa
+  menandai = jatuh ke sisi aman. Nilai yang disimpan adalah jawaban AI atas
+  masukan pengguna; pada produk data disabilitas, cache bersama tanpa syarat =
+  kebocoran lintas akun.
+  **Konsekuensi jujur:** hit-rate lintas pengguna nol secara default, dan itu
+  memang harga yang dipilih. Entri bersama disediakan untuk template yang
+  masukannya benar-benar data publik (mis. re-rank lowongan), dan hanya lewat
+  allow-list beralasan di `prompt-cache-lingkup.test.ts`.
+
+### Penyimpangan dari SDD §7.1 (WAJIB dibaca) — D9
+
+Ada **dua** diskrepansi terhadap SDD §7.1. Keduanya ditulis di sini alih-alih
+diselesaikan diam-diam, karena keduanya akan dibaca orang lain sebagai spesifikasi.
+
+1. **Urutan cache/kuota DIBALIK, dengan sengaja.** SDD §7.1 menaruh pemeriksaan
+   kuota SEBELUM pemeriksaan cache. Yang diterapkan kebalikannya: **cache dulu,
+   baru `periksaDanPakai({ lewatiGlobal: true })`.**
+   Alasannya bukan selera. Memeriksa kuota lebih dulu berarti pagu global sudah
+   ter-INCR ketika ternyata jawabannya ada di cache, sehingga dibutuhkan **refund
+   parsial** — mengembalikan satu penghitung tetapi tidak yang lain, di dalam
+   jendela di mana Redis bisa gagal di tengah. Itu PERSIS kelas bug PR-043b.
+   Memeriksa cache lebih dulu adalah satu-satunya urutan yang **tidak butuh
+   refund sama sekali**, dan karena itu satu-satunya yang tidak bisa MENCETAK
+   kuota. Tidak ada mesin refund parsial yang dibangun di PR ini.
+2. **Baris SDD §7.1 "re-rank 3 refresh feed/hari (sisanya dari cache)"
+   BERTENTANGAN dengan keputusan owner (b).** Kalimat itu hanya masuk akal bila
+   cache hit TIDAK memotong jatah pengguna — kebalikan dari (b). **(b) tetap
+   mengikat dan TIDAK dibuka ulang di PR ini.**
+   **Akibat yang harus disadari sekarang, bukan nanti: PR-072 (re-rank) akan
+   membaca SDD, menemukan jatah "3 refresh/hari", dan mendapati jatah itu TIDAK
+   PERNAH CUKUP** — sebab pada implementasi ini setiap refresh memotong jatah
+   pengguna, dari cache maupun tidak. PR-072 harus memilih secara SADAR: menaikkan
+   angka jatahnya, menandai templatenya `lingkup: "bersama"`, atau mengusulkan
+   pembukaan kembali keputusan (b) kepada owner. Yang TIDAK boleh dilakukan adalah
+   menganggap SDD dan kode ini sepakat.
+
+### Keputusan teknis
+
+* **D1 — Kunci dihitung dari INPUT MENTAH + template, BUKAN dari
+  `AiChatRequest`.** `bangun()` menempelkan nonce ACAK per panggilan (guard
+  044a), jadi hash atas `messages` akan memberi hit-rate **0% di produksi
+  sambil lulus test**. Konsekuensi bentuknya: cache duduk di lapisan PROMPT
+  (`template` + `input` + `ctx`), bukan di `AiClient.json(request)`. Dijaga test
+  yang lebih dulu membuktikan `messages` memang berbeda antar-panggilan, lalu
+  menuntut kuncinya tetap sama.
+* **D2 — Bentuk (B): cek cache dulu, lalu kuota dengan `lewatiGlobal`.** Lihat
+  D9 di atas untuk alasannya. Perubahan API kuota dibatasi tiga hal (di bawah).
+* **D3 — `template.sidik` menutup "menyunting `system` tanpa menaikkan
+  `versi`".** Bahannya `id` + `system` + `fewShot` + `temperature` +
+  `maxOutputTokens` (+ `tepercaya` terurut dan `maksKarakter`, tambahan F6),
+  dihitung SEKALI di `definePrompt`. Aman karena asimetri: bahan tambahan hanya
+  bisa menyebabkan MISS ekstra, tidak pernah HIT basi. `id` tetap satu-satunya
+  sumbu versi yang DINYATAKAN, dan satu-satunya yang masuk
+  `ai_usage.prompt_version`.
+* **D4 — Serialisasi kanonik:** kunci objek diurutkan rekursif, `Date` → ISO,
+  properti `undefined` dibuang (semantik JSON), **urutan LARIK dipertahankan**
+  (urutan itu bermakna; menyamakannya akan menghasilkan HIT PALSU, yang lebih
+  buruk daripada miss). sha256 dari `node:crypto`, preseden `core/auth/tokens.ts`
+  — tanpa pustaka baru.
+* **D5 — Nilai cache DIPARSE ULANG lewat `template.output` saat dibaca.** Entri
+  Redis adalah masukan tak tepercaya begitu ia keluar, dan biaya zod nol
+  dibanding panggilan LLM. Efek sampingnya penting: karena `template.output`
+  adalah `spec.output.transform(bersihkanKeluaran)`, **sanitizer 044a ikut
+  berjalan di jalur hit**, bukan hanya di jalur provider. Entri cacat atau basi
+  skema = MISS, bukan lemparan.
+* **D6 — GAGAL TERBUKA di setiap titik.** Redis mati, JSON cacat, entri basi
+  skema, input tak terserialisasi, `userId` kosong — semuanya menjadi MISS dan
+  tak satu pun melempar. Cache yang gagal TERTUTUP akan memadamkan AI demi
+  penghematan. Korolarinya yang menenangkan: gagal-terbuka jatuh ke cabang yang
+  LEBIH KETAT (dua penghitung + baris `ai_usage`), jadi kegagalan cache tidak
+  pernah bisa berubah menjadi jalan pintas kuota.
+* **D8 — Memakai port metrik yang SUDAH ada** (`metrics?: { increment(name) }`,
+  pola `ai-usage.service.ts`), bukan konvensi kedua.
+
+**Perubahan API kuota — tiga hal, dan kelas bug yang dijaganya:**
+
+1. `AiQuotaPemakaian.lewatiGlobal?: boolean` — **opsional**, default `false`
+   lewat destrukturisasi, jadi setiap pemanggil lama berperilaku persis seperti
+   sebelumnya.
+2. `AiQuotaReservasi.global: boolean` — **wajib, dan sengaja BUKAN opsional.**
+   Bila ia opsional, pemanggil bisa lupa mengisinya dan diam-diam mendapat cabang
+   "jangan pernah kembalikan pagu global". Wajib berarti `tsc` memaksa setiap
+   tempat konstruksi menyatakan sikapnya; harganya satu baris di dua berkas test,
+   dan `tsc --noEmit` hijau membuktikan tak ada tempat konstruksi yang terlewat.
+3. `kembalikan()` menurunkan pagu global **hanya** `if (reservasi.global)`.
+
+Tanpa penjaga (3), sebuah reservasi `lewatiGlobal` yang di-refund akan men-DECR
+pagu yang TIDAK PERNAH NAIK — yakni **MENCETAK anggaran bersama**. Ini persis
+kelas bug PR-043b, jadi ia tidak dipercayakan pada pembacaan: **dibuktikan lewat
+mutasi.** Menghapus `if (reservasi.global)` membuat **dua** test merah
+("REFUND-nya TIDAK menurunkan pagu global" 3 → 2, dan "`kembalikanBila`
+menghormati bit yang sama" 1 → 0). Test-nya sengaja menaikkan pagu global ke 3
+lewat lalu lintas pengguna LAIN lebih dulu, supaya lantai nol pada `turunkan()`
+tidak menutupi bugnya. Saudaranya, "reservasi biasa tetap menaikkan keduanya dan
+menandai `global: true`", menutup celah field yang selalu-`false`.
+
+### Batas yang DITERIMA sadar (pilihan, bukan celah yang belum ketahuan)
+
+* **Cacah panggilan ≠ cacah baris `ai_usage`** — konsekuensi langsung keputusan
+  (c). Ditulis ulang di sini karena inilah batas yang paling mudah membuat orang
+  salah membaca angka tagihan.
+* **TANPA PENGUNCIAN.** Dua permintaan identik yang datang BERSAMAAN sama-sama
+  miss dan sama-sama memanggil provider; yang belakangan menimpa entri yang sama.
+  Yang hilang hanya penghematan, bukan kebenaran — dan mengunci berarti menambah
+  jalur gagal (lock bocor = AI padam) demi kasus yang belum terbukti sering.
+  Ditulis supaya ia tidak "ditemukan" orang lain nanti sebagai kejutan.
+* **Metrik adalah cacah GLOBAL tanpa label.** Port yang ada berbentuk
+  `increment(name)`; menambah argumen kedua akan mengubah tiga pemanggil lain.
+  Akibatnya `ai_cache.hit` tidak bisa dipecah per fitur atau per template hari
+  ini. Bila kelak diperlukan, itu perubahan pada port-nya, bukan pada berkas ini.
+* **Entri cache BERTAHAN melewati penghapusan akun sampai TTL/evict (D10).**
+  `purge-kelengkapan.test.ts` hanya memindai model Prisma, jadi kunci ber-`userId`
+  di Redis tidak pernah masuk permukaan purge. **Satu-satunya mitigasi adalah TTL
+  PENDEK**: default 3600 s, plafon keras 86400 s, dijepit di `definePrompt` DAN
+  dijepit ulang di titik cekik penulisan (`tulis`) supaya template rakitan tangan
+  pun tidak bisa melewatinya. Konsekuensi turunannya: kunci cache mentah TIDAK
+  BOLEH pernah masuk log (lihat F1) — log berada di luar permukaan purge, jadi
+  bocor ke log berarti bocor melewati TTL sekaligus melewati penghapusan akun.
+* **`dariCache` adalah diagnostik sisi server.** Untuk lingkup per-pengguna ia
+  hanya menceritakan riwayat orang itu sendiri; untuk template `lingkup:
+  "bersama"` ia memberi tahu apakah ADA ORANG LAIN yang pernah bertanya persis
+  itu. Ia TIDAK BOLEH muncul di badan respons HTTP untuk template bersama.
+
+### Verifikasi
+
+* **Angka gerbang akhir (diamati dengan container HIDUP):**
+  `pnpm --filter @nawasena/api test` → **Test Files 84 passed (84)**, **Tests
+  1232 passed | 1 skipped (1233)** · `pnpm --filter @nawasena/api exec tsc
+  --noEmit` → **exit 0** · `lint` (`eslint src __tests__ prisma
+  --max-warnings=0`) → **exit 0** · `prettier --check` bersih untuk berkas yang
+  disentuh.
+* **JEBAKAN ANGKA — dicatat supaya tidak berulang untuk ketiga kalinya.**
+  Menjalankan suite dengan Docker MATI menghasilkan `1085 passed | 148 skipped`.
+  Itu 147 test berbasis DB/Redis yang MELEWAT, **bukan regresi**. Temuan QC utama
+  pada PR-043b MAUPUN PR-044a adalah angka verifikasi yang basi; angka di atas
+  diambil dari run dengan Postgres dan kedua Redis menyala, dan hanya angka
+  semacam itu yang boleh masuk log.
+* **QC: PASS**, nol pemblokir. Sepuluh mutasi terarah dijalankan, **sembilan
+  merah**: penjaga refund global, sanitasi keluaran di jalur hit, default
+  `lingkup`, `userId` di dalam kunci, rekursi penjaga lingkup, `lewatiGlobal` di
+  jalur hit, jepitan TTL kedua, metrik hit, dan redaksi log. Satu yang tetap
+  hijau (M2b) adalah lapisan kedua, bukan kendalinya sendiri — ditutup sesudah QC
+  (lihat catatan mutu test).
+* **Regresi: nihil.** Tiga berkas test yang termodifikasi diperiksa baris per
+  baris untuk mencari assertion yang dilonggarkan. `ai-guard.test.ts` (+2/-0) dan
+  satu literal di `ai-quota.test.ts` berubah semata karena `AiQuotaReservasi.global`
+  wajib — dipaksa kompiler, nilainya benar, assertion-nya utuh. `logger.test.ts`
+  (+23/-0) murni penambahan. Tidak ada test yang di-skip, dilemahkan, atau dihapus.
+* **Tanpa migrasi, tanpa perubahan skema Prisma, tanpa route baru, tanpa
+  perubahan format wire.** `AiClientDeps.cache` opsional dan ketiadaannya diuji
+  ("tanpa dep cache: perilakunya persis seperti sebelum PR-044b").
+
+### Security review — PASS; F1–F7 semuanya DIPERBAIKI di PR ini
+
+Verdict **PASS**. Tujuh temuan, nol pemblokir, dan **ketujuhnya diperbaiki di
+dalam PR ini** — bukan menjadi utang. Model ancaman yang dipakai: nilai yang
+di-cache adalah jawaban AI atas masukan pengguna pada produk ketenagakerjaan
+disabilitas, jadi yang pantas dikejar adalah (a) pembacaan lintas akun, (b)
+jalur apa pun yang menaruh teks jawaban di tempat yang hidup lebih lama daripada
+penghapusan akun, dan (c) penghitung yang bisa bergerak tanpa peristiwa nyata.
+
+**F1 (MEDIUM) — objek error ioredis membawa KUNCI CACHE dan JAWABAN AI ke dalam
+log.** Rantainya nyata dan tidak eksotis. ioredis menempelkan perintah beserta
+ARGUMENnya pada error yang ia tolak (`err.command = { name, args }`, baik pada
+balasan `-ERR` maupun pada `AbortError` saat koneksi putus dengan perintah masih
+terbang). Serializer bawaan pino menyalin **setiap properti enumerable** dari
+`err` ke dalam record. Dan `REDACTION_PATHS` kami tidak punya satu pun jalur yang
+mencakupnya. Akibatnya satu `SET` yang gagal — `MISCONF`, `OOM`, `NOAUTH`, `ERR
+max number of clients`, atau sekadar `redis-cache` yang restart — menuliskan
+`err.command.args = ["ai:prompt:v1:…:u:<userId>:<hash>", "{…jawaban lengkap…}",
+"EX", 3600]` ke log apa adanya. Tidak perlu penyerang, dan tidak ada yang bisa
+mencegahnya. Yang dirusaknya bukan kerapian melainkan **disiplin retensi**: log
+berada di luar permukaan purge, jadi teks jawaban lolos dari TTL yang D10
+tetapkan sebagai SATU-SATUNYA kendali privasi untuk data ini. Berkas `cache.ts`
+bahkan menyatakan invarian itu di kepalanya sendiri, dan sebuah test tampak
+membuktikannya (ternyata tidak — lihat catatan mutu test).
+**Diperbaiki DUA LAPIS, sengaja:** (i) penyempitan lokal di `cache.ts` — yang
+diserahkan ke logger adalah `namaError(err)`, bukan `err`; (ii) jalur redaksi
+baru `"err.command.args"` di `core/logger/index.ts`.
+**Dua hal yang wajib diketahui tentang lapis (ii):**
+* Ia adalah **satu-satunya suntingan PR ini yang keluar dari permukaan
+  PR-044b sendiri**. Itu disengaja dan bukan penyelundupan scope: ia sekaligus
+  menutup kebocoran PRA-ADA yang sama bentuknya di `quota.ts:291,307,460`, di
+  mana yang bocor adalah kunci kuota — yaitu `userId` — warisan PR-043a/043b.
+* Korolarinya: **bila kelak ada yang menghapus jalur redaksi itu, paparan kuota
+  tadi KEMBALI**, dan satu-satunya yang menjaganya adalah kasus baru di
+  `logger.test.ts`. Jangan "membersihkan" `REDACTION_PATHS` tanpa membaca ini.
+
+**F2 (MEDIUM) — penjaga lingkup bersama hanya memindai LEVEL ATAS `prompts/`.**
+Padahal penjaga 044a sendiri secara eksplisit MENGIZINKAN template berada di
+subdirektori (`startsWith(prefiksPrompts)`). Jadi `prompts/matching/rerank.v1.ts`
+adalah lokasi yang sah menurut 044a dan **tak terlihat** oleh penjaga 044b —
+sementara PR-072 (re-rank) justru PR yang paling mungkin menginginkan
+`lingkup: "bersama"`, dan memindahkan template ke subfolder adalah gerakan wajar
+begitu template lebih dari satu. Entri cache lintas akun bisa lolos hijau.
+Test anti-hampa yang ada tidak menangkapnya: ia hanya menuntut ADA berkas
+`*.vN.ts` di level atas, dan `spesimen.v1.ts` memenuhinya selamanya.
+**Diperbaiki:** pemindainya kini REKURSIF, allow-list dikunci pada path relatif,
+dan ada assertion yang menuntut pemindainya benar-benar TURUN ke subfolder
+(`toEqual(["datar.v1.ts", "matching/rerank.v1.ts"])` di atas pohon sementara —
+pemindai yang tidak turun gagal pada perbandingan larik, bukan pada panjangnya).
+
+**Empat sisanya, ringkas:**
+
+* **F3 (LOW)** — plafon TTL, satu-satunya mitigasi PDP, ditegakkan di waktu
+  DEFINISI saja. `PromptTemplate` adalah interface ter-ekspor, jadi template
+  rakitan tangan dengan `cacheTtlDetik: 31_536_000` akan menyimpan jawaban
+  turunan-pengguna selama setahun tanpa satu test pun merah. **Diperbaiki**
+  dengan menjepit ULANG di `tulis`, titik cekik penulisan; ia sekaligus menutup
+  kasus `EX 0` / `EX -1` yang gagal menulis diam-diam.
+* **F4 (LOW)** — `ctx.userId` masuk kunci tanpa validasi; `""` atau id sintetis
+  membuat banyak pemanggil runtuh menjadi satu entri de-facto bersama tanpa ada
+  yang menyentuh `lingkup`. **Diperbaiki:** `userId` kosong/bukan-string =
+  tidak-bisa-di-cache (bentuk gagal-terbuka yang sudah ada).
+  *Yang DIKESAMPINGKAN setelah diperiksa:* injeksi delimiter pada kunci tidak
+  mungkin — sufiks `sha256` selalu 64 heks dan berada di paling belakang, jadi
+  kesamaan kunci memaksa kesamaan `pemilik`.
+* **F5 (LOW)** — `dariCache` sebagai orakel lintas pengguna untuk template
+  bersama. **Diperbaiki** sebagai dokumentasi kontrak di komentar
+  `AiPromptResponse` (lihat "Batas yang diterima").
+* **F6 (LOW)** — `sidik` semula tidak memuat `tepercaya`/`maksKarakter`, sehingga
+  MEMPERKETAT pertahanan injeksi tidak membatalkan jawaban yang lahir di bawah
+  aturan longgar (terbatas TTL, dan tidak lintas pengguna). **Diperbaiki** dengan
+  memasukkan keduanya ke bahan sidik; argumen asimetri D3 berlaku tanpa berubah.
+* **F7 (INFO)** — pembacaan cache adalah satu-satunya pintu JSON tak tepercaya di
+  `core/ai`. `z.object` hari ini MENGUPAS kunci asing, tetapi skema `.passthrough()`
+  / `z.record()` / `z.any()` di masa depan tidak. **Dicatat** di doc `PromptSpec.output`
+  supaya pemilih skema berikutnya tahu skemanya dipakai dua kali.
+
+### Catatan mutu test — dicatat sebagai pelajaran, bukan disembunyikan
+
+**Test F1 semula HAMPA.** Ia menggerakkan kegagalan dengan Redis palsu yang
+menolak dengan `new Error("…")` biasa — error TANPA properti `command`. Karena
+itu assertion `not.toContain(userId)` / `not.toContain(jawaban)` tidak mungkin
+gagal, apa pun yang dilakukan kode terhadap `err`; ia lulus di atas kode yang
+BOCOR, yang persis cacat F1. Dibangun ulang: error palsunya kini membawa
+`command = { name, args }` dengan kunci dan payload `SET` sungguhan (bentuk
+ioredis yang nyata), dialirkan lewat **pino sungguhan** ke `Writable` yang
+ditangkap, dan sebelum `not.toContain` ia lebih dulu menuntut streamnya TIDAK
+kosong dan memuat `template.id` — supaya stream yang tak pernah tertulis tidak
+bisa membuatnya lulus hampa.
+
+**Celah lanjutan (N1) ditutup SESUDAH QC.** Penyempitan lokal `namaError` pada
+tiga jalur ioredis ternyata hanya terlindungi BERSAMA redaksi pino: mencabutnya
+SENDIRIAN tidak membuat satu test pun merah (mutasi M2b hijau 45/45), sementara
+mencabut keduanya baru merah. Lapisan yang tidak ada test-nya gagal saat ia
+dihapus adalah lapisan yang membusuk diam-diam — dan kandidat "penyederhanaan"
+pertama bagi penulis berikutnya. Ditambah satu test yang menguji lapisan lokal
+SENDIRIAN, dengan mengassert field `err` yang terserialisasi bertipe **string**,
+bukan objek. Dibuktikan: mutasi hanya pada tiga baris itu (redaksi utuh) →
+**MERAH, 1 gagal / 45 lulus**; berkas dipulihkan byte-identik (md5 cocok).
+
+**Pelajaran untuk PR berikutnya, karena ini kali kedua di phase yang sama** (044a
+punya enam test parametrik yang hampa): sebuah test kebocoran-log hanya bernilai
+sebesar REALISME objek error yang ia lemparkan, dan sebuah pertahanan berlapis
+hanya terjaga bila SETIAP lapisnya punya mutasi yang menjatuhkannya sendirian.
+
+### Ukuran PR
+
+**~1.957 baris ditambahkan — 795 produksi + 1.162 test — JAUH di atas panduan
+500 pada CLAUDE.md §9.** Rinciannya: 367 sisipan pada `apps/api/src` yang sudah
+terlacak + 428 baris `cache.ts` baru (produksi); 132 sisipan pada test terlacak +
+1.030 baris `ai-cache.test.ts` & `prompt-cache-lingkup.test.ts` (test). Ditambah
+29 penghapusan.
+
+**Angka ini dikoreksi saat penutupan, dan koreksinya sendiri layak dicatat.**
+Review QC melaporkan "~510 LOC" — angka itu KELIRU: ia hanya menghitung diff
+terlacak dan sama sekali melewatkan tiga berkas baru, yang justru memuat
+sebagian besar isi PR ini. Kesalahan yang sama persis (angka log yang tidak
+diverifikasi ulang) adalah temuan QC utama pada PR-043b DAN PR-044a. Ia nyaris
+terulang untuk ketiga kalinya di sini, dan tertangkap hanya karena penulis log
+menolak mencatat angka yang tidak bisa ia rekonsiliasi sendiri. Pelajarannya
+bukan "hitung lebih teliti", melainkan: **angka yang diwariskan antar-tahap
+wajib dihitung ulang di tahap yang mencatatnya.**
+
+Pengecualian ukurannya tetap DISENGAJA dan bukan kelalaian — tetapi harus dibaca
+dengan angka yang benar, yakni ~4× panduan, bukan sedikit di atasnya. Memecahnya
+berarti mengirim perubahan API kuota (`lewatiGlobal`, `AiQuotaReservasi.global`)
+**tanpa satu pun pemanggil** — yakni sebuah field `readonly global` yang cabang
+`false`-nya tidak dijalankan apa pun. Itu persis bentuk "field yang selalu
+bernilai sama" yang test anti-hampa di PR ini ada untuk mencegahnya. Pemecahan
+di sini menghasilkan keadaan antara yang LEBIH SULIT diverifikasi, bukan potongan
+review yang lebih kecil.
+
+Yang perlu diketahui pembaca berikutnya: dari 795 baris produksi itu, mayoritas
+adalah komentar padat sesuai gaya repo ini (`cache.ts` sendiri lebih banyak
+komentar daripada kode). Itu MENJELASKAN angkanya, tetapi tidak membatalkannya —
+PR sebesar ini tetap lebih sulit direview, dan keputusan untuk tidak memecahnya
+adalah keputusan sadar milik owner, bukan sesuatu yang tersembunyi di balik
+angka yang terlalu kecil.
+
+### Risiko yang ditemukan
+
+* **Belum ada satu pun yang MENJALANKAN kode ini.** `boot.ts` masih belum
+  merakit `aiClient` (utang D9 PR-043b) dan kini juga belum merakit
+  `createAiPromptCache`. Jadi seluruh temuan di atas bersifat menghadap-masa-depan,
+  bukan insiden hidup — dan sekaligus: jaminan apa pun di PR ini hari ini hanya
+  sekuat test-nya.
+* **Utang F1 PR-043b MASIH TERBUKA.** Tidak ada penjaga struktural yang melarang
+  sebuah modul memanggil `createAiGateway` langsung, melewati kuota — dan kini
+  juga melewati cache. Remediasinya tetap wajib menyertai PR fitur AI pertama,
+  bersama tiga baris wiring `boot.ts`.
+* **`prompt-registry.test.ts` (PR-044a) masih NON-REKURSIF.** Setelah F2
+  diperbaiki, ia menjadi satu-satunya pemindai atas `prompts/` yang masih
+  berhenti di level atas: template di subdirektori tak terlihat oleh penjaga
+  "setiap `<nama>.vN.ts` terdaftar" dan "`id` === nama berkas". Akar masalahnya
+  sama dengan F2, perbaikannya satu suntingan — tidak dikerjakan di sini karena ia
+  permukaan 044a.
+* **`ai_cache.hit`/`miss` belum punya sink produksi**, sama seperti metrik 043b:
+  backend metrik belum ada (ADR-017) dan `metrics` baru terpasang saat `boot.ts`
+  di-wire. Sampai saat itu AC-5 terbukti di test, belum terlihat di operasi.
+* **Penjaga `lingkup: "bersama"` hanya bisa TEKSTUAL.** `PROMPT_REGISTRY`
+  sengaja menyimpan `{nama, versi, id}` dan bukan templatenya (D6 044a), jadi
+  assertion runtime atas `lingkup` setiap template terdaftar tidak tersedia hari
+  ini. Allow-list yang KOSONG dengan pemindai yang bekerja adalah keadaan
+  terkuat penjaga ini — tetapi "kosong" dan "tidak memindai" terlihat sama dari
+  luar, dan itulah sebabnya assertion "pemindainya benar-benar turun" wajib ada.
+
+### Next steps
+
+* **PR fitur AI pertama** — tiga baris wiring `boot.ts` (D9 043b) **plus**
+  perakitan `createAiPromptCache` di atas `redis.cache` (bukan `redis.queue`:
+  cache BOLEH ter-evict, evict hanya berarti miss), **plus** penjaga F1 043b.
+  Ketiganya dalam PR yang sama; wiring tanpa penjaga hanya memindahkan lubangnya.
+* **PR-072 (re-rank)** — baca "Penyimpangan dari SDD §7.1" di atas SEBELUM
+  memakai angka "3 refresh/hari" dari SDD. Ia juga kandidat pertama
+  `lingkup: "bersama"`, yang berarti kandidat pertama entri allow-list beralasan
+  di `prompt-cache-lingkup.test.ts` — dan `dariCache` tidak boleh ikut ke badan
+  respons HTTP-nya.
+* **Utang kecil yang layak dibayar sekalian:** membuat
+  `prompt-registry.test.ts` rekursif (satu suntingan, akar sama dengan F2).
+* **Bila metrik per-fitur kelak dibutuhkan**, ubah PORT-nya
+  (`increment(name, label?)`) sekaligus untuk tiga pemanggil lain — jangan
+  menambahkan konvensi metrik kedua khusus cache.

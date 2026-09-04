@@ -328,7 +328,13 @@ describe("reserve-then-refund", () => {
     const redis = redisKuotaPalsu();
     const { quota } = mesin({ redis });
 
-    await quota.kembalikan({ hari: HARI, userId: A, feature: "cv_chat", tercatat: true });
+    await quota.kembalikan({
+      hari: HARI,
+      userId: A,
+      feature: "cv_chat",
+      tercatat: true,
+      global: true,
+    });
 
     expect(redis.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
     expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(0);
@@ -581,5 +587,105 @@ describe("kegagalan Redis pada INCR ITU SENDIRI — jatah TIDAK boleh dikembalik
 
     expect(dasar.nilai(kunciUser)).toBe(0);
     expect(dasar.nilai(kunciGlobal)).toBe(7);
+  });
+});
+
+// ===========================================================================
+// lewatiGlobal — jatah pribadi dipotong, pagu global tidak (PR-044b)
+// ===========================================================================
+
+describe("lewatiGlobal — reservasi tanpa pagu global", () => {
+  it("jatah pribadi tetap naik, pagu global TIDAK tersentuh", async () => {
+    const redis = redisKuotaPalsu();
+    const { quota } = mesin({ redis });
+
+    const reservasi = await quota.periksaDanPakai({
+      userId: A,
+      feature: "cv_chat",
+      lewatiGlobal: true,
+    });
+
+    expect(reservasi.tercatat).toBe(true);
+    // Inilah bit yang menentukan nasib refund-nya.
+    expect(reservasi.global).toBe(false);
+    expect(redis.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(1);
+    expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(0);
+  });
+
+  it("reservasi biasa tetap menaikkan keduanya, dan menandai global: true", async () => {
+    // Penjaga anti-hampa: tanpa ini, `global: false` di atas bisa saja berasal
+    // dari field yang selalu bernilai false.
+    const redis = redisKuotaPalsu();
+    const { quota } = mesin({ redis });
+
+    const reservasi = await quota.periksaDanPakai({ userId: A, feature: "cv_chat" });
+
+    expect(reservasi.global).toBe(true);
+    expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(1);
+  });
+
+  it("jatah pribadi habis TETAP menolak walau pagu global dilewati", async () => {
+    // `lewatiGlobal` hanya melewati kendali BIAYA. Kendali ANTI-ABUSE (jatah per
+    // pengguna) tidak boleh ikut lunak — kalau ia ikut, jalur cache menjadi API
+    // tanpa batas bagi siapa pun yang bisa menebak masukan yang pernah dipakai.
+    const { quota } = mesin({ config: konfigurasi({ perUserPerDay: { rerank: 1 } }) });
+
+    await quota.periksaDanPakai({ userId: A, feature: "rerank", lewatiGlobal: true });
+
+    await expect(
+      quota.periksaDanPakai({ userId: A, feature: "rerank", lewatiGlobal: true }),
+    ).rejects.toSatisfy(isKuotaHabis);
+  });
+
+  it("tuas darurat (pagu global 0) tetap menolak — melewati pagu bukan mengabaikannya", async () => {
+    const { quota } = mesin({ config: konfigurasi({ globalPerDay: 0 }) });
+
+    await expect(
+      quota.periksaDanPakai({ userId: A, feature: "cv_chat", lewatiGlobal: true }),
+    ).rejects.toSatisfy(isKuotaHabis);
+  });
+
+  it("REFUND-nya TIDAK menurunkan pagu global — kalau tidak, ia MENCETAK anggaran", async () => {
+    // Penjaga paling penting di blok ini. Hapus `if (reservasi.global)` di
+    // `kembalikan` (quota.ts) dan test ini HARUS merah: pagu global akan turun
+    // dari 3 ke 2 karena kenaikan yang tidak pernah terjadi. Lantai nol di
+    // `turunkan` tidak menangkapnya — penghitung global di sini (dan di trafik
+    // nyata) duduk jauh di atas nol.
+    const redis = redisKuotaPalsu();
+    const { quota } = mesin({ redis });
+
+    // Tiga panggilan normal dari pengguna lain: pagu global = 3.
+    for (let i = 0; i < 3; i += 1) {
+      await quota.periksaDanPakai({ userId: B, feature: "cv_chat" });
+    }
+    expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(3);
+
+    const reservasi = await quota.periksaDanPakai({
+      userId: A,
+      feature: "cv_chat",
+      lewatiGlobal: true,
+    });
+    await quota.kembalikan(reservasi);
+
+    // Jatah pribadi kembali (pengguna tidak menerima apa pun) …
+    expect(redis.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
+    // … dan anggaran bersama TETAP 3, tidak dicetak satu unit pun.
+    expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(3);
+  });
+
+  it("kembalikanBila menghormati bit yang sama", async () => {
+    const redis = redisKuotaPalsu();
+    const { quota } = mesin({ redis });
+    await quota.periksaDanPakai({ userId: B, feature: "cv_chat" });
+
+    const reservasi = await quota.periksaDanPakai({
+      userId: A,
+      feature: "cv_chat",
+      lewatiGlobal: true,
+    });
+    await quota.kembalikanBila(reservasi, new AiProviderError("AI_TIMEOUT", "gemini"));
+
+    expect(redis.nilai(kunciKuotaUser(HARI, A, "cv_chat"))).toBe(0);
+    expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(1);
   });
 });

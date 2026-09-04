@@ -17,6 +17,8 @@
 import type { ZodType } from "zod";
 import { uuidV7 } from "../ids/index.js";
 import type { Logger } from "../logger/index.js";
+import type { AiPromptCache } from "./cache.js";
+import type { PromptTemplate } from "./prompts/index.js";
 import type { AiQuota } from "./quota.js";
 import type { AiQuotaFeature } from "./quota-config.js";
 import type {
@@ -72,6 +74,33 @@ export interface AiUsageRecorder {
   catat(peristiwa: AiUsagePeristiwa): Promise<void>;
 }
 
+/**
+ * Jawaban satu panggilan template prompt (PR-044b).
+ *
+ * `provider`/`model`/`usage` ABSEN pada jawaban dari cache, dan itu bukan
+ * kelalaian: pada cache hit ketiganya memang TIDAK ADA — tidak ada provider yang
+ * menjawab, tidak ada token yang terbakar. Mengarang nilainya (`provider:
+ * "cache"`, `usage: 0/0`) akan menyelundupkan panggilan berbiaya nol ke dalam
+ * angka yang dipakai orang untuk merekonsiliasi tagihan. `dariCache` adalah
+ * diskriminan yang membuat ketiadaan itu terbaca, bukan mengejutkan.
+ *
+ * `dariCache` ADALAH DIAGNOSTIK SISI SERVER — JANGAN MENARUHNYA DI BADAN
+ * RESPONS HTTP untuk template ber-`lingkup: "bersama"`. Pada lingkup pengguna ia
+ * hanya menceritakan riwayat pemanggilnya sendiri dan tidak berbahaya; pada
+ * lingkup bersama satu entri melayani semua orang, jadi `dariCache: true`
+ * memberi tahu pemanggil apakah SESEORANG di platform ini pernah menanyakan
+ * pertanyaan itu — orakel lintas akun yang lemah tetapi nyata. Belum ada
+ * template bersama hari ini; kalimat ini ada supaya sifat itu tidak diwarisi
+ * diam-diam oleh PR pertama yang membuatnya (PR-072 re-rank adalah kandidatnya).
+ */
+export interface AiPromptResponse<Output> {
+  data: Output;
+  dariCache: boolean;
+  provider?: string;
+  model?: string;
+  usage?: AiUsage;
+}
+
 export interface AiClient {
   chat(ctx: AiCallContext, request: AiChatRequest): Promise<AiChatResponse>;
   json<T>(
@@ -80,6 +109,19 @@ export interface AiClient {
     schema: ZodType<T>,
   ): Promise<AiJsonResponse<T>>;
   embed(ctx: AiCallContext, request: AiEmbedRequest): Promise<AiEmbedResponse>;
+  /**
+   * Jalur template prompt: cache → kuota → provider → jejak biaya → cache tulis.
+   *
+   * URUTANNYA HIDUP DI SINI, DAN HANYA DI SINI. Kalau ia diserahkan kepada PR
+   * fitur, satu PR yang memanggil cache sesudah kuota (atau lupa menulis
+   * kembali) sudah cukup untuk membuat seluruh penghematan lenyap tanpa satu
+   * pun test merah.
+   */
+  prompt<Input, Output>(
+    ctx: AiCallContext,
+    template: PromptTemplate<Input, Output>,
+    input: Input,
+  ): Promise<AiPromptResponse<Output>>;
 }
 
 export interface AiClientDeps {
@@ -88,6 +130,13 @@ export interface AiClientDeps {
   quota: AiQuota;
   recorder: AiUsageRecorder;
   logger: Pick<Logger, "error">;
+  /**
+   * Cache jawaban prompt (PR-044b). ABSEN = perilaku sebelum PR ini, persis:
+   * setiap `prompt()` menjadi panggilan provider. Opsional supaya composition
+   * root yang belum merakit `redis.cache` tidak dipaksa mengarang satu, dan
+   * supaya cache bisa dimatikan tanpa menyentuh satu baris pun kode fitur.
+   */
+  cache?: AiPromptCache;
   /** Pembuat UUID baris; disuntik agar test deterministik. Default uuid v7. */
   ids?: () => string;
   /** Pola repo (`core/ai/breaker.ts`): jam disuntik, BUKAN fake timer. */
@@ -113,7 +162,7 @@ function angkaToken(nilai: number | undefined): number {
 }
 
 export function createAiClient(deps: AiClientDeps): AiClient {
-  const { provider, quota, recorder, logger } = deps;
+  const { provider, quota, recorder, logger, cache } = deps;
   const ids = deps.ids ?? (() => uuidV7());
   const clock = deps.clock ?? (() => new Date());
 
@@ -226,6 +275,72 @@ export function createAiClient(deps: AiClientDeps): AiClient {
         () => provider.embed(request),
         (hasil) => ({ provider: hasil.provider }),
       );
+    },
+
+    /**
+     * Jalur template prompt (PR-044b). Seluruh urutannya ada di badan ini.
+     *
+     * 1. CACHE DULU, kuota sesudahnya. Urutan ini KEBALIKAN diagram SDD §7.1
+     *    (langkah 1 kuota, langkah 2 cache) dan itu disengaja: memeriksa cache
+     *    belakangan menuntut kemampuan mengembalikan SEBAGIAN reservasi (pagu
+     *    global saja), dan refund parsial adalah persis kelas bug yang dibayar
+     *    PR-043b. Dengan urutan ini pagu global tidak pernah naik pada hit, jadi
+     *    tidak ada jendela dan tidak ada yang perlu dikembalikan.
+     * 2. HIT tetap memotong jatah PENGGUNA (`lewatiGlobal: true`). Jatah per
+     *    pengguna adalah kendali anti-abuse: cache hit tetap sebuah permintaan.
+     *    Konsekuensinya — pengguna TIDAK melihat jatahnya lebih awet; yang
+     *    diuntungkan tier gratis platform. Ini keputusan owner 2026-09-03, dan
+     *    ia berbeda dari kalimat "sisanya dari cache" di SDD §7.1.
+     * 3. HIT TIDAK MENULIS BARIS `ai_usage` — hanya metrik (AC-5). Baris 0-token
+     *    akan merusak rekonsiliasi tagihan PR-043b, tempat 0/0 sudah punya arti
+     *    lain ("embed"). Konsekuensinya harus diketahui pembaca angka: cacah
+     *    panggilan TIDAK lagi sama dengan cacah baris `ai_usage`.
+     *
+     * PENGGUNA YANG JATAHNYA HABIS TETAP DITOLAK MESKI ADA DI CACHE. Itu bukan
+     * cacat yang menunggu diperbaiki, itu kendali anti-abuse-nya bekerja:
+     * membolehkan hit tanpa jatah menjadikan cache sebuah API tak terbatas bagi
+     * siapa pun yang bisa menebak masukan yang pernah dipakai.
+     */
+    async prompt(ctx, template, input) {
+      // `promptVersion` diisi dari template bila pemanggil tidak menyatakannya.
+      // `template.id` MEMANG nilai kolom `ai_usage.prompt_version` (PR-044a),
+      // jadi jalur ini mengisi kolom yang sejak PR-043b selalu NULL.
+      const konteks: AiCallContext = {
+        ...ctx,
+        promptVersion: ctx.promptVersion ?? template.id,
+      };
+      const konteksCache = { userId: ctx.userId, feature: ctx.feature };
+
+      // `cache` absen = perilaku sebelum PR-044b, tanpa cabang tambahan.
+      const tersimpan = await cache?.baca(konteksCache, template, input);
+      if (tersimpan !== undefined) {
+        // Melempar bila jatah habis — lihat catatan anti-abuse di atas.
+        await quota.periksaDanPakai({
+          userId: ctx.userId,
+          feature: ctx.feature,
+          lewatiGlobal: true,
+        });
+        return { data: tersimpan, dariCache: true };
+      }
+
+      const hasil = await jalankan(
+        konteks,
+        () => provider.chatJson(template.bangun(input), template.output),
+        (jawaban) => ({ provider: jawaban.provider, usage: jawaban.usage }),
+      );
+
+      // Ditulis SESUDAH jejak biaya dan SESUDAH kuota — pada titik ini jawabannya
+      // sudah pasti sah (lolos skema template di adapter). Kegagalan menulis
+      // ditelan `cache.tulis` sendiri; ia tidak pernah mencabut jawaban ini.
+      await cache?.tulis(konteksCache, template, input, hasil.data);
+
+      return {
+        data: hasil.data,
+        dariCache: false,
+        provider: hasil.provider,
+        model: hasil.model,
+        usage: hasil.usage,
+      };
     },
   };
 }

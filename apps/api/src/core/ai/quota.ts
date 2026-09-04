@@ -87,6 +87,19 @@ export interface AiQuotaDeps {
 export interface AiQuotaPemakaian {
   userId: string;
   feature: AiQuotaFeature;
+  /**
+   * Lewati PAGU GLOBAL — jatah pribadi TETAP dipotong (PR-044b).
+   *
+   * Absen/false = perilaku hari ini, dan itu yang benar untuk semua pemanggil
+   * kecuali satu: cache hit prompt (`AiClient.prompt`). Alasannya adalah fungsi
+   * masing-masing penghitung. Jatah per pengguna adalah kendali ANTI-ABUSE —
+   * jawaban dari cache tetap sebuah permintaan, dan membiarkannya gratis
+   * membuat satu skrip memanen ulang jawabannya tanpa batas. Pagu global adalah
+   * kendali BIAYA, dan cache hit tidak berbiaya sepeser pun: menaikkannya akan
+   * memakan anggaran bersama untuk panggilan yang tidak pernah sampai ke
+   * provider.
+   */
+  lewatiGlobal?: boolean;
 }
 
 /**
@@ -100,6 +113,19 @@ export interface AiQuotaReservasi {
   readonly feature: AiQuotaFeature;
   /** false = kuota dilewati (fail open); tidak ada yang perlu dikembalikan. */
   readonly tercatat: boolean;
+  /**
+   * Apakah pagu global BENAR-BENAR naik pada reservasi ini (PR-044b).
+   *
+   * Satu bit `tercatat` tidak cukup begitu `lewatiGlobal` ada: ia menjawab
+   * "adakah yang dicatat", bukan "penghitung yang MANA". Tanpa bit kedua ini,
+   * reservasi tanpa-global yang kemudian dikembalikan akan men-DECR pagu global
+   * yang tidak pernah naik — yaitu MENCETAK anggaran bersama, satu unit setiap
+   * kali. Lantai nol di `turunkan` tidak melindungi apa pun di sini: penghitung
+   * global pada trafik nyata duduk jauh di atas nol, jadi DECR liarnya mendarat
+   * mulus dan tak terlihat sampai tagihan datang. Ini persis kelas bug yang
+   * dibayar PR-043b pada jalur jatah pribadi.
+   */
+  readonly global: boolean;
 }
 
 export interface AiQuotaFitur {
@@ -300,12 +326,17 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
     sudahDikembalikan.add(reservasi);
 
     const ttl = detikKeTengahMalamWib(clock()) + AI_QUOTA_TTL_GRACE_DETIK;
+    // Jatah pribadi: TANPA syarat. `tercatat === true` sudah berarti kenaikannya
+    // mendarat (lihat `periksaDanPakai`).
     await turunkan(kunciKuotaUser(reservasi.hari, reservasi.userId, reservasi.feature), ttl);
-    await turunkan(kunciKuotaGlobal(reservasi.hari), ttl);
+    // Pagu global: HANYA bila ia memang naik. Syarat ini bukan kerapian — lihat
+    // `AiQuotaReservasi.global`: menurunkan penghitung yang tidak pernah naik
+    // adalah mencetak anggaran bersama, dan lantai nol tidak menangkapnya.
+    if (reservasi.global) await turunkan(kunciKuotaGlobal(reservasi.hari), ttl);
   }
 
   return {
-    async periksaDanPakai({ userId, feature }) {
+    async periksaDanPakai({ userId, feature, lewatiGlobal = false }) {
       const sekarang = clock();
       // `hari` dihitung SEKALI dan dibawa terus: pemeriksaan, penambahan, dan
       // pengembalian tidak boleh jatuh di dua tanggal berbeda.
@@ -313,7 +344,15 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
       const resetDetik = detikKeTengahMalamWib(sekarang);
       const ttl = resetDetik + AI_QUOTA_TTL_GRACE_DETIK;
       const batas = batasUser(feature);
-      const dilewati: AiQuotaReservasi = { hari, userId, feature, tercatat: false };
+      // `global: false` — tidak ada penghitung yang naik pada jalur ini, jadi
+      // tidak ada pula yang boleh diturunkan bila reservasinya dikembalikan.
+      const dilewati: AiQuotaReservasi = {
+        hari,
+        userId,
+        feature,
+        tercatat: false,
+        global: false,
+      };
 
       // Jatah nol = tuas darurat "AI dimatikan" (phase-06 PR-043 Rollback).
       // Ditolak SEBELUM menyentuh Redis: tidak ada yang perlu dihitung.
@@ -325,7 +364,6 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
       }
 
       const kunciUser = kunciKuotaUser(hari, userId, feature);
-      const kunciGlobal = kunciKuotaGlobal(hari);
 
       let terpakaiUser: number;
       try {
@@ -349,29 +387,38 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
         throw tolak(resetDetik);
       }
 
-      let terpakaiGlobal: number;
-      try {
-        terpakaiGlobal = await naikkan(kunciGlobal, ttl);
-      } catch (err) {
-        // Pagu global: sama seperti di atas, hanya kenaikan yang mendarat.
-        if (err instanceof KenaikanTerpasang) await turunkan(kunciGlobal, ttl);
-        // Jatah pribadi TANPA syarat: kenaikannya sudah pasti mendarat beberapa
-        // baris di atas, jadi meninggalkannya terpotong merugikan pengguna yang
-        // tidak menerima apa pun.
-        await turunkan(kunciUser, ttl);
-        return saatRedisGagal(err, dilewati);
-      }
-      if (terpakaiGlobal > config.globalPerDay) {
-        await turunkan(kunciGlobal, ttl);
-        await turunkan(kunciUser, ttl);
-        // Pesannya TIDAK menyebut pagu global — lihat catatan `globalTersedia`.
-        throw tolak(resetDetik, {
-          message: "Bantuan AI sedang penuh hari ini",
-          hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
-        });
+      // PAGU GLOBAL — SELURUH bloknya dilewati bila pemanggil memintanya
+      // (`lewatiGlobal`, PR-044b). Yang dilewati adalah INCR-nya, bukan
+      // pemeriksaan `globalPerDay === 0` di atas: tuas darurat "AI dimatikan"
+      // tetap menolak semua jalur, termasuk jalur cache.
+      if (!lewatiGlobal) {
+        const kunciGlobal = kunciKuotaGlobal(hari);
+        let terpakaiGlobal: number;
+        try {
+          terpakaiGlobal = await naikkan(kunciGlobal, ttl);
+        } catch (err) {
+          // Pagu global: sama seperti di atas, hanya kenaikan yang mendarat.
+          if (err instanceof KenaikanTerpasang) await turunkan(kunciGlobal, ttl);
+          // Jatah pribadi TANPA syarat: kenaikannya sudah pasti mendarat beberapa
+          // baris di atas, jadi meninggalkannya terpotong merugikan pengguna yang
+          // tidak menerima apa pun.
+          await turunkan(kunciUser, ttl);
+          return saatRedisGagal(err, dilewati);
+        }
+        if (terpakaiGlobal > config.globalPerDay) {
+          await turunkan(kunciGlobal, ttl);
+          await turunkan(kunciUser, ttl);
+          // Pesannya TIDAK menyebut pagu global — lihat catatan `globalTersedia`.
+          throw tolak(resetDetik, {
+            message: "Bantuan AI sedang penuh hari ini",
+            hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
+          });
+        }
       }
 
-      return { hari, userId, feature, tercatat: true };
+      // `global` merekam APA YANG TERJADI, bukan apa yang diminta: hanya di
+      // cabang di atas pagu global benar-benar naik. `kembalikan` membacanya.
+      return { hari, userId, feature, tercatat: true, global: !lewatiGlobal };
     },
 
     kembalikan,
