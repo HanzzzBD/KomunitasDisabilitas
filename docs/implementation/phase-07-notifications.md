@@ -108,6 +108,15 @@ RB-Std.
 
 ### PR-048 - Devices + FCM Push
 
+> **DIPECAH MENJADI DUA (2026-09-05), mengikuti preseden PR-033a..i dan PR-043a/b.**
+>
+> * **PR-048a — Devices + registrasi** *(selesai)*: migrasi `devices`, `POST /me/devices`, service/repository perangkat, keputusan ekspor & purge, penjaga `DROP INDEX`.
+> * **PR-048b — FCM push + cleanup token**: adapter FCM HTTP v1, processor `notify:push`, produser dari jalur notifikasi, penghapusan token `UNREGISTERED`, retry/backoff.
+>
+> **Alasannya bukan ukuran semata.** Registrasi perangkat dan pengiriman push punya bentuk kegagalan yang sama sekali berbeda — yang pertama soal kepemilikan baris dan balapan upsert, yang kedua soal kredensial pihak ketiga, klasifikasi galat provider, dan retry. Menggabungkannya berarti satu review yang harus memegang keduanya sekaligus, dan `devices` yang salah bentuk tidak akan ketahuan sampai push pertama dicoba.
+>
+> **AC dipetakan:** AC-5 (multi-device) + separuh AC-2 (baris token bisa dihapus) → PR-048a. AC-1, AC-3, AC-4, dan separuh AC-2 (FCM menyatakan token mati) → PR-048b.
+
 #### Objective
 
 **Registrasi device + processor notify:push + cleanup token.**
@@ -147,11 +156,11 @@ Bisnis: kabar status lamaran sampai walau app tertutup. Teknis: migrasi tabel `d
 
 **Testing Checklist:**
 
-* [ ] Unit Test (payload builder)
-* [ ] Integration Test (mock FCM + cleanup)
+* [ ] Unit Test (payload builder) — PR-048b
+* [ ] Integration Test (mock FCM + cleanup) — PR-048b; sisi registrasi sudah: `devices-http.test.ts` (12) + `devices-db.test.ts` (6)
 * [ ] E2E Test (via mobile PR-094)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (push nyata ke device uji staging)
+* [x] Accessibility Test (N/A)
+* [ ] Manual Verification (push nyata ke device uji staging) — menunggu kredensial FCM + perangkat uji; utang tercatat
 
 **Deliverables:**
 
@@ -167,11 +176,11 @@ Migrasi devices additive (aman); RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Push terkirim saat event status (mock FCM).
-* [ ] Token invalid (unregistered) → dihapus otomatis.
-* [ ] Idempotent per notification id.
-* [ ] Retry/backoff sesuai SDD §16.
-* [ ] Satu user multi-device didukung.
+* [ ] Push terkirim saat event status (mock FCM). — PR-048b
+* [ ] Token invalid (unregistered) → dihapus otomatis. — PR-048b; sisi DB-nya sudah ada di PR-048a (`hapusByToken`, diuji di `devices-db.test.ts`)
+* [ ] Idempotent per notification id. — PR-048b
+* [ ] Retry/backoff sesuai SDD §16. — PR-048b; konfigurasi antrean `notify-push` (concurrency 8, 4 attempts = 3× retry, backoff 30 dtk, timeout 15 dtk) sudah ada sejak PR-015
+* [x] Satu user multi-device didukung. — PR-048a: `devices-http.test.ts` ("satu pengguna boleh punya banyak perangkat") + `devices-db.test.ts` (daftar milik pemilik, terbaru dulu)
 
 #### Dependencies
 

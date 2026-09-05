@@ -11,7 +11,11 @@
 // Kegagalan yang menimpa sebagian kecil pengguna adalah kegagalan yang paling
 // lama tidak terdeteksi.
 import { describe, it, expect } from "vitest";
-import { applicationStatusSchema, notificationTypeSchema } from "@nawasena/schemas";
+import {
+  applicationStatusSchema,
+  devicePlatformSchema,
+  notificationTypeSchema,
+} from "@nawasena/schemas";
 import { LABEL_STATUS, TEMPLATE } from "../src/modules/notifications/index.js";
 import { bacaSchemaPrisma } from "./helpers/prisma-schema.js";
 
@@ -51,5 +55,24 @@ describe("katalog tipe notifikasi", () => {
 
   it("tidak ada template untuk tipe yang tidak terdaftar", () => {
     expect(Object.keys(TEMPLATE).sort()).toEqual([...notificationTypeSchema.options].sort());
+  });
+});
+
+describe("devicePlatformSchema sepadan dengan enum Prisma (PR-048a)", () => {
+  /** Nilai enum `DevicePlatform` sebagaimana tertulis di schema.prisma. */
+  function platformDariPrisma(): string[] {
+    const isi = /enum\s+DevicePlatform\s*\{([\s\S]*?)\}/.exec(bacaSchemaPrisma());
+    if (isi === null) throw new Error("enum DevicePlatform tidak ditemukan di schema.prisma");
+    return (isi[1] as string)
+      .split("\n")
+      .map((baris) => baris.replace(/\/\/.*$/, "").trim())
+      .filter((baris) => baris.length > 0);
+  }
+
+  it("nilai yang sama persis, tanpa yang tertinggal di salah satu sisi", () => {
+    // Menyimpang ke satu arah = klien mengirim platform yang ditolak DB sebagai
+    // nilai enum tak dikenal (500, bukan 400). Ke arah sebaliknya = platform
+    // yang sah tetapi tidak pernah bisa didaftarkan lewat API.
+    expect([...devicePlatformSchema.options].sort()).toEqual(platformDariPrisma().sort());
   });
 });

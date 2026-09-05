@@ -64,6 +64,7 @@ model User {
   matchScores          MatchScore[]
   aiUsage              AiUsage[]
   notifications        Notification[]
+  devices              Device[]
   verifiedCompanies    Company[]             @relation("CompanyVerifier")
   createdJobs          Job[]                 @relation("JobCreator")
   createdSignVideos    SignVideo[]           @relation("SignVideoCreator")
@@ -523,6 +524,45 @@ model AiUsageMonthly {
 
   @@id([month, feature, provider])
   @@map("ai_usage_monthly")
+}
+
+/// Platform perangkat penerima push (PR-048a). `web` ikut sejak awal meski web
+/// push di luar scope MVP (dokumen phase PR-048): menambah nilai enum belakangan
+/// menuntut migrasi tersendiri, sedangkan nilai yang tak terpakai tidak menuntut
+/// apa pun.
+enum DevicePlatform {
+  android
+  ios
+  web
+}
+
+/// Perangkat terdaftar untuk push notification (PR-048a, SDD §6.2 G7).
+model Device {
+  id     String @id @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  /// Token registrasi FCM. UNIK GLOBAL — bukan unik per pengguna, dan itu
+  /// keputusan keamanan, bukan normalisasi. Satu perangkat fisik yang berpindah
+  /// akun (pemiliknya keluar, orang lain masuk) mengirimkan token yang SAMA;
+  /// dengan unik global, pendaftaran berikutnya MEMINDAHKAN kepemilikan barisnya.
+  /// Tanpa itu, kedua baris hidup berdampingan dan pemilik lama terus menerima
+  /// notifikasi milik pemilik baru di layar kunci perangkat yang bukan lagi
+  /// miliknya — kebocoran yang tidak meninggalkan gejala apa pun di sisi kita.
+  fcmToken String @unique @map("fcm_token")
+
+  platform DevicePlatform
+
+  /// Diperbarui setiap pendaftaran ulang. Klien FCM me-refresh tokennya secara
+  /// berkala, jadi kolom ini adalah dasar pembersihan perangkat yang sudah lama
+  /// tidak menyapa (belum ada job-nya — lihat log PR-048a).
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Pengiriman push selalu bertanya "perangkat apa saja milik pengguna ini".
+  @@index([userId])
+  @@map("devices")
 }
 
 model Notification {

@@ -181,6 +181,52 @@ membuang waktu memeriksanya ulang.
 
 ---
 
+### U-15 — `prisma migrate dev` mengarang `DROP INDEX` atas indeks raw-SQL
+
+| | |
+|---|---|
+| **Status** | TERBUKA — **penjaganya sudah terpasang** |
+| **Jenis** | Tooling / risiko produksi |
+| **Ditemukan** | PR-048a (2026-09-05) — **sudah menggigit sekali** |
+| **Pemilik** | Belum ditetapkan |
+| **Pemicu** | Setiap `prisma migrate dev` berikutnya |
+
+Sebagian indeks repo ini dibuat lewat **raw SQL** di migrasi 03, karena Prisma tidak bisa
+menyatakannya: HNSW pgvector, GIN, trigram, dan beberapa indeks komposit. Karena tidak
+terwakili di `schema.prisma`, `prisma migrate dev` membacanya sebagai **drift** dan dengan
+patuh menuliskan `DROP INDEX` untuk "merapikannya" — di tengah migrasi yang sebenarnya
+hanya menambah satu tabel.
+
+**Ini bukan risiko teoretis.** Saat menyiapkan PR-048a, migrasi yang seharusnya hanya
+membuat tabel `devices` menghasilkan **tujuh** `DROP INDEX` dan sudah menjatuhkannya di DB
+dev sebelum ketahuan:
+
+```
+applications_job_status, applications_user_updated, jobs_accommodations_gin,
+jobs_embedding_hnsw, jobs_status_published_at, jobs_title_trgm,
+seeker_profiles_embedding_hnsw
+```
+
+Bila lolos ke produksi, pencarian lowongan dan job matching berubah menjadi seq scan —
+**tanpa satu pun error, tanpa satu pun test merah.** Hanya lambat, dan hanya setelah data
+cukup banyak untuk membuatnya terasa. DB dev dipulihkan lewat `migrate reset`, dan migrasi
+14 ditulis tangan berisi pernyataan aditif saja.
+
+**Yang sudah dikerjakan (PR-048a):** penjaga di `migrasi-skema.test.ts` — setiap
+`DROP INDEX` di migrasi mana pun harus terdaftar di `DROP_INDEX_DISENGAJA` beserta
+alasannya, plus pemeriksaan arah sebaliknya (sembilan indeks raw-SQL wajib tetap ada di SQL
+migrasi, agar yang hilang karena migrasinya *diedit* juga tertangkap).
+
+**Yang BELUM dikerjakan — inilah utangnya:** sebabnya masih ada. Perbaikan sesungguhnya
+adalah mendeklarasikan indeks yang **representable** di `schema.prisma` (indeks komposit
+biasa seperti `applications_user_updated` bisa; HNSW/GIN/trigram tidak akan pernah bisa dan
+selamanya butuh penjaga). Itu migrasi tersendiri, dan tidak boleh diselundupkan ke PR fitur.
+
+**Sementara itu:** setiap migrasi baru wajib dibaca baris per baris sebelum di-commit.
+`DROP INDEX` yang tidak Anda tulis sendiri adalah tanda perangkap ini, bukan pembersihan.
+
+---
+
 ### U-06 — Empat utang perakitan `boot.ts` (jalur AI)
 
 | | |
@@ -332,6 +378,10 @@ U-05. Ketiganya di `export-kelengkapan.test.ts`; alasan `DITUNDA`-nya ditulis ul
 menyebut keadaan yang sebenarnya.
 
 **Diverifikasi LATEN (tidak bisa menggigit hari ini):** U-08.
+
+**Ditambahkan setelah rekonsiliasi:** U-15 (2026-09-05, PR-048a) — perangkap
+`prisma migrate dev` yang sudah menggigit sekali. Penjaganya terpasang di PR yang sama;
+sebabnya masih terbuka.
 
 **Temuan yang paling perlu keputusan:** U-03 dan U-04 bukan utang pembukuan. Ekspor data
 pribadi hari ini **kurang** — preferensi aksesibilitas (ada untuk setiap pengguna sejak

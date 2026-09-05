@@ -207,7 +207,9 @@ export async function startApi(options: BootOptions): Promise<void> {
           // tidak saling mendengar. Dua event lamaran belum punya penerbit:
           // modul `applications` lahir di Phase 12 (lihat core/events).
           events,
-        }),
+          // `.router` — modul kini juga mengembalikan `devices` (PR-048a), yang
+          // konsumennya adalah processor push di apps/worker, bukan proses ini.
+        }).router,
       );
       app.use(
         createAiModule({

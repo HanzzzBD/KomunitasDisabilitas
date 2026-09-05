@@ -106,6 +106,8 @@ const DIKECUALIKAN: Readonly<Record<string, string>> = {
     "relasi `verified_by` adalah KEPENGARANGAN admin atas entitas lain, bukan data pribadi subjeknya. Mengekspornya membocorkan data perusahaan ke berkas milik seseorang.",
   jobs: "relasi `created_by` — sama seperti companies: data lowongan milik platform, bukan milik kuratornya.",
   sign_videos: "relasi `created_by` — sama seperti companies: konten kamus BISINDO milik platform.",
+  devices:
+    "kredensial pengiriman, bukan data pribadi — alasannya sama persis dengan refresh_tokens. Isinya token FCM: siapa pun yang memegangnya bisa mengirim notifikasi ke layar kunci perangkat itu, dan mengekspornya memindahkan kemampuan itu ke berkas yang beredar lewat email/cloud. Yang tersisa (platform, last_seen_at) tidak memberi tahu pemiliknya apa pun yang tidak sudah ia ketahui dari perangkat di tangannya. Dihapus saat purge — lihat TABEL_DIHAPUS di purge.service.ts.",
 };
 
 /** Tabel yang barisnya terikat pada seorang pengguna (parser: helpers/prisma-schema). */
