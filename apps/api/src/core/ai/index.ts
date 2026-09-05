@@ -4,10 +4,18 @@
 // (`providers/gemini.js`) sengaja TIDAK diekspor ulang: memilih provider adalah
 // tugas gateway, dan modul yang bisa mengimpor adapter langsung akan
 // mengunci dirinya ke satu provider — persis yang ADR-012 larang.
-export { createAiGateway, createUnavailableAiGateway, type AiGatewayEnv } from "./gateway.js";
+//
+// `createUnavailableAiGateway` dan `AI_ERROR_MESSAGES` sengaja TIDAK diekspor
+// ulang di sini. PR-041 menaruh keduanya sebagai seam untuk PR-046, dengan
+// syarat tertulis: bila PR-046 tidak memakainya, keduanya dicabut — bukan
+// dibiarkan sebagai ekspor mati. PR-046 memetakan degradasi lewat
+// `DegradedError` + `ERROR_CATALOG`, jadi syarat itu terpicu dan dibayar di
+// sini. Keduanya tetap `export` di berkas asalnya karena dipakai di sana;
+// yang hilang hanyalah permukaan publiknya ke luar `core/ai`. Menambahkannya
+// kembali menuntut pemanggil nyata di luar modul ini, bukan antisipasi.
+export { createAiGateway, type AiGatewayEnv } from "./gateway.js";
 export {
   AI_EMBED_DIMENSIONS,
-  AI_ERROR_MESSAGES,
   AiProviderError,
   type AiChatMessage,
   type AiChatRequest,

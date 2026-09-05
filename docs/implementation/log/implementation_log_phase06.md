@@ -119,6 +119,16 @@ diuji berisiko mengembalikan sukses-kosong-senyap untuk kode blokir Gemini di lu
   tanpa consumer eksternal hari ini.** Disiapkan sebagai seam untuk PR-046
   (`ERROR_CATALOG`); bila PR-046 ternyata tidak memakainya, keduanya harus
   di-un-export saat itu, bukan dibiarkan sebagai ekspor mati.
+  * **LUNAS 2026-09-05, satu PR sesudah PR-046 — dan keterlambatan itu adalah
+    bagian dari catatannya.** PR-046 memetakan degradasi lewat `DegradedError` +
+    `ERROR_CATALOG`, jadi seam ini tidak terpakai dan syarat pencabutannya
+    terpicu. PR-046 sendiri TIDAK menjalankannya: implementer, QC, maupun closer
+    tidak memeriksa syarat yang ditulis PR sebelumnya. Terjaring baru saat
+    audit utang phase 05–06 diminta owner. **Pelajarannya bukan "lebih teliti"
+    melainkan bahwa syarat bersyarat yang hanya hidup di prosa log tidak punya
+    penagih.** Yang menagihnya hari ini tetap prosa (komentar di `index.ts`);
+    seam berikutnya sebaiknya lahir dengan test yang merah bila syaratnya
+    terpicu, bukan dengan kalimat.
 * **Ukuran sumber ~520 LOC vs panduan <500 LOC (CLAUDE.md §9).** Didorong kepadatan
   komentar (~45%) yang menjelaskan keputusan (mengapa, bukan bagaimana) — baris
   eksekusi jauh di bawah batas. Ditandai, bukan dipangkas.
