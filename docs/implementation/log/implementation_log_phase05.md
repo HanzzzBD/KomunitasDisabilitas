@@ -395,6 +395,11 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
   endpoint yang klien mobile (Phase 15) tidak bisa hasilkan client-nya secara
   otomatis. Waktu yang tepat membayarnya adalah saat konsumen pertamanya lahir
   (PR-040), supaya dokumennya ditulis terhadap pemakaian yang nyata.
+  * **LUNAS 2026-09-05.** Dibayar sekaligus dengan `/me/accessibility`,
+    `/me/profile`, dan `/ai/quota` — lihat catatan di utang PR-040 di bawah.
+    Rencana "bayar di PR-040" TIDAK terjadi: PR-040 justru mewarisi utangnya
+    dan menambahnya. Itu pola yang layak diingat — utang yang dijadwalkan ke
+    "PR berikutnya" tanpa penagih otomatis akan ikut bergeser bersama PR itu.
 * **`SELECT … FOR UPDATE` pada gerbang consent PR-037** — masih ditunda ke
   PR-039, tidak tersentuh PR ini.
 * **Batas panjang daftar belum ada.** Tidak ada batas jumlah riwayat kerja,
@@ -932,6 +937,26 @@ sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
   Changes: tidak ada (konsumsi)", dan mendaftarkan lima path berisi 14 operasi
   akan menggandakan ukuran PR yang sudah besar. Layak menjadi PR tersendiri yang
   membereskan ketiganya sekaligus.
+  * **LUNAS 2026-09-05**, sebagai PR tersendiri persis seperti yang disarankan
+    di sini — empat PR sesudah utangnya lahir (PR-034), dan setelah `/ai/quota`
+    (PR-043a) ikut menumpang pola yang sama. Yang didaftarkan: 9 path / 15
+    operasi (`/me/accessibility`, `/me/profile`, ke-12 route karier, dan
+    `/ai/quota`), sehingga dokumen naik dari 9 path menjadi 18.
+    * Route karier ditulis lewat satu fungsi `pathsKarier()` yang mencerminkan
+      `daftarkanKarier()` di router — bukan empat blok yang disalin. Dua tempat
+      yang bentuknya wajib sama sebaiknya juga sama bentuknya di kode.
+    * `/ai/quota` menuntut kontrak zod yang belum ada: `packages/schemas/src/ai.ts`
+      lahir di sini. Ia SENGAJA menduplikasi `AI_FEATURES` dari
+      `core/ai/quota-config.ts`, sebab jalur boot fail-fast tidak boleh menyeret
+      paket schemas. Duplikasi itu dijaga `apps/api/__tests__/ai-quota-kontrak.test.ts`
+      — penjaga tipe compile-time yang membuat `tsc` merah bila salah satu
+      berubah sendirian. Diverifikasi dengan mutasi: menambah satu field di
+      skema klien menjatuhkan typecheck, lalu dipulihkan.
+    * **Yang TIDAK dikerjakan di sini, dan sebabnya:** parity test otomatis
+      antara `registry.list()` (daftar route yang benar-benar terpasang) dan
+      path di `openapi.json`. Itulah penagih yang sesungguhnya — tanpa dia,
+      utang yang sama akan tumbuh lagi diam-diam pada endpoint berikutnya.
+      Dipisah karena PR ini sudah besar, bukan karena tidak perlu.
 * **Bundel awal naik 112,4 → 115,1 KB.** Halamannya sendiri lazy; yang naik
   adalah **katalog i18n**, yang dimuat eager karena teks shell membutuhkannya
   sejak render pertama. Artinya setiap fitur berikutnya ikut menambah bundel awal

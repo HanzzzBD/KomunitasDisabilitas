@@ -628,6 +628,1021 @@
           }
         }
       }
+    },
+    "/me/accessibility": {
+      "get": {
+        "operationId": "getMyAccessibility",
+        "tags": [
+          "accessibility"
+        ],
+        "summary": "Preferensi aksesibilitas sendiri",
+        "description": "Mengembalikan preferensi aksesibilitas pengguna yang sedang masuk. Pengguna yang belum pernah menyimpannya tetap mendapat 200 berisi nilai baku — bukan 404: tidak adanya preferensi tersimpan bukan kesalahan.",
+        "responses": {
+          "200": {
+            "description": "Preferensi aksesibilitas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessibilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateMyAccessibility",
+        "tags": [
+          "accessibility"
+        ],
+        "summary": "Perbarui preferensi aksesibilitas sendiri",
+        "description": "Field yang tidak dikirim berarti tidak diubah. Preferensi ini diterapkan otomatis di seluruh UI (ADR-008), jadi perubahannya berlaku lintas perangkat.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccessibilityPreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferensi setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/profile": {
+      "get": {
+        "operationId": "getMyProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Profil pencari kerja sendiri",
+        "description": "Mengembalikan profil milik pengguna yang sedang masuk. Kolom sensitif hanya disertakan bila persetujuan penyimpanannya sedang aktif; tanpa itu kolomnya tidak muncul sama sekali, bukan muncul kosong.",
+        "responses": {
+          "200": {
+            "description": "Profil pencari kerja",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeekerProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateMyProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Perbarui profil pencari kerja sendiri",
+        "description": "Field yang tidak dikirim berarti tidak diubah. Menulis kolom sensitif tanpa persetujuan aktif ditolak 403 — permintaannya sah, izinnya yang belum ada — dan tidak satu baris pun ditulis. Mencabut persetujuan sambil menyimpan data sensitif ditolak di skema.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSeekerProfile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeekerProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau nilai di luar taksonomi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Belum ada persetujuan penyimpanan data sensitif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/experiences": {
+      "get": {
+        "operationId": "listExperiences",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Daftar riwayat kerja sendiri",
+        "description": "Mengembalikan seluruh riwayat kerja milik pengguna yang sedang masuk. Tanpa pagination dengan sengaja: daftarnya diisi tangan dan pendek.",
+        "responses": {
+          "200": {
+            "description": "Daftar riwayat kerja",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperienceListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createExperience",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Tambah riwayat kerja",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExperience"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Experience yang baru dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperienceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/experiences/{id}": {
+      "put": {
+        "operationId": "updateExperience",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Perbarui satu riwayat kerja",
+        "description": "Field yang tidak dikirim berarti tidak diubah. Baris milik pengguna lain berperilaku seperti baris yang tidak ada — 404, bukan 403, sebab keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExperience"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experience setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperienceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteExperience",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Hapus satu riwayat kerja",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Terhapus — tanpa badan jawaban"
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/educations": {
+      "get": {
+        "operationId": "listEducations",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Daftar riwayat pendidikan sendiri",
+        "description": "Mengembalikan seluruh riwayat pendidikan milik pengguna yang sedang masuk. Tanpa pagination dengan sengaja: daftarnya diisi tangan dan pendek.",
+        "responses": {
+          "200": {
+            "description": "Daftar riwayat pendidikan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EducationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createEducation",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Tambah riwayat pendidikan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEducation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Education yang baru dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EducationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/educations/{id}": {
+      "put": {
+        "operationId": "updateEducation",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Perbarui satu riwayat pendidikan",
+        "description": "Field yang tidak dikirim berarti tidak diubah. Baris milik pengguna lain berperilaku seperti baris yang tidak ada — 404, bukan 403, sebab keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEducation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Education setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EducationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEducation",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Hapus satu riwayat pendidikan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Terhapus — tanpa badan jawaban"
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Daftar keahlian sendiri",
+        "description": "Mengembalikan seluruh keahlian milik pengguna yang sedang masuk. Tanpa pagination dengan sengaja: daftarnya diisi tangan dan pendek.",
+        "responses": {
+          "200": {
+            "description": "Daftar keahlian",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSkill",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Tambah keahlian",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSkill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Skill yang baru dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/skills/{id}": {
+      "put": {
+        "operationId": "updateSkill",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Perbarui satu keahlian",
+        "description": "Field yang tidak dikirim berarti tidak diubah. Baris milik pengguna lain berperilaku seperti baris yang tidak ada — 404, bukan 403, sebab keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSkill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSkill",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Hapus satu keahlian",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Terhapus — tanpa badan jawaban"
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/quota": {
+      "get": {
+        "operationId": "getMyAiQuota",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Jatah AI harian sendiri",
+        "description": "Mengembalikan sisa jatah AI pengguna yang sedang masuk untuk hari WIB yang sedang berjalan. `globalTersedia` sengaja hanya boolean: sisa anggaran bersama adalah data operasional, dan menyebut angkanya sama dengan memberi tahu penyalahguna kapan anggaran sedang tipis.",
+        "responses": {
+          "200": {
+            "description": "Ringkasan jatah AI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiQuotaResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1432,6 +2447,662 @@
           "level"
         ],
         "description": "Satu keahlian"
+      },
+      "AccessibilityResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AccessibilityProfile"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AccessibilityProfile": {
+        "type": "object",
+        "properties": {
+          "textScale": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 100,
+            "maximum": 200,
+            "description": "Skala teks dalam persen (100 = normal, maks 200 — WCAG 1.4.4)"
+          },
+          "highContrast": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "reduceMotion": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "simpleLanguage": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "prefersSignLanguage": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "largeTouchTargets": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "screenReaderHint": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "textScale",
+          "highContrast",
+          "reduceMotion",
+          "simpleLanguage",
+          "prefersSignLanguage",
+          "largeTouchTargets",
+          "screenReaderHint"
+        ],
+        "description": "Profil tersimpan; null = belum diatur pengguna"
+      },
+      "UpdateAccessibilityPreferences": {
+        "type": "object",
+        "properties": {
+          "textScale": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 100,
+            "maximum": 200,
+            "description": "Skala teks dalam persen (100 = normal, maks 200 — WCAG 1.4.4)"
+          },
+          "highContrast": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "reduceMotion": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "simpleLanguage": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "prefersSignLanguage": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "largeTouchTargets": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "screenReaderHint": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "Profil tersimpan; null = belum diatur pengguna"
+      },
+      "SeekerProfileResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SeekerProfile"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SafeProfile": {
+        "type": "object",
+        "properties": {
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "openToRemote": {
+            "type": "boolean"
+          },
+          "disclosureDefault": {
+            "type": "string",
+            "enum": [
+              "never",
+              "ask_each_time",
+              "always"
+            ],
+            "description": "Bawaan pengungkapan disabilitas saat melamar"
+          }
+        },
+        "required": [
+          "headline",
+          "summary",
+          "city",
+          "province",
+          "openToRemote",
+          "disclosureDefault"
+        ],
+        "description": "Profil tanpa data sensitif"
+      },
+      "SeekerProfile": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SafeProfile"
+          }
+        ],
+        "properties": {
+          "consentSensitiveAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "sensitive": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SensitiveProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "consentSensitiveAt",
+          "sensitive"
+        ],
+        "description": "Profil lengkap milik pemiliknya"
+      },
+      "UpdateSeekerProfile": {
+        "type": "object",
+        "properties": {
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "openToRemote": {
+            "type": "boolean"
+          },
+          "disclosureDefault": {
+            "type": "string",
+            "enum": [
+              "never",
+              "ask_each_time",
+              "always"
+            ],
+            "description": "Bawaan pengungkapan disabilitas saat melamar"
+          },
+          "consentSensitive": {
+            "type": "boolean"
+          },
+          "disabilityTypes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            },
+            "maxItems": 5
+          },
+          "accommodationNeeds": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AccommodationNeeds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExperienceListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Experience"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateExperience": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15",
+            "default": null
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15",
+            "default": null
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "default": null
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "ExperienceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Experience"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateExperience": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15",
+            "default": null
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15",
+            "default": null
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "EducationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Education"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateEducation": {
+        "type": "object",
+        "properties": {
+          "institution": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "degree": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1950,
+            "maximum": 2036,
+            "default": null
+          }
+        },
+        "required": [
+          "institution"
+        ],
+        "additionalProperties": false
+      },
+      "EducationResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Education"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateEducation": {
+        "type": "object",
+        "properties": {
+          "institution": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "degree": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "default": null
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1950,
+            "maximum": 2036,
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Skill"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "CreateSkill": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "default": null
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "SkillResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Skill"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateSkill": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "AiQuotaResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiQuotaSummary"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AiQuotaSummary": {
+        "type": "object",
+        "properties": {
+          "hari": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "resetDalamDetik": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fitur": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiQuotaFeatureUsage"
+            }
+          },
+          "globalTersedia": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hari",
+          "resetDalamDetik",
+          "fitur",
+          "globalTersedia"
+        ]
+      },
+      "AiQuotaFeatureUsage": {
+        "type": "object",
+        "properties": {
+          "fitur": {
+            "type": "string",
+            "enum": [
+              "cv_chat",
+              "cv_finalize",
+              "cv_check",
+              "simplify_text",
+              "interview_sim",
+              "rerank",
+              "embed"
+            ]
+          },
+          "batas": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "terpakai": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sisa": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "fitur",
+          "batas",
+          "terpakai",
+          "sisa"
+        ]
       }
     }
   }
