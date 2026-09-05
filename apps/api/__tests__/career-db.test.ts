@@ -157,6 +157,41 @@ describe("urutan bawaan (AC-4) — terbaru dulu", () => {
 
     expect(daftar.map((s) => s.name)).toEqual(["Ketiga", "Kedua", "Pertama"]);
   });
+
+  it("keahlian: urut benar MESKI seluruh id lahir di milidetik yang sama", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // Regresi migrasi 11 (2026-09-05). Test di atas bergantung pada kecepatan
+    // mesin: di CI (Linux) tiga insert kerap jatuh di satu milidetik dan
+    // membuatnya merah secara acak; di mesin pengembang yang lebih lambat ia
+    // nyaris tidak pernah gagal — jadi ia BUKAN penjaga yang bisa dipercaya.
+    //
+    // Di sini kondisinya DIPAKSA: seluruh id dirakit dari stempel milidetik
+    // yang SAMA, sehingga 74 bit acak sisanyalah satu-satunya pembeda `id`.
+    // Dengan enam baris, peluang `id desc` kebetulan menghasilkan urutan yang
+    // benar adalah 1/720 — praktis nol. Lulusnya test ini karena itu hanya bisa
+    // berarti satu hal: yang mengurutkan adalah `created_at`, bukan `id`.
+    const aktor = await buatAktor();
+    const MS = Date.UTC(2026, 8, 5, 3, 0, 0);
+    const nama = ["Satu", "Dua", "Tiga", "Empat", "Lima", "Enam"];
+
+    for (const name of nama) {
+      // Insert terpisah dengan sengaja: `now()` adalah waktu MULAI TRANSAKSI,
+      // jadi merakit keenamnya dalam satu transaksi justru membuat `created_at`
+      // identik dan mengembalikan persoalan yang sama.
+      await prisma.skill.create({
+        data: { id: uuidV7(MS), userId: aktor.userId, name, level: null },
+      });
+    }
+
+    const daftar = await skills.list(aktor);
+
+    expect(daftar.map((s) => s.name)).toEqual([...nama].reverse());
+    // Penjaga atas penjaga: bila kelak `uuidV7` menjadi monotonik dalam satu
+    // milidetik, test ini berhenti menguji apa yang ia klaim — dan diam-diam
+    // menjadi hijau karena alasan yang salah.
+    const ids = daftar.map((s) => s.id);
+    expect(new Set(ids.map((id) => id.slice(0, 13))).size).toBe(1);
+  });
 });
 
 describe("cascade delete (AC-5)", () => {

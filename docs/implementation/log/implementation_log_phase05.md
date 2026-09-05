@@ -402,6 +402,32 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
     "PR berikutnya" tanpa penagih otomatis akan ikut bergeser bersama PR itu.
 * **`SELECT … FOR UPDATE` pada gerbang consent PR-037** — masih ditunda ke
   PR-039, tidak tersentuh PR ini.
+* **CACAT URUTAN AC-4, ditemukan 2026-09-05 dan DIPERBAIKI (migrasi 11).**
+  `URUT_SKILL = [{ id: "desc" }]` menjanjikan "terbaru dulu" berdasarkan UUID
+  v7 — padahal `core/ids/index.ts` menyatakan sendiri bahwa urutan DALAM
+  milidetik yang sama TIDAK dijamin. Keahlian tidak punya kolom tanggal, jadi
+  seluruh urutannya bersandar pada jaminan yang tidak pernah diberikan.
+  * **Bukan sekadar test flaky.** Pengguna yang menambah beberapa keahlian
+    dengan cepat memang melihat urutan yang salah. Riwayat kerja & pendidikan
+    ikut terdampak pada seri (tanggal/tahun sama).
+  * **Cara ia terlihat:** `career-db.test.ts` merah di CI pada PR yang sama
+    sekali tidak menyentuh karier, lalu hijau di re-run tanpa perubahan kode.
+    Kegagalan yang "hilang sendiri" pada PR orang lain adalah cara cacat ini
+    memperkenalkan diri — dan cara termudah ia diabaikan.
+  * **Perbaikan:** kolom `created_at timestamptz(6)` (presisi mikrodetik) untuk
+    ketiga sub-entitas; `id desc` DIPERTAHANKAN sebagai penengah terakhir supaya
+    baris lama — yang seluruhnya menerima stempel waktu migrasi yang sama —
+    jatuh kembali ke perilaku lama alih-alih menjadi acak.
+  * **Penjaganya deterministik, bukan berbasis waktu.** Test lama bergantung
+    pada kecepatan mesin: kode LAMA pun lulus 12/12 di mesin pengembang. Test
+    baru MEMAKSA keenam id lahir di milidetik yang sama, sehingga peluang
+    `id desc` kebetulan benar adalah 1/720. Diverifikasi: kode lama merah 6/6.
+  * **Pelajaran yang ditulis ke `core/ids/index.ts`:** `id` tidak boleh menjadi
+    dasar urutan waktu; ia hanya penengah terakhir agar hasilnya TETAP, bukan
+    agar BENAR.
+  * **Temuan sampingan, TIDAK diperbaiki di sini:** `down.sql` hanya ada di
+    migrasi 01–03; migrasi 04–10 melanggar konvensi `prisma/README.md` §2
+    tanpa ada yang menahannya. Migrasi 11 menyertakannya dan diuji up→down→up.
 * **Batas panjang daftar belum ada.** Tidak ada batas jumlah riwayat kerja,
   pendidikan, atau keahlian per pengguna, dan `GET` mengembalikan seluruhnya
   tanpa pagination. Untuk MVP (< 5.000 pengguna, daftar yang diisi tangan) itu
