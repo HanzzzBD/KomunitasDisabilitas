@@ -1505,3 +1505,153 @@ Gate hijau: `pnpm --filter @nawasena/api test` → **Test Files 86 passed (86)**
   streaming**.
 * **PR-098** — nginx `proxy_buffering off` + sticky routing, keduanya sudah
   disiapkan header dan batasnya di sini.
+
+---
+
+## PR-046 — Kontrak Degradasi + Lint No-Direct-Provider (`core/ai/degraded.ts`)
+
+> **Phase:** [06 - AI Gateway](../phase-06-ai-gateway.md)
+> **Tanggal:** 2026-09-05
+> **Status:** Selesai (kontrak; belum terpasang ke endpoint mana pun)
+
+### Ringkasan hasil
+
+Lapisan tata kelola penutup Phase 06. Tidak ada integrasi LLM baru, tidak ada
+endpoint, tidak ada perubahan DB. Yang lahir: `DegradedError` + `isDegradedError`
++ `withDegradation` di `core/ai/degraded.ts`, `meta.degraded` pada envelope
+sukses (`@nawasena/schemas`), dan tabel pola degradasi per fitur di dokumen
+phase.
+
+**Yang membuat PR ini bukan kode mati:** satu-satunya titik lempar yang MEMANG
+sudah merupakan degradasi — `tolak()` di `quota.ts` — dipindahkan dari
+`appError(KUOTA_AI_HABIS, …)` ke `new DegradedError(KUOTA_AI_HABIS, …)`. Kode,
+status, dan `Retry-After`-nya tidak berubah sedikit pun, jadi `isKuotaHabis`
+dan seluruh test kuota yang membaca `.code` tetap hijau tanpa disentuh. Sejak
+PR ini, "jatah AI habis" adalah satu-satunya kegagalan di `core/ai` yang boleh
+diturunkan ke jalur non-AI — dan itu tertulis di kode, bukan di komentar.
+
+Gate hijau: `pnpm lint` **9/9**, `pnpm typecheck` **9/9**, `pnpm test` **9/9**.
+`@nawasena/api` **87 berkas / 1290 lulus / 1 skipped** (basis PR-045:
+86/1271/1 → +1 berkas, +19 test). `@nawasena/schemas` 3 berkas / 40 lulus,
+`@nawasena/config` 4 berkas / 25 lulus (+1 test AC-3).
+
+### Acceptance Criteria
+
+* **AC-1 — `withDegradation` mengembalikan fallback saat `DegradedError`.**
+  Terpenuhi. Dua bentuk fallback didukung: NILAI siap pakai dan FUNGSI yang
+  baru dijalankan saat gagal (jalur non-AI yang mahal tidak boleh berjalan
+  ketika jalur AI-nya berhasil). Dibuktikan juga dengan penolakan kuota
+  SUNGGUHAN dari `createAiQuota`, bukan hanya `DegradedError` buatan test.
+* **AC-2 — kegagalan non-degradasi tidak tertelan.** Terpenuhi. `it.each` atas
+  KETUJUH `AiErrorCode`, plus `AppError` non-degradasi (`TIDAK_BERHAK`),
+  `Error` biasa, dan `string` telanjang — semuanya dilempar ulang sebagai
+  objek yang SAMA (`toBe`, bukan `toEqual`), dan fallback-nya tidak pernah
+  dipanggil.
+* **AC-3 — impor SDK provider langsung → lint merah.** Terpenuhi, **di tempat
+  yang sudah ada** (lihat Penyimpangan D1).
+* **AC-4 — tabel pola degradasi per fitur.** Terpenuhi:
+  `phase-06-ai-gateway.md`, subbagian baru di bawah PR-046. Tiga baris (CV
+  Chat, Feed Lowongan, Sederhanakan Teks) masing-masing menyebut jalur AI,
+  fallback, perilaku ke pengguna, dan **PR pelaksananya**.
+* **AC-5 — `meta.degraded` konsisten di kontrak zod.** Terpenuhi;
+  `degradedMetaSchema` + `successEnvelopeSchema` yang menerima `nextCursor`
+  saja, `degraded` saja, keduanya, atau tidak sama sekali.
+
+### Keputusan teknis
+
+* **`DegradedError extends AppError`, bukan kelas berdiri sendiri.** Bila
+  fallback-nya tidak ada atau ikut gagal, error ini harus tetap keluar sebagai
+  envelope `{code,message,hint}` Bahasa Indonesia beserta `Retry-After`-nya
+  lewat `errorHandler` global. Kelas yang tidak turun dari `AppError` berakhir
+  sebagai 500 "Terjadi kesalahan" — persis kebalikan maksud degradasi.
+  Pemetaan error→HTTP tetap berbasis **KODE** (`handlers.ts:28` memakai
+  `instanceof AppError`, lalu status/hint diambil dari `ERROR_CATALOG` via
+  `code`), bukan berbasis kelas — `DegradedError` tidak menimpa pemetaan itu.
+* **TIDAK ada kode `ERROR_CATALOG` baru.** "Boleh diturunkan" adalah sifat
+  PENANGANAN, bukan sebab kegagalan; kelasnya generik atas `ErrorCode` mana pun
+  yang sudah terdaftar. Kode baru (mis. breaker terbuka) ditambahkan saat ada
+  pemanggil nyata, bukan sekarang.
+* **Predikat `isDegradedError`, bukan `instanceof`.** Membaca properti
+  `degraded === true`, persis pola `isKuotaHabis` yang membaca `code` — dan
+  memenuhi peringatan yang sudah tertulis di `quota.ts` sejak PR-043.
+* **Kembaliannya `T`, bukan union `{degraded, data}`.** Menandai jawaban
+  kepada klien adalah urusan lapisan response (`meta.degraded`); memaksa bentuk
+  union di sini menentukan bentuk API sebelum ada satu pun endpoint yang
+  memakainya. Catatan: Risks PR-046 di dokumen phase menyarankan union type
+  sebagai mitigasi "fitur lupa menangani degraded" — mitigasi itu **ditunda**
+  ke PR endpoint pertama (PR-066/PR-073), bukan dibuang.
+* **`meta` envelope dilonggarkan, `paginationMetaSchema` TIDAK.** Envelope
+  memakai `paginationMetaSchema.merge(degradedMetaSchema).partial()`; skema
+  pagination-nya sendiri tetap mewajibkan `nextCursor`, sebab endpoint
+  berhalaman yang lupa mengirimnya adalah bug, bukan pilihan. Nol konsumen
+  hari ini (dicek `grep` ke seluruh `apps/` + `packages/`), jadi risiko
+  perubahan perilaku nol.
+* **Helper MURNI — tanpa logger, tanpa konfigurasi, tanpa `req`/`res`.** Itu
+  syarat keamanan spec ("degradasi tidak boleh menurunkan kontrol akses") yang
+  dibuat struktural, bukan dijanjikan. Sebuah test membaca `degraded.ts` dan
+  menegaskan impornya PERSIS `["../http/index.js"]`: begitu berkas ini mulai
+  mengimpor express/middleware/Prisma, gate merah.
+
+### Penyimpangan dari rencana (WAJIB dibaca)
+
+* **D1 — AC-3 tidak menambah fixture di `apps/api/__tests__/fixtures/`.**
+  Rencana (dan AC aslinya) meminta fixture baru + test ESLint programatik baru
+  di `apps/api`. Saat menyentuh kode nyata ternyata **infrastrukturnya sudah
+  ada dan lebih baik**: `packages/config/__tests__/boundaries.test.ts` sudah
+  me-lint fixture lewat ESLint Node API, `packages/config/fixtures/` sudah
+  dikecualikan dari `pnpm lint` (`.eslintrc.cjs`) DAN dari `tsc`
+  (`tsconfig.json` → `exclude: ["fixtures"]`), dan sudah ada fixture
+  `violations/ai-sdk-outside-core/…`. Menambah jalur kedua di `apps/api`
+  berarti menduplikasi plumbing ESLint, dan fixture fisik di
+  `apps/api/__tests__/**` justru akan **dilewati diam-diam** oleh
+  `boundaries/ignore: ["**/__tests__/**"]` — gerbang yang tidak menjaga apa
+  pun. Jadi AC-3 diperkuat di tempatnya: fixture kini mengimpor **ketiga** SDK
+  terlarang, dan test barunya menuntut **tepat 3** error `boundaries/external`
+  ber-severity 2 yang pesannya memuat "AI Gateway". `boundaries.cjs` sendiri
+  **tidak disentuh** (Constraint 3).
+* **D2 — `withDegradation` tanpa parameter logger opsional.** Constraint 5
+  menyebut "optional logger injection for testing"; tidak ada yang perlu
+  dicatat di dalam helper ini, dan menambahkan lubang logger sekarang adalah
+  pintu masuk pertama bagi keadaan ambien yang justru dilarang constraint yang
+  sama. Pemanggil yang butuh jejak mencatat di sisinya sendiri.
+
+### Verifikasi
+
+* **Empat mutasi dijalankan, semuanya merah**; keempat berkas dipulihkan
+  byte-identik (md5 dicocokkan):
+  1. `if (!isDegradedError(err)) throw err` → `if (false)` — **9 test merah**.
+  2. `tolak()` dikembalikan ke `appError(...)` biasa — **1 test merah**, dan
+     `ai-quota.test.ts` **tetap hijau**: bukti langsung bahwa test kuota yang
+     ada memang buta terhadap pergantian kelas ini, dan test barulah yang
+     menjaganya.
+  3. `meta` envelope dikembalikan ke `paginationMetaSchema.optional()` —
+     **3 test merah**.
+  4. `disallow` di `boundaries.cjs` dipersempit ke satu SDK — **1 test merah**
+     (berkasnya dikembalikan; perubahan itu tidak ikut ter-commit).
+* Ukuran PR ~**693 baris** (119 ubahan kode di berkas eksisting + 405 baris
+  berkas baru + 169 dokumen); produksi murni ~150 LOC. Pagu §9 (500 LOC)
+  terlampaui hanya bila test dan dokumen ikut dihitung — sesuai norma repo
+  (komentar sangat padat), tidak memblokir.
+
+### Risiko yang ditemukan
+
+* **Masih belum ada yang MENJALANKAN kode ini.** `boot.ts` tidak merakit apa
+  pun dari PR-043b, PR-044b, PR-045, maupun PR ini. **Empat** utang perakitan
+  kini menumpuk di satu tempat; PR fitur AI pertama (PR-066) sebaiknya
+  membayarnya sekaligus.
+* **Seam F1 (PR-043b) tetap terbuka.** Belum ada penjaga yang mencegah modul
+  memanggil `createAiGateway` langsung dan melewati `AiClient` (kuota + jejak
+  biaya). Di luar scope PR ini; syarat masuk PR-066.
+* **Nol pemanggil `withDegradation` di produksi.** Kontrak yang tidak pernah
+  dipakai adalah kontrak yang bisa salah bentuk tanpa ketahuan. Mitigasi yang
+  dipilih: mengikatnya ke `quota.ts` sekarang juga, sehingga minimal satu
+  jalur nyata sudah melempar `DegradedError` sebelum ada fitur.
+
+### Next steps
+
+* **PR-066** — endpoint cv-chat: pemakai `withDegradation` yang pertama;
+  sekaligus memutuskan bentuk `{degraded, data}` di controller dan menutup
+  kuota + `ai_usage` untuk jalur streaming.
+* **PR-068 / PR-073 / PR-087** — mengisi ketiga baris tabel pola degradasi
+  dengan implementasi nyata (form CV, feed tanpa re-rank, tombol sederhanakan
+  nonaktif).

@@ -505,11 +505,35 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] `withDegradation` mengembalikan fallback saat DegradedError (test).
-* [ ] Error non-degradasi tetap dilempar (tidak tertelan).
-* [ ] Fixture import langsung provider → lint merah.
-* [ ] Tabel pola degradasi per fitur terdokumentasi (CV→form, feed→template, simplify→sembunyikan).
-* [ ] `meta.degraded` konsisten di kontrak zod.
+* [x] `withDegradation` mengembalikan fallback saat DegradedError (test).
+* [x] Error non-degradasi tetap dilempar (tidak tertelan).
+* [x] Fixture import langsung provider → lint merah.
+* [x] Tabel pola degradasi per fitur terdokumentasi (CV→form, feed→template, simplify→sembunyikan).
+* [x] `meta.degraded` konsisten di kontrak zod.
+
+#### Tabel Pola Degradasi per Fitur (AC-4)
+
+Kontraknya satu untuk semua fitur: jalur AI melempar `DegradedError`,
+`withDegradation` menukarnya dengan jalur non-AI, dan response menandainya
+`meta.degraded: true`. Yang berbeda hanya ISI jalur non-AI-nya. PR-046
+menetapkan tabel ini; PR fitur di kolom terakhir yang mengisinya dengan kode.
+
+| Fitur | Jalur AI | Fallback saat degradasi | Perilaku ke pengguna | PR pelaksana |
+|---|---|---|---|---|
+| CV Chat | `chatStream()` (`core/ai/stream.ts`) | CV builder berbasis formulir — tanpa AI | `meta.degraded: true`; banner "Bantuan AI sedang tidak tersedia, lanjutkan mengisi manual"; isian yang sudah ada TIDAK hilang | PR-066 (BE), PR-068 (FE) |
+| Feed Lowongan | Re-rank AI (`rerank`, `embed`) | Urutan dasar dari pgvector/FTS — tanpa re-rank | `meta.degraded: true`; feed TETAP tampil, tanpa label "direkomendasikan AI" | PR-072 (BE), PR-073 (endpoint), PR-074 (FE) |
+| Sederhanakan Teks | `chatJson()` (`simplify_text`) | Tidak ada versi sederhana — teks asli tetap tampil | `meta.degraded: true`; tombol "Sederhanakan" dinonaktifkan + `aria-disabled` beserta alasannya | PR-087 |
+
+Tiga aturan yang berlaku untuk SEMUA baris, dan tidak boleh ditawar per fitur:
+
+1. **Degradasi bukan kegagalan.** Statusnya tetap 2xx dan `data` tetap sah;
+   `DegradedError` hanya sampai ke pengguna sebagai error bila fallback-nya
+   memang tidak ada.
+2. **Degradasi tidak menurunkan kontrol akses.** Jalur fallback berjalan di
+   controller dan guard RBAC yang sama persis; `withDegradation` murni dan
+   tidak menyentuh middleware.
+3. **Degradasi terlihat.** Diam-diam menyajikan hasil non-AI seolah hasil AI
+   melanggar janji produk; `meta.degraded` ada supaya FE bisa mengatakannya.
 
 #### Dependencies
 
