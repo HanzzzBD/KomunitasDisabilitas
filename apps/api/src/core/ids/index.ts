@@ -3,6 +3,17 @@
 // Di-generate APLIKASI (bukan default DB — gen_random_uuid() = v4).
 // Implementasi murni tanpa dependensi; cukup untuk kebutuhan Nawasena
 // (sortable antar-milidetik; urutan DALAM milidetik yang sama tidak dijamin).
+//
+// BATAS DI ATAS ITU NYATA, BUKAN TEORETIS — dan pernah menggigit. Sampai
+// migrasi 11 (2026-09-05), `ORDER BY id DESC` dipakai sebagai "urutan terbaru
+// dulu" untuk keahlian/riwayat karier. Tiga baris yang ditambahkan beruntun
+// kerap jatuh di satu milidetik, lalu keluar dalam urutan acak: `career-db`
+// merah sesekali di CI, dan daftar yang urutannya salah bagi pengguna yang
+// mengisi formulir dengan cepat.
+//
+// ATURANNYA: JANGAN memakai `id` sebagai dasar urutan waktu. Tabel yang butuh
+// "terbaru dulu" wajib punya kolom `created_at timestamptz(6)` sendiri; `id`
+// hanya boleh menjadi penengah TERAKHIR agar hasilnya tetap (bukan agar benar).
 import { randomBytes } from "node:crypto";
 
 export function uuidV7(now: number = Date.now()): string {

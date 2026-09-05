@@ -93,23 +93,41 @@ const KOLOM_SKILL = { id: true, name: true, level: true } as const;
  *
  * `nulls: "last"` penting. Riwayat tanpa tanggal mulai bukan riwayat paling
  * baru — ia riwayat yang belum lengkap, dan menaruhnya di puncak berarti CV
- * seseorang dibuka oleh baris yang paling sedikit dia isi. `id` menengahi seri:
- * UUID v7 berurut waktu pembuatan (core/ids), jadi dua baris bertanggal sama
- * tetap keluar dalam urutan yang tetap alih-alih urutan yang kebetulan.
+ * seseorang dibuka oleh baris yang paling sedikit dia isi.
+ *
+ * PENENGAH SERI ADALAH `createdAt`, BUKAN `id`. Sampai 2026-09-05 tugas itu
+ * dipegang `id desc` dengan alasan "UUID v7 berurut waktu pembuatan" — dan
+ * alasan itu hanya separuh benar: `core/ids/index.ts` menyatakan sendiri bahwa
+ * urutan DALAM milidetik yang sama tidak dijamin. Tiga baris yang ditambahkan
+ * beruntun kerap jatuh di milidetik yang sama, lalu keluar dalam urutan acak —
+ * terlihat sebagai `career-db.test.ts` yang merah sesekali, dan sebagai daftar
+ * yang urutannya salah bagi pengguna yang mengisi formulir dengan cepat.
+ * `timestamptz(6)` berpresisi mikrodetik dan datang dari transaksi yang
+ * berbeda, jadi ia benar-benar menengahi.
+ *
+ * `id desc` DIPERTAHANKAN sebagai penengah terakhir, dan itu disengaja: baris
+ * yang sudah ada sebelum migrasi 11 semuanya menerima stempel waktu yang sama,
+ * sehingga urutannya jatuh kembali ke perilaku lama alih-alih menjadi acak.
  */
 const URUT_EXPERIENCE = [
   { startDate: { sort: "desc", nulls: "last" } },
+  { createdAt: "desc" },
   { id: "desc" },
 ] as const;
 
-const URUT_EDUCATION = [{ year: { sort: "desc", nulls: "last" } }, { id: "desc" }] as const;
+const URUT_EDUCATION = [
+  { year: { sort: "desc", nulls: "last" } },
+  { createdAt: "desc" },
+  { id: "desc" },
+] as const;
 
 /**
- * Keahlian tidak punya tanggal — `id desc` ADALAH urutan terbaru dulu, sebab
- * UUID v7 memuat waktu pembuatannya di 48 bit pertama. Bukan kebetulan yang
- * dimanfaatkan: itu alasan SDD §14 memilih v7 alih-alih v4.
+ * Keahlian tidak punya tanggal apa pun, jadi `createdAt` ADALAH urutannya —
+ * bukan sekadar penengah. Inilah yang paling terdampak sebelum migrasi 11:
+ * tanpa kolom lain, seluruh urutannya bersandar pada jaminan yang tidak pernah
+ * diberikan `uuidV7`.
  */
-const URUT_SKILL = [{ id: "desc" }] as const;
+const URUT_SKILL = [{ createdAt: "desc" }, { id: "desc" }] as const;
 
 export function createExperienceRepository(
   prisma: AppPrisma,
