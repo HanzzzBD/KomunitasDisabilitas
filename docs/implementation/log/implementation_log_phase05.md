@@ -425,6 +425,26 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
   * **Pelajaran yang ditulis ke `core/ids/index.ts`:** `id` tidak boleh menjadi
     dasar urutan waktu; ia hanya penengah terakhir agar hasilnya TETAP, bukan
     agar BENAR.
+  * **PERBAIKAN MIGRASI 11 BELUM TUNTAS — dikoreksi migrasi 12 (2026-09-05).**
+    `timestamptz(6)` ternyata tidak menyelesaikan apa pun: untuk
+    `@default(now())` Prisma membuat nilainya DI SISI KLIEN dan mengirimnya
+    sebagai parameter (`INSERT ... ("id","user_id","name","level","created_at")
+    VALUES ($1..$5)`), dan `Date` di JavaScript berpresisi MILIDETIK. DEFAULT
+    milik tabel tidak pernah terpakai. Yang berubah di migrasi 11 hanyalah
+    SUMBER tabrakan — dari id ber-milidetik menjadi stempel ber-milidetik.
+    * Ketahuan karena test PR-121 sendiri merah di CI pada PR i18n yang tidak
+      menyentuh karier sama sekali. Ia hijau di mesin pengembang yang lambat.
+    * Migrasi 12 memakai `@default(dbgenerated("clock_timestamp()"))`, yang
+      membuat Prisma BERHENTI mengirim kolomnya sehingga DB yang mengisinya.
+      `clock_timestamp()` dan bukan `now()`/`CURRENT_TIMESTAMP`: dua yang
+      terakhir adalah waktu MULAI TRANSAKSI, sehingga baris yang ditulis dalam
+      satu transaksi tetap seri.
+    * **Assertion "semua stempel berbeda" TIDAK CUKUP, dan itu sudah dibuktikan:
+      ia lulus 3/3 di atas kode yang salah** karena di mesin lambat stempel
+      klien pun berbeda 2-3 ms. Penjaga finalnya menguji PRESISI — nilai dari
+      JavaScript selalu kelipatan bulat 1000 mikrodetik, `clock_timestamp()`
+      praktis tidak pernah. Dengan itu mutasi menjadi merah 3/3 di mesin mana
+      pun, bukan sesekali di CI.
   * **Temuan sampingan, TIDAK diperbaiki di sini:** `down.sql` hanya ada di
     migrasi 01–03; migrasi 04–10 melanggar konvensi `prisma/README.md` §2
     tanpa ada yang menahannya. Migrasi 11 menyertakannya dan diuji up→down→up.
