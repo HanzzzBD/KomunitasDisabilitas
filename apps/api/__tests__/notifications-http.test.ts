@@ -152,7 +152,18 @@ afterEach(async () => {
   active = null;
 });
 
-async function boot(): Promise<{ base: string; rows: Baris[]; events: EventBus }> {
+interface JobTerantre {
+  queue: string;
+  payload: unknown;
+  jobId?: string;
+}
+
+async function boot(): Promise<{
+  base: string;
+  rows: Baris[];
+  events: EventBus;
+  antre: JobTerantre[];
+}> {
   const env = testEnv();
   const rows: Baris[] = [];
   const logger = createLogger(env, {
@@ -163,6 +174,17 @@ async function boot(): Promise<{ base: string; rows: Baris[]; events: EventBus }
     }),
   });
   const events = createEventBus({ logger });
+
+  // Registry antrean palsu — cukup untuk membuktikan APA yang diantrekan dan
+  // BERAPA KALI. Yang diuji di sini bukan BullMQ, melainkan keputusan produser:
+  // notifikasi yang sudah pernah lahir tidak mengantre push kedua.
+  const antre: JobTerantre[] = [];
+  const queues = {
+    enqueue: (queue: string, payload: unknown, opsi?: { jobId?: string }) => {
+      antre.push({ queue, payload, jobId: opsi?.jobId });
+      return Promise.resolve({ id: opsi?.jobId ?? "job", duplikat: false });
+    },
+  };
 
   const guards = createAccessGuards({
     tokenService: createTokenService(SESSION_KEYS),
@@ -177,6 +199,8 @@ async function boot(): Promise<{ base: string; rows: Baris[]; events: EventBus }
           prisma: fakePrisma(rows),
           routes: registry.forModule("/api/v1"),
           events,
+          queues: queues as never,
+          logger,
         }).router,
       );
     },
@@ -185,7 +209,7 @@ async function boot(): Promise<{ base: string; rows: Baris[]; events: EventBus }
   assertRoutesDeclared(api.app, registry);
   const { port } = await api.start();
   active = api;
-  return { base: `http://127.0.0.1:${port}/api/v1`, rows, events };
+  return { base: `http://127.0.0.1:${port}/api/v1`, rows, events, antre };
 }
 
 function tokenUntuk(userId: string): Promise<string> {
@@ -420,5 +444,58 @@ describe("POST /me/notifications/:id/read", () => {
     const res = await tandai(base, "bukan-uuid", await tokenUntuk(A));
     expect(res.status).toBe(400);
     expect((await res.json()) as { code: string }).toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});
+
+describe("produser push (PR-048b)", () => {
+  it("notifikasi baru → satu job notify-push ber-jobId deterministik", async () => {
+    const { events, rows, antre } = await boot();
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+
+    expect(antre).toHaveLength(1);
+    expect(antre[0]?.queue).toBe("notify-push");
+    expect(antre[0]?.payload).toEqual({ notificationId: rows[0]?.id, userId: A });
+    // `jobId` deterministik = lapisan kedua anti-duplikat (BullMQ menolak id
+    // yang sama). Lapisan PERTAMA adalah `lahir === false` di produser.
+    expect(antre[0]?.jobId).toContain(rows[0]?.id);
+  });
+
+  it("event yang terbit ULANG → TIDAK mengantre push kedua (AC-3)", async () => {
+    // Idempotensi push MEWARISI idempotensi notifikasi: satu penjaga di satu
+    // tempat, bukan dua yang bisa menyimpang. Notifikasi yang tidak lahir
+    // berarti push-nya sudah pernah diantrekan.
+    const { events, antre } = await boot();
+    const event = {
+      applicationId: LAMARAN,
+      userId: A,
+      jobId: JOB,
+      to: "interview",
+      changedAt: "2026-09-05T10:00:00.000Z",
+    } as const;
+
+    events.emit("application.status_changed", event);
+    await tunggu();
+    events.emit("application.status_changed", { ...event, changedAt: "2026-09-05T10:05:00.000Z" });
+    await tunggu();
+
+    expect(antre).toHaveLength(1);
+  });
+
+  it("perpindahan status BERIKUTNYA tetap mengantre push tersendiri", async () => {
+    const { events, antre } = await boot();
+    for (const to of ["in_review", "interview"] as const) {
+      events.emit("application.status_changed", {
+        applicationId: LAMARAN,
+        userId: A,
+        jobId: JOB,
+        to,
+        changedAt: "2026-09-05T10:00:00.000Z",
+      });
+      await tunggu();
+    }
+
+    expect(antre).toHaveLength(2);
+    expect(new Set(antre.map((j) => j.jobId)).size).toBe(2);
   });
 });

@@ -154,6 +154,11 @@ export async function startApi(options: BootOptions): Promise<void> {
   const notifications = createNotificationsModule({
     prisma,
     routes: routeRegistry.forModule("/api/v1"),
+    // Produser job `notify:push` (PR-048b). API hanya MEMPRODUKSI; konsumennya
+    // proses apps/worker terpisah (ADR-004), yang merakit adapter FCM-nya
+    // sendiri dari env yang sama.
+    queues,
+    logger,
     // Pelanggan `auth.user_registered` (bersama modul accessibility),
     // `application.submitted`, dan `application.status_changed` — instance bus
     // yang SAMA, sebab bus ini in-process dan dua instance tidak saling

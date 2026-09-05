@@ -111,7 +111,7 @@ RB-Std.
 > **DIPECAH MENJADI DUA (2026-09-05), mengikuti preseden PR-033a..i dan PR-043a/b.**
 >
 > * **PR-048a — Devices + registrasi** *(selesai)*: migrasi `devices`, `POST /me/devices`, service/repository perangkat, keputusan ekspor & purge, penjaga `DROP INDEX`.
-> * **PR-048b — FCM push + cleanup token**: adapter FCM HTTP v1, processor `notify:push`, produser dari jalur notifikasi, penghapusan token `UNREGISTERED`, retry/backoff.
+> * **PR-048b — FCM push + cleanup token** *(selesai)*: adapter FCM HTTP v1, processor `notify:push`, produser dari jalur notifikasi, penghapusan token `UNREGISTERED`, retry/backoff.
 >
 > **Alasannya bukan ukuran semata.** Registrasi perangkat dan pengiriman push punya bentuk kegagalan yang sama sekali berbeda — yang pertama soal kepemilikan baris dan balapan upsert, yang kedua soal kredensial pihak ketiga, klasifikasi galat provider, dan retry. Menggabungkannya berarti satu review yang harus memegang keduanya sekaligus, dan `devices` yang salah bentuk tidak akan ketahuan sampai push pertama dicoba.
 >
@@ -156,10 +156,10 @@ Bisnis: kabar status lamaran sampai walau app tertutup. Teknis: migrasi tabel `d
 
 **Testing Checklist:**
 
-* [ ] Unit Test (payload builder) — PR-048b
-* [ ] Integration Test (mock FCM + cleanup) — PR-048b; sisi registrasi sudah: `devices-http.test.ts` (12) + `devices-db.test.ts` (6)
+* [x] Unit Test (payload builder) — `push.test.ts` (13), `fcm-sender.test.ts` (18)
+* [x] Integration Test (mock FCM + cleanup) — `push.test.ts` (FCM ditiru + pembersihan token) + `notifications-http.test.ts` (produser); sisi registrasi: `devices-http.test.ts` (12) + `devices-db.test.ts` (6)
 * [ ] E2E Test (via mobile PR-094)
-* [x] Accessibility Test (N/A)
+* [x] Accessibility Test — BUKAN N/A seperti dugaan dokumen ini: varian bahasa push mengikuti preferensi `simpleLanguage` pemiliknya (ADR-008), diuji di `push.test.ts`.
 * [ ] Manual Verification (push nyata ke device uji staging) — menunggu kredensial FCM + perangkat uji; utang tercatat
 
 **Deliverables:**
@@ -176,11 +176,11 @@ Migrasi devices additive (aman); RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Push terkirim saat event status (mock FCM). — PR-048b
-* [ ] Token invalid (unregistered) → dihapus otomatis. — PR-048b; sisi DB-nya sudah ada di PR-048a (`hapusByToken`, diuji di `devices-db.test.ts`)
-* [ ] Idempotent per notification id. — PR-048b
-* [ ] Retry/backoff sesuai SDD §16. — PR-048b; konfigurasi antrean `notify-push` (concurrency 8, 4 attempts = 3× retry, backoff 30 dtk, timeout 15 dtk) sudah ada sejak PR-015
-* [x] Satu user multi-device didukung. — PR-048a: `devices-http.test.ts` ("satu pengguna boleh punya banyak perangkat") + `devices-db.test.ts` (daftar milik pemilik, terbaru dulu)
+* [x] Push terkirim saat event status (mock FCM). — PR-048b: `push.test.ts` (judul & isi hasil render sampai ke perangkat) + `fcm-sender.test.ts` (penukaran OAuth2 lalu POST `messages:send`).
+* [x] Token invalid (unregistered) → dihapus otomatis. — PR-048b: `fcm-sender.test.ts` mengklasifikasikan 404/`UNREGISTERED`/`INVALID_ARGUMENT`/`NOT_FOUND` sebagai `token-mati`; `push.test.ts` membuktikan barisnya dihapus **di jalur pengiriman normal** dan hanya yang mati yang dihapus. Sisi DB-nya sudah ada di PR-048a (`hapusByToken`, `devices-db.test.ts`).
+* [x] Idempotent per notification id. — PR-048b: `notifications-http.test.ts` "produser push" — event yang terbit ulang tidak mengantre push kedua. Idempotensinya **mewarisi** idempotensi notifikasi PR-047 (`lahir === false`), dengan `jobId` deterministik `push:<notificationId>` sebagai lapisan kedua.
+* [x] Retry/backoff sesuai SDD §16. — PR-048b: `queue.test.ts` menegaskan `notify-push` **dan** `notify-email` utuh terhadap tabel SDD (concurrency 8/4, attempts 4 = 3× retry, backoff eksponensial 30 dtk, timeout 15 dtk), termasuk bahwa angka itu benar-benar sampai ke `jobOptionsFor`. Service melempar hanya untuk kegagalan yang pantas diulang.
+* [x] Satu user multi-device didukung. — PR-048a: `devices-http.test.ts` + `devices-db.test.ts`; PR-048b: `push.test.ts` membuktikan satu perangkat gagal TIDAK menjatuhkan sisanya.
 
 #### Dependencies
 
