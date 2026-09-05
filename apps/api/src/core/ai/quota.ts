@@ -29,7 +29,8 @@
 // biaya untuk semua pengguna sekaligus, tanpa terukur, tepat ketika tidak ada
 // yang bisa membaca penghitungnya. Operator tetap punya tuas sadar:
 // `AI_QUOTA_FAIL_OPEN=true`.
-import { appError, type AppError, type ErrorCode } from "../http/index.js";
+import { appError, type ErrorCode } from "../http/index.js";
+import { DegradedError } from "./degraded.js";
 import type { Logger } from "../logger/index.js";
 import { AI_FEATURES, type AiQuotaConfig, type AiQuotaFeature } from "./quota-config.js";
 import { AiProviderError, type AiErrorCode } from "./types.js";
@@ -153,7 +154,8 @@ export interface AiQuota {
    * Catat pemakaian LEBIH DULU, baru panggil provider (reserve-then-refund).
    * Urutan ini bukan gaya: pemeriksaan setelah panggilan membuat sepuluh
    * permintaan bersamaan sama-sama lolos karena semuanya membaca angka lama.
-   * Melempar AppError `KUOTA_AI_HABIS` (429 + Retry-After) bila jatah habis.
+   * Melempar `DegradedError` `KUOTA_AI_HABIS` (429 + Retry-After) bila jatah
+   * habis — boleh diturunkan ke jalur non-AI, lihat `withDegradation`.
    */
   periksaDanPakai(pemakaian: AiQuotaPemakaian): Promise<AiQuotaReservasi>;
   /** Kembalikan jatah yang sudah dicatat (pengguna tidak menerima apa pun). */
@@ -167,11 +169,11 @@ export interface AiQuota {
 /**
  * Predikat resmi "ini penolakan kuota".
  *
- * Pemanggil WAJIB memakai ini, JANGAN membandingkan kelas. PR-046 akan
- * mengkanonkan kontrak degradasi (`DegradedError`, `meta.degraded`) dan boleh
- * menurunkannya dari `AppError` selama kodenya tetap sama — predikat yang
- * membaca `code` tetap benar, `err instanceof AppError` di kode pemanggil belum
- * tentu.
+ * Pemanggil WAJIB memakai ini, JANGAN membandingkan kelas. PR-046 sudah
+ * mengkanonkan kontrak degradasi (`DegradedError`, `meta.degraded`) dan
+ * menurunkan penolakan kuota darinya; kodenya tetap sama, jadi predikat yang
+ * membaca `code` tetap benar sementara `err instanceof AppError` di kode
+ * pemanggil belum tentu.
  */
 export function isKuotaHabis(err: unknown): boolean {
   return (
@@ -217,8 +219,25 @@ export function kunciKuotaGlobal(hari: string): string {
   return `${AI_QUOTA_PREFIX}${hari}:global`;
 }
 
-function tolak(retryAfterSeconds: number, override?: { message: string; hint: string }): AppError {
-  return appError(KODE_KUOTA_HABIS, { retryAfterSeconds, ...(override ?? {}) });
+/**
+ * Penolakan kuota — `DegradedError`, bukan `AppError` biasa (PR-046).
+ *
+ * Inilah satu-satunya kegagalan di berkas ini yang MEMANG punya jalur turun:
+ * jatah habis, pagu global penuh, AI dimatikan sementara, atau penghitung tak
+ * terbaca — keempatnya berarti "lanjutkan tanpa bantuan AI", persis seperti
+ * yang sudah tertulis di `hint` masing-masing. Kodenya, statusnya, dan
+ * `Retry-After`-nya TIDAK berubah, jadi `isKuotaHabis` dan seluruh pemanggil
+ * yang membaca `code` tetap benar (lihat catatan di predikat itu).
+ *
+ * `appError("BELUM_SIAP")` di bawah sengaja TIDAK ikut: konfigurasi kuota yang
+ * belum terpasang adalah salah pasang, bukan keadaan yang boleh diturunkan
+ * diam-diam menjadi jawaban non-AI.
+ */
+function tolak(
+  retryAfterSeconds: number,
+  override?: { message: string; hint: string },
+): DegradedError {
+  return new DegradedError(KODE_KUOTA_HABIS, { retryAfterSeconds, ...(override ?? {}) });
 }
 
 /**

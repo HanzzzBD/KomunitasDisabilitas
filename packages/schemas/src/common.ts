@@ -75,7 +75,42 @@ export const paginationMetaSchema = z
 
 export type PaginationMeta = z.infer<typeof paginationMetaSchema>;
 
-/** Envelope sukses {data, meta?} — dipakai builder response per endpoint. */
+/**
+ * Meta degradasi fitur AI (PR-046, ADR-005).
+ *
+ * `true` berarti: permintaannya BERHASIL dijawab, tetapi tanpa bantuan AI —
+ * kuota habis, penyedia tumbang, atau AI sedang dimatikan. Data di `data`
+ * tetap sah dan tetap melewati kontrol akses yang sama; yang hilang hanya
+ * lapisan AI-nya. FE memakainya untuk menampilkan penjelasan kepada pengguna
+ * (banner/tombol nonaktif), bukan untuk menyembunyikan jawabannya.
+ *
+ * OPSIONAL, dan itu disengaja: seluruh response yang sudah ada hari ini tidak
+ * mengirim field ini dan harus tetap sah (tambahan additive, bukan breaking).
+ * Ketiadaannya dibaca sama dengan `false`.
+ */
+export const degradedMetaSchema = z
+  .object({
+    degraded: z.boolean().optional().openapi({
+      description: "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+      example: true,
+    }),
+  })
+  .openapi({ ref: "DegradedMeta", description: "Penanda degradasi jalur AI" });
+
+export type DegradedMeta = z.infer<typeof degradedMetaSchema>;
+
+/**
+ * Envelope sukses {data, meta?} — dipakai builder response per endpoint.
+ *
+ * `meta` menggabungkan pagination + degradasi, lalu `.partial()`: satu response
+ * boleh membawa `nextCursor` saja, `degraded` saja, keduanya, atau tidak sama
+ * sekali. `paginationMetaSchema` SENDIRI tidak dilonggarkan — di sana
+ * `nextCursor` tetap wajib, sebab endpoint berhalaman yang lupa mengirimnya
+ * adalah bug, bukan pilihan.
+ */
 export function successEnvelopeSchema<T extends z.ZodTypeAny>(data: T) {
-  return z.object({ data, meta: paginationMetaSchema.optional() });
+  return z.object({
+    data,
+    meta: paginationMetaSchema.merge(degradedMetaSchema).partial().optional(),
+  });
 }

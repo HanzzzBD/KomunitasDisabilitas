@@ -122,6 +122,16 @@ export {
   type SpesimenKeluaran,
   type TanpaDisabilitas,
 } from "./prompts/index.js";
+// Kontrak degradasi (PR-046). MURNI seperti guard di atas — tanpa I/O, tanpa
+// logger, tanpa konfigurasi — jadi tidak ada wiring `boot.ts` yang lahir
+// bersamanya. `withDegradation` TIDAK menyentuh middleware/guard: jalur
+// fallback berjalan di belakang penjaga RBAC yang sama persis.
+export {
+  DegradedError,
+  isDegradedError,
+  withDegradation,
+  type FallbackDegradasi,
+} from "./degraded.js";
 export {
   alirkanKeSse,
   createAiStreamRouter,
