@@ -11,7 +11,7 @@
 //
 // Panduan menulis varian simple: docs/panduan-bahasa-sederhana.md
 import { describe, expect, it } from "vitest";
-import { fiturKatalog, katalog } from "../src/shared/i18n/katalog/index.js";
+import { fiturKatalog, katalog } from "../src/shared/i18n/katalog/semua.js";
 import { MODE_BAHASA } from "../src/shared/i18n/tipe.js";
 
 /**

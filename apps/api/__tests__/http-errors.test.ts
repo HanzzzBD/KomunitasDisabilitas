@@ -90,6 +90,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Kami belum bisa memastikan identitas Anda saat ini",
           "status": 503,
         },
+        "KUOTA_AI_HABIS": {
+          "hint": "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
+          "message": "Jatah bantuan AI Anda hari ini sudah habis",
+          "status": 429,
+        },
         "RUTE_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali alamat yang Anda tuju",
           "message": "Halaman atau data tidak ditemukan",

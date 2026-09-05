@@ -499,6 +499,25 @@ export const careerItemParamsSchema = z.object({ id: idSchema });
 
 export type CareerItemParams = z.infer<typeof careerItemParamsSchema>;
 
+/**
+ * Response satu item — dipakai POST (201) dan PUT (200).
+ *
+ * Terpisah dari response daftar dengan sengaja: klien yang membaca `data` di
+ * kedua tempat sebagai bentuk yang sama akan salah pada salah satunya, dan
+ * salahnya baru terlihat saat runtime.
+ */
+export const experienceResponseSchema = z
+  .object({ data: experienceSchema })
+  .openapi({ ref: "ExperienceResponse" });
+
+export const educationResponseSchema = z
+  .object({ data: educationSchema })
+  .openapi({ ref: "EducationResponse" });
+
+export const skillResponseSchema = z
+  .object({ data: skillSchema })
+  .openapi({ ref: "SkillResponse" });
+
 /** Response daftar: `{ data: [...] }`, sama seperti seluruh API. */
 export const experienceListResponseSchema = z
   .object({ data: z.array(experienceSchema) })

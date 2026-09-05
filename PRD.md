@@ -364,7 +364,9 @@ match_scores (      -- cache hasil matching
 )
 
 ai_usage (          -- penegakan kuota + audit
-  id PK, user_id FK, feature enum, provider, tokens_in, tokens_out, created_at
+  id PK, user_id FK, feature enum, provider, tokens_in, tokens_out,
+  prompt_version NULL,               -- versi template prompt (SDD 7.3), PR-043b
+  created_at
 )
 
 notifications (id PK, user_id FK, type, payload jsonb, read_at NULL, created_at)

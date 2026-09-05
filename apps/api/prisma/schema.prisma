@@ -229,6 +229,11 @@ model Experience {
   startDate   DateTime? @map("start_date") @db.Date
   endDate     DateTime? @map("end_date") @db.Date
   description String?
+  /// Urutan "terbaru dulu" bersandar pada kolom ini, BUKAN pada `id`. UUID v7
+  /// hanya berurut ANTAR milidetik (core/ids menyatakannya sendiri); dua baris
+  /// yang lahir di milidetik yang sama keluar dalam urutan acak. `timestamptz(6)`
+  /// berpresisi mikrodetik, jadi tambah-cepat-berturut tetap urut.
+  createdAt   DateTime  @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -243,6 +248,8 @@ model Education {
   degree      String?
   field       String?
   year        Int?
+  /// Menengahi seri antar-baris bertahun sama; lihat alasannya di `Experience`.
+  createdAt   DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -257,6 +264,10 @@ model Skill {
   /// Leveling belum diputuskan produk — teks bebas dulu; persempit nanti
   /// via expand→contract (prisma/README.md).
   level  String?
+  /// Keahlian tidak punya tanggal sama sekali, jadi kolom inilah SATU-SATUNYA
+  /// dasar urutannya — sebelumnya `id desc`, yang tidak dijamin dalam satu
+  /// milidetik dan membuat test urutannya merah secara acak.
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -472,13 +483,16 @@ model MatchScore {
 
 /// Penegakan kuota + audit pemakaian AI (SDD §7.2); retensi 90 hari.
 model AiUsage {
-  id        String    @id @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  feature   AiFeature
-  provider  String
-  tokensIn  Int       @default(0) @map("tokens_in")
-  tokensOut Int       @default(0) @map("tokens_out")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id            String    @id @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  feature       AiFeature
+  provider      String
+  tokensIn      Int       @default(0) @map("tokens_in")
+  tokensOut     Int       @default(0) @map("tokens_out")
+  /// Versi template prompt (SDD §7.3, migrasi 10). NULL = belum ada registry
+  /// prompt berversi (registry lahir di PR-044), BUKAN "versi tak diketahui".
+  promptVersion String?   @map("prompt_version")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

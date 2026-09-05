@@ -21,6 +21,18 @@ export const REDACTION_PATHS: string[] = [
   "req.headers.authorization",
   "req.headers.cookie",
   "req.headers['x-api-key']",
+  // ARGUMEN PERINTAH REDIS. ioredis MENEMPELKAN perintah beserta argumennya ke
+  // objek error yang ia tolak (`err.command = { name, args }`, DataHandler.js
+  // pada balasan `-ERR` dan event_handler.js saat koneksi putus dengan perintah
+  // masih terbang), dan serializer bawaan pino menyalin SETIAP properti
+  // enumerable error ke baris log. Argumen itulah yang memuat kunci Redis
+  // lengkap — `ai:quota:<hari>:u:<userId>:<fitur>`, `ai:prompt:v1:…:u:<userId>:…`
+  // — dan, pada `SET`, muatannya: jawaban AI atas masukan pengguna. Jadi setiap
+  // `MISCONF`/`OOM`/`NOAUTH`/`READONLY` atau restart kontainer Redis akan
+  // menuliskannya, tanpa perlu satu pun tindakan penyerang. `name` sengaja
+  // TIDAK diredaksi: "set" vs "get" adalah diagnosis yang berguna dan tidak
+  // membawa data siapa pun.
+  "err.command.args",
   // Field payload/objek log — level atas dan satu level bersarang.
   ...[
     "authorization",

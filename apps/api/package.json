@@ -14,7 +14,8 @@
     "./modules/users": "./src/modules/users/index.ts",
     "./modules/auth": "./src/modules/auth/index.ts",
     "./core/events": "./src/core/events/index.ts",
-    "./modules/jobs": "./src/modules/jobs/index.ts"
+    "./modules/jobs": "./src/modules/jobs/index.ts",
+    "./modules/ai": "./src/modules/ai/index.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",

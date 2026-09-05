@@ -1,0 +1,28 @@
+-- Migrasi 10 (PR-043b) — versi prompt pada jejak pemakaian AI.
+--
+-- KENAPA. SDD §7.3 menjanjikan "Versi tercatat di `ai_usage` → regresi kualitas
+-- bisa dilacak", tetapi tabelnya (migrasi 01) tidak pernah punya kolomnya.
+-- Janji itu baru bisa ditepati begitu ada tempat menyimpannya.
+--
+-- ADITIF & NULLABLE SEPENUHNYA — kode versi sebelumnya tetap berjalan di atas
+-- skema ini (CLAUDE.md §5.4): tidak ada satu pun pembaca lama yang menyentuh
+-- kolom ini, dan setiap INSERT lama tetap sah tanpa menyebutnya.
+--
+-- NULL BERARTI "belum ada registry prompt berversi", BUKAN "versi tak
+-- diketahui". Registry `prompts/<nama>.vN.ts` lahir di PR-044; sampai saat itu
+-- setiap baris NULL, dan itu fakta yang benar. Sentinel string ('unknown')
+-- akan mengubur perbedaan itu selamanya.
+--
+-- TANPA INDEX, disengaja. Tidak ada query hari ini yang memfilter atasnya:
+-- agregasi bulanan (`finalkanBulanAiUsage`) menyebut kolomnya secara eksplisit
+-- dan mengelompokkan atas `month, feature, provider`; penghapusan 90 hari
+-- memakai `created_at`. `ai_usage` adalah tabel tulis-berat (satu INSERT per
+-- panggilan AI), jadi index tanpa pembaca hanya memperlambat setiap tulisan dan
+-- memperbesar tabel yang justru sedang diretensi. Analitik per versi prompt
+-- lahir bersama pembacanya (PR-044/PR-103), saat bentuk query-nya diketahui.
+--
+-- TURUN (manual, RB-Std): ALTER TABLE "ai_usage" DROP COLUMN "prompt_version";
+-- Aman kapan pun — tidak ada kode versi sebelumnya yang membacanya, dan agregat
+-- bulanan tidak pernah mengelompokkan atasnya.
+
+ALTER TABLE "ai_usage" ADD COLUMN "prompt_version" TEXT;

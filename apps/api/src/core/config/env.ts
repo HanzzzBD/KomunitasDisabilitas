@@ -151,6 +151,80 @@ const envSchema = z.object({
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.
   INTERNAL_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  // --- AI Gateway / Gemini (PR-041, ADR-005, ADR-012) ---
+  // Kunci OPSIONAL sendirian (bukan GRUP_KREDENSIAL: hanya satu rahasia, tidak
+  // ada pasangan yang bisa terpotong separuh). Tanpa kunci, gateway tetap
+  // terbentuk tetapi setiap panggilan ditolak AI_NOT_CONFIGURED — deny-by-default
+  // seperti INTERNAL_TOKEN/OTP: dev bisa boot tanpa kredensial pihak ketiga.
+  GEMINI_API_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /**
+   * Nama model sengaja lewat env, bukan konstanta kode: katalog model Gemini
+   * berganti nama jauh lebih sering daripada rilis kita, dan penggantian nama
+   * tidak boleh menuntut PR baru.
+   */
+  GEMINI_CHAT_MODEL: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .default("gemini-2.0-flash"),
+  /** 768 dimensi (ADR-005) — dicocokkan dengan kolom vector(768) di adapter. */
+  GEMINI_EMBED_MODEL: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .default("text-embedding-004"),
+  /** Base URL hanya diganti untuk test/staging; default sudah benar. */
+  GEMINI_BASE_URL: z
+    .string()
+    .url({ message: "harus URL valid" })
+    .default("https://generativelanguage.googleapis.com"),
+  /** Batas tunggu satu panggilan AI; habis waktu = AI_TIMEOUT, bukan menggantung. */
+  GEMINI_TIMEOUT_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .max(60_000, { message: "maksimal 60000 (60 detik)" })
+    .default(15_000),
+  // --- AI Gateway / Groq — provider cadangan (PR-042, ADR-005) ---
+  // Opsional sendirian, alasan yang sama dengan GEMINI_API_KEY. Tanpa kunci ini
+  // gateway tetap terbentuk dan Gemini tetap jalan; yang hilang hanya jalur
+  // cadangan saat Gemini penuh/tumbang.
+  GROQ_API_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /** Nama model lewat env — katalog Groq berganti nama lebih sering dari rilis kita. */
+  GROQ_CHAT_MODEL: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .default("llama-3.3-70b-versatile"),
+  /** Base URL hanya diganti untuk test/staging; adapter menambahkan /openai/v1/…. */
+  GROQ_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.groq.com"),
+  /** Batas tunggu satu panggilan Groq; batasnya sama dengan GEMINI_TIMEOUT_MS. */
+  GROQ_TIMEOUT_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1000, { message: "minimal 1000 (1 detik)" })
+    .max(60_000, { message: "maksimal 60000 (60 detik)" })
+    .default(15_000),
+  /**
+   * Tuas rollback router (PR-042). Bila di-set, SELURUH panggilan AI dipaksa ke
+   * satu provider: tanpa fallback, tanpa circuit breaker. Gunanya saat salah
+   * satu provider terbukti bermasalah dan kita perlu mematikannya tanpa deploy.
+   */
+  AI_ROUTER_FORCE_PROVIDER: z.enum(["gemini", "groq"]).optional(),
+  // --- Kuota AI (PR-043, SDD 7.1) ---
+  //
+  // Angka jatahnya TIDAK di sini: ia berpola (AI_QUOTA_<FITUR>_PER_DAY) dan
+  // dibaca `core/ai/quota-config.ts`, sama seperti override antrean
+  // (QUEUE_<NAMA>_<FIELD>) yang juga tidak didaftar satu per satu di skema ini.
+  //
+  // Yang di sini hanya tuas perilaku saat penghitung kuota TIDAK BISA DIBACA.
+  // Bawaannya `false` = gagal tertutup: panggilan AI ditolak dengan 429 dan
+  // fitur beralih ke jalur non-AI (ADR-005). Menyalakannya berarti seluruh
+  // kendali biaya mati selama gangguan Redis — sah sebagai keputusan operator
+  // yang sedang menonton, tidak pernah sebagai bawaan.
+  AI_QUOTA_FAIL_OPEN: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("false")
+    .transform((nilai) => nilai === "true"),
 });
 
 /**

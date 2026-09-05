@@ -395,8 +395,77 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
   endpoint yang klien mobile (Phase 15) tidak bisa hasilkan client-nya secara
   otomatis. Waktu yang tepat membayarnya adalah saat konsumen pertamanya lahir
   (PR-040), supaya dokumennya ditulis terhadap pemakaian yang nyata.
+  * **LUNAS 2026-09-05.** Dibayar sekaligus dengan `/me/accessibility`,
+    `/me/profile`, dan `/ai/quota` — lihat catatan di utang PR-040 di bawah.
+    Rencana "bayar di PR-040" TIDAK terjadi: PR-040 justru mewarisi utangnya
+    dan menambahnya. Itu pola yang layak diingat — utang yang dijadwalkan ke
+    "PR berikutnya" tanpa penagih otomatis akan ikut bergeser bersama PR itu.
 * **`SELECT … FOR UPDATE` pada gerbang consent PR-037** — masih ditunda ke
   PR-039, tidak tersentuh PR ini.
+* **CACAT URUTAN AC-4, ditemukan 2026-09-05 dan DIPERBAIKI (migrasi 11).**
+  `URUT_SKILL = [{ id: "desc" }]` menjanjikan "terbaru dulu" berdasarkan UUID
+  v7 — padahal `core/ids/index.ts` menyatakan sendiri bahwa urutan DALAM
+  milidetik yang sama TIDAK dijamin. Keahlian tidak punya kolom tanggal, jadi
+  seluruh urutannya bersandar pada jaminan yang tidak pernah diberikan.
+  * **Bukan sekadar test flaky.** Pengguna yang menambah beberapa keahlian
+    dengan cepat memang melihat urutan yang salah. Riwayat kerja & pendidikan
+    ikut terdampak pada seri (tanggal/tahun sama).
+  * **Cara ia terlihat:** `career-db.test.ts` merah di CI pada PR yang sama
+    sekali tidak menyentuh karier, lalu hijau di re-run tanpa perubahan kode.
+    Kegagalan yang "hilang sendiri" pada PR orang lain adalah cara cacat ini
+    memperkenalkan diri — dan cara termudah ia diabaikan.
+  * **Perbaikan:** kolom `created_at timestamptz(6)` (presisi mikrodetik) untuk
+    ketiga sub-entitas; `id desc` DIPERTAHANKAN sebagai penengah terakhir supaya
+    baris lama — yang seluruhnya menerima stempel waktu migrasi yang sama —
+    jatuh kembali ke perilaku lama alih-alih menjadi acak.
+  * **Penjaganya deterministik, bukan berbasis waktu.** Test lama bergantung
+    pada kecepatan mesin: kode LAMA pun lulus 12/12 di mesin pengembang. Test
+    baru MEMAKSA keenam id lahir di milidetik yang sama, sehingga peluang
+    `id desc` kebetulan benar adalah 1/720. Diverifikasi: kode lama merah 6/6.
+  * **Pelajaran yang ditulis ke `core/ids/index.ts`:** `id` tidak boleh menjadi
+    dasar urutan waktu; ia hanya penengah terakhir agar hasilnya TETAP, bukan
+    agar BENAR.
+  * **PERBAIKAN MIGRASI 11 BELUM TUNTAS — dikoreksi migrasi 12 (2026-09-05).**
+    `timestamptz(6)` ternyata tidak menyelesaikan apa pun: untuk
+    `@default(now())` Prisma membuat nilainya DI SISI KLIEN dan mengirimnya
+    sebagai parameter (`INSERT ... ("id","user_id","name","level","created_at")
+    VALUES ($1..$5)`), dan `Date` di JavaScript berpresisi MILIDETIK. DEFAULT
+    milik tabel tidak pernah terpakai. Yang berubah di migrasi 11 hanyalah
+    SUMBER tabrakan — dari id ber-milidetik menjadi stempel ber-milidetik.
+    * Ketahuan karena test PR-121 sendiri merah di CI pada PR i18n yang tidak
+      menyentuh karier sama sekali. Ia hijau di mesin pengembang yang lambat.
+    * Migrasi 12 memakai `@default(dbgenerated("clock_timestamp()"))`, yang
+      membuat Prisma BERHENTI mengirim kolomnya sehingga DB yang mengisinya.
+      `clock_timestamp()` dan bukan `now()`/`CURRENT_TIMESTAMP`: dua yang
+      terakhir adalah waktu MULAI TRANSAKSI, sehingga baris yang ditulis dalam
+      satu transaksi tetap seri.
+    * **Assertion "semua stempel berbeda" TIDAK CUKUP, dan itu sudah dibuktikan:
+      ia lulus 3/3 di atas kode yang salah** karena di mesin lambat stempel
+      klien pun berbeda 2-3 ms. Penjaga finalnya menguji PRESISI — nilai dari
+      JavaScript selalu kelipatan bulat 1000 mikrodetik, `clock_timestamp()`
+      praktis tidak pernah. Dengan itu mutasi menjadi merah 3/3 di mesin mana
+      pun, bukan sesekali di CI.
+  * **Temuan sampingan, TIDAK diperbaiki di sini:** `down.sql` hanya ada di
+    migrasi 01–03; migrasi 04–10 melanggar konvensi `prisma/README.md` §2
+    tanpa ada yang menahannya. Migrasi 11 menyertakannya dan diuji up→down→up.
+    * **LUNAS 2026-09-05**, di PR berikutnya. Ketujuh `down.sql` ditulis dan
+      DIJALANKAN — bukan sekadar ada. Diuji sebagai satu rantai di database
+      terpisah (`nawasena_downtest`, dibuang sesudahnya, DB dev tidak
+      tersentuh): up penuh → down 11→04 berurutan mundur → up penuh lagi, lalu
+      `pg_dump --schema-only` sebelum dan sesudah dibandingkan dan **identik**.
+    * Yang paling menjelaskan kenapa aturan ini ada: migrasi 09 sudah MENULIS
+      SQL turunnya — sebagai **komentar** di dalam `migration.sql`. Terbaca
+      seperti sudah dipikirkan, tetapi tidak bisa dijalankan siapa pun saat
+      dibutuhkan. Itu sebabnya penjaganya menolak `down.sql` yang seluruhnya
+      komentar, bukan hanya yang tidak ada.
+    * Penjaganya `apps/api/__tests__/migrasi-down.test.ts`; diverifikasi lewat
+      2 mutasi (satu `down.sql` disembunyikan; satu diisi komentar saja),
+      keduanya merah.
+    * Konsekuensi tiap penurunan ditulis di kepala berkasnya masing-masing,
+      sebab beberapa di antaranya BUKAN operasi netral: menurunkan 04 membuang
+      seluruh pencabutan sesi, 06 membuka kembali balapan penautan akun, 08
+      menghapus agregat yang tidak bisa dihitung ulang, dan 09 meratakan
+      "belum memilih" menjadi "memilih nilai bawaan" secara permanen.
 * **Batas panjang daftar belum ada.** Tidak ada batas jumlah riwayat kerja,
   pendidikan, atau keahlian per pengguna, dan `GET` mengembalikan seluruhnya
   tanpa pagination. Untuk MVP (< 5.000 pengguna, daftar yang diisi tangan) itu
@@ -932,7 +1001,70 @@ sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
   Changes: tidak ada (konsumsi)", dan mendaftarkan lima path berisi 14 operasi
   akan menggandakan ukuran PR yang sudah besar. Layak menjadi PR tersendiri yang
   membereskan ketiganya sekaligus.
-* **Bundel awal naik 112,4 → 115,1 KB.** Halamannya sendiri lazy; yang naik
+  * **LUNAS 2026-09-05**, sebagai PR tersendiri persis seperti yang disarankan
+    di sini — empat PR sesudah utangnya lahir (PR-034), dan setelah `/ai/quota`
+    (PR-043a) ikut menumpang pola yang sama. Yang didaftarkan: 9 path / 15
+    operasi (`/me/accessibility`, `/me/profile`, ke-12 route karier, dan
+    `/ai/quota`), sehingga dokumen naik dari 9 path menjadi 18.
+    * Route karier ditulis lewat satu fungsi `pathsKarier()` yang mencerminkan
+      `daftarkanKarier()` di router — bukan empat blok yang disalin. Dua tempat
+      yang bentuknya wajib sama sebaiknya juga sama bentuknya di kode.
+    * `/ai/quota` menuntut kontrak zod yang belum ada: `packages/schemas/src/ai.ts`
+      lahir di sini. Ia SENGAJA menduplikasi `AI_FEATURES` dari
+      `core/ai/quota-config.ts`, sebab jalur boot fail-fast tidak boleh menyeret
+      paket schemas. Duplikasi itu dijaga `apps/api/__tests__/ai-quota-kontrak.test.ts`
+      — penjaga tipe compile-time yang membuat `tsc` merah bila salah satu
+      berubah sendirian. Diverifikasi dengan mutasi: menambah satu field di
+      skema klien menjatuhkan typecheck, lalu dipulihkan.
+    * **Yang TIDAK dikerjakan di sini, dan sebabnya:** parity test otomatis
+      antara `registry.list()` (daftar route yang benar-benar terpasang) dan
+      path di `openapi.json`. Itulah penagih yang sesungguhnya — tanpa dia,
+      utang yang sama akan tumbuh lagi diam-diam pada endpoint berikutnya.
+      Dipisah karena PR ini sudah besar, bukan karena tidak perlu.
+    * **Penagih itu DIPASANG 2026-09-05**, di PR berikutnya —
+      `apps/api/__tests__/openapi-parity.test.ts`. Ia merakit modul NYATA
+      (bukan daftar path tangan, bukan pemindaian statis: route karier
+      dideklarasikan lewat `daftarkanKarier()` dengan path dari variabel, dan
+      justru dua belas route itulah yang paling lama tak terdokumentasi), lalu
+      membandingkan `registry.list()` dengan `openapi.json` DUA ARAH — endpoint
+      tak terdokumentasi maupun dokumen yang menjanjikan endpoint hantu
+      sama-sama membuat build merah.
+      * Temuan saat memasangnya: `createAuthRouter` mendaftarkan route yang
+        BERBEDA saat rahasianya kosong (`ALL /auth/otp/*` alih-alih enam POST).
+        Perakitan setengah terkonfigurasi karena itu membandingkan permukaan
+        yang tidak pernah dilayani produksi — penjaga yang mengukur benda yang
+        salah, dan tetap hijau. Ditutup assertion tersendiri yang menolak
+        setiap route `ALL`.
+      * Diverifikasi lewat 4 mutasi, semuanya merah lalu dipulihkan: endpoint
+        dihapus dari dokumen; route baru ditambahkan tanpa didokumentasikan
+        (reproduksi persis kegagalan yang terjadi empat kali); path hantu
+        ditambahkan ke dokumen; dan auth dirakit setengah terkonfigurasi.
+* **Bundel awal naik 112,4 → 115,1 KB.**
+  * **LUNAS 2026-09-05: katalog i18n dimuat MALAS per rute, shell tetap eager.**
+    Terukur nyata (bukan dari catatan lama): **115,4 → 107,7 KB gzip**, −7,7 KB
+    / −6,7%, chunk lazy 22 → 27. Kedua angka diambil dari `cek:budget` atas
+    build branch phase dan build branch ini.
+  * `KunciTeks` tetap union kunci LENGKAP — `katalog/index.ts` kini `import
+    type` saja, yang dihapus habis saat build. Keamanan tipenya tidak berkurang
+    sedikit pun; kunci salah ketik tetap `typecheck` merah.
+  * Katalog dimuat di `lazy:` route BERSAMA komponennya (`Promise.all`), bukan
+    di dalam komponen: komponen yang memuat katalognya sendiri selalu merender
+    sekali tanpa teks, lalu berkedip berganti — persis perubahan mendadak yang
+    paling mengganggu pengguna autisme (persona Dimas).
+  * **Penjaganya menemukan TIGA ketergantungan lintas-katalog yang terlewat**,
+    dan ketiganya nyata: `/masuk/google` memakai `pengaturan.*` (konfirmasi
+    hapus akun), `/pengaturan` memakai `auth.*` (kode galat OTP pada alur hapus
+    akun), dan `/profil` memakai `onboarding.*` (halaman profil memakai ULANG
+    komponen langkah ragam disabilitas). Tanpa penjaga itu, ketiga halaman akan
+    menampilkan kunci mentah bagi pengguna yang membukanya LANGSUNG lewat URL —
+    dan tidak bagi yang menavigasi dari halaman lain, yang membuatnya makin
+    sulit dilaporkan.
+  * **Penjaga versi pertama HAMPA, dan itu dicatat di berkasnya.** Ia membaca
+    `rute.lazy.toString()`; Vite menulis ulang `import()` menjadi
+    `__vite_ssr_dynamic_import__`, jadi polanya tidak pernah cocok dan tidak
+    satu rute pun diperiksa — lulus atas dua mutasi yang seharusnya
+    menjatuhkannya. Versi finalnya membaca sumber `app/routes.ts`, dan
+    diverifikasi lewat 3 mutasi yang semuanya merah. Halamannya sendiri lazy; yang naik
   adalah **katalog i18n**, yang dimuat eager karena teks shell membutuhkannya
   sejak render pertama. Artinya setiap fitur berikutnya ikut menambah bundel awal
   dengan seluruh teksnya. Masih 84,9 KB di bawah budget, tetapi polanya linier —

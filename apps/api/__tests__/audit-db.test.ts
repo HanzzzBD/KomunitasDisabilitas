@@ -19,10 +19,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (dbTersedia) {
-    // Artefak test saja; hak append-only DB untuk aplikasi dipasang di PR-097.
-    await prisma.auditLog.deleteMany({ where: { entity: "audit-test" } });
-  }
+  // TIDAK ADA PEMBERSIHAN, dan itu bukan kelalaian: sejak migrasi 13 baris
+  // `audit_logs` memang tidak bisa dihapus lagi — trigger database menolak
+  // UPDATE/DELETE/TRUNCATE dari siapa pun, termasuk test. `deleteMany` yang
+  // dulu ada di sini kini melempar, jadi membiarkannya akan membuat berkas ini
+  // merah karena penjaganya bekerja.
+  //
+  // Aman ditinggalkan: setiap baris memakai id v7 sendiri dan seluruh assertion
+  // mencarinya lewat `id`, jadi penumpukan antar-jalankan tidak menyentuh apa
+  // pun. CI memulai dari DB kosong setiap kali; DB dev lokal dibersihkan lewat
+  // `prisma migrate reset`.
   await prisma.$disconnect();
 });
 

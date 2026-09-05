@@ -127,3 +127,30 @@ bukan celah yang ditemukan.
 terdaftar boleh menyentuhnya. Berkas baru yang memanggilnya membuat **build
 merah** sampai seseorang memutuskan — dan keputusan yang benar hampir selalu
 "pakai `bacaSensitif`", bukan "tambahkan ke daftar".
+
+## Data disabilitas dan prompt AI (PR-044a)
+
+SDD §7.3 menetapkan satu kalimat yang mengikat setiap prompt: **prompt tidak
+pernah memuat jenis disabilitas mentah.** Yang boleh dikirim hanya kebutuhan
+akomodasi fungsional, itu pun bila fitur memerlukannya dan pengguna sudah
+consent.
+
+Kalimat itu sekarang punya penegak, bukan sekadar pembaca:
+
+* **Tipe.** Template prompt dibuat lewat `definePrompt`
+  (`apps/api/src/core/ai/prompts/`). Batas `PeriksaTanpaDisabilitas` memetakan
+  kunci `disabilityTypes`/`disability_types` menjadi `never`, rekursif menembus
+  objek dan larik. Masukan yang membawanya — termasuk `SensitiveProfile` utuh,
+  dan termasuk yang bersarang beberapa lapis — membuat **`pnpm typecheck`
+  merah** di berkas template itu sendiri. `accommodationNeeds` sengaja TETAP
+  DITERIMA: itu jalur yang SDD sahkan.
+* **Jangkauan.** `apps/api/__tests__/prompt-sensitif-jangkauan.test.ts` menutup
+  dua jalan memutar yang tidak dilihat tipe: menuliskan nama field sebagai
+  string di dalam berkas template, dan memanggil `definePrompt` di luar
+  `core/ai/prompts/`. Keduanya membuat CI merah.
+
+**Batasnya harus diketahui.** Keduanya adalah tripwire NAMA. Tidak satu pun dari
+keduanya menghentikan kalimat `catatan: "saya Tuli"` yang mengalir lewat sebuah
+field `string` biasa. Yang menjaga jalur itu tetap manusia: jangan pernah
+mengalirkan teks bebas yang belum disaring ke dalam masukan template, dan baca
+ulang bagian "Aturan tunggal" di atas sebelum menambah field.

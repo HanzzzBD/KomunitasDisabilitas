@@ -7,6 +7,23 @@
 import type { RouteObject } from "react-router";
 import { TataLetak } from "./tata-letak.js";
 import { LayarKesalahan } from "./kesalahan.js";
+import { muatKatalog } from "../shared/i18n/index.js";
+
+// KATALOG TEKS IKUT DIMUAT DI SINI, BERSAMA KOMPONENNYA.
+//
+// `Promise.all`, bukan berurutan: keduanya berkas terpisah yang tidak saling
+// bergantung, dan menunggunya bergiliran menambah satu perjalanan jaringan
+// pada setiap perpindahan halaman.
+//
+// Menunggu katalog SEBELUM route dianggap siap adalah intinya. Bila komponen
+// boleh tampil lebih dulu, render pertamanya memakai teks cadangan lalu
+// berkedip berganti — tepat jenis perubahan mendadak yang paling mengganggu
+// pengguna autisme (PRD persona Dimas), dan pada mode `id-simple` justru
+// pengguna itulah yang paling mungkin membacanya.
+//
+// Kenapa di sini dan bukan di dalam komponen: komponen yang memuat katalognya
+// sendiri selalu merender sekali tanpa teks. `lazy:` route adalah satu-satunya
+// tempat yang dijalankan SEBELUM apa pun tampil.
 
 /**
  * Satu route INDUK membungkus semuanya, dengan dua alasan yang keduanya soal
@@ -34,7 +51,10 @@ export const ruteApp: RouteObject[] = [
       {
         index: true,
         lazy: async () => {
-          const { Beranda } = await import("../routes/beranda.js");
+          const [{ Beranda }] = await Promise.all([
+            import("../routes/beranda.js"),
+            muatKatalog("beranda"),
+          ]);
           return { Component: Beranda };
         },
       },
@@ -46,7 +66,10 @@ export const ruteApp: RouteObject[] = [
         // belakangan.
         path: "masuk",
         lazy: async () => {
-          const { Masuk } = await import("../routes/masuk.js");
+          const [{ Masuk }] = await Promise.all([
+            import("../routes/masuk.js"),
+            muatKatalog("auth"),
+          ]);
           return { Component: Masuk };
         },
       },
@@ -57,7 +80,12 @@ export const ruteApp: RouteObject[] = [
         // menyeret halaman masuk ikut dirender di belakang layar penukaran.
         path: "masuk/google",
         lazy: async () => {
-          const { MasukGoogle } = await import("../routes/masuk-google.js");
+          const [{ MasukGoogle }] = await Promise.all([
+            import("../routes/masuk-google.js"),
+            // `pengaturan` ikut: halaman ini merender konfirmasi hapus akun
+            // (`features/akun`), yang teksnya tinggal di katalog pengaturan.
+            muatKatalog("auth", "pengaturan"),
+          ]);
           return { Component: MasukGoogle };
         },
       },
@@ -74,7 +102,10 @@ export const ruteApp: RouteObject[] = [
         // hanya diunduh oleh yang benar-benar membukanya.
         path: "pengaturan",
         lazy: async () => {
-          const { Pengaturan } = await import("../routes/pengaturan.js");
+          const [{ Pengaturan }] = await Promise.all([
+            import("../routes/pengaturan.js"),
+            muatKatalog("pengaturan"),
+          ]);
           return { Component: Pengaturan };
         },
         children: [
@@ -89,16 +120,26 @@ export const ruteApp: RouteObject[] = [
             // menunjuk.
             index: true,
             lazy: async () => {
-              const { PengaturanAkun } = await import("../routes/pengaturan-akun.js");
+              const [{ PengaturanAkun }] = await Promise.all([
+                import("../routes/pengaturan-akun.js"),
+                // `auth` ikut: alur hapus akun memetakan kode galat OTP ke
+                // `auth.galat.*` (`features/akun/hapus-akun.ts`).
+                muatKatalog("pengaturan", "auth"),
+              ]);
               return { Component: PengaturanAkun };
             },
           },
           {
             path: "aksesibilitas",
             lazy: async () => {
-              const { PengaturanAksesibilitas } = await import(
-                "../routes/pengaturan-aksesibilitas.js"
-              );
+              // DUA katalog, dan yang kedua mudah terlewat: panel aksesibilitas
+              // memakai label ketujuh sakelarnya dari katalog ONBOARDING —
+              // sengaja, supaya wizard dan panel menamai sakelar yang sama
+              // dengan kata yang sama (lihat features/aksesibilitas-panel).
+              const [{ PengaturanAksesibilitas }] = await Promise.all([
+                import("../routes/pengaturan-aksesibilitas.js"),
+                muatKatalog("pengaturan", "onboarding"),
+              ]);
               return { Component: PengaturanAksesibilitas };
             },
           },
@@ -118,7 +159,12 @@ export const ruteApp: RouteObject[] = [
         // seperti `Pengaturan` dan `Onboarding`: berkas ini `.ts` murni data.
         path: "profil",
         lazy: async () => {
-          const { Profil } = await import("../routes/profil.js");
+          const [{ Profil }] = await Promise.all([
+            import("../routes/profil.js"),
+            // `onboarding` ikut: halaman profil memakai ULANG komponen langkah
+            // ragam disabilitas milik onboarding, berikut kuncinya.
+            muatKatalog("profil", "onboarding"),
+          ]);
           return { Component: Profil };
         },
       },
@@ -133,7 +179,10 @@ export const ruteApp: RouteObject[] = [
         // ini `.ts` murni data.
         path: "onboarding",
         lazy: async () => {
-          const { Onboarding } = await import("../routes/onboarding.js");
+          const [{ Onboarding }] = await Promise.all([
+            import("../routes/onboarding.js"),
+            muatKatalog("onboarding"),
+          ]);
           return { Component: Onboarding };
         },
       },

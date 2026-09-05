@@ -85,6 +85,30 @@ describe("preset boundaries (@nawasena/config/eslint/boundaries)", () => {
     expect(ruleIds).toContain("boundaries/external");
   });
 
+  it("menolak KETIGA SDK yang terdaftar, dan menyebut 'AI Gateway' dalam pesannya", async () => {
+    // AC-3 PR-046. Dua hal yang tidak dijaga test di atasnya:
+    //
+    // (1) JUMLAHNYA. `toContain` hijau bila hanya satu dari tiga penentu yang
+    //     tertangkap — dan penentu yang lolos diam-diam adalah persis cara SDK
+    //     kedua masuk ke repo tanpa ada yang tahu.
+    // (2) PESANNYA. Pengembang yang lint-nya merah membaca pesan itu, bukan
+    //     boundaries.cjs. Pesan yang tidak menyebut "AI Gateway" mengubah
+    //     gerbang arsitektur menjadi larangan tanpa alasan — dan larangan tanpa
+    //     alasan adalah larangan yang dicari cara mengakalinya.
+    const { messages } = await lintFile(
+      "violations/ai-sdk-outside-core/src/modules/matching/services/matching.service.ts",
+    );
+    const eksternal = messages.filter(
+      (m: Linter.LintMessage) => m.ruleId === "boundaries/external",
+    );
+
+    expect(eksternal).toHaveLength(3);
+    for (const m of eksternal) {
+      expect(m.message).toContain("AI Gateway");
+      expect(m.severity).toBe(2); // error, bukan warning — build merah
+    }
+  });
+
   it("menolak router yang loncat lapisan ke repository (element-types)", async () => {
     const { ruleIds } = await lintFile(
       "violations/layer-jump/src/modules/jobs/routers/jobs.router.ts",

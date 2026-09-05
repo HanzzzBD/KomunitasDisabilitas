@@ -157,6 +157,68 @@ describe("urutan bawaan (AC-4) — terbaru dulu", () => {
 
     expect(daftar.map((s) => s.name)).toEqual(["Ketiga", "Kedua", "Pertama"]);
   });
+
+  it("keahlian: urut benar MESKI seluruh id lahir di milidetik yang sama", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // Regresi migrasi 11 (2026-09-05). Test di atas bergantung pada kecepatan
+    // mesin: di CI (Linux) tiga insert kerap jatuh di satu milidetik dan
+    // membuatnya merah secara acak; di mesin pengembang yang lebih lambat ia
+    // nyaris tidak pernah gagal — jadi ia BUKAN penjaga yang bisa dipercaya.
+    //
+    // Di sini kondisinya DIPAKSA: seluruh id dirakit dari stempel milidetik
+    // yang SAMA, sehingga 74 bit acak sisanyalah satu-satunya pembeda `id`.
+    // Dengan enam baris, peluang `id desc` kebetulan menghasilkan urutan yang
+    // benar adalah 1/720 — praktis nol. Lulusnya test ini karena itu hanya bisa
+    // berarti satu hal: yang mengurutkan adalah `created_at`, bukan `id`.
+    const aktor = await buatAktor();
+    const MS = Date.UTC(2026, 8, 5, 3, 0, 0);
+    const nama = ["Satu", "Dua", "Tiga", "Empat", "Lima", "Enam"];
+
+    for (const name of nama) {
+      // Insert terpisah dengan sengaja: `now()` adalah waktu MULAI TRANSAKSI,
+      // jadi merakit keenamnya dalam satu transaksi justru membuat `created_at`
+      // identik dan mengembalikan persoalan yang sama.
+      await prisma.skill.create({
+        data: { id: uuidV7(MS), userId: aktor.userId, name, level: null },
+      });
+    }
+
+    const daftar = await skills.list(aktor);
+
+    expect(daftar.map((s) => s.name)).toEqual([...nama].reverse());
+
+    // STEMPELNYA DIBUAT DATABASE, BUKAN KLIEN — dan itulah yang diuji di sini,
+    // bukan sekadar "nilainya berbeda".
+    //
+    // Migrasi 11 mengira `timestamptz(6)` sudah cukup. Tidak: untuk
+    // `@default(now())` Prisma membuat nilainya DI SISI KLIEN dan mengirimnya
+    // sebagai parameter, dan `Date` di JavaScript berpresisi MILIDETIK. Enam
+    // insert beruntun di CI yang cepat jatuh di milidetik yang sama, seri, lalu
+    // urutannya diserahkan ke `id desc` yang justru acak dalam satu milidetik.
+    // Test itu hijau di mesin lambat dan merah di CI — persis yang terjadi.
+    //
+    // MEMERIKSA "semua stempel berbeda" TIDAK CUKUP: di mesin pengembang yang
+    // lambat, stempel klien pun berbeda 2-3 ms, sehingga pemeriksaan itu lulus
+    // di atas kode yang salah — sudah dicoba, dan ia memang lulus. Yang
+    // membedakan keduanya secara pasti adalah PRESISI: nilai dari JavaScript
+    // SELALU kelipatan bulat 1000 mikrodetik; `clock_timestamp()` praktis tidak
+    // pernah. Satu baris ber-sisa saja sudah membuktikan DB yang membuatnya.
+    const presisi = await prisma.$queryRaw<{ sisa: number }[]>`
+      SELECT (date_part('microseconds', created_at)::int % 1000) AS sisa
+      FROM skills WHERE user_id = ${aktor.userId}::uuid
+    `;
+    expect(presisi).toHaveLength(nama.length);
+    expect(
+      presisi.some((b) => b.sisa !== 0),
+      `Seluruh stempel bulat milidetik — tandanya dibuat KLIEN, bukan clock_timestamp(). ` +
+        `Cek @default(dbgenerated("clock_timestamp()")) di schema.prisma.`,
+    ).toBe(true);
+    // Penjaga atas penjaga: bila kelak `uuidV7` menjadi monotonik dalam satu
+    // milidetik, test ini berhenti menguji apa yang ia klaim — dan diam-diam
+    // menjadi hijau karena alasan yang salah.
+    const ids = daftar.map((s) => s.id);
+    expect(new Set(ids.map((id) => id.slice(0, 13))).size).toBe(1);
+  });
 });
 
 describe("cascade delete (AC-5)", () => {
