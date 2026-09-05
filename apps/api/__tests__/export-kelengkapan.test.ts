@@ -37,21 +37,60 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
 };
 
 /**
- * Menunggu modul pemiliknya lahir. Daftar ini ADALAH AC-1 PR-022 ("ekspor
+ * Belum menjadi bagian berkas ekspor. Daftar ini ADALAH AC-1 PR-022 ("ekspor
  * memuat akun, preferensi, profil, CV, lamaran, notifikasi") — dipindahkan dari
  * checklist dokumen ke tempat yang tidak bisa dilewati.
  *
- * Tabelnya sudah ada sejak migrasi 02–03, tetapi TIDAK ADA endpoint yang bisa
- * mengisinya: pengguna hari ini tidak bisa membuat profil karier, CV, lamaran,
- * atau notifikasi. Jadi ekspor tanpa bagian-bagian ini bukan ekspor yang
- * setengah jadi — ia lengkap terhadap data yang benar-benar bisa dimiliki.
+ * DUA KEADAAN YANG BERBEDA, DAN PERBEDAANNYA PENTING (rekonsiliasi 2026-09-05).
+ * Sampai hari itu seluruh daftar ini dibenarkan oleh satu kalimat: "tabelnya
+ * sudah ada sejak migrasi 02–03, tetapi TIDAK ADA endpoint yang bisa
+ * mengisinya, jadi ekspornya lengkap terhadap data yang benar-benar bisa
+ * dimiliki." Kalimat itu benar saat ditulis dan kini hanya benar untuk
+ * SEBAGIAN barisnya:
+ *
+ *   (a) DATANYA MEMANG BELUM BISA ADA — `resumes`, `applications`, `ai_usage`.
+ *       Tidak ada endpoint yang menulisnya, jadi ekspor tanpa bagian ini tetap
+ *       lengkap terhadap apa yang benar-benar dimiliki seseorang.
+ *
+ *   (b) DATANYA SUDAH ADA DAN TIDAK IKUT TEREKSPOR — `accessibility_profiles`
+ *       dan `notifications`. Ini BUKAN penundaan lagi, melainkan kekurangan
+ *       nyata pada hak portabilitas (UU PDP §8.7): pengguna mengunduh berkas
+ *       yang kurang, dan persis seperti peringatan di kepala berkas ini, tidak
+ *       ada satu pun gejala yang memberitahunya.
+ *
+ * Keduanya tetap di `DITUNDA` karena penjaga ini hanya menuntut setiap tabel
+ * BERADA di salah satu dari tiga keadaan — ia tidak bisa, dan tidak seharusnya,
+ * memutuskan kapan utang dibayar. Yang bisa dilakukan di sini adalah menolak
+ * membiarkan alasannya berbohong: alasan basi lebih berbahaya daripada tidak
+ * ada alasan, sebab ia menghentikan orang bertanya.
+ *
+ * Status lengkap + pemilik + pemicu: docs/utang-teknis.md (U-03, U-04, U-05).
  */
 const DITUNDA: Readonly<Record<string, string>> = {
-  accessibility_profiles: "modul accessibility (Phase 04) — preferensi UI milik pengguna",
-  resumes: "modul resumes (Phase 09) — CV beserta isinya",
-  applications: "modul applications (Phase 12) — riwayat lamaran & status",
-  notifications: "modul notifications (Phase 07) — riwayat pemberitahuan",
-  ai_usage: "modul AI (Phase 06) — pemakaian fitur AI oleh pengguna ybs",
+  // (b) UTANG AKTIF — U-03. Blocker-nya LUNAS sejak Phase 04: modul
+  // accessibility ada, `/me/accessibility` melayani baca-tulis, dan sejak
+  // PR-034 SETIAP akun baru otomatis mendapat barisnya lewat pelanggan
+  // `auth.user_registered`. Jadi datanya bukan "belum bisa dimiliki" — ia
+  // dimiliki setiap pengguna yang pernah mendaftar, dan tidak ikut terekspor.
+  accessibility_profiles:
+    "UTANG AKTIF (U-03) — datanya SUDAH ada untuk setiap pengguna sejak PR-034; ekspor PDP hari ini kurang. Butuh keputusan owner, bukan menunggu modul.",
+
+  // (a) Datanya memang belum bisa ada.
+  resumes: "modul resumes (Phase 09) — belum ada endpoint yang bisa membuat CV",
+  applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
+
+  // (b) UTANG AKTIF — U-04. Dilahirkan PR-047 dan tidak dibayar di sana:
+  // modul notifications kini ada, dan baris sambutan lahir untuk setiap akun
+  // baru. Ukuran pembayarannya kecil — satu `exportContributor` seperti milik
+  // profiles, ditambah satu baris berpindah ke TERDAFTAR.
+  notifications:
+    "UTANG AKTIF (U-04) — datanya SUDAH ada sejak PR-047 (sambutan akun baru); ekspor PDP hari ini kurang.",
+
+  // (a) Datanya memang belum bisa ada — TETAPI pemiliknya dikoreksi (U-05).
+  // Phase 06 melahirkan MODULNYA, bukan datanya: `boot.ts` belum merakit
+  // `aiClient` (U-06), jadi belum ada satu pun baris `ai_usage` milik siapa
+  // pun. Yang akan melahirkan datanya adalah endpoint AI pertama.
+  ai_usage: "PR-066 (endpoint AI pertama) — Phase 06 melahirkan modulnya, bukan datanya; tabel masih kosong",
 };
 
 /**
