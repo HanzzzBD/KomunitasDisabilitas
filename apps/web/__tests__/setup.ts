@@ -68,3 +68,35 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
       dispatchEvent: () => false,
     }) as unknown as MediaQueryList;
 }
+
+// KATALOG i18n LENGKAP UNTUK TEST.
+//
+// Sejak katalog dimuat malas per rute (shell eager, fitur menyusul lewat
+// `muatKatalog` di `app/routes.ts`), test yang merender KOMPONEN langsung —
+// lewat `Providers`, bukan lewat router — tidak akan pernah memicu pemuatan
+// itu, dan seluruh teksnya keluar sebagai kunci mentah.
+//
+// Diseed di sini alih-alih menambahkan `await muatKatalog(...)` ke ratusan
+// berkas: test-test itu sedang menguji perilaku komponen, bukan pemuatan
+// katalog.
+//
+// YANG MENJAGA DEKLARASI PER RUTE tetap ada dan justru harus memakai registri
+// BERSIH — `i18n-lazy.test.ts` mereset registri lalu menelusuri router
+// sungguhan. Tanpa berkas itu, seed di sini akan menyembunyikan rute yang lupa
+// menyebut katalognya.
+import { seedKatalogUntukTest } from "../src/shared/i18n/registri.js";
+import { katalogShell } from "../src/shared/i18n/katalog/shell.js";
+import { katalogAuth } from "../src/shared/i18n/katalog/auth.js";
+import { katalogBeranda } from "../src/shared/i18n/katalog/beranda.js";
+import { katalogPengaturan } from "../src/shared/i18n/katalog/pengaturan.js";
+import { katalogOnboarding } from "../src/shared/i18n/katalog/onboarding.js";
+import { katalogProfil } from "../src/shared/i18n/katalog/profil.js";
+
+seedKatalogUntukTest({
+  shell: katalogShell,
+  auth: katalogAuth,
+  beranda: katalogBeranda,
+  pengaturan: katalogPengaturan,
+  onboarding: katalogOnboarding,
+  profil: katalogProfil,
+});

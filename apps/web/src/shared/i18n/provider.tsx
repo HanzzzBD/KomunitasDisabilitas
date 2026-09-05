@@ -8,8 +8,17 @@
 // ditulis store aksesibilitas milik PR-026, yang belum lahir. Karena itu mode
 // di sini bisa dikendalikan dari LUAR (prop `mode` + `onModeBerubah`), sehingga
 // PR-026 tinggal menyambungkannya tanpa membongkar apa pun di sini.
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { katalog, type KunciTeks } from "./katalog/index.js";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import type { KunciTeks } from "./katalog/index.js";
+import { katalogSaatIni, langgananKatalog, sebabKunciHilang } from "./registri.js";
 import { terjemah } from "./terjemah.js";
 import type { ModeBahasa, ParamTeks } from "./tipe.js";
 
@@ -38,9 +47,18 @@ export interface PenyediaI18nProps {
 }
 
 function laporKeConsole(kunci: string): void {
+  // Pesannya menyebut SEBAB, bukan hanya kuncinya. Sejak katalog dimuat malas,
+  // "tidak ditemukan" punya dua arti yang penanganannya jauh berbeda: rute yang
+  // lupa menyebut katalognya, atau salah ketik. Tanpa pembedaan itu, yang
+  // pertama akan dikejar sebagai yang kedua.
+  const pesan =
+    sebabKunciHilang(kunci) === "belum-dimuat"
+      ? `[i18n] Katalog fiturnya belum dimuat untuk kunci: ${kunci}. ` +
+        "Tambahkan fiturnya ke `muatKatalog(...)` pada rute terkait di app/routes.ts."
+      : `[i18n] Kunci teks tidak ditemukan: ${kunci}`;
   /* eslint-disable-next-line no-console -- AC PR-029: kunci hilang wajib
      menghasilkan error log, bukan gagal senyap. Ini pelaporannya. */
-  console.error(`[i18n] Kunci teks tidak ditemukan: ${kunci}`);
+  console.error(pesan);
 }
 
 export function PenyediaI18n({
@@ -50,13 +68,19 @@ export function PenyediaI18n({
 }: PenyediaI18nProps) {
   const [mode, setMode] = useState<ModeBahasa>(modeAwal);
 
+  // Katalog tumbuh saat rute memuat miliknya. `useSyncExternalStore` dipilih
+  // alih-alih state + efek karena ia membaca nilai TERBARU saat render —
+  // katalog yang tiba di antara render dan efek tidak menyisakan satu frame
+  // berisi teks cadangan.
+  const katalog = useSyncExternalStore(langgananKatalog, katalogSaatIni, katalogSaatIni);
+
   const t = useCallback<FungsiTeks>(
     (kunci, params) => {
       const { teks, hilang } = terjemah(katalog, mode, kunci, params);
       if (hilang) laporKunciHilang(kunci);
       return teks;
     },
-    [mode, laporKunciHilang],
+    [katalog, mode, laporKunciHilang],
   );
 
   // Tanpa useMemo, objek konteks baru pada tiap render akan merender ulang
