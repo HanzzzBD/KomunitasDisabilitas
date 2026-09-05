@@ -93,11 +93,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] `chat()` dan `embed()` fungsional terhadap mock Gemini.
-* [ ] JSON mode: output invalid → error terstruktur (bukan crash).
-* [ ] Error taxonomy memetakan 429/5xx/safety berbeda.
-* [ ] Timeout per panggilan dikonfigurasi.
-* [ ] Tidak ada modul lain mengimpor SDK Gemini (lint PR-002).
+* [x] `chat()` dan `embed()` fungsional terhadap mock Gemini.
+* [x] JSON mode: output invalid → error terstruktur (bukan crash).
+* [x] Error taxonomy memetakan 429/5xx/safety berbeda.
+* [x] Timeout per panggilan dikonfigurasi.
+* [x] Tidak ada modul lain mengimpor SDK Gemini (lint PR-002).
 
 #### Dependencies
 
@@ -170,11 +170,11 @@ RB-Std; router dapat dipaksa single-provider via config.
 
 #### Acceptance Criteria
 
-* [ ] Gemini 429/5xx → Groq dipakai otomatis (contract test).
-* [ ] Breaker terbuka setelah 5 error; half-open setelah 60 dtk (test clock).
-* [ ] Embed saat Gemini down → error terkontrol untuk retry job (bukan fallback keliru).
-* [ ] Provider terpakai tercatat per panggilan (untuk ai_usage).
-* [ ] Konsistensi output antar provider dinormalkan (format respons sama).
+* [x] Gemini 429/5xx → Groq dipakai otomatis (contract test).
+* [x] Breaker terbuka setelah 5 error; half-open setelah 60 dtk (test clock).
+* [x] Embed saat Gemini down → error terkontrol untuk retry job (bukan fallback keliru).
+* [x] Provider terpakai tercatat per panggilan (untuk ai_usage).
+* [x] Konsistensi output antar provider dinormalkan (format respons sama).
 
 #### Dependencies
 
@@ -253,11 +253,11 @@ RB-Std; kuota dapat di-nolkan (matikan AI) via config darurat.
 
 #### Acceptance Criteria
 
-* [ ] Kuota habis → DegradedError (bukan 500) + Retry-After.
-* [ ] Counter reset harian (timezone WIB) teruji.
-* [ ] ai_usage tercatat per panggilan (fitur, provider, token, versi prompt).
-* [ ] Global cap menghentikan sebelum melampaui free tier (buffer 20%).
-* [ ] Semua angka kuota dari config (bukan hardcode).
+* [x] Kuota habis → DegradedError (bukan 500) + Retry-After.
+* [x] Counter reset harian (timezone WIB) teruji.
+* [x] ai_usage tercatat per panggilan (fitur, provider, token, versi prompt).
+* [x] Global cap menghentikan sebelum melampaui free tier (buffer 20%).
+* [x] Semua angka kuota dari config (bukan hardcode).
 
 #### Dependencies
 
@@ -330,11 +330,11 @@ RB-Std; versi prompt lama dapat diaktifkan kembali via config.
 
 #### Acceptance Criteria
 
-* [ ] Naikkan versi prompt → cache lama tidak terpakai (test). *(PR-044b)*
-* [ ] Instruksi jahat dalam data ("abaikan aturan…") dinetralkan (suite injeksi). *(PR-044a)*
-* [ ] Output HTML/script disanitasi (test). *(PR-044a)*
-* [ ] Tipe input prompt menolak **`disabilityTypes`** (compile-time). *(PR-044a)*
-* [ ] Cache hit tercatat (metrik hemat kuota). *(PR-044b)*
+* [x] Naikkan versi prompt → cache lama tidak terpakai (test). *(PR-044b)*
+* [x] Instruksi jahat dalam data ("abaikan aturan…") dinetralkan (suite injeksi). *(PR-044a)*
+* [x] Output HTML/script disanitasi (test). *(PR-044a)*
+* [x] Tipe input prompt menolak **`disabilityTypes`** (compile-time). *(PR-044a)*
+* [x] Cache hit tercatat (metrik hemat kuota). *(PR-044b)*
 
   > **Pemecahan 2026-09-02 (PR-044a/PR-044b).** PR-044 dipecah karena estimasinya
   > ~1300 LOC (pagu CLAUDE.md §9 = 500) **dan** karena ketiga subsistemnya punya
@@ -429,11 +429,11 @@ RB-Std; fitur chat dapat fallback polling via flag.
 
 #### Acceptance Criteria
 
-* [ ] Stream putus → resume tanpa token duplikat/hilang (test).
-* [ ] Heartbeat 15 dtk terkirim saat idle.
-* [ ] Backpressure: klien lambat tidak menumpuk memori tak terbatas.
-* [ ] Error mid-stream dikirim sebagai event error terstruktur.
-* [ ] Kompatibel dengan `proxy_buffering off` (dicatat untuk PR-098).
+* [x] Stream putus → resume tanpa token duplikat/hilang (test).
+* [x] Heartbeat 15 dtk terkirim saat idle.
+* [x] Backpressure: klien lambat tidak menumpuk memori tak terbatas.
+* [x] Error mid-stream dikirim sebagai event error terstruktur.
+* [x] Kompatibel dengan `proxy_buffering off` (dicatat untuk PR-098).
 
 #### Dependencies
 
