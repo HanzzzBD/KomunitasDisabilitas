@@ -24,6 +24,7 @@ import { createNotificationsController } from "./controllers/notifications.contr
 import { createDevicesController } from "./controllers/devices.controller.js";
 import { createNotificationsRouter } from "./routers/index.js";
 import { daftarkanRouteDevices } from "./routers/devices.js";
+import { createNotificationsExportContributor } from "./services/notifications-export.service.js";
 
 export interface NotificationsModuleDeps {
   prisma: AppPrisma;
@@ -49,6 +50,11 @@ export interface NotificationsModule {
    * di-import langsung lintas modul.
    */
   devices: DevicesService;
+  /**
+   * Bagian `notifications` berkas ekspor PDP (utang U-04, dibayar 2026-09-05).
+   * Bentuknya sama dengan `profiles.exportContributor` — lihat alasannya di sana.
+   */
+  exportContributor: ReturnType<typeof createNotificationsExportContributor>;
 }
 
 export function createNotificationsModule(deps: NotificationsModuleDeps): NotificationsModule {
@@ -127,7 +133,13 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   const router = createNotificationsRouter(createNotificationsController(service), deps.routes);
   daftarkanRouteDevices(createDevicesController(devices), deps.routes);
 
-  return { router, devices };
+  return {
+    router,
+    devices,
+    // Service yang SAMA dengan yang melayani `/me/notifications` — jadi kalimat
+    // di berkas ekspor dirakit renderer yang sama dengan yang melayani layar.
+    exportContributor: createNotificationsExportContributor({ notifications: service }),
+  };
 }
 
 export {
@@ -177,3 +189,7 @@ export {
   type DevicesController,
 } from "./controllers/devices.controller.js";
 export { daftarkanRouteDevices } from "./routers/devices.js";
+export {
+  createNotificationsExportContributor,
+  type NotificationsExportDeps,
+} from "./services/notifications-export.service.js";

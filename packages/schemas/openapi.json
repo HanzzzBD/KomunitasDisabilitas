@@ -2321,13 +2321,24 @@
           },
           "profile": {
             "$ref": "#/components/schemas/ExportProfile"
+          },
+          "accessibility": {
+            "$ref": "#/components/schemas/AccessibilityProfile"
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
           }
         },
         "required": [
           "formatVersion",
           "exportedAt",
           "account",
-          "profile"
+          "profile",
+          "accessibility",
+          "notifications"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -2677,17 +2688,6 @@
         ],
         "description": "Satu keahlian"
       },
-      "AccessibilityResponse": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/AccessibilityProfile"
-          }
-        },
-        "required": [
-          "data"
-        ]
-      },
       "AccessibilityProfile": {
         "type": "object",
         "properties": {
@@ -2747,6 +2747,106 @@
           "screenReaderHint"
         ],
         "description": "Profil tersimpan; null = belum diatur pengguna"
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "type": {
+            "$ref": "#/components/schemas/NotificationType"
+          },
+          "title": {
+            "$ref": "#/components/schemas/NotificationText"
+          },
+          "body": {
+            "$ref": "#/components/schemas/NotificationText"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Referensi untuk tautan klien (id/enum saja, tanpa data pribadi)"
+          },
+          "readAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "body",
+          "params",
+          "readAt",
+          "createdAt"
+        ],
+        "description": "Notifikasi in-app"
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "auth.selamat_datang",
+          "lamaran.terkirim",
+          "lamaran.status_berubah"
+        ],
+        "description": "Tipe notifikasi terdaftar"
+      },
+      "NotificationText": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id-simple": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "id-simple"
+        ],
+        "description": "Satu kalimat notifikasi dalam kedua varian bahasa"
+      },
+      "AccessibilityResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AccessibilityProfile"
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "UpdateAccessibilityPreferences": {
         "type": "object",
@@ -3276,95 +3376,6 @@
           "data",
           "meta"
         ]
-      },
-      "Notification": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "UUID",
-            "example": "01912345-89ab-7def-8123-456789abcdef"
-          },
-          "type": {
-            "$ref": "#/components/schemas/NotificationType"
-          },
-          "title": {
-            "$ref": "#/components/schemas/NotificationText"
-          },
-          "body": {
-            "$ref": "#/components/schemas/NotificationText"
-          },
-          "params": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "boolean"
-                }
-              ]
-            },
-            "description": "Referensi untuk tautan klien (id/enum saja, tanpa data pribadi)"
-          },
-          "readAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time",
-            "description": "Waktu ISO 8601 dengan offset",
-            "example": "2026-07-18T09:00:00+07:00"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Waktu ISO 8601 dengan offset",
-            "example": "2026-07-18T09:00:00+07:00"
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "title",
-          "body",
-          "params",
-          "readAt",
-          "createdAt"
-        ],
-        "description": "Notifikasi in-app"
-      },
-      "NotificationType": {
-        "type": "string",
-        "enum": [
-          "auth.selamat_datang",
-          "lamaran.terkirim",
-          "lamaran.status_berubah"
-        ],
-        "description": "Tipe notifikasi terdaftar"
-      },
-      "NotificationText": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "id-simple": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "id",
-          "id-simple"
-        ],
-        "description": "Satu kalimat notifikasi dalam kedua varian bahasa"
       },
       "NotificationListMeta": {
         "type": "object",

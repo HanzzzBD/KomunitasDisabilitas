@@ -176,6 +176,22 @@ export function createNotificationsService(deps: NotificationsServiceDeps) {
     },
 
     /**
+     * SELURUH notifikasi milik seorang pengguna — untuk ekspor PDP (U-04).
+     *
+     * TIDAK punya endpoint, dan tidak boleh punya: yang tak berbatas hanya sah
+     * di jalur ekspor, yang sudah dijaga kuota tersendiri (3× per 24 jam,
+     * EXPORT_POLICY). Membukanya sebagai endpoint berarti satu permintaan bisa
+     * menarik seluruh riwayat seseorang ke memori kapan saja.
+     *
+     * `userId` di sini datang dari agregator ekspor, yang mendapatkannya dari
+     * sesi — bukan dari input. Lihat `export.service.ts`.
+     */
+    async semuaUntukEkspor(userId: string): Promise<Notification[]> {
+      const rows = await notificationRepository.semuaByUserId(userId);
+      return rows.map(keNotifikasi);
+    },
+
+    /**
      * POST /me/notifications/:id/read — tandai dibaca.
      *
      * IDEMPOTEN: menandai yang sudah dibaca tetap 200 dan TIDAK menggeser

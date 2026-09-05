@@ -69,6 +69,14 @@ function fakeRepository(): NotificationRepository {
       return Promise.resolve(hasil.slice(0, limit).map((r) => ({ ...r })));
     },
 
+    semuaByUserId(userId) {
+      return Promise.resolve(
+        [...milik(userId)]
+          .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+          .map((r) => ({ ...r })),
+      );
+    },
+
     unreadCount(userId) {
       return Promise.resolve(milik(userId).filter((r) => r.readAt === null).length);
     },

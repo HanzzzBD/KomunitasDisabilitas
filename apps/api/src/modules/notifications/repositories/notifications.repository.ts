@@ -65,6 +65,14 @@ export interface NotificationRepository {
    */
   createMany(items: NotificationBaru[]): Promise<number>;
   list(opsi: OpsiDaftar): Promise<NotificationRow[]>;
+  /**
+   * SELURUH notifikasi milik seorang pengguna, tanpa halaman — hanya untuk
+   * ekspor PDP (U-04). Sengaja dipisahkan dari `list`: yang tak berbatas tidak
+   * boleh bisa dipanggil tanpa sengaja dari jalur yang melayani permintaan HTTP
+   * biasa, dan nama yang menyebut tujuannya membuat setiap pemakaian baru
+   * terbaca sebagai keputusan.
+   */
+  semuaByUserId(userId: string): Promise<NotificationRow[]>;
   /** Jumlah SELURUH yang belum dibaca — tidak terpengaruh halaman. */
   unreadCount(userId: string): Promise<number>;
   /** Tandai dibaca; `null` bila baris tidak ada ATAU bukan milik `userId`. */
@@ -110,6 +118,14 @@ export function createNotificationRepository(prisma: AppPrisma): NotificationRep
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit,
+      });
+    },
+
+    semuaByUserId(userId) {
+      return prisma.notification.findMany({
+        where: { userId },
+        // Urutan yang sama dengan yang dilihat pengguna di layar.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       });
     },
 

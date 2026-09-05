@@ -10,6 +10,7 @@ import { Writable } from "node:stream";
 import type { PrismaClient } from "@prisma/client";
 import type { AuditAction, UserRole } from "@nawasena/schemas";
 import {
+  ACCESSIBILITY_PROFILE_KOSONG,
   dataExportSchema,
   EXPORT_FORMAT_VERSION,
   SEEKER_PROFILE_KOSONG,
@@ -189,6 +190,10 @@ async function boot() {
                 skills: [],
               }),
             },
+            // Dua bagian WAJIB sejak 2026-09-05 (U-03 & U-04) — penampung
+            // kosong, dengan alasan yang sama seperti `profile` di atas.
+            { bagian: "accessibility", kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }) },
+            { bagian: "notifications", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -316,7 +321,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile"],
+        sections: ["account", "profile", "accessibility", "notifications"],
       },
     });
   });

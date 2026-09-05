@@ -7,6 +7,7 @@
 // bagian sensitif yang terdekripsi, yang justru merupakan inti hak portabilitas.
 import { describe, it, expect } from "vitest";
 import {
+  ACCESSIBILITY_PROFILE_KOSONG,
   dataExportSchema,
   EXPORT_FORMAT_VERSION,
   exportProfileSchema,
@@ -161,6 +162,12 @@ describe("kontributor bagian profile", () => {
         authMethods: ["otp"],
       },
       profile: await kontributor.kumpulkan(USER_ID),
+      // Dua bagian WAJIB yang lahir 2026-09-05 (U-03 & U-04). Diisi kosong di
+      // sini dengan sengaja: yang diuji berkas ini adalah bagian `profile`, dan
+      // merakit modul lain hanya untuk memenuhi kontrak akan membuat kegagalan
+      // kelak menunjuk modul yang salah.
+      accessibility: { ...ACCESSIBILITY_PROFILE_KOSONG },
+      notifications: [],
     });
 
     expect(berkas.profile.skills).toEqual([SKILL]);

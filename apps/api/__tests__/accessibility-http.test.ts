@@ -135,7 +135,7 @@ async function boot(options: { baris?: BarisPreferensi[] } = {}) {
           routes: registry.forModule("/api/v1"),
           auditLog: () => {},
           events,
-        }),
+        }).router,
       );
     },
   });
