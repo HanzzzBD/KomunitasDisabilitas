@@ -208,6 +208,20 @@ Bisnis: kanal cadangan bagi pengguna tanpa push. Teknis: adapter Resend + templa
 >
 > **Sengaja TIDAK dikerjakan lebih awal:** membuat placeholder kanal email di Phase 03 berarti kendali keamanan yang terbaca ada tetapi tidak mengirim apa pun.
 
+> **GATE MASUK — DURABILITAS KABAR (utang U-02, keputusan owner 2026-09-05).**
+>
+> **PR ini tidak boleh dimulai tanpa menjawab pertanyaan di bawah lebih dulu.** Bukan formalitas: PR-047 sengaja membangun notifikasi di atas bus event **in-process tanpa persistensi** (`core/events` batas 2), dan itu keputusan yang sah selama notifikasi bukan satu-satunya kabar. Email berpotensi mengubah keadaan itu — dan perubahannya tidak akan terlihat sebagai keputusan bila tidak ditanyakan.
+>
+> **Kenapa gate-nya ada di sini, bukan di registry saja.** Utang yang dijadwalkan ke "PR berikutnya" tanpa penagih akan bergeser bersama PR itu — pelajaran yang sudah dibayar mahal oleh utang OpenAPI PR-037 (dijadwalkan ke PR-040; PR-040 justru mewarisi dan menambahnya).
+>
+> **Yang wajib diputuskan, dengan jawabannya ditulis di log PR-049:**
+>
+> 1. **Apakah ada peristiwa yang kabarnya menjadi SATU-SATUNYA lewat kanal ini?** Blok dependensi Phase 03 tepat di atas adalah contoh yang sudah pasti: pengguna Google-only yang menghapus akunnya **tidak punya layar** untuk melihat notifikasi in-app. Bagi dia, email yang hilang bukan pemberitahuan yang hilang — melainkan satu-satunya bukti bahwa permintaan hapusnya diproses, dan satu-satunya cara ia tahu jendela pembatalan 30 hari itu ada.
+> 2. **Untuk setiap peristiwa semacam itu, kabarnya WAJIB lahir dari job antrean (BullMQ) yang DIPICU event domain — bukan dari handler event-nya.** Handler yang mengirim langsung akan ikut mati bersama prosesnya, tanpa retry dan tanpa jejak. Syarat ini sudah tertulis di komentar `core/events` dan di log PR-047; di sini ia menjadi syarat masuk.
+> 3. **Bila jawabannya "tidak ada",** tuliskan alasannya — supaya PR berikutnya tidak mengulang pertanyaan ini dari nol.
+>
+> **Yang TIDAK diminta:** memindahkan seluruh jalur notifikasi ke antrean. Owner secara eksplisit menolak itu untuk sekarang (lihat U-02) — notifikasi in-app biasa tetap boleh lewat bus, sebab statusnya tetap benar di DB dan tetap terbaca di layar lamaran.
+
 #### Technical Notes
 
 **Backend Changes:**
