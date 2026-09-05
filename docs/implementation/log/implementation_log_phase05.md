@@ -1039,7 +1039,32 @@ sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
         dihapus dari dokumen; route baru ditambahkan tanpa didokumentasikan
         (reproduksi persis kegagalan yang terjadi empat kali); path hantu
         ditambahkan ke dokumen; dan auth dirakit setengah terkonfigurasi.
-* **Bundel awal naik 112,4 → 115,1 KB.** Halamannya sendiri lazy; yang naik
+* **Bundel awal naik 112,4 → 115,1 KB.**
+  * **LUNAS 2026-09-05: katalog i18n dimuat MALAS per rute, shell tetap eager.**
+    Terukur nyata (bukan dari catatan lama): **115,4 → 107,7 KB gzip**, −7,7 KB
+    / −6,7%, chunk lazy 22 → 27. Kedua angka diambil dari `cek:budget` atas
+    build branch phase dan build branch ini.
+  * `KunciTeks` tetap union kunci LENGKAP — `katalog/index.ts` kini `import
+    type` saja, yang dihapus habis saat build. Keamanan tipenya tidak berkurang
+    sedikit pun; kunci salah ketik tetap `typecheck` merah.
+  * Katalog dimuat di `lazy:` route BERSAMA komponennya (`Promise.all`), bukan
+    di dalam komponen: komponen yang memuat katalognya sendiri selalu merender
+    sekali tanpa teks, lalu berkedip berganti — persis perubahan mendadak yang
+    paling mengganggu pengguna autisme (persona Dimas).
+  * **Penjaganya menemukan TIGA ketergantungan lintas-katalog yang terlewat**,
+    dan ketiganya nyata: `/masuk/google` memakai `pengaturan.*` (konfirmasi
+    hapus akun), `/pengaturan` memakai `auth.*` (kode galat OTP pada alur hapus
+    akun), dan `/profil` memakai `onboarding.*` (halaman profil memakai ULANG
+    komponen langkah ragam disabilitas). Tanpa penjaga itu, ketiga halaman akan
+    menampilkan kunci mentah bagi pengguna yang membukanya LANGSUNG lewat URL —
+    dan tidak bagi yang menavigasi dari halaman lain, yang membuatnya makin
+    sulit dilaporkan.
+  * **Penjaga versi pertama HAMPA, dan itu dicatat di berkasnya.** Ia membaca
+    `rute.lazy.toString()`; Vite menulis ulang `import()` menjadi
+    `__vite_ssr_dynamic_import__`, jadi polanya tidak pernah cocok dan tidak
+    satu rute pun diperiksa — lulus atas dua mutasi yang seharusnya
+    menjatuhkannya. Versi finalnya membaca sumber `app/routes.ts`, dan
+    diverifikasi lewat 3 mutasi yang semuanya merah. Halamannya sendiri lazy; yang naik
   adalah **katalog i18n**, yang dimuat eager karena teks shell membutuhkannya
   sejak render pertama. Artinya setiap fitur berikutnya ikut menambah bundel awal
   dengan seluruh teksnya. Masih 84,9 KB di bawah budget, tetapi polanya linier —
