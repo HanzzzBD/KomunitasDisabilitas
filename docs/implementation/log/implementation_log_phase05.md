@@ -957,6 +957,24 @@ sebab peramban sungguhan yang menentukan perilaku ini, bukan jsdom.
       path di `openapi.json`. Itulah penagih yang sesungguhnya — tanpa dia,
       utang yang sama akan tumbuh lagi diam-diam pada endpoint berikutnya.
       Dipisah karena PR ini sudah besar, bukan karena tidak perlu.
+    * **Penagih itu DIPASANG 2026-09-05**, di PR berikutnya —
+      `apps/api/__tests__/openapi-parity.test.ts`. Ia merakit modul NYATA
+      (bukan daftar path tangan, bukan pemindaian statis: route karier
+      dideklarasikan lewat `daftarkanKarier()` dengan path dari variabel, dan
+      justru dua belas route itulah yang paling lama tak terdokumentasi), lalu
+      membandingkan `registry.list()` dengan `openapi.json` DUA ARAH — endpoint
+      tak terdokumentasi maupun dokumen yang menjanjikan endpoint hantu
+      sama-sama membuat build merah.
+      * Temuan saat memasangnya: `createAuthRouter` mendaftarkan route yang
+        BERBEDA saat rahasianya kosong (`ALL /auth/otp/*` alih-alih enam POST).
+        Perakitan setengah terkonfigurasi karena itu membandingkan permukaan
+        yang tidak pernah dilayani produksi — penjaga yang mengukur benda yang
+        salah, dan tetap hijau. Ditutup assertion tersendiri yang menolak
+        setiap route `ALL`.
+      * Diverifikasi lewat 4 mutasi, semuanya merah lalu dipulihkan: endpoint
+        dihapus dari dokumen; route baru ditambahkan tanpa didokumentasikan
+        (reproduksi persis kegagalan yang terjadi empat kali); path hantu
+        ditambahkan ke dokumen; dan auth dirakit setengah terkonfigurasi.
 * **Bundel awal naik 112,4 → 115,1 KB.** Halamannya sendiri lazy; yang naik
   adalah **katalog i18n**, yang dimuat eager karena teks shell membutuhkannya
   sejak render pertama. Artinya setiap fitur berikutnya ikut menambah bundel awal
