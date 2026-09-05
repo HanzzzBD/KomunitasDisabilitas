@@ -1665,3 +1665,69 @@ Gate hijau: `pnpm lint` **9/9**, `pnpm typecheck` **9/9**, `pnpm test` **9/9**.
 * **PR-068 / PR-073 / PR-087** — mengisi ketiga baris tabel pola degradasi
   dengan implementasi nyata (form CV, feed tanpa re-rank, tombol sederhanakan
   nonaktif).
+
+---
+
+## Audit AC Phase 06 — sebelum `phase-06 → main`
+
+**Tanggal:** 2026-09-05
+**Sifat:** dokumentasi saja. Tidak ada kode, tidak ada perubahan perilaku.
+
+### Sebab
+
+Exit Criteria Phase 06 menuntut *"setiap checklist Acceptance Criteria per PR
+terpenuhi (diverifikasi di review)"*. Saat hendak menutup phase, ternyata
+**hanya AC PR-046 yang tercentang**; 25 AC milik PR-041..PR-045 masih `[ ]`.
+
+Arah kesalahannya penting dan sama seperti PR-033f di Phase 03: dokumen
+**KURANG mengklaim**, bukan berlebih. Pekerjaannya ada, centangnya yang tidak
+pernah ditulis — dan checklist yang tidak pernah dicentang membuat Exit Criteria
+tidak bisa dibuktikan tanpa membaca ulang seluruh log.
+
+### Cara audit
+
+Diverifikasi terhadap **test di disk**, bukan terhadap klaim di log. Setiap AC
+ditelusuri ke test yang membuktikannya. Yang memudahkan: sebagian besar
+`describe` di Phase 06 memang sudah diberi label AC-nya sendiri.
+
+| AC | Bukti |
+|---|---|
+| 041-1 `chat()`/`embed()` fungsional | `ai-gemini-provider`: balasan generateContent → respons bertipe; vektor 768 dimensi |
+| 041-2 JSON mode invalid → error terstruktur | idem: gagal zod → error terstruktur; bukan JSON → `AI_INVALID_OUTPUT`, bukan `SyntaxError`; berpagar ```json juga ditolak |
+| 041-3 taksonomi 429/5xx/safety | idem: 429→`AI_RATE_LIMIT`, 503→`AI_PROVIDER_UNAVAILABLE`, `blockReason`→`AI_SAFETY_BLOCK` |
+| 041-4 timeout per panggilan | idem: batas tunggu per panggilan **benar-benar dipakai**, bukan hanya bawaan |
+| 041-5 tak ada modul lain impor SDK | `packages/config/__tests__/boundaries.test.ts` — 3 SDK, pesan memuat "AI Gateway" |
+| 042-1 Gemini 429/5xx → Groq | `ai-router` AC-1: `it.each([429, 500, 503])` |
+| 042-2 breaker 5 error / half-open 60 dtk | `ai-breaker`: kegagalan ke-5 membuka; 60 dtk → half-open TEPAT SATU penjajakan |
+| 042-3 embed tidak salah-fallback | `ai-router` AC-3: Gemini tumbang → error apa adanya, Groq tidak disentuh |
+| 042-4 provider tercatat per panggilan | `ai-router` AC-4: respons menyebut provider yang BENAR-BENAR menjawab |
+| 042-5 output dinormalkan | idem AC-5: bentuk respons identik siapa pun yang menjawab |
+| 043-1 kuota habis → 429 + Retry-After | `ai-quota` AC-1: panggilan ke-4 dari jatah 3 → 429, `retryAfterSeconds` 43.200 |
+| 043-2 reset harian WIB | `ai-quota` AC-2 + `ai-quota-wib` |
+| 043-3 `ai_usage` per panggilan | `ai-client` AC-3/AC-4/AC-5 + `ai-usage-db` AC-1 (`prompt_version`) |
+| 043-4 pagu global + buffer 20% | `ai-quota` AC-4 + `ai-quota-config`: `AI_QUOTA_BUFFER_RATIO` = 0.2 |
+| 043-5 angka dari config | `ai-quota-config`: default SDD §7.1, override env, konfigurasi salah → boot GAGAL |
+| 044-1 versi prompt naik → cache lama tak terpakai | `ai-cache` AC-1 |
+| 044-2 injeksi dinetralkan | `ai-guard` AC-2 (tiga blok) — **batasnya dinyatakan: yang dibuktikan KONSTRUKSI, bukan kepatuhan model** |
+| 044-3 keluaran HTML/script disanitasi | `ai-guard` AC-3 (tiga blok, termasuk entity tanpa titik koma) |
+| 044-4 tipe menolak `disabilityTypes` | `prompt-registry`: "batas masukan (AC-4, ditegakkan tsc)" |
+| 044-5 cache hit tercatat metrik | `ai-cache`: "baca/tulis — TTL, sanitasi ulang, dan metrik" |
+| 045-1 resume tanpa duplikat/hilang | `sse` AC-1 (5 test, termasuk lompatan tak tertutup & klien lebih maju) |
+| 045-2 detak 15 dtk saat idle | `sse` AC-2 (3 test, termasuk anti-hampa & berhenti saat tertutup) |
+| 045-3 backpressure | `sse` AC-3 (3 test, termasuk cincin event terbatas) |
+| 045-4 galat mid-stream terstruktur | `sse` AC-4 |
+| 045-5 kompatibel `proxy_buffering off` | `sse` AC-5 — header anti-penyanggaan; sisi nginx memang PR-098 per bunyi AC-nya |
+
+### Yang TIDAK diubah, dan sebabnya
+
+* **AC-4 PR-044 dibaca sesuai amandemen owner 2026-09-02** (menolak
+  `disabilityTypes`, bukan `SensitiveProfile` utuh). Dokumen phase sudah memuat
+  bentuk yang diamandemen, jadi AC yang berlaku memang yang terpenuhi.
+* **Dua penyimpangan terhadap SDD §7.1 (D9) tetap terbuka** — urutan
+  cache/kuota dibalik, dan baris "3 refresh feed/hari" yang bertentangan dengan
+  keputusan owner (b). Keduanya penyimpangan terhadap **SDD**, bukan AC, dan
+  sudah dicatat sadar. **PR-072 akan menabraknya** — itu tetap perlu keputusan.
+* **Testing Checklist ≠ Acceptance Criteria.** Verifikasi manual throttling 3G
+  (PR-045) masih terbuka dan jatuh ke PR-066/068. Exit Criteria menyebut AC,
+  bukan Testing Checklist, jadi ia tidak menahan penutupan phase — tetapi juga
+  tidak boleh dianggap selesai.
