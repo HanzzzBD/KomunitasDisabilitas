@@ -186,6 +186,33 @@ describe("urutan bawaan (AC-4) — terbaru dulu", () => {
     const daftar = await skills.list(aktor);
 
     expect(daftar.map((s) => s.name)).toEqual([...nama].reverse());
+
+    // STEMPELNYA DIBUAT DATABASE, BUKAN KLIEN — dan itulah yang diuji di sini,
+    // bukan sekadar "nilainya berbeda".
+    //
+    // Migrasi 11 mengira `timestamptz(6)` sudah cukup. Tidak: untuk
+    // `@default(now())` Prisma membuat nilainya DI SISI KLIEN dan mengirimnya
+    // sebagai parameter, dan `Date` di JavaScript berpresisi MILIDETIK. Enam
+    // insert beruntun di CI yang cepat jatuh di milidetik yang sama, seri, lalu
+    // urutannya diserahkan ke `id desc` yang justru acak dalam satu milidetik.
+    // Test itu hijau di mesin lambat dan merah di CI — persis yang terjadi.
+    //
+    // MEMERIKSA "semua stempel berbeda" TIDAK CUKUP: di mesin pengembang yang
+    // lambat, stempel klien pun berbeda 2-3 ms, sehingga pemeriksaan itu lulus
+    // di atas kode yang salah — sudah dicoba, dan ia memang lulus. Yang
+    // membedakan keduanya secara pasti adalah PRESISI: nilai dari JavaScript
+    // SELALU kelipatan bulat 1000 mikrodetik; `clock_timestamp()` praktis tidak
+    // pernah. Satu baris ber-sisa saja sudah membuktikan DB yang membuatnya.
+    const presisi = await prisma.$queryRaw<{ sisa: number }[]>`
+      SELECT (date_part('microseconds', created_at)::int % 1000) AS sisa
+      FROM skills WHERE user_id = ${aktor.userId}::uuid
+    `;
+    expect(presisi).toHaveLength(nama.length);
+    expect(
+      presisi.some((b) => b.sisa !== 0),
+      `Seluruh stempel bulat milidetik — tandanya dibuat KLIEN, bukan clock_timestamp(). ` +
+        `Cek @default(dbgenerated("clock_timestamp()")) di schema.prisma.`,
+    ).toBe(true);
     // Penjaga atas penjaga: bila kelak `uuidV7` menjadi monotonik dalam satu
     // milidetik, test ini berhenti menguji apa yang ia klaim — dan diam-diam
     // menjadi hijau karena alasan yang salah.

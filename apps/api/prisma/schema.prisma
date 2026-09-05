@@ -233,7 +233,7 @@ model Experience {
   /// hanya berurut ANTAR milidetik (core/ids menyatakannya sendiri); dua baris
   /// yang lahir di milidetik yang sama keluar dalam urutan acak. `timestamptz(6)`
   /// berpresisi mikrodetik, jadi tambah-cepat-berturut tetap urut.
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -249,7 +249,7 @@ model Education {
   field       String?
   year        Int?
   /// Menengahi seri antar-baris bertahun sama; lihat alasannya di `Experience`.
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -267,7 +267,7 @@ model Skill {
   /// Keahlian tidak punya tanggal sama sekali, jadi kolom inilah SATU-SATUNYA
   /// dasar urutannya — sebelumnya `id desc`, yang tidak dijamin dalam satu
   /// milidetik dan membuat test urutannya merah secara acak.
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
