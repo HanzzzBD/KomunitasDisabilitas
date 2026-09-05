@@ -165,3 +165,139 @@ terhadap PostgreSQL dev (bukan skip): 9/9 di `notifications-db.test.ts`, termasu
   `meta.unreadCount` (lencana), dan pemilih varian bahasa dari state a11y global.
 * **Phase 12 (PR-076/PR-078)** — menerbitkan kedua event lamaran. Bentuk payload-nya
   **sudah terkunci** oleh kontrak di `packages/schemas/src/applications.ts`.
+
+---
+
+## PR-048a — Devices + Registrasi Perangkat
+
+> **Phase:** [07 - Notifications](../phase-07-notifications.md#pr-048---devices--fcm-push)
+> **Tanggal:** 2026-09-05
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Separuh pertama PR-048. Tabel `devices` (migrasi 14), `POST /api/v1/me/devices`, service
+dan repository perangkat, keputusan nasib tabel di dua penjaga PDP, dan satu penjaga baru
+yang lahir dari kecelakaan nyata di PR ini (lihat "Kejadian" di bawah).
+
+**PR-048 dipecah menjadi 048a/048b** mengikuti preseden PR-033a..i dan PR-043a/b. Alasannya
+bukan ukuran semata: registrasi perangkat dan pengiriman push punya bentuk kegagalan yang
+sama sekali berbeda — yang pertama soal kepemilikan baris dan balapan upsert, yang kedua
+soal kredensial pihak ketiga, klasifikasi galat provider, dan retry. Digabung, `devices`
+yang salah bentuk baru ketahuan saat push pertama dicoba.
+
+Keputusan yang membentuk sisanya: **`fcm_token` unik GLOBAL, bukan unik per pengguna.**
+Itu keputusan keamanan, bukan normalisasi. Satu perangkat fisik yang berpindah akun
+(pemiliknya keluar, orang lain masuk) mengirimkan token yang sama; dengan unik global,
+pendaftaran berikutnya **memindahkan** kepemilikan barisnya. Tanpa itu kedua baris hidup
+berdampingan, dan pemilik lama terus menerima notifikasi pemilik baru di layar kunci
+perangkat yang bukan lagi miliknya — kebocoran yang tidak meninggalkan gejala apa pun di
+sisi kita. Diuji di PostgreSQL sungguhan, bukan hanya di fake.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 — `@nawasena/api` **98 berkas / 1384
+lulus** (1 skip tak terkait), `@nawasena/schemas` 40/40, `docs-links` hijau. Test DB
+berjalan sungguhan terhadap PostgreSQL dev: `devices-db.test.ts` 6/6.
+
+### KEJADIAN — migrasi generate-an hampir menghapus tujuh indeks produksi
+
+`prisma migrate dev` untuk perubahan yang isinya hanya "tambah satu tabel" menghasilkan
+**tujuh pernyataan `DROP INDEX`** yang tidak diminta siapa pun, dan **menjalankannya di DB
+dev** sebelum ketahuan:
+
+```
+applications_job_status, applications_user_updated, jobs_accommodations_gin,
+jobs_embedding_hnsw, jobs_status_published_at, jobs_title_trgm,
+seeker_profiles_embedding_hnsw
+```
+
+**Sebabnya:** ketujuhnya dibuat lewat raw SQL di migrasi 03 dan tidak terwakili di
+`schema.prisma`, sehingga Prisma membacanya sebagai drift dan "merapikannya".
+
+**Kenapa ini serius.** Bila lolos ke produksi, pencarian lowongan (trigram + GIN) dan job
+matching (HNSW pgvector) berubah menjadi seq scan — **tanpa satu pun error, tanpa satu pun
+test merah.** Hanya lambat, dan hanya setelah data cukup banyak untuk membuatnya terasa.
+Itu bentuk kegagalan paling mahal yang ada di repo ini: yang tidak punya gejala.
+
+**Yang dilakukan:**
+
+1. Migrasi generate-an dibuang; migrasi 14 **ditulis tangan** berisi pernyataan aditif saja,
+   dengan sebab dan perangkapnya ditulis di kepala berkasnya.
+2. DB dev dipulihkan lewat `migrate reset` — dipilih di atas "buat ulang tujuh indeksnya"
+   karena reset sekaligus membuktikan migrasi 14 menerapkan bersih dari nol, persis yang
+   akan dilakukan CI dan produksi. Diverifikasi: 12 indeks ada (10 pulih + 2 baru).
+3. **Penjaga dipasang** di `migrasi-skema.test.ts`: setiap `DROP INDEX` di migrasi mana pun
+   harus terdaftar di `DROP_INDEX_DISENGAJA` beserta alasannya. Ditambah pemeriksaan arah
+   sebaliknya — sembilan indeks raw-SQL wajib tetap muncul di SQL migrasi, agar yang hilang
+   karena migrasinya **diedit** (bukan di-drop) juga tertangkap.
+4. Dicatat sebagai **U-15** di `docs/utang-teknis.md`. Penjaganya menutup akibat; sebabnya
+   masih terbuka.
+
+**Satu detail yang layak dicatat:** penjaga versi pertama menuduh migrasi 06 secara keliru —
+ia memindai teks mentah dan menemukan `DROP INDEX` di dalam sebuah **komentar**
+(*"Rollback = DROP INDEX ..."*). Diperbaiki dengan membuang komentar `--` sebelum memindai.
+Penjaga yang menuduh secara keliru adalah penjaga yang pertama kali dilonggarkan orang saat
+ia menghalangi — jadi false positive-nya bukan gangguan kecil, ia ancaman terhadap
+penjaganya sendiri.
+
+### Scope selesai
+
+* **Migrasi 14 + model `Device` & enum `DevicePlatform`** — `fcm_token` unik global,
+  `@@index([userId])`, FK `onDelete: Cascade`. `web` masuk enum sejak awal meski web push di
+  luar scope MVP: menambah nilai enum belakangan menuntut migrasi tersendiri, nilai yang tak
+  terpakai tidak menuntut apa pun.
+* **`packages/schemas`** — `devicePlatformSchema`, `registerDeviceSchema` (`.strict()`, token
+  1–4096 karakter), `deviceSchema`, `deviceResponseSchema`. `fcmToken` **tidak** ikut di
+  response: klien sudah memilikinya, dan setiap tempat baru yang memuatnya adalah tempat
+  baru ia bisa bocor.
+* **`repositories/devices.repository.ts`** — `daftarkan` (upsert satu statement),
+  `byUserId`, `hapusByToken`. `hapusByToken` sengaja **tanpa** `userId`, ditandai eksplisit:
+  pemanggilnya processor push yang bekerja atas nama sistem, dan menuntut `userId` akan
+  membuat token yang sudah berpindah pemilik luput dari pembersihan.
+* **`services/devices.service.ts`** — `register` (idempoten) + `milik` (untuk PR-048b,
+  dikembalikan sebagai service supaya jalur push tidak meng-import repository lintas modul).
+* **`controllers/` + `routers/devices.ts`** — `access.authenticated()`, validasi di gerbang.
+* **`modules/notifications/index.ts`** — kini mengembalikan `{ router, devices }`; kedua
+  router menulis ke registrar yang sama, jadi `boot.ts` tetap satu `app.use()`.
+* **`purge.service.ts`** — `"device"` masuk `TABEL_DIHAPUS`. **Wajib**, dan bukan
+  kebersihan: jalur anonimisasi (akun `hired`) tidak memicu cascade, jadi tanpa ini sistem
+  tetap sanggup mengirim push ke perangkat milik orang yang akunnya sudah dihapus.
+* **`export-kelengkapan.test.ts`** — `devices` masuk `DIKECUALIKAN` dengan alasan yang sama
+  persis dengan `refresh_tokens`: kredensial pengiriman, bukan data pribadi.
+* **OpenAPI** — `POST /me/devices` terdokumentasi; parity test hijau.
+* **Test:** `devices-http.test.ts` (12), `devices-db.test.ts` (6), `notifications-kontrak`
+  (+1 paritas enum `DevicePlatform`), `migrasi-skema` (+3 penjaga `DROP INDEX`).
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| `fcm_token` unik GLOBAL | Perangkat berpindah akun harus berpindah kepemilikan | Unik per (userId, token) — pemilik lama terus menerima notifikasi pemilik baru |
+| `upsert` satu statement | Dua peluncuran hampir bersamaan sama-sama lolos "cari lalu tulis" | Cek-lalu-tulis di aplikasi |
+| 200, bukan 201 | Endpoint idempoten; sebagian besar panggilan tidak melahirkan apa pun, dan 201 akan berbohong | Membedakan 200/201 — menuntut repository melaporkan "lahir atau tidak", informasi yang tak dipakai siapa pun |
+| `fcmToken` tidak ikut di response | Setiap tempat baru yang memuatnya adalah tempat baru ia bocor | Mengembalikan baris apa adanya |
+| `devices` DIKECUALIKAN dari ekspor PDP | Kredensial pengiriman — sama dengan `refresh_tokens`; mengekspornya memindahkan kemampuan push ke berkas yang beredar | Mengekspornya sebagai "data perangkat" |
+| Tidak ada endpoint hapus perangkat | Token mati dibersihkan jalur pengiriman (048b); hapus akun lewat cascade. "Logout satu perangkat" butuh klien yang memanggilnya (PR-088/094) | Menambahkannya sekarang — permukaan API tanpa pemanggil, tak pernah diuji terhadap pemakaian nyata |
+
+### Risiko & batas yang diketahui
+
+* **Belum ada satu pun push yang terkirim.** Seluruh PR ini adalah persiapan; pengirimannya
+  PR-048b. Tabel `devices` yang terisi tanpa jalur pengiriman tidak berbahaya, hanya belum
+  berguna.
+* **Tidak ada pembersihan perangkat yang lama tidak menyapa.** `lastSeenAt` sudah ada dan
+  sudah diperbarui setiap pendaftaran, tetapi belum ada job yang memakainya. Sampai PR-048b
+  memasang penghapusan token `UNREGISTERED`, satu-satunya yang mengurangi baris `devices`
+  adalah penghapusan akun.
+* **Tidak ada batas jumlah perangkat per pengguna.** Pengguna dengan sesi valid bisa
+  mendaftarkan token sebanyak yang ia mau. Urutan `lastSeenAt desc` di repository sudah
+  disiapkan sebagai dasar pemotongan bila kelak diperlukan.
+* **Verifikasi manual "push nyata ke device uji staging" belum ditempuh** — menunggu
+  kredensial FCM dan perangkat uji. Sejenis dengan utang AC PR-030 #1 (login OTP e2e).
+
+### Next steps
+
+* **PR-048b** — adapter FCM HTTP v1 (OAuth2 service account lewat `jose`, tanpa SDK vendor,
+  mengikuti pola `google-token.ts`), processor `notify:push`, produser dari `terbitkan()`
+  yang hanya mengantre saat notifikasinya BENAR-BENAR lahir (kembalian `true` PR-047 —
+  idempotensi push mewarisi idempotensi notifikasi), dan penghapusan token pada
+  `UNREGISTERED`.
+* **U-15** — sebab perangkap migrasi masih terbuka; butuh pemilik.

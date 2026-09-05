@@ -66,6 +66,12 @@ export const TABEL_DIHAPUS = [
   "matchScore",
   "aiUsage",
   "notification",
+  // PR-048a. WAJIB ikut, dan alasannya bukan kebersihan: baris `devices`
+  // memegang token FCM yang masih hidup di perangkat fisik seseorang. Akun yang
+  // dianonimkan (jalur `hired`) TIDAK memicu cascade — jadi tanpa baris ini,
+  // sistem tetap sanggup mengirim notifikasi ke layar kunci perangkat milik
+  // orang yang akunnya sudah dihapus, selamanya.
+  "device",
   "refreshToken",
 ] as const satisfies readonly (keyof Prisma.TypeMap["model"] extends never ? never : string)[];
 

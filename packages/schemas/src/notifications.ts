@@ -196,3 +196,68 @@ export const notificationReadResponseSchema = z
   .openapi({ ref: "NotificationReadResponse" });
 
 export type NotificationReadResponse = z.infer<typeof notificationReadResponseSchema>;
+
+// --- Perangkat penerima push (PR-048a) ---------------------------------------
+//
+// Ditaruh di domain `notifications`, bukan berkas sendiri: perangkat hanya ada
+// untuk menerima notifikasi, dan memisahkannya akan membuat dua berkas yang
+// selalu berubah bersama.
+
+/** Cerminan enum `DevicePlatform` di schema.prisma; dijaga test kesepadanan. */
+export const devicePlatformSchema = z
+  .enum(["android", "ios", "web"])
+  .openapi({ ref: "DevicePlatform", description: "Platform perangkat penerima push" });
+
+export type DevicePlatform = z.infer<typeof devicePlatformSchema>;
+
+/**
+ * POST /api/v1/me/devices — body.
+ *
+ * `fcmToken` dibatasi 4096 karakter: token FCM nyata ~150–200 karakter, dan
+ * batas yang jauh di atasnya tetap menutup jalur menjejali kolom TEXT tanpa
+ * batas lewat endpoint yang bisa dipanggil siapa pun yang punya sesi.
+ *
+ * TIDAK ada `userId` di sini, dan itu keputusan yang sama dengan seluruh
+ * endpoint `/me/*`: pemiliknya datang dari sesi. Mendaftarkan perangkat untuk
+ * orang lain bukan operasi yang perlu ditolak — ia operasi yang tidak punya
+ * saluran masuk.
+ */
+export const registerDeviceSchema = z
+  .object({
+    fcmToken: z
+      .string()
+      .trim()
+      .min(1, { message: "Token perangkat tidak boleh kosong" })
+      .max(4096, { message: "Token perangkat terlalu panjang" })
+      .openapi({ description: "Token registrasi FCM dari klien" }),
+    platform: devicePlatformSchema,
+  })
+  .strict()
+  .openapi({ ref: "RegisterDevice" });
+
+export type RegisterDevice = z.infer<typeof registerDeviceSchema>;
+
+/**
+ * Perangkat sebagaimana dijawab API.
+ *
+ * `fcmToken` SENGAJA TIDAK ikut. Klien sudah memilikinya — ia yang mengirimnya —
+ * jadi mengembalikannya tidak menambah apa pun, sementara setiap tempat baru
+ * yang memuatnya adalah tempat baru ia bisa bocor: log proxy, cache klien,
+ * laporan galat yang menyertakan body response.
+ */
+export const deviceSchema = z
+  .object({
+    id: idSchema,
+    platform: devicePlatformSchema,
+    lastSeenAt: timestampSchema,
+    createdAt: timestampSchema,
+  })
+  .openapi({ ref: "Device", description: "Perangkat terdaftar penerima push" });
+
+export type Device = z.infer<typeof deviceSchema>;
+
+export const deviceResponseSchema = z
+  .object({ data: deviceSchema })
+  .openapi({ ref: "DeviceResponse" });
+
+export type DeviceResponse = z.infer<typeof deviceResponseSchema>;

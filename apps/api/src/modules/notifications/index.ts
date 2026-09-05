@@ -15,10 +15,15 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { EventBus } from "../../core/events/index.js";
+import type { DevicesService } from "./services/devices.service.js";
 import { createNotificationRepository } from "./repositories/notifications.repository.js";
+import { createDeviceRepository } from "./repositories/devices.repository.js";
 import { createNotificationsService } from "./services/notifications.service.js";
+import { createDevicesService } from "./services/devices.service.js";
 import { createNotificationsController } from "./controllers/notifications.controller.js";
+import { createDevicesController } from "./controllers/devices.controller.js";
 import { createNotificationsRouter } from "./routers/index.js";
+import { daftarkanRouteDevices } from "./routers/devices.js";
 
 export interface NotificationsModuleDeps {
   prisma: AppPrisma;
@@ -32,9 +37,26 @@ export interface NotificationsModuleDeps {
   events: EventBus;
 }
 
-export function createNotificationsModule(deps: NotificationsModuleDeps): Router {
+export interface NotificationsModule {
+  router: Router;
+  /**
+   * Perangkat push milik seorang pengguna — untuk jalur pengiriman (PR-048b).
+   *
+   * DIKEMBALIKAN, bukan dipasang sebagai route, dengan alasan yang sama seperti
+   * `sensitiveAccess` di modul profiles: konsumennya sudah bernama (processor
+   * `notify-push`) tetapi belum lahir, dan satu-satunya jalan masuk ke sana
+   * harus berupa parameter di composition root — bukan repository yang
+   * di-import langsung lintas modul.
+   */
+  devices: DevicesService;
+}
+
+export function createNotificationsModule(deps: NotificationsModuleDeps): NotificationsModule {
   const service = createNotificationsService({
     notificationRepository: createNotificationRepository(deps.prisma),
+  });
+  const devices = createDevicesService({
+    deviceRepository: createDeviceRepository(deps.prisma),
   });
 
   // Akun baru → satu sambutan. `kunciPeristiwa` = "akun", bukan `registeredAt`:
@@ -98,7 +120,14 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Router
     });
   });
 
-  return createNotificationsRouter(createNotificationsController(service), deps.routes);
+  // Kedua router menulis ke registrar — dan karena itu ke Router — yang SAMA.
+  // Dipisah sebagai berkas, bukan sebagai router Express kedua: dua router untuk
+  // satu modul berarti dua `app.use()` di boot.ts, dan setiap tambahan di sana
+  // adalah tempat baru seseorang bisa lupa memasangnya.
+  const router = createNotificationsRouter(createNotificationsController(service), deps.routes);
+  daftarkanRouteDevices(createDevicesController(devices), deps.routes);
+
+  return { router, devices };
 }
 
 export {
@@ -132,3 +161,19 @@ export {
   type NotificationsController,
 } from "./controllers/notifications.controller.js";
 export { createNotificationsRouter } from "./routers/index.js";
+export {
+  createDeviceRepository,
+  type DaftarPerangkat,
+  type DeviceRepository,
+  type DeviceRow,
+} from "./repositories/devices.repository.js";
+export {
+  createDevicesService,
+  type DevicesActor,
+  type DevicesService,
+} from "./services/devices.service.js";
+export {
+  createDevicesController,
+  type DevicesController,
+} from "./controllers/devices.controller.js";
+export { daftarkanRouteDevices } from "./routers/devices.js";

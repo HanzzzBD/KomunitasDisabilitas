@@ -26,10 +26,12 @@ import {
 } from "./accessibility.js";
 import { aiQuotaResponseSchema } from "./ai.js";
 import {
+  deviceResponseSchema,
   notificationIdParamsSchema,
   notificationListQuerySchema,
   notificationListResponseSchema,
   notificationReadResponseSchema,
+  registerDeviceSchema,
 } from "./notifications.js";
 import {
   careerItemParamsSchema,
@@ -561,6 +563,29 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "200": jsonOk("Notifikasi setelah ditandai", notificationReadResponseSchema),
             "400": errorResponse("`id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+      },
+
+      // Perangkat penerima push (PR-048a). Dipakai klien mobile (PR-088/094);
+      // web push di luar scope MVP.
+      "/me/devices": {
+        post: {
+          operationId: "registerMyDevice",
+          tags: ["notifications"],
+          summary: "Daftarkan perangkat penerima push",
+          description:
+            "Idempoten: klien memanggilnya pada SETIAP peluncuran aplikasi, bukan sekali " +
+            "seumur pemasangan, jadi pemanggilan ulang dengan token yang sama hanya " +
+            "menggeser `lastSeenAt` — 200, bukan 201 dan bukan error. Token bersifat unik " +
+            "global: perangkat yang berpindah akun BERPINDAH kepemilikan barisnya, supaya " +
+            "pemilik lama berhenti menerima notifikasi pemilik baru. Jawabannya sengaja " +
+            "tidak memuat kembali `fcmToken`.",
+          requestBody: jsonBody(registerDeviceSchema),
+          responses: {
+            "200": jsonOk("Perangkat terdaftar", deviceResponseSchema),
+            "400": errorResponse("Token kosong/terlalu panjang, atau platform tidak dikenal"),
             ...responsSesi,
           },
         },

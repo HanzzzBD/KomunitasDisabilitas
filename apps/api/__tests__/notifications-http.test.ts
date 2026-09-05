@@ -177,7 +177,7 @@ async function boot(): Promise<{ base: string; rows: Baris[]; events: EventBus }
           prisma: fakePrisma(rows),
           routes: registry.forModule("/api/v1"),
           events,
-        }),
+        }).router,
       );
     },
   });

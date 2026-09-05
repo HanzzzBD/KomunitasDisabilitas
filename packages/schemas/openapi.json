@@ -1769,6 +1769,68 @@
         }
       }
     },
+    "/me/devices": {
+      "post": {
+        "operationId": "registerMyDevice",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Daftarkan perangkat penerima push",
+        "description": "Idempoten: klien memanggilnya pada SETIAP peluncuran aplikasi, bukan sekali seumur pemasangan, jadi pemanggilan ulang dengan token yang sama hanya menggeser `lastSeenAt` — 200, bukan 201 dan bukan error. Token bersifat unik global: perangkat yang berpindah akun BERPINDAH kepemilikan barisnya, supaya pemilik lama berhenti menerima notifikasi pemilik baru. Jawabannya sengaja tidak memuat kembali `fcmToken`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDevice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perangkat terdaftar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token kosong/terlalu panjang, atau platform tidak dikenal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/quota": {
       "get": {
         "operationId": "getMyAiQuota",
@@ -3349,6 +3411,78 @@
           "data",
           "meta"
         ]
+      },
+      "RegisterDevice": {
+        "type": "object",
+        "properties": {
+          "fcmToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Token registrasi FCM dari klien"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        },
+        "required": [
+          "fcmToken",
+          "platform"
+        ],
+        "additionalProperties": false
+      },
+      "DevicePlatform": {
+        "type": "string",
+        "enum": [
+          "android",
+          "ios",
+          "web"
+        ],
+        "description": "Platform perangkat penerima push"
+      },
+      "DeviceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Device"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Device": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "platform",
+          "lastSeenAt",
+          "createdAt"
+        ],
+        "description": "Perangkat terdaftar penerima push"
       },
       "AiQuotaResponse": {
         "type": "object",
