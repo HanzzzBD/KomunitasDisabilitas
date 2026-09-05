@@ -5,7 +5,7 @@
 // DETERMINISTIK by design: tanpa timestamp/nilai acak, versi di-pin manual,
 // urutan path & skema mengikuti urutan deklarasi di file ini. Output byte-sama
 // untuk input sama → diff check di CI valid.
-import { createDocument, type oas31 } from "zod-openapi";
+import { createDocument, type oas31, type ZodOpenApiPathItemObject } from "zod-openapi";
 import { errorEnvelopeSchema } from "./common.js";
 import {
   requestOtpSchema,
@@ -20,6 +20,29 @@ import {
 import { deleteAccountSchema } from "./auth.js";
 import { updateMeSchema, meResponseSchema } from "./users.js";
 import { dataExportResponseSchema } from "./export.js";
+import {
+  accessibilityResponseSchema,
+  updateAccessibilityPreferencesSchema,
+} from "./accessibility.js";
+import { aiQuotaResponseSchema } from "./ai.js";
+import {
+  careerItemParamsSchema,
+  createEducationSchema,
+  createExperienceSchema,
+  createSkillSchema,
+  educationListResponseSchema,
+  educationResponseSchema,
+  experienceListResponseSchema,
+  experienceResponseSchema,
+  seekerProfileResponseSchema,
+  skillListResponseSchema,
+  skillResponseSchema,
+  updateEducationSchema,
+  updateExperienceSchema,
+  updateSeekerProfileSchema,
+  updateSkillSchema,
+} from "./profiles.js";
+import type { ZodTypeAny } from "zod";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -28,6 +51,101 @@ const errorResponse = (description: string) => ({
   description,
   content: { "application/json": { schema: errorEnvelopeSchema } },
 });
+
+/** Jawaban yang muncul di SETIAP endpoint ber-sesi. Ditulis sekali. */
+const responsSesi = {
+  "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
+  "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+} as const;
+
+const jsonBody = (schema: ZodTypeAny) => ({
+  required: true,
+  content: { "application/json": { schema } },
+});
+
+const jsonOk = (description: string, schema: ZodTypeAny) => ({
+  description,
+  content: { "application/json": { schema } },
+});
+
+/**
+ * Keempat operasi satu sub-entitas karier — bentuknya identik untuk
+ * experiences/educations/skills, persis seperti `daftarkanKarier` di
+ * `modules/profiles/routers`. Ditulis sebagai fungsi supaya dokumen dan router
+ * tidak bisa berbeda bentuk tanpa seseorang menyadarinya.
+ */
+function pathsKarier(opsi: {
+  basis: string;
+  /** Kata benda tunggal untuk operationId, mis. "Experience". */
+  tunggal: string;
+  /** Frasa Indonesia untuk ringkasan, mis. "riwayat kerja". */
+  sebutan: string;
+  daftar: ZodTypeAny;
+  item: ZodTypeAny;
+  buat: ZodTypeAny;
+  ubah: ZodTypeAny;
+}): Record<string, ZodOpenApiPathItemObject> {
+  const { basis, tunggal, sebutan, daftar, item, buat, ubah } = opsi;
+  const tags = ["profiles"];
+  return {
+    [basis]: {
+      get: {
+        operationId: `list${tunggal}s`,
+        tags,
+        summary: `Daftar ${sebutan} sendiri`,
+        description:
+          `Mengembalikan seluruh ${sebutan} milik pengguna yang sedang masuk. ` +
+          "Tanpa pagination dengan sengaja: daftarnya diisi tangan dan pendek.",
+        responses: {
+          "200": jsonOk(`Daftar ${sebutan}`, daftar),
+          ...responsSesi,
+        },
+      },
+      post: {
+        operationId: `create${tunggal}`,
+        tags,
+        summary: `Tambah ${sebutan}`,
+        requestBody: jsonBody(buat),
+        responses: {
+          "201": jsonOk(`${tunggal} yang baru dibuat`, item),
+          "400": errorResponse("Input tidak valid"),
+          ...responsSesi,
+        },
+      },
+    },
+    [`${basis}/{id}`]: {
+      put: {
+        operationId: `update${tunggal}`,
+        tags,
+        summary: `Perbarui satu ${sebutan}`,
+        description:
+          "Field yang tidak dikirim berarti tidak diubah. Baris milik pengguna " +
+          "lain berperilaku seperti baris yang tidak ada — 404, bukan 403, " +
+          "sebab keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+        requestParams: { path: careerItemParamsSchema },
+        requestBody: jsonBody(ubah),
+        responses: {
+          "200": jsonOk(`${tunggal} setelah diperbarui`, item),
+          "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+          "404": errorResponse("Tidak ditemukan"),
+          ...responsSesi,
+        },
+      },
+      delete: {
+        operationId: `delete${tunggal}`,
+        tags,
+        summary: `Hapus satu ${sebutan}`,
+        requestParams: { path: careerItemParamsSchema },
+        responses: {
+          "204": { description: "Terhapus — tanpa badan jawaban" },
+          "400": errorResponse("`id` bukan UUID"),
+          "404": errorResponse("Tidak ditemukan"),
+          ...responsSesi,
+        },
+      },
+    },
+  };
+}
 
 export function buildOpenApiDocument(): oas31.OpenAPIObject {
   return createDocument({
@@ -302,6 +420,119 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
             "429": errorResponse("Kuota unduh harian habis — lihat header Retry-After"),
             "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+          },
+        },
+      },
+
+      // Preferensi aksesibilitas (PR-034, ADR-008). Tidak ada parameter apa pun:
+      // pemiliknya datang dari access token.
+      "/me/accessibility": {
+        get: {
+          operationId: "getMyAccessibility",
+          tags: ["accessibility"],
+          summary: "Preferensi aksesibilitas sendiri",
+          description:
+            "Mengembalikan preferensi aksesibilitas pengguna yang sedang masuk. " +
+            "Pengguna yang belum pernah menyimpannya tetap mendapat 200 berisi nilai " +
+            "baku — bukan 404: tidak adanya preferensi tersimpan bukan kesalahan.",
+          responses: {
+            "200": jsonOk("Preferensi aksesibilitas", accessibilityResponseSchema),
+            ...responsSesi,
+          },
+        },
+        put: {
+          operationId: "updateMyAccessibility",
+          tags: ["accessibility"],
+          summary: "Perbarui preferensi aksesibilitas sendiri",
+          description:
+            "Field yang tidak dikirim berarti tidak diubah. Preferensi ini diterapkan " +
+            "otomatis di seluruh UI (ADR-008), jadi perubahannya berlaku lintas perangkat.",
+          requestBody: jsonBody(updateAccessibilityPreferencesSchema),
+          responses: {
+            "200": jsonOk("Preferensi setelah diperbarui", accessibilityResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            ...responsSesi,
+          },
+        },
+      },
+
+      // Profil pencari kerja (PR-037/PR-040). Kolom sensitif (ragam disabilitas,
+      // kebutuhan akomodasi) hanya ikut bila consent-nya aktif — lihat 403 di PUT.
+      "/me/profile": {
+        get: {
+          operationId: "getMyProfile",
+          tags: ["profiles"],
+          summary: "Profil pencari kerja sendiri",
+          description:
+            "Mengembalikan profil milik pengguna yang sedang masuk. Kolom sensitif " +
+            "hanya disertakan bila persetujuan penyimpanannya sedang aktif; tanpa itu " +
+            "kolomnya tidak muncul sama sekali, bukan muncul kosong.",
+          responses: {
+            "200": jsonOk("Profil pencari kerja", seekerProfileResponseSchema),
+            ...responsSesi,
+          },
+        },
+        put: {
+          operationId: "updateMyProfile",
+          tags: ["profiles"],
+          summary: "Perbarui profil pencari kerja sendiri",
+          description:
+            "Field yang tidak dikirim berarti tidak diubah. Menulis kolom sensitif " +
+            "tanpa persetujuan aktif ditolak 403 — permintaannya sah, izinnya yang " +
+            "belum ada — dan tidak satu baris pun ditulis. Mencabut persetujuan " +
+            "sambil menyimpan data sensitif ditolak di skema.",
+          requestBody: jsonBody(updateSeekerProfileSchema),
+          responses: {
+            "200": jsonOk("Profil setelah diperbarui", seekerProfileResponseSchema),
+            "400": errorResponse("Input tidak valid, atau nilai di luar taksonomi"),
+            "403": errorResponse("Belum ada persetujuan penyimpanan data sensitif"),
+            ...responsSesi,
+          },
+        },
+      },
+
+      ...pathsKarier({
+        basis: "/me/experiences",
+        tunggal: "Experience",
+        sebutan: "riwayat kerja",
+        daftar: experienceListResponseSchema,
+        item: experienceResponseSchema,
+        buat: createExperienceSchema,
+        ubah: updateExperienceSchema,
+      }),
+      ...pathsKarier({
+        basis: "/me/educations",
+        tunggal: "Education",
+        sebutan: "riwayat pendidikan",
+        daftar: educationListResponseSchema,
+        item: educationResponseSchema,
+        buat: createEducationSchema,
+        ubah: updateEducationSchema,
+      }),
+      ...pathsKarier({
+        basis: "/me/skills",
+        tunggal: "Skill",
+        sebutan: "keahlian",
+        daftar: skillListResponseSchema,
+        item: skillResponseSchema,
+        buat: createSkillSchema,
+        ubah: updateSkillSchema,
+      }),
+
+      // Jatah AI harian (PR-043a, ADR-012). Hanya milik pemanggil sendiri.
+      "/ai/quota": {
+        get: {
+          operationId: "getMyAiQuota",
+          tags: ["ai"],
+          summary: "Jatah AI harian sendiri",
+          description:
+            "Mengembalikan sisa jatah AI pengguna yang sedang masuk untuk hari WIB " +
+            "yang sedang berjalan. `globalTersedia` sengaja hanya boolean: sisa " +
+            "anggaran bersama adalah data operasional, dan menyebut angkanya sama " +
+            "dengan memberi tahu penyalahguna kapan anggaran sedang tipis.",
+          responses: {
+            "200": jsonOk("Ringkasan jatah AI", aiQuotaResponseSchema),
+            ...responsSesi,
           },
         },
       },
