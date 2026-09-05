@@ -69,6 +69,39 @@ const BERKAS_UJI = {
     educations: [],
     skills: [],
   },
+  // Bagian `accessibility` dan `notifications` WAJIB sejak 2026-09-05 (utang
+  // U-03 & U-04). Peringatan di komentar `profile` di atas terbukti tepat:
+  // saat kedua bagian ini ditambahkan ke kontrak, ketiga test di berkas ini
+  // jatuh dengan timeout — tombolnya ditekan dan tidak terjadi apa-apa, sebab
+  // klien menolak berkas yang tidak lolos `dataExportSchema`.
+  accessibility: {
+    textScale: 150,
+    highContrast: null,
+    reduceMotion: null,
+    simpleLanguage: true,
+    prefersSignLanguage: null,
+    largeTouchTargets: null,
+    screenReaderHint: null,
+  },
+  // Satu notifikasi, bukan array kosong: berkas uji yang kosong tidak akan
+  // pernah menangkap bentuk yang salah pada isinya.
+  notifications: [
+    {
+      id: "01912345-89ab-7def-8123-4567890abd01",
+      type: "auth.selamat_datang",
+      title: {
+        id: "Selamat datang di Nawasena",
+        "id-simple": "Selamat datang, senang Anda di sini",
+      },
+      body: {
+        id: "Lengkapi profil Anda agar lowongan yang cocok bisa kami tampilkan.",
+        "id-simple": "Isi profil Anda dulu. Setelah itu kami tunjukkan kerja yang cocok.",
+      },
+      params: {},
+      readAt: null,
+      createdAt: "2026-01-15T20:00:00.000Z",
+    },
+  ],
 } as const;
 
 /**
