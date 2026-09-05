@@ -287,3 +287,29 @@ export const aiUsageRecordJobSchema = z
   .strict();
 
 export type AiUsageRecordJob = z.infer<typeof aiUsageRecordJobSchema>;
+
+/**
+ * Payload job `notify:push` (PR-048b, SDD §16).
+ *
+ * SENGAJA HANYA DUA REFERENSI, bukan salinan kalimatnya. Alasannya sama dengan
+ * keputusan induk PR-047: yang disimpan sistem ini adalah `type` + referensi,
+ * dan kalimatnya dirakit saat dibaca. Job yang membawa judul dan isi akan
+ * mengirim kalimat versi LAMA bila ia sempat mengendap di antrean melewati
+ * perbaikan teks — dan tidak ada yang akan menyadarinya.
+ *
+ * `userId` ikut meski bisa diturunkan dari notifikasinya: ia yang membuat
+ * pembacaan di worker menyebut `where { id, userId }`, sehingga job yang
+ * payload-nya dirusak seseorang tidak bisa membuat processor membaca notifikasi
+ * milik orang lain.
+ *
+ * IDEMPOTENSINYA datang dari `jobId` deterministik (`push:<notificationId>`),
+ * yang ditolak BullMQ bila sudah ada — bukan dari isi payload ini.
+ */
+export const notifyPushJobSchema = z
+  .object({
+    notificationId: z.string().uuid(),
+    userId: z.string().uuid(),
+  })
+  .strict();
+
+export type NotifyPushJob = z.infer<typeof notifyPushJobSchema>;

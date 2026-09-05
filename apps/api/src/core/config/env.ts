@@ -225,6 +225,21 @@ const envSchema = z.object({
     })
     .default("false")
     .transform((nilai) => nilai === "true"),
+
+  // --- Push notification FCM HTTP v1 (PR-048b, SDD §16 `notify:push`) ---
+  //
+  // Kredensial service-account Google, bukan "server key" legacy: FCM HTTP v1
+  // menuntut bearer OAuth2, dan API legacy sudah dimatikan Google. Ketiganya
+  // opsional SEBAGAI GRUP — nol variabel = push dimatikan, keadaan sah untuk dev
+  // (pola yang sama dengan Twilio dan Google OAuth di atas).
+  FCM_PROJECT_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  FCM_CLIENT_EMAIL: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /**
+   * Kunci privat PEM service account. Di env ia satu baris dengan pemisah baris
+   * ditulis sebagai dua karakter (backslash + n); pembacanya memulihkannya —
+   * persis perlakuan JWT_PRIVATE_KEY (lihat core/auth/keys.ts).
+   */
+  FCM_PRIVATE_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
 });
 
 /**
@@ -251,6 +266,10 @@ const GRUP_KREDENSIAL = [
   {
     label: "pasangan kunci sesi RS256",
     vars: ["JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY"],
+  },
+  {
+    label: "kredensial service account FCM",
+    vars: ["FCM_PROJECT_ID", "FCM_CLIENT_EMAIL", "FCM_PRIVATE_KEY"],
   },
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 

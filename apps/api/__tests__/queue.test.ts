@@ -80,7 +80,22 @@ describe("QUEUE_DEFAULTS — tabel SDD §16", () => {
 
     // Puppeteer boros RAM (risiko T4 SDD §20) — concurrency wajib 1.
     expect(QUEUE_DEFAULTS[QUEUE_NAME.PDF_RENDER].concurrency).toBe(1);
-    expect(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_PUSH].concurrency).toBe(8);
+    // PR-048b (AC-4) — baris `notify:push` / `notify:email` SDD §16 ditegakkan
+    // UTUH, bukan hanya concurrency-nya. `attempts: 4` = 1 percobaan awal + 3
+    // ulangan, yaitu "3×" pada tabel itu; backoff eksponensial 30 dtk memberi
+    // FCM waktu pulih dari 429/5xx tanpa memperbesar badainya.
+    expect(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_PUSH]).toMatchObject({
+      concurrency: 8,
+      attempts: 4,
+      backoffMs: 30_000,
+      timeoutMs: 15_000,
+    });
+    expect(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_EMAIL]).toMatchObject({
+      concurrency: 4,
+      attempts: 4,
+      backoffMs: 30_000,
+      timeoutMs: 15_000,
+    });
 
     // PR-043b — jejak biaya AI: satu INSERT kecil, tetapi job yang hilang
     // berarti baris jejak biaya yang hilang, jadi retry-nya 3×.
@@ -203,6 +218,17 @@ describe("jobOptionsFor — kebijakan SDD §16 melekat pada setiap job", () => {
     expect(jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.AI_EXTRACT_RESUME])).toEqual({
       attempts: 3,
       backoff: { type: "exponential", delay: 5_000 },
+      removeOnComplete: 100,
+      removeOnFail: 1000,
+    });
+  });
+
+  it("notify-push memakai backoff eksponensial 30 dtk (AC-4 PR-048b)", () => {
+    // Yang membuat AC-4 benar-benar berlaku bukan angka di tabel config,
+    // melainkan bahwa angka itu SAMPAI ke opsi job yang diserahkan ke BullMQ.
+    expect(jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_PUSH])).toEqual({
+      attempts: 4,
+      backoff: { type: "exponential", delay: 30_000 },
       removeOnComplete: 100,
       removeOnFail: 1000,
     });

@@ -15,10 +15,13 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { EventBus } from "../../core/events/index.js";
+import { QUEUE_NAME, notifyPushJobSchema } from "@nawasena/schemas";
+import { buildJobId, type QueueRegistry } from "../../core/queue/index.js";
+import type { Logger } from "../../core/logger/index.js";
 import type { DevicesService } from "./services/devices.service.js";
 import { createNotificationRepository } from "./repositories/notifications.repository.js";
 import { createDeviceRepository } from "./repositories/devices.repository.js";
-import { createNotificationsService } from "./services/notifications.service.js";
+import { createNotificationsService, idNotifikasi } from "./services/notifications.service.js";
 import { createDevicesService } from "./services/devices.service.js";
 import { createNotificationsController } from "./controllers/notifications.controller.js";
 import { createDevicesController } from "./controllers/devices.controller.js";
@@ -36,6 +39,14 @@ export interface NotificationsModuleDeps {
    * syarat mutlak bus in-process (batas 1 di core/events).
    */
   events: EventBus;
+  /**
+   * Registry antrean — satu-satunya jalur produser job (core/queue). OPSIONAL:
+   * tanpanya notifikasi tetap lahir dan tetap terbaca di layar, hanya push-nya
+   * yang tidak diantrekan. Itu keadaan sah untuk test yang tidak sedang menguji
+   * push, dan bukan alasan memaksa setiap pemanggil mengarang antrean palsu.
+   */
+  queues?: Pick<QueueRegistry, "enqueue">;
+  logger?: Pick<Logger, "error">;
 }
 
 export interface NotificationsModule {
@@ -58,9 +69,44 @@ export interface NotificationsModule {
 }
 
 export function createNotificationsModule(deps: NotificationsModuleDeps): NotificationsModule {
-  const service = createNotificationsService({
-    notificationRepository: createNotificationRepository(deps.prisma),
-  });
+  const notificationRepository = createNotificationRepository(deps.prisma);
+  const service = createNotificationsService({ notificationRepository });
+
+  /**
+   * Antrekan push untuk notifikasi yang BARU SAJA LAHIR.
+   *
+   * `lahir === false` berarti peristiwanya sudah pernah tercatat (PR-047), jadi
+   * push-nya pun sudah pernah diantrekan — dan tidak mengantre lagi adalah
+   * seluruh isi AC-3 "idempotent per notification id". Idempotensi push di sini
+   * MEWARISI idempotensi notifikasi, bukan mengulanginya: satu penjaga di satu
+   * tempat, bukan dua yang bisa menyimpang.
+   *
+   * `jobId` deterministik menjadi lapisan keduanya — BullMQ menolak job ber-id
+   * sama, sehingga dua proses API yang entah bagaimana sama-sama melihat
+   * `lahir === true` tetap menghasilkan satu job.
+   *
+   * TIDAK PERNAH MENOLAK. Notifikasinya sudah tertulis dan sudah terbaca di
+   * layar; kegagalan mengantre adalah kepentingan kita (kabar yang tidak sampai
+   * ke layar kunci), bukan alasan menjatuhkan pelanggan event yang pekerjaan
+   * utamanya sudah selesai. Pola yang sama dengan `ai-usage.service.ts`.
+   */
+  async function antrekanPush(lahir: boolean, userId: string, notificationId: string): Promise<void> {
+    if (!lahir || deps.queues === undefined) return;
+    try {
+      const job = notifyPushJobSchema.parse({ notificationId, userId });
+      await deps.queues.enqueue(QUEUE_NAME.NOTIFY_PUSH, job, {
+        jobId: buildJobId("push", notificationId),
+      });
+    } catch (err) {
+      // `notificationId` boleh masuk log — ia id baris kita sendiri. `userId`
+      // ditahan di luar pesan agar log kegagalan tidak menjadi tempat baru PII
+      // berkumpul (aturan yang sama dengan ai-usage).
+      deps.logger?.error(
+        { err, notificationId },
+        "Gagal mengantrekan push — notifikasinya tetap ada, hanya kabarnya yang tidak dikirim",
+      );
+    }
+  }
   const devices = createDevicesService({
     deviceRepository: createDeviceRepository(deps.prisma),
   });
@@ -82,22 +128,28 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   // tetapi tipenya tidak cocok — dan `void` di depan pemanggilan akan MEMBUANG
   // promise-nya, sehingga kegagalan penulisan menjadi unhandled rejection.
   deps.events.on("auth.user_registered", async (payload) => {
-    await service.terbitkan({
+    const lahir = await service.terbitkan({
       userId: payload.userId,
       type: "auth.selamat_datang",
       params: {},
       kunciPeristiwa: "akun",
     });
+    await antrekanPush(lahir, payload.userId, idNotifikasi("auth.selamat_datang", payload.userId, "akun"));
   });
 
   // Lamaran terkirim → satu bukti terima per lamaran (PR-076).
   deps.events.on("application.submitted", async (payload) => {
-    await service.terbitkan({
+    const lahir = await service.terbitkan({
       userId: payload.userId,
       type: "lamaran.terkirim",
       params: { applicationId: payload.applicationId, jobId: payload.jobId },
       kunciPeristiwa: payload.applicationId,
     });
+    await antrekanPush(
+      lahir,
+      payload.userId,
+      idNotifikasi("lamaran.terkirim", payload.userId, payload.applicationId),
+    );
   });
 
   // Perpindahan status → satu kabar per (lamaran, status tujuan) (PR-078).
@@ -114,7 +166,8 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   // sering terjadi. Bila transisi mundur kelak lahir, yang ditambahkan ke kunci
   // adalah nomor urut riwayat status — bukan waktu.
   deps.events.on("application.status_changed", async (payload) => {
-    await service.terbitkan({
+    const kunci = `${payload.applicationId}:${payload.to}`;
+    const lahir = await service.terbitkan({
       userId: payload.userId,
       type: "lamaran.status_berubah",
       params: {
@@ -122,8 +175,13 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
         jobId: payload.jobId,
         status: payload.to,
       },
-      kunciPeristiwa: `${payload.applicationId}:${payload.to}`,
+      kunciPeristiwa: kunci,
     });
+    await antrekanPush(
+      lahir,
+      payload.userId,
+      idNotifikasi("lamaran.status_berubah", payload.userId, kunci),
+    );
   });
 
   // Kedua router menulis ke registrar — dan karena itu ke Router — yang SAMA.
@@ -193,3 +251,20 @@ export {
   createNotificationsExportContributor,
   type NotificationsExportDeps,
 } from "./services/notifications-export.service.js";
+export {
+  createFcmSender,
+  createFcmSenderFromEnv,
+  createUnavailableFcmSender,
+  FcmError,
+  pilihVarian,
+  type FcmConfig,
+  type FcmSender,
+  type HasilKirim,
+  type PesanPush,
+} from "./services/fcm.sender.js";
+export {
+  createPushService,
+  type HasilPush,
+  type PushService,
+  type PushServiceDeps,
+} from "./services/push.service.js";

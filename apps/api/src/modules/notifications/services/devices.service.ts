@@ -74,6 +74,17 @@ export function createDevicesService(deps: DevicesServiceDeps) {
     async milik(userId: string): Promise<DeviceRow[]> {
       return deviceRepository.byUserId(userId);
     },
+
+    /**
+     * Hapus perangkat karena FCM menyatakan tokennya sudah tidak terdaftar
+     * (PR-048b). TIDAK punya endpoint, dan tidak boleh punya: keputusannya milik
+     * FCM, bukan milik siapa pun yang bisa memanggil API.
+     *
+     * Tanpa `userId` dengan sengaja — lihat alasannya di repository.
+     */
+    async hapusToken(fcmToken: string): Promise<boolean> {
+      return deviceRepository.hapusByToken(fcmToken);
+    },
   };
 }
 

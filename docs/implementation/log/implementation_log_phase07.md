@@ -301,3 +301,128 @@ penjaganya sendiri.
   idempotensi push mewarisi idempotensi notifikasi), dan penghapusan token pada
   `UNREGISTERED`.
 * **U-15** — sebab perangkap migrasi masih terbuka; butuh pemilik.
+
+---
+
+## PR-048b — FCM Push + Cleanup Token
+
+> **Phase:** [07 - Notifications](../phase-07-notifications.md#pr-048---devices--fcm-push)
+> **Tanggal:** 2026-09-05
+> **Status:** Selesai — **PR-048 tuntas** (AC 5/5)
+
+### Ringkasan hasil
+
+Separuh kedua PR-048: adapter FCM HTTP v1, service pengiriman, produser job dari jalur
+notifikasi, processor `notify:push` di worker, dan penghapusan token mati. Dengan ini
+**seluruh AC PR-048 terpenuhi**.
+
+Tiga keputusan yang membentuk sisanya:
+
+**1. `fetch` mentah + `jose`, bukan `firebase-admin`.** Pola yang sama dengan
+`google-token.ts` dan `fonnte.sender.ts`, dan alasannya sama: repo ini tidak punya
+infrastruktur mock HTTP (tidak ada msw/nock), sedangkan DI `FetchLike` membuat **setiap**
+cabang galat provider bisa diuji tanpa dependensi baru. SDK vendor juga membawa transitive
+dependency yang jauh lebih besar daripada satu panggilan REST yang bentuknya sudah stabil
+bertahun-tahun. HTTP v1, bukan API legacy — legacy sudah dimatikan Google.
+
+**2. `token-mati` adalah NILAI BALIK, bukan exception.** FCM yang menjawab `UNREGISTERED`
+bukan sedang gagal; ia sedang memberi tahu bahwa barisnya harus dihapus. Menjadikannya
+exception akan memaksa pemanggil membedakan "gagal yang perlu diulang" dari "gagal yang
+perlu dibersihkan" lewat pemeriksaan tipe error — perbedaan sepenting itu pantas ada di
+tipe nilai balik. Akibatnya pembersihan token (AC-2) berjalan di **jalur pengiriman
+normal**, bukan lewat job pembersihan terpisah yang harus dijadwalkan dan bisa lupa
+dijalankan.
+
+**3. Idempotensi push MEWARISI idempotensi notifikasi.** Produser hanya mengantre bila
+`terbitkan()` mengembalikan `true`, yaitu bila barisnya benar-benar lahir (PR-047). Satu
+penjaga di satu tempat, bukan dua yang bisa menyimpang. `jobId` deterministik
+`push:<notificationId>` menjadi lapisan keduanya.
+
+Gate hijau, dan kali ini **kedua gerbang CI dijalankan lokal lebih dulu** (pelajaran dari
+PR ekspor PDP di hari yang sama): `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm test` 9/9 —
+`@nawasena/api` **102 berkas / 1432 lulus** (1 skip tak terkait) — dan
+`pnpm --filter @nawasena/web test:a11y` 52/52.
+
+### Satu keputusan aksesibilitas yang TIDAK diminta dokumen phase
+
+Dokumen phase menulis *"Accessibility Test (N/A)"* untuk PR ini. Itu keliru, dan checklist-
+nya sudah dikoreksi.
+
+**Varian bahasa push mengikuti preferensi `simpleLanguage` pemiliknya (ADR-008).** Push
+adalah permukaan UI seperti yang lain: pengguna yang menyalakan teks sederhana karena ia
+memang lebih mudah ia pahami tidak boleh menerima kalimat formal hanya karena kalimat itu
+datang lewat layar kunci. Preferensinya dibaca lewat service `accessibility` yang SAMA
+dengan yang melayani `/me/accessibility` — bukan pembacaan kedua.
+
+Kegagalan membaca preferensi **tidak** menggagalkan push: kabar dalam varian baku jauh
+lebih baik daripada tidak ada kabar sama sekali.
+
+### Scope selesai
+
+* **`core/config/env.ts`** — `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`,
+  opsional **sebagai grup** (pola Twilio/Google OAuth): nol variabel = push mati, sebagian
+  terisi = boot GAGAL. `.env.example` ikut.
+* **`services/fcm.sender.ts`** — penukaran OAuth2 service account (JWT RS256 lewat `jose`)
+  dengan **cache access token per proses**, POST `messages:send`, dan klasifikasi galat:
+  404/`UNREGISTERED`/`INVALID_ARGUMENT`/`NOT_FOUND` → `token-mati`; 401/403 →
+  `FCM_KREDENSIAL_TIDAK_VALID` (cache dibuang); 429 → `FCM_RATE_LIMIT`; 5xx →
+  `FCM_TIDAK_TERSEDIA`; abort → `FCM_TIMEOUT`; sisanya `FCM_JARINGAN`.
+  `createUnavailableFcmSender` untuk kredensial kosong — boot tidak pernah gagal karenanya.
+* **`services/push.service.ts`** — pengiriman per perangkat, pembersihan token mati,
+  pemilihan varian bahasa, dan agregasi hasil. **Satu perangkat gagal tidak menjatuhkan
+  sisanya**: kegagalan dikumpulkan, keputusan "ulangi" diambil setelah semuanya dicoba.
+* **`modules/notifications/index.ts`** — produser `antrekanPush`, dipanggil ketiga
+  langganan event. **Tidak pernah menolak**: notifikasinya sudah tertulis dan sudah terbaca
+  di layar; kegagalan mengantre adalah kepentingan kita, bukan alasan menjatuhkan pelanggan
+  event yang pekerjaan utamanya sudah selesai (pola `ai-usage.service.ts`).
+* **`packages/schemas/src/queue.ts`** — `notifyPushJobSchema` (`notificationId` + `userId`,
+  `.strict()`). Hanya referensi, bukan salinan kalimat: job yang mengendap di antrean
+  melewati perbaikan teks akan mengirim kalimat lama, dan tidak ada yang menyadarinya.
+  `userId` ikut supaya pembacaan di worker menyebut `where { id, userId }` — job yang
+  payload-nya dirusak tidak bisa membuat processor membaca notifikasi orang lain.
+* **`apps/worker/src/processors/push.ts`** + wiring — adapter tipis; **tanpa try/catch**,
+  sebab melempar kembali ke BullMQ adalah satu-satunya cara retry benar-benar terjadi.
+* **`apps/api/package.json`** — dua entri `exports` baru (`modules/notifications`,
+  `modules/accessibility`) supaya worker bisa merakit jalur push dari potongan modul.
+* **Test:** `fcm-sender.test.ts` (18), `push.test.ts` (13), `notifications-http.test.ts`
+  (+3 produser), `queue.test.ts` (+2 paritas SDD §16).
+
+### AC PR-048 — seluruhnya terpenuhi
+
+| AC | Bukti |
+|---|---|
+| Push terkirim saat event status (mock FCM) | `push.test.ts` + `fcm-sender.test.ts` |
+| Token invalid → dihapus otomatis | `fcm-sender.test.ts` (klasifikasi) + `push.test.ts` (hanya yang mati yang dihapus) |
+| Idempotent per notification id | `notifications-http.test.ts` — event terbit ulang tidak mengantre push kedua |
+| Retry/backoff sesuai SDD §16 | `queue.test.ts` — `notify-push` **dan** `notify-email` utuh, termasuk sampai ke `jobOptionsFor` |
+| Satu user multi-device | PR-048a + `push.test.ts` (satu gagal tidak menjatuhkan sisanya) |
+
+### Risiko & batas yang diketahui
+
+* **Verifikasi manual "push nyata ke device uji staging" BELUM ditempuh** — menunggu
+  kredensial FCM dan perangkat uji. Seluruh bukti berasal dari FCM yang ditiru. Yang hanya
+  bisa dijawab FCM sungguhan: apakah bentuk payload `notification` + `data` benar-benar
+  memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti
+  yang diklasifikasikan di sini. Sejenis dengan utang AC PR-030 #1 (login OTP e2e).
+* **Retry mengirim ULANG ke perangkat yang sudah berhasil.** Bila satu dari tiga perangkat
+  gagal, job diulang dan ketiganya dikirimi lagi — FCM tidak punya dedup, dan menyimpan
+  "sudah terkirim ke perangkat mana" berarti tabel status per (notifikasi × perangkat).
+  Akibatnya notifikasi ganda di sebagian perangkat pada kasus kegagalan parsial. Dinilai
+  sepadan: kabar ganda jauh lebih ringan daripada kabar yang tidak sampai.
+* **Access token di-cache PER PROSES, bukan di Redis.** Sengaja: token itu kredensial, dan
+  menaruhnya di instans cache yang berjalan `allkeys-lru` (ADR-004) berarti menaruh
+  kredensial di tempat yang bisa dibaca proses lain sekaligus bisa hilang kapan saja.
+  Biayanya satu penukaran tambahan per proses per jam.
+* **Push dilewati diam-diam bila kredensial kosong** — tetapi berisik di log boot worker
+  dan sekali per job. Itu keadaan dev yang normal, bukan kegagalan.
+* **`apps/worker` tetap tanpa test.** Processor sengaja dibuat setipis mungkin karena itu;
+  seluruh keputusan hidup di `modules/notifications` yang teruji.
+
+### Next steps
+
+* **PR-049 — email transaksional.** **Gate masuk U-02 berlaku di sana** (durabilitas kabar):
+  PR ini TIDAK mengubah keadaannya — push tetap lahir dari bus event in-process, dan
+  notifikasi masih bukan satu-satunya kabar. Email berpotensi mengubahnya.
+* **PR-050 — notification center web.**
+* **U-09** — rename `OtpSender`/`OtpMessage` masih kandidat kuat untuk dibayar di PR-049,
+  yang memang akan menyentuh kanal pengiriman.
