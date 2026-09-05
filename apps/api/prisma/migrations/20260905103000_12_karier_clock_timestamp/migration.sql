@@ -1,0 +1,31 @@
+-- Migrasi 12: stempel urutan karier dibuat DATABASE, bukan klien.
+--
+-- KOREKSI ATAS MIGRASI 11. Migrasi 11 menambahkan `created_at timestamptz(6)`
+-- dan mengira presisi mikrodetiknya menyelesaikan urutan "terbaru dulu". Tidak.
+-- Untuk `@default(now())` Prisma membuat nilainya DI SISI KLIEN dan
+-- mengirimkannya sebagai parameter:
+--
+--   INSERT INTO "skills" ("id","user_id","name","level","created_at")
+--   VALUES ($1,$2,$3,$4,$5)
+--
+-- `Date` di JavaScript berpresisi MILIDETIK, jadi kolomnya menyimpan angka
+-- bulat milidetik dan DEFAULT milik tabel tidak pernah terpakai. Yang berubah
+-- di migrasi 11 hanyalah SUMBER tabrakan — dari id ber-milidetik menjadi
+-- stempel ber-milidetik — bukan tabrakannya. Enam insert beruntun di mesin CI
+-- yang cepat tetap jatuh di milidetik yang sama, lalu urutannya diserahkan ke
+-- penengah `id desc` yang justru acak dalam satu milidetik.
+--
+-- `clock_timestamp()`, BUKAN `now()`/`CURRENT_TIMESTAMP`: dua yang terakhir
+-- adalah waktu MULAI TRANSAKSI, sehingga beberapa baris yang ditulis dalam satu
+-- transaksi akan menerima stempel yang persis sama — tabrakan yang sama, hanya
+-- dengan penyebab berbeda.
+--
+-- `dbgenerated` di schema.prisma-lah yang membuat Prisma BERHENTI mengirim
+-- kolom ini; tanpa itu, DEFAULT di bawah tetap tidak akan pernah dipakai.
+--
+-- Aditif & backward-compatible: hanya DEFAULT yang berubah. Baris lama tidak
+-- disentuh, dan kode versi sebelumnya (yang masih mengirim nilainya sendiri)
+-- tetap berjalan — nilai yang dikirim eksplisit selalu menang atas DEFAULT.
+ALTER TABLE "skills" ALTER COLUMN "created_at" SET DEFAULT clock_timestamp();
+ALTER TABLE "experiences" ALTER COLUMN "created_at" SET DEFAULT clock_timestamp();
+ALTER TABLE "educations" ALTER COLUMN "created_at" SET DEFAULT clock_timestamp();
