@@ -428,6 +428,24 @@ tetapi belum lunas — lihat "Utang yang SENGAJA ditinggalkan".
   * **Temuan sampingan, TIDAK diperbaiki di sini:** `down.sql` hanya ada di
     migrasi 01–03; migrasi 04–10 melanggar konvensi `prisma/README.md` §2
     tanpa ada yang menahannya. Migrasi 11 menyertakannya dan diuji up→down→up.
+    * **LUNAS 2026-09-05**, di PR berikutnya. Ketujuh `down.sql` ditulis dan
+      DIJALANKAN — bukan sekadar ada. Diuji sebagai satu rantai di database
+      terpisah (`nawasena_downtest`, dibuang sesudahnya, DB dev tidak
+      tersentuh): up penuh → down 11→04 berurutan mundur → up penuh lagi, lalu
+      `pg_dump --schema-only` sebelum dan sesudah dibandingkan dan **identik**.
+    * Yang paling menjelaskan kenapa aturan ini ada: migrasi 09 sudah MENULIS
+      SQL turunnya — sebagai **komentar** di dalam `migration.sql`. Terbaca
+      seperti sudah dipikirkan, tetapi tidak bisa dijalankan siapa pun saat
+      dibutuhkan. Itu sebabnya penjaganya menolak `down.sql` yang seluruhnya
+      komentar, bukan hanya yang tidak ada.
+    * Penjaganya `apps/api/__tests__/migrasi-down.test.ts`; diverifikasi lewat
+      2 mutasi (satu `down.sql` disembunyikan; satu diisi komentar saja),
+      keduanya merah.
+    * Konsekuensi tiap penurunan ditulis di kepala berkasnya masing-masing,
+      sebab beberapa di antaranya BUKAN operasi netral: menurunkan 04 membuang
+      seluruh pencabutan sesi, 06 membuka kembali balapan penautan akun, 08
+      menghapus agregat yang tidak bisa dihitung ulang, dan 09 meratakan
+      "belum memilih" menjadi "memilih nilai bawaan" secara permanen.
 * **Batas panjang daftar belum ada.** Tidak ada batas jumlah riwayat kerja,
   pendidikan, atau keahlian per pengguna, dan `GET` mengembalikan seluruhnya
   tanpa pagination. Untuk MVP (< 5.000 pengguna, daftar yang diisi tangan) itu
