@@ -1602,6 +1602,173 @@
         }
       }
     },
+    "/me/notifications": {
+      "get": {
+        "operationId": "listMyNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Daftar notifikasi sendiri",
+        "description": "Terbaru dulu, ber-cursor. Setiap notifikasi membawa kalimatnya dalam KEDUA varian bahasa (`id` dan `id-simple`) sekaligus: mode teks sederhana adalah state global klien (ADR-008) yang bisa dinyalakan kapan saja, dan daftar yang sudah terbuka harus ikut berubah tanpa permintaan baru. `meta.unreadCount` selalu jumlah SELURUH yang belum dibaca — tidak terpengaruh halaman maupun `unreadOnly`.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–100)",
+              "example": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "unreadOnly",
+            "description": "true = hanya yang belum dibaca",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false",
+              "description": "true = hanya yang belum dibaca",
+              "example": "true"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Halaman notifikasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`limit` di luar 1–100, atau cursor tidak terbaca",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/notifications/{id}/read": {
+      "post": {
+        "operationId": "markNotificationRead",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Tandai satu notifikasi sudah dibaca",
+        "description": "Idempoten: menandai yang sudah dibaca tetap 200 dan tidak menggeser waktu baca yang sudah tercatat. Notifikasi milik pengguna lain berperilaku seperti yang tidak ada — 404, bukan 403, sebab keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifikasi setelah ditandai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/quota": {
       "get": {
         "operationId": "getMyAiQuota",
@@ -3029,6 +3196,159 @@
           }
         },
         "additionalProperties": false
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NotificationListMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "type": {
+            "$ref": "#/components/schemas/NotificationType"
+          },
+          "title": {
+            "$ref": "#/components/schemas/NotificationText"
+          },
+          "body": {
+            "$ref": "#/components/schemas/NotificationText"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "Referensi untuk tautan klien (id/enum saja, tanpa data pribadi)"
+          },
+          "readAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "body",
+          "params",
+          "readAt",
+          "createdAt"
+        ],
+        "description": "Notifikasi in-app"
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "auth.selamat_datang",
+          "lamaran.terkirim",
+          "lamaran.status_berubah"
+        ],
+        "description": "Tipe notifikasi terdaftar"
+      },
+      "NotificationText": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id-simple": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "id-simple"
+        ],
+        "description": "Satu kalimat notifikasi dalam kedua varian bahasa"
+      },
+      "NotificationListMeta": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor halaman berikut; null bila halaman terakhir"
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Jumlah seluruh notifikasi yang belum dibaca",
+            "example": 3
+          }
+        },
+        "required": [
+          "nextCursor",
+          "unreadCount"
+        ]
+      },
+      "NotificationReadResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Notification"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "unreadCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "unreadCount"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
       },
       "AiQuotaResponse": {
         "type": "object",

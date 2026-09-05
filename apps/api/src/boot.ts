@@ -25,6 +25,7 @@ import {
 } from "./modules/auth/index.js";
 import { createUsersModule } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
+import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
 import { createAiModule } from "./modules/ai/index.js";
 import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
@@ -193,6 +194,18 @@ export async function startApi(options: BootOptions): Promise<void> {
           auditLog,
           // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk
           // akun yang baru lahir (PR-034).
+          events,
+        }),
+      );
+      app.use(
+        createNotificationsModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          // Pelanggan `auth.user_registered` (bersama modul accessibility),
+          // `application.submitted`, dan `application.status_changed` —
+          // instance bus yang SAMA, sebab bus ini in-process dan dua instance
+          // tidak saling mendengar. Dua event lamaran belum punya penerbit:
+          // modul `applications` lahir di Phase 12 (lihat core/events).
           events,
         }),
       );
