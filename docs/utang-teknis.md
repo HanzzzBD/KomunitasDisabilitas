@@ -38,7 +38,11 @@ tempat menuliskan sebab dan pertimbangan lengkap. Yang ada di sini adalah **stat
 
 ---
 
-## Utang TERBUKA
+## Register
+
+> Berisi utang **TERBUKA** dan yang **baru LUNAS**. Yang lunas tidak dihapus: riwayatnya
+> adalah bukti bahwa penagihnya bekerja, dan tanggal "ditemukan → lunas" adalah satu-satunya
+> ukuran yang kita punya atas seberapa cepat utang di repo ini benar-benar dibayar.
 
 ### U-01 — `pnpm format` menulis ulang 100+ berkas di luar scope
 
@@ -106,14 +110,14 @@ hanya dibaca saat seseorang ingat membacanya bukan penagih.
 
 ---
 
-### U-03 — Ekspor PDP belum memuat `accessibility_profiles` *(alasan tercatat BASI)*
+### U-03 — Ekspor PDP belum memuat `accessibility_profiles`
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS 2026-09-05** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kepatuhan (UU PDP §8.7, hak portabilitas) |
 | **Ditemukan** | Rekonsiliasi 2026-09-05 |
-| **Pemilik** | Belum ditetapkan — **butuh keputusan owner** |
+| **Dibayar di** | PR `pdp-ekspor-preferensi-notifikasi` (2026-09-05), bersama U-04 |
 | **Pemicu** | Sudah terpicu sejak Phase 04 merged |
 
 `export-kelengkapan.test.ts` menempatkan `accessibility_profiles` di `DITUNDA` dengan
@@ -136,26 +140,41 @@ Penjaganya tidak gagal — ia memang hanya menuntut setiap tabel **berada di sal
 tiga keadaan**, dan `DITUNDA` adalah keadaan yang sah. Yang gagal adalah tidak adanya yang
 meninjau ulang alasan `DITUNDA` saat blocker-nya lunas.
 
+**PEMBAYARANNYA (2026-09-05).** `createAccessibilityExportContributor` membaca lewat service
+yang SAMA dengan yang melayani `/me/accessibility` — bukan instance kedua, supaya berkas
+ekspor tidak bisa menyimpang dari apa yang dilihat pemiliknya di pengaturannya. Barisnya
+berpindah `DITUNDA` → `TERDAFTAR`. Pengguna yang belum pernah memilih tetap mendapat tujuh
+`null`, bukan bawaan: "belum memilih" dan "memilih bawaan" adalah dua hal berbeda, dan berkas
+ekspor tidak boleh mengklaim pilihan yang tidak pernah dibuat orangnya. Diverifikasi
+end-to-end terhadap API dev, bukan hanya lewat fake.
+
 ---
 
-### U-04 — Ekspor PDP belum memuat `notifications` *(alasan tercatat BASI sejak PR-047)*
+### U-04 — Ekspor PDP belum memuat `notifications`
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS 2026-09-05** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kepatuhan (UU PDP §8.7) |
 | **Ditemukan** | Rekonsiliasi 2026-09-05 |
-| **Pemilik** | Belum ditetapkan — **butuh keputusan owner** |
+| **Dibayar di** | PR `pdp-ekspor-preferensi-notifikasi` (2026-09-05), bersama U-03 |
 | **Pemicu** | **Terpicu oleh PR-047 itu sendiri** |
 
 Alasan `DITUNDA`-nya berbunyi *"modul notifications (Phase 07)"*. Modul itu lahir di
 PR-047, dan sejak saat itu baris `notifications` benar-benar ada untuk pengguna sungguhan
 (sambutan akun baru lahir dari `auth.user_registered`).
 
-Utang ini **dilahirkan oleh PR-047 dan tidak dibayar di sana** — dicatat di sini apa
-adanya, bukan disembunyikan. Ukurannya kecil: satu `exportContributor` di modul
-notifications, dipasang di `boot.ts` seperti `profiles.exportContributor`, plus satu baris
-berpindah dari `DITUNDA` ke `TERDAFTAR`.
+Utang ini **dilahirkan oleh PR-047 dan tidak dibayar di sana** — dicatat apa adanya, bukan
+disembunyikan.
+
+**PEMBAYARANNYA (2026-09-05).** `createNotificationsExportContributor` di atas
+`semuaUntukEkspor()` — pembacaan tak berbatas yang sengaja DIPISAH dari `list()` dan tidak
+punya endpoint, supaya yang tak berbatas tidak bisa dipanggil tanpa sengaja dari jalur HTTP
+biasa. Kalimatnya **dirender**, bukan disalin, memakai renderer yang sama dengan yang
+melayani layar; akibatnya notifikasi lama ikut membawa kalimat versi terbaru — dan itu benar,
+sebab yang disimpan sistem ini memang `type` + referensi. Barisnya berpindah `DITUNDA` →
+`TERDAFTAR`. Diverifikasi end-to-end terhadap API dev. Konsekuensi ukurannya dicatat sebagai
+**U-16**.
 
 ---
 
@@ -224,6 +243,35 @@ selamanya butuh penjaga). Itu migrasi tersendiri, dan tidak boleh diselundupkan 
 
 **Sementara itu:** setiap migrasi baru wajib dibaca baris per baris sebelum di-commit.
 `DROP INDEX` yang tidak Anda tulis sendiri adalah tanda perangkap ini, bukan pembersihan.
+
+---
+
+### U-16 — Berkas ekspor PDP tumbuh tanpa batas bersama riwayat notifikasi
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Operasional (bukan kepatuhan) |
+| **Ditemukan** | 2026-09-05 — lahir dari pembayaran U-04 |
+| **Pemilik** | Belum ditetapkan |
+| **Pemicu** | Pengguna pertama dengan riwayat notifikasi besar, atau lahirnya retensi notifikasi |
+
+`GET /me/export` merakit seluruh berkas di memori lalu mengirimkannya sebagai satu response
+JSON. Bagian `notifications` **tidak berpaginasi**, dan itu keputusan sadar: ekspor PDP yang
+memotong riwayat bukan ekspor yang lengkap.
+
+Konsekuensinya berkas tumbuh bersama riwayat pengguna — dan tidak ada yang mengurangi baris
+`notifications` selain penghapusan akun (tidak ada retensi; dicatat di log PR-047).
+
+**Kenapa belum ditangani.** Pada skala MVP (<5.000 pengguna) riwayat seseorang realistis
+berjumlah puluhan, dan kuota ekspor sudah membatasi 3× per 24 jam per pengguna
+(`EXPORT_POLICY`), jadi ini bukan permukaan yang bisa dipakai membebani server berulang kali.
+Menyelesaikannya sekarang berarti memilih antara memotong riwayat (melanggar kelengkapan)
+atau ekspor asinkron ber-berkas (infrastruktur yang belum ada).
+
+**Yang akan memicunya:** retensi notifikasi bila kelak lahir, atau pengguna pertama yang
+riwayatnya membuat response ini terasa. Keduanya menuntut keputusan yang sama — ekspor
+asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 
 ---
 
@@ -380,8 +428,16 @@ menyebut keadaan yang sebenarnya.
 **Diverifikasi LATEN (tidak bisa menggigit hari ini):** U-08.
 
 **Ditambahkan setelah rekonsiliasi:** U-15 (2026-09-05, PR-048a) — perangkap
-`prisma migrate dev` yang sudah menggigit sekali. Penjaganya terpasang di PR yang sama;
-sebabnya masih terbuka.
+`prisma migrate dev` yang sudah menggigit sekali; penjaganya terpasang di PR yang sama,
+sebabnya masih terbuka. U-16 (2026-09-05) — ukuran berkas ekspor, lahir sebagai
+konsekuensi sadar dari pembayaran U-04.
+
+**LUNAS 2026-09-05, atas keputusan owner:** U-03 dan U-04 dibayar di PR tersendiri
+(`pdp-ekspor-preferensi-notifikasi`) — sengaja TIDAK diselundupkan ke PR-048b, sebab
+mencampur kepatuhan PDP ke dalam PR push adalah pencampuran scope yang justru menjadi alasan
+PR-048 dipecah. Ekspor PDP kini
+memuat preferensi aksesibilitas dan riwayat notifikasi, keduanya diverifikasi end-to-end
+terhadap API dev — bukan hanya lewat fake. Waktu dari temuan sampai lunas: satu hari.
 
 **Temuan yang paling perlu keputusan:** U-03 dan U-04 bukan utang pembukuan. Ekspor data
 pribadi hari ini **kurang** — preferensi aksesibilitas (ada untuk setiap pengguna sejak

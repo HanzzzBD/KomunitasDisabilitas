@@ -6,6 +6,7 @@
 // (users-export-http.test.ts).
 import { describe, it, expect, vi } from "vitest";
 import {
+  ACCESSIBILITY_PROFILE_KOSONG,
   AUDIT_ACTION,
   EXPORT_FORMAT_VERSION,
   SEEKER_PROFILE_KOSONG,
@@ -63,6 +64,29 @@ const kontributorProfil: ExportContributor = {
   kumpulkan: async () => PROFIL_KOSONG,
 };
 
+/**
+ * Dua bagian yang lahir 2026-09-05 (utang U-03 & U-04). Keduanya WAJIB di
+ * `dataExportSchema`, jadi setiap perakitan di berkas ini harus menyertakannya —
+ * dan itu memang yang diinginkan: kontrak yang menuntut bagian baru membuat test
+ * lama MERAH alih-alih diam-diam meloloskan berkas yang kekurangan.
+ */
+const kontributorAksesibilitas: ExportContributor = {
+  bagian: "accessibility",
+  kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }),
+};
+
+const kontributorNotifikasi: ExportContributor = {
+  bagian: "notifications",
+  kumpulkan: async () => [],
+};
+
+/** Ketiga kontributor modul lain — urutannya sama dengan boot.ts. */
+const KONTRIBUTOR_MODUL = [
+  kontributorProfil,
+  kontributorAksesibilitas,
+  kontributorNotifikasi,
+] as const;
+
 /** Redis in-memory seukuran kebutuhan repository kuota. */
 function fakeRedis(): ExportRedisLike & { nilai: Map<string, number>; ttlNilai: Map<string, number> } {
   const nilai = new Map<string, number>();
@@ -99,7 +123,7 @@ function rakit(options: { contributors?: readonly ExportContributor[]; redis?: E
   const service = createExportService({
     contributors: options.contributors ?? [
       createAccountContributor({ findAccountForExport: async () => barisAkun() }),
-      kontributorProfil,
+      ...KONTRIBUTOR_MODUL,
     ],
     quotaRepository: createExportQuotaRepository(redis),
     auditLog: audit.auditLog,
@@ -178,7 +202,7 @@ describe("agregator ekspor", () => {
     const { service } = rakit({
       contributors: [
         createAccountContributor({ findAccountForExport: async () => barisAkun() }),
-        kontributorProfil,
+        ...KONTRIBUTOR_MODUL,
         { bagian: "resumes", kumpulkan: async () => [{ id: "cv-1" }] },
       ],
     });
@@ -190,7 +214,7 @@ describe("agregator ekspor", () => {
     const { service } = rakit({
       contributors: [
         { bagian: "account", kumpulkan: async () => ({ id: "bukan-uuid" }) },
-        kontributorProfil,
+        ...KONTRIBUTOR_MODUL,
       ],
     });
 
@@ -200,11 +224,23 @@ describe("agregator ekspor", () => {
   it("bagian dirakit sesuai urutan kontributor", async () => {
     // Urutan key menentukan bagaimana berkas terbaca manusia; `account` harus
     // di atas supaya pembaca menemukan identitas pemiliknya lebih dulu.
+    //
+    // Urutannya ditentukan DEKLARASI `dataExportSchema`, bukan urutan
+    // kontributor: `parse` merakit ulang objeknya mengikuti bentuk skema. Jadi
+    // menambah bagian baru di tengah skema akan menggesernya di berkas yang
+    // dibaca pengguna — dan itulah yang test ini tangkap.
     const { service } = rakit();
 
     const berkas = await service.exportMe(actor);
 
-    expect(Object.keys(berkas)).toEqual(["formatVersion", "exportedAt", "account", "profile"]);
+    expect(Object.keys(berkas)).toEqual([
+      "formatVersion",
+      "exportedAt",
+      "account",
+      "profile",
+      "accessibility",
+      "notifications",
+    ]);
   });
 });
 
@@ -221,7 +257,7 @@ describe("audit ekspor", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile"],
+        sections: ["account", "profile", "accessibility", "notifications"],
       },
     });
   });
@@ -273,7 +309,7 @@ describe("kuota ekspor", () => {
     // biaya penyalahgunaan tetap dibayar server.
     const dasar = createAccountContributor({ findAccountForExport: async () => barisAkun() });
     const kumpulkan = vi.fn((userId: string) => dasar.kumpulkan(userId));
-    const { service } = rakit({ contributors: [{ bagian: "account", kumpulkan }, kontributorProfil] });
+    const { service } = rakit({ contributors: [{ bagian: "account", kumpulkan }, ...KONTRIBUTOR_MODUL] });
 
     for (let i = 0; i < EXPORT_POLICY.maxPerWindow; i += 1) await service.exportMe(actor);
     expect(kumpulkan).toHaveBeenCalledTimes(EXPORT_POLICY.maxPerWindow); // spy benar tersambung

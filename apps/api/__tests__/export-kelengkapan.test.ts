@@ -34,6 +34,10 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   experiences: "profile",
   educations: "profile",
   skills: "profile",
+  // Dibayar 2026-09-05 (U-03 & U-04). Keduanya sempat berada di DITUNDA dengan
+  // alasan yang sudah berhenti benar — lihat catatan di atas DITUNDA.
+  accessibility_profiles: "accessibility",
+  notifications: "notifications",
 };
 
 /**
@@ -41,56 +45,37 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * memuat akun, preferensi, profil, CV, lamaran, notifikasi") — dipindahkan dari
  * checklist dokumen ke tempat yang tidak bisa dilewati.
  *
- * DUA KEADAAN YANG BERBEDA, DAN PERBEDAANNYA PENTING (rekonsiliasi 2026-09-05).
- * Sampai hari itu seluruh daftar ini dibenarkan oleh satu kalimat: "tabelnya
- * sudah ada sejak migrasi 02–03, tetapi TIDAK ADA endpoint yang bisa
- * mengisinya, jadi ekspornya lengkap terhadap data yang benar-benar bisa
- * dimiliki." Kalimat itu benar saat ditulis dan kini hanya benar untuk
- * SEBAGIAN barisnya:
+ * KETIGA SISANYA BENAR-BENAR BELUM BISA ADA. Tabelnya sudah ada sejak migrasi
+ * 02–03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini tidak bisa
+ * membuat CV maupun melamar, dan `ai_usage` menunggu endpoint AI pertama. Jadi
+ * ekspor tanpa bagian-bagian ini bukan ekspor yang setengah jadi — ia lengkap
+ * terhadap data yang benar-benar bisa dimiliki seseorang.
  *
- *   (a) DATANYA MEMANG BELUM BISA ADA — `resumes`, `applications`, `ai_usage`.
- *       Tidak ada endpoint yang menulisnya, jadi ekspor tanpa bagian ini tetap
- *       lengkap terhadap apa yang benar-benar dimiliki seseorang.
+ * PELAJARAN YANG DIBAYAR MAHAL, SENGAJA DITINGGALKAN DI SINI. Sampai 2026-09-05,
+ * kalimat pembenar di atas juga dipakai untuk `accessibility_profiles` dan
+ * `notifications` — padahal blocker keduanya sudah lunas (modul accessibility
+ * sejak Phase 04, notifications sejak PR-047) dan datanya sudah ada untuk
+ * pengguna sungguhan. Selama lima phase, orang yang memakai haknya mengunduh
+ * data pribadi menerima berkas yang kurang, tanpa satu pun gejala. Keduanya
+ * ditemukan lewat rekonsiliasi utang, bukan lewat laporan pengguna, dan dibayar
+ * hari itu juga — keduanya kini ada di TERDAFTAR.
  *
- *   (b) DATANYA SUDAH ADA DAN TIDAK IKUT TEREKSPOR — `accessibility_profiles`
- *       dan `notifications`. Ini BUKAN penundaan lagi, melainkan kekurangan
- *       nyata pada hak portabilitas (UU PDP §8.7): pengguna mengunduh berkas
- *       yang kurang, dan persis seperti peringatan di kepala berkas ini, tidak
- *       ada satu pun gejala yang memberitahunya.
+ * Penjaga ini TIDAK gagal: `DITUNDA` memang keadaan yang sah, dan ia tidak bisa
+ * (dan tidak seharusnya) memutuskan kapan utang dibayar. Yang tidak ada adalah
+ * peninjauan ULANG alasannya saat blocker-nya lunas.
  *
- * Keduanya tetap di `DITUNDA` karena penjaga ini hanya menuntut setiap tabel
- * BERADA di salah satu dari tiga keadaan — ia tidak bisa, dan tidak seharusnya,
- * memutuskan kapan utang dibayar. Yang bisa dilakukan di sini adalah menolak
- * membiarkan alasannya berbohong: alasan basi lebih berbahaya daripada tidak
- * ada alasan, sebab ia menghentikan orang bertanya.
- *
- * Status lengkap + pemilik + pemicu: docs/utang-teknis.md (U-03, U-04, U-05).
+ * ATURAN YANG LAHIR DARINYA: setiap kali sebuah modul baru lahir, periksa apakah
+ * ia menghapus alasan penundaan di daftar ini. Status utang dilacak di
+ * docs/utang-teknis.md.
  */
 const DITUNDA: Readonly<Record<string, string>> = {
-  // (b) UTANG AKTIF — U-03. Blocker-nya LUNAS sejak Phase 04: modul
-  // accessibility ada, `/me/accessibility` melayani baca-tulis, dan sejak
-  // PR-034 SETIAP akun baru otomatis mendapat barisnya lewat pelanggan
-  // `auth.user_registered`. Jadi datanya bukan "belum bisa dimiliki" — ia
-  // dimiliki setiap pengguna yang pernah mendaftar, dan tidak ikut terekspor.
-  accessibility_profiles:
-    "UTANG AKTIF (U-03) — datanya SUDAH ada untuk setiap pengguna sejak PR-034; ekspor PDP hari ini kurang. Butuh keputusan owner, bukan menunggu modul.",
-
-  // (a) Datanya memang belum bisa ada.
   resumes: "modul resumes (Phase 09) — belum ada endpoint yang bisa membuat CV",
   applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
-
-  // (b) UTANG AKTIF — U-04. Dilahirkan PR-047 dan tidak dibayar di sana:
-  // modul notifications kini ada, dan baris sambutan lahir untuk setiap akun
-  // baru. Ukuran pembayarannya kecil — satu `exportContributor` seperti milik
-  // profiles, ditambah satu baris berpindah ke TERDAFTAR.
-  notifications:
-    "UTANG AKTIF (U-04) — datanya SUDAH ada sejak PR-047 (sambutan akun baru); ekspor PDP hari ini kurang.",
-
-  // (a) Datanya memang belum bisa ada — TETAPI pemiliknya dikoreksi (U-05).
-  // Phase 06 melahirkan MODULNYA, bukan datanya: `boot.ts` belum merakit
-  // `aiClient` (U-06), jadi belum ada satu pun baris `ai_usage` milik siapa
-  // pun. Yang akan melahirkan datanya adalah endpoint AI pertama.
-  ai_usage: "PR-066 (endpoint AI pertama) — Phase 06 melahirkan modulnya, bukan datanya; tabel masih kosong",
+  // Pemiliknya dikoreksi 2026-09-05 (U-05): Phase 06 melahirkan MODULNYA, bukan
+  // datanya. `boot.ts` belum merakit `aiClient` (U-06), jadi belum ada satu pun
+  // baris `ai_usage` milik siapa pun. Yang akan melahirkan datanya PR-066.
+  ai_usage:
+    "PR-066 (endpoint AI pertama) — Phase 06 melahirkan modulnya, bukan datanya; tabel masih kosong",
 };
 
 /**

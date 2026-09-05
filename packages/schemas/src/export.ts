@@ -20,6 +20,8 @@ import {
   sensitiveProfileSchema,
   skillSchema,
 } from "./profiles.js";
+import { accessibilityProfileSchema } from "./accessibility.js";
+import { notificationSchema } from "./notifications.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -110,6 +112,34 @@ export const dataExportSchema = z
      * dan itu persis kegagalan senyap yang `.strict()` di bawah ada untuk cegah.
      */
     profile: exportProfileSchema,
+    /**
+     * Preferensi aksesibilitas (utang U-03, dibayar 2026-09-05).
+     *
+     * Dipakai ULANG dari `accessibilityProfileSchema`, bukan bentuk ekspor
+     * tersendiri: apa yang dibaca pengguna di berkas ekspornya harus sama persis
+     * dengan yang ia lihat di pengaturannya. Bentuk kedua yang bebas menyimpang
+     * adalah cara ekspor mulai berbohong tanpa ada yang mengubah apa pun.
+     *
+     * WAJIB, dengan alasan yang sama seperti `profile`: setiap akun punya
+     * preferensi — barisnya mungkin belum pernah ditulis, tetapi bentuk
+     * kosongnya tetap ada (tujuh `null` = "belum memilih", yang BERBEDA dari
+     * "memilih bawaan"; lihat accessibility.service.ts).
+     */
+    accessibility: accessibilityProfileSchema,
+    /**
+     * Riwayat notifikasi (utang U-04, dibayar 2026-09-05).
+     *
+     * Kalimatnya DIRENDER saat ekspor dibuat, memakai renderer yang sama dengan
+     * yang melayani layar — bukan disalin dari kolom. Akibatnya berkas ekspor
+     * memuat kalimat versi terbaru, termasuk untuk notifikasi lama; itu memang
+     * yang benar, sebab yang disimpan sistem ini memang `type` + referensi,
+     * bukan kalimat.
+     *
+     * TIDAK BERPAGINASI, dan itu keputusan sadar: ekspor PDP yang memotong
+     * riwayat bukan ekspor yang lengkap. Konsekuensinya berkas tumbuh bersama
+     * riwayat pengguna — dicatat sebagai U-16.
+     */
+    notifications: z.array(notificationSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });

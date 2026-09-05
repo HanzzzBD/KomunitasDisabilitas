@@ -137,6 +137,31 @@ export async function startApi(options: BootOptions): Promise<void> {
     events,
   });
 
+  // Sama seperti `profiles` di atas, dan alasannya persis sama: modul `users`
+  // membutuhkan bagian ekspor PDP keduanya (utang U-03 & U-04, dibayar
+  // 2026-09-05), dan satu-satunya jalan masuk ke agregator ekspor adalah
+  // parameter. Registrar-nya menulis ke Router-nya sendiri, jadi merakit di sini
+  // dan memasang di dalam callback tidak mengubah apa pun bagi Express.
+  const accessibility = createAccessibilityModule({
+    prisma,
+    routes: routeRegistry.forModule("/api/v1"),
+    auditLog,
+    // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk akun
+    // yang baru lahir (PR-034).
+    events,
+  });
+
+  const notifications = createNotificationsModule({
+    prisma,
+    routes: routeRegistry.forModule("/api/v1"),
+    // Pelanggan `auth.user_registered` (bersama modul accessibility),
+    // `application.submitted`, dan `application.status_changed` — instance bus
+    // yang SAMA, sebab bus ini in-process dan dua instance tidak saling
+    // mendengar. Dua event lamaran belum punya penerbit: modul `applications`
+    // lahir di Phase 12 (lihat core/events).
+    events,
+  });
+
   const api = createServer(env, logger, {
     routes: (app) => {
       // Prefix ada di argumen forModule(), bukan di app.use(): registrar
@@ -182,35 +207,25 @@ export async function startApi(options: BootOptions): Promise<void> {
           redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
-          // Bagian `profile` berkas ekspor — akun, profil karier, riwayat kerja,
-          // pendidikan, dan keahlian dalam satu berkas (PR-038).
-          contributors: [profiles.exportContributor],
+          // Bagian berkas ekspor dari modul lain. URUTANNYA menentukan urutan
+          // key di berkas yang diunduh pengguna (agregatornya berjalan
+          // berurutan), jadi disusun dari yang paling mendasar ke yang paling
+          // panjang: profil karier, lalu preferensi aksesibilitas, lalu riwayat
+          // notifikasi yang bisa ratusan baris. `account` selalu pertama —
+          // dipasang agregatornya sendiri.
+          contributors: [
+            // PR-038: akun, profil karier, riwayat kerja, pendidikan, keahlian.
+            profiles.exportContributor,
+            // U-03: preferensi aksesibilitas. Ada untuk SETIAP pengguna sejak
+            // PR-034, dan selama lima phase tidak ikut terekspor.
+            accessibility.exportContributor,
+            // U-04: riwayat notifikasi. Utang yang dilahirkan PR-047 sendiri.
+            notifications.exportContributor,
+          ],
         }),
       );
-      app.use(
-        createAccessibilityModule({
-          prisma,
-          routes: routeRegistry.forModule("/api/v1"),
-          auditLog,
-          // Pelanggan `auth.user_registered` — baris preferensi bawaan untuk
-          // akun yang baru lahir (PR-034).
-          events,
-        }),
-      );
-      app.use(
-        createNotificationsModule({
-          prisma,
-          routes: routeRegistry.forModule("/api/v1"),
-          // Pelanggan `auth.user_registered` (bersama modul accessibility),
-          // `application.submitted`, dan `application.status_changed` —
-          // instance bus yang SAMA, sebab bus ini in-process dan dua instance
-          // tidak saling mendengar. Dua event lamaran belum punya penerbit:
-          // modul `applications` lahir di Phase 12 (lihat core/events).
-          events,
-          // `.router` — modul kini juga mengembalikan `devices` (PR-048a), yang
-          // konsumennya adalah processor push di apps/worker, bukan proses ini.
-        }).router,
-      );
+      app.use(accessibility.router);
+      app.use(notifications.router);
       app.use(
         createAiModule({
           quota: aiQuota,
