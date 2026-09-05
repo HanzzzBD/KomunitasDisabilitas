@@ -70,10 +70,10 @@ Bisnis: pengguna selalu tahu status lamarannya via kanal visual (PRD FR-5.4). Te
 
 **Testing Checklist:**
 
-* [ ] Unit Test (renderer)
-* [ ] Integration Test (event→row; idempoten)
+* [x] Unit Test (renderer) — `notifications-template.test.ts` (snapshot kedua varian, ditulis tangan) + `notifications.test.ts`
+* [x] Integration Test (event→row; idempoten) — `notifications-http.test.ts` (server nyata, `emit` → daftar) + `notifications-db.test.ts` (PostgreSQL nyata, termasuk dua tulis paralel)
 * [ ] E2E Test (via PR-050)
-* [ ] Accessibility Test (N/A backend)
+* [x] Accessibility Test (N/A backend) — kedua varian bahasa dikirim sekaligus; dijaga penjaga "id-simple bukan salinan mentah id"
 * [ ] Manual Verification (curl)
 
 **Deliverables:**
@@ -90,11 +90,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Event → row notifikasi (integrasi).
-* [ ] Idempoten per notification id (tidak dobel).
-* [ ] Unread count memakai partial index (EXPLAIN).
-* [ ] Template kedua varian bahasa ter-render benar (snapshot).
-* [ ] Cursor pagination stabil.
+* [x] Event → row notifikasi (integrasi). — `notifications-http.test.ts` "event → row notifikasi (AC)": `auth.user_registered`, `application.submitted`, `application.status_changed`.
+* [x] Idempoten per notification id (tidak dobel). — id turunan `uuidV5` + `ON CONFLICT DO NOTHING`; `notifications-db.test.ts` membuktikan termasuk untuk dua penulisan PARALEL.
+* [x] Unread count memakai partial index (EXPLAIN). — `notifications-db.test.ts`: rencana query menyebut `notifications_unread`.
+* [x] Template kedua varian bahasa ter-render benar (snapshot). — `notifications-template.test.ts`; snapshot ditulis tangan agar kalimatnya dibaca manusia saat review.
+* [x] Cursor pagination stabil. — keyset `(created_at, id)`; diuji tanpa item terlewat/terulang, tahan sisipan baris baru di tengah penyusuran, dan tetap tertentu saat `created_at` identik.
 
 #### Dependencies
 

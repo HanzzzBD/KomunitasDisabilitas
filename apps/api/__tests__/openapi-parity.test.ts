@@ -26,6 +26,7 @@ import { createAuthModule } from "../src/modules/auth/index.js";
 import { createUsersModule } from "../src/modules/users/index.js";
 import { createAccessibilityModule } from "../src/modules/accessibility/index.js";
 import { createAiModule } from "../src/modules/ai/index.js";
+import { createNotificationsModule } from "../src/modules/notifications/index.js";
 import { createProfilesModule } from "../src/modules/profiles/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
 import { createInternalModule } from "../src/modules/internal/index.js";
@@ -99,6 +100,11 @@ function routeNyata(): { method: string; path: string }[] {
     events,
   });
   createAiModule({ quota: stub(), routes: registry.forModule(PREFIX) });
+  createNotificationsModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    events,
+  });
   createProfilesModule({
     prisma: stub(),
     routes: registry.forModule(PREFIX),

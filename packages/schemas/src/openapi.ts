@@ -26,6 +26,12 @@ import {
 } from "./accessibility.js";
 import { aiQuotaResponseSchema } from "./ai.js";
 import {
+  notificationIdParamsSchema,
+  notificationListQuerySchema,
+  notificationListResponseSchema,
+  notificationReadResponseSchema,
+} from "./notifications.js";
+import {
   careerItemParamsSchema,
   createEducationSchema,
   createExperienceSchema,
@@ -518,6 +524,47 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
         buat: createSkillSchema,
         ubah: updateSkillSchema,
       }),
+
+      // Notifikasi in-app (PR-047, PRD FR-5.4). Hanya milik pemanggil sendiri.
+      "/me/notifications": {
+        get: {
+          operationId: "listMyNotifications",
+          tags: ["notifications"],
+          summary: "Daftar notifikasi sendiri",
+          description:
+            "Terbaru dulu, ber-cursor. Setiap notifikasi membawa kalimatnya dalam " +
+            "KEDUA varian bahasa (`id` dan `id-simple`) sekaligus: mode teks " +
+            "sederhana adalah state global klien (ADR-008) yang bisa dinyalakan " +
+            "kapan saja, dan daftar yang sudah terbuka harus ikut berubah tanpa " +
+            "permintaan baru. `meta.unreadCount` selalu jumlah SELURUH yang belum " +
+            "dibaca — tidak terpengaruh halaman maupun `unreadOnly`.",
+          requestParams: { query: notificationListQuerySchema },
+          responses: {
+            "200": jsonOk("Halaman notifikasi", notificationListResponseSchema),
+            "400": errorResponse("`limit` di luar 1–100, atau cursor tidak terbaca"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/notifications/{id}/read": {
+        post: {
+          operationId: "markNotificationRead",
+          tags: ["notifications"],
+          summary: "Tandai satu notifikasi sudah dibaca",
+          description:
+            "Idempoten: menandai yang sudah dibaca tetap 200 dan tidak menggeser " +
+            "waktu baca yang sudah tercatat. Notifikasi milik pengguna lain " +
+            "berperilaku seperti yang tidak ada — 404, bukan 403, sebab " +
+            "keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+          requestParams: { path: notificationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Notifikasi setelah ditandai", notificationReadResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+      },
 
       // Jatah AI harian (PR-043a, ADR-012). Hanya milik pemanggil sendiri.
       "/ai/quota": {
