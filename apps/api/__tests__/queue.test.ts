@@ -97,6 +97,13 @@ describe("QUEUE_DEFAULTS — tabel SDD §16", () => {
       timeoutMs: 15_000,
     });
 
+    // PR-049a: `attempts: 4` pada notify-email BUKAN sekadar mengikuti tabel.
+    // Job di antrean ini membawa kabar yang bagi sebagian penerima adalah
+    // SATU-SATUNYA yang ia terima (gerbang U-02), jadi percobaan ulang adalah
+    // satu-satunya lapisan antara hiccup provider dan kabar yang tidak pernah
+    // sampai. Menurunkannya menjadi 1 akan mencabut lapisan itu diam-diam.
+    expect(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_EMAIL].attempts).toBeGreaterThan(1);
+
     // PR-043b — jejak biaya AI: satu INSERT kecil, tetapi job yang hilang
     // berarti baris jejak biaya yang hilang, jadi retry-nya 3×.
     expect(QUEUE_DEFAULTS[QUEUE_NAME.AI_USAGE_RECORD]).toMatchObject({

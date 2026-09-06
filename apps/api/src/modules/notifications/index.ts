@@ -268,3 +268,27 @@ export {
   type PushService,
   type PushServiceDeps,
 } from "./services/push.service.js";
+export {
+  createEmailSender,
+  createEmailSenderFromEnv,
+  createUnavailableEmailSender,
+  EmailError,
+  redaksiAlamat,
+  type EmailConfig,
+  type EmailSender,
+  type HasilKirimEmail,
+  type PesanEmail,
+} from "./services/email.sender.js";
+export {
+  EMAIL_TEMPLATE,
+  renderEmail,
+  type IsiEmail,
+  type TemplateEmail,
+} from "./services/email-template.service.js";
+export {
+  createEmailService,
+  type EmailService,
+  type EmailServiceDeps,
+  type HasilEmail,
+  type SumberPenerima,
+} from "./services/email.service.js";

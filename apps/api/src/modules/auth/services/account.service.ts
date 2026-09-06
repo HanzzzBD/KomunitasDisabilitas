@@ -19,12 +19,15 @@
 import {
   AUDIT_ACTION,
   HARI_SEBELUM_PURGE,
+  QUEUE_NAME,
+  notifyEmailJobSchema,
   type DeleteAccount,
   type GoogleReauth,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
+import type { QueueRegistry } from "../../../core/queue/index.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import type { GoogleIdTokenVerifier } from "./google-id-token.js";
 import type { GoogleCodeExchange } from "./google-token.js";
@@ -90,14 +93,21 @@ export interface AccountServiceDeps {
    * terkirim. Ia jaring pengaman, bukan syarat.
    */
   sender?: OtpSender;
+  /**
+   * Registry antrean — jalur pemberitahuan pasca-hapus bagi akun TANPA nomor HP
+   * (PR-049a). OPSIONAL: tanpanya penghapusan tetap berjalan, hanya kabarnya
+   * yang tidak diantrekan. Itu keadaan sah bagi test yang tidak sedang menguji
+   * kabar, dan bukan alasan memaksa setiap pemanggil mengarang antrean palsu.
+   */
+  queues?: Pick<QueueRegistry, "enqueue">;
   auditLog: AuditLog;
-  logger?: Pick<Logger, "warn">;
+  logger?: Pick<Logger, "warn" | "error">;
   /** Sumber waktu; disuntik test. */
   clock?: () => Date;
 }
 
 export function createAccountService(deps: AccountServiceDeps) {
-  const { userRepository, otp, google, sender, auditLog } = deps;
+  const { userRepository, otp, google, sender, queues, auditLog } = deps;
   const now = deps.clock ?? (() => new Date());
 
   /**
@@ -170,8 +180,8 @@ export function createAccountService(deps: AccountServiceDeps) {
    * Akun tanpa nomor (masuk lewat Google) tidak menerima apa pun — celah nyata
    * yang tertutup begitu ada kanal email.
    */
-  function beritahuPemilik(phone: string | null): void {
-    if (phone === null || sender === undefined) return;
+  function beritahuLewatNomor(phone: string): void {
+    if (sender === undefined) return;
     void sender.send({ phone, text: buildAccountDeletedMessage() }).catch((err: unknown) => {
       // Nomor tujuan TIDAK ikut: ia PII, dan yang berguna saat menyelidiki
       // adalah provider mana yang gagal, bukan siapa yang tidak menerimanya.
@@ -180,6 +190,64 @@ export function createAccountService(deps: AccountServiceDeps) {
         "Pemberitahuan hapus akun gagal terkirim",
       );
     });
+  }
+
+  /**
+   * Jalur email — untuk akun TANPA nomor HP, yang di sistem ini selalu berarti
+   * akun yang masuk lewat Google (PR-049a).
+   *
+   * LEWAT ANTREAN, BUKAN PANGGILAN LANGSUNG, DAN INI INTI GERBANG U-02.
+   * Kabar ini adalah SATU-SATUNYA yang diterima orangnya: ia tidak punya nomor,
+   * dan sesudah penghapusan ia tidak punya sesi maupun layar tempat kabar
+   * in-app bisa dibaca. Kabar yang dikirim `void ...catch()` seperti jalur SMS
+   * di atas akan ikut mati bersama prosesnya — tanpa retry, tanpa jejak, dan
+   * tanpa satu pun cara pengguna mengetahui bahwa jendela pembatalan 30 hari
+   * itu ada. BullMQ memberi keempat percobaan dan bertahan melewati restart.
+   *
+   * DI-AWAIT, berbeda dari jalur SMS. Yang ditunggu hanyalah penulisan job ke
+   * Redis (milidetik), bukan panggilan provider yang bisa memakan sepuluh detik
+   * — jadi biaya latensinya tidak ada, sementara imbalannya nyata: begitu 204
+   * dijawab, kabarnya sudah tersimpan di luar proses ini.
+   *
+   * TIDAK PERNAH MENJATUHKAN PERMINTAAN. Akunnya sudah terhapus; membalas
+   * kesalahan pada titik ini akan membuat pengguna mengira penghapusannya gagal
+   * lalu mencobanya lagi. Kegagalannya `error`, bukan `warn`: ia berarti
+   * seseorang tidak akan pernah tahu akunnya dihapus.
+   *
+   * TANPA `jobId` deterministik, berbeda dari `notify:push`. Akun yang dipulihkan
+   * support lalu dihapus lagi harus mendapat kabar KEDUA — dan `jobId` turunan
+   * `userId` akan membuat BullMQ menolaknya diam-diam selama job pertama masih
+   * tersimpan. Kabar ganda jauh lebih ringan daripada kabar yang hilang.
+   */
+  async function beritahuLewatEmail(userId: string): Promise<void> {
+    if (queues === undefined) return;
+    try {
+      const job = notifyEmailJobSchema.parse({ jenis: "akun_dihapus", userId });
+      await queues.enqueue(QUEUE_NAME.NOTIFY_EMAIL, job);
+    } catch (err) {
+      deps.logger?.error(
+        { err, userId },
+        "Gagal mengantrekan kabar pasca-hapus — pengguna ini tidak akan tahu akunnya dihapus",
+      );
+    }
+  }
+
+  /**
+   * Kabari pemilik bahwa akunnya sudah dihapus, lewat kanal yang ia punya.
+   *
+   * Nomor HP didahulukan sebab ia kanal yang sudah TERBUKTI miliknya (setiap
+   * akun bernomor pernah menerima kode OTP di sana). Akun tanpa nomor jatuh ke
+   * email. Kedua cabang menutup seluruh kemungkinan: pendaftaran hanya lewat
+   * OTP (punya nomor) atau Google (punya alamat terverifikasi), jadi tidak ada
+   * akun yang jatuh ke luar keduanya — dan bila suatu saat ada, jalur email
+   * mencatatnya sebagai `error` alih-alih diam (lihat email.service.ts).
+   */
+  async function beritahuPemilik(phone: string | null, userId: string): Promise<void> {
+    if (phone !== null) {
+      beritahuLewatNomor(phone);
+      return;
+    }
+    await beritahuLewatEmail(userId);
   }
 
   return {
@@ -236,7 +304,7 @@ export function createAccountService(deps: AccountServiceDeps) {
       if (hasil === null) throw appError("SESI_TIDAK_VALID");
 
       catat("completed", hasil.revokedCount);
-      beritahuPemilik(konteks.phone);
+      await beritahuPemilik(konteks.phone, actor.userId);
       return { revokedCount: hasil.revokedCount };
     },
   };

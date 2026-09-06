@@ -426,3 +426,197 @@ lebih baik daripada tidak ada kabar sama sekali.
 * **PR-050 — notification center web.**
 * **U-09** — rename `OtpSender`/`OtpMessage` masih kandidat kuat untuk dibayar di PR-049,
   yang memang akan menyentuh kanal pengiriman.
+
+---
+
+## PR-049a — Kanal Email + Pemberitahuan Pasca-Hapus
+
+> **Phase:** [07 - Notifications](../phase-07-notifications.md#pr-049---email-transaksional-resend)
+> **Tanggal:** 2026-09-06
+> **Status:** Selesai — separuh pertama PR-049
+
+### Gerbang masuk U-02 — jawabannya, sebelum apa pun ditulis
+
+Dokumen phase melarang PR ini dimulai tanpa menjawab tiga pertanyaan. Jawabannya di sini,
+lengkap dengan penelusurannya, supaya PR berikutnya tidak mengulanginya dari nol.
+
+**1. Peristiwa apa yang menjadi sumber kirim email?** Dokumen phase menyebut empat: sambutan
+akun baru, status lamaran, "CV siap", dan pemberitahuan pasca-hapus akun. Yang benar-benar
+bisa lahir hari ini hanya tiga — `resume.*` belum ada di `DomainEvents` sama sekali (modul
+resumes lahir Phase 09), jadi "CV siap" bukan pekerjaan yang tertunda melainkan pekerjaan
+yang belum punya penerbit.
+
+**2. Apakah peristiwa itu melewati bus event in-process?** Ditelusuri satu per satu:
+
+| Sumber | Jalurnya hari ini | Lewat bus? |
+|---|---|---|
+| `auth.user_registered` → sambutan | `core/events` → `modules/notifications` | **Ya** |
+| `application.submitted` → bukti terima | `core/events` (penerbitnya Phase 12) | **Ya** |
+| `application.status_changed` → kabar status | `core/events` (penerbitnya Phase 12) | **Ya** |
+| Hapus akun → pemberitahuan | `account.service.ts` → `void sender.send().catch()` | **Tidak** |
+
+Baris terakhir adalah temuan yang mengubah bentuk PR ini. Kabar pasca-hapus **tidak pernah
+menyentuh bus event** — ia panggilan langsung *fire-and-forget* di dalam service, yang untuk
+tujuan durabilitas justru **lebih lemah** daripada bus: ia mati bersama prosesnya, tanpa
+retry, dan tanpa jejak selain satu baris `warn` yang hanya tertulis bila prosesnya masih
+hidup untuk menuliskannya.
+
+**3. Apa akibatnya bila hilang?** Di sinilah kedua kelompok itu berpisah tajam.
+
+*Untuk ketiga kabar pertama:* notifikasi **bukan satu-satunya kabar**. Status lamaran tetap
+benar di DB dan tetap terbaca di layar lamaran; yang hilang adalah *pemberitahuan*, bukan
+*informasi*. Ini persis alasan owner menunda U-02 pada 2026-09-05, dan alasan itu **masih
+benar** — PR-049a tidak mengubahnya, sebab ia tidak mengirim satu pun email dari ketiga
+event tersebut (itu PR-049b, lihat pembagiannya di bawah).
+
+*Untuk kabar pasca-hapus:* ia **satu-satunya**. Pengguna yang masuk lewat Google tidak punya
+nomor HP, dan sesudah penghapusan ia tidak punya sesi maupun layar tempat notifikasi in-app
+bisa dibaca. Bagi dia, kabar yang hilang bukan pemberitahuan yang hilang — melainkan
+satu-satunya bukti bahwa permintaan hapusnya diproses, dan satu-satunya cara ia tahu jendela
+pembatalan 30 hari itu ada. Tanpa kabar itu, *soft delete* 30 hari bukan lagi lapisan
+pemulihan; ia hanya penundaan teknis yang tidak seorang pun bisa manfaatkan.
+
+Dan justru jalur inilah yang pembuktian identitasnya **paling lemah**: verifikasi manual
+PR-033c-2 menemukan Google tidak pernah mengirim `auth_time` (0 dari 16 token terukur),
+sehingga server tidak bisa memastikan autentikasinya baru. Jalur dengan bukti terlemah
+adalah satu-satunya yang tidak punya jaring pengaman pemberitahuan.
+
+**KEPUTUSAN GERBANG: butir 2 dokumen phase berlaku.** Kabar pasca-hapus **wajib lahir dari
+job antrean**, dan di PR ini memang begitu — `queues.enqueue(QUEUE_NAME.NOTIFY_EMAIL, …)`
+di `account.service.ts`, **di-await sebelum permintaan dijawab**. Yang ditunggu hanya
+penulisan job ke Redis (milidetik), bukan panggilan provider yang bisa memakan sepuluh detik;
+biaya latensinya nol, imbalannya nyata: begitu 204 dijawab, kabarnya sudah berada di luar
+proses ini, dengan empat percobaan dan backoff 30 detik (SDD §16) yang bertahan melewati
+restart.
+
+**Yang TIDAK dilakukan, dan itu sesuai perintah owner:** seluruh jalur notifikasi in-app
+**tidak** dipindahkan ke antrean. U-02 tetap TERBUKA untuk ketiga kabar biasa, dan alasan
+penundaannya ditulis ulang di registry (bukan dibiarkan berbunyi seperti sebelumnya).
+
+**Batas yang tersisa, ditulis eksplisit karena gerbang menuntutnya.** Pengantrean terjadi
+**sesudah** transaksi hapus commit, bukan di dalamnya. Proses yang mati persis di antara
+keduanya — atau Redis yang tidak terjangkau tepat pada saat itu — tetap kehilangan kabarnya.
+Jendelanya milidetik alih-alih "sepanjang umur job", dan kegagalannya berisik (`error`), tetapi
+ia bukan nol. Menutupnya sepenuhnya menuntut *transactional outbox* (tulis niat kirim ke tabel
+dalam transaksi yang sama, satu pekerja memancarkannya) — satu tabel, satu job pemancar, dan
+satu jalur baru yang harus dirawat. Tidak diambil di sini, dicatat sebagai **U-17**.
+
+### Ringkasan hasil
+
+Separuh pertama PR-049: adapter Resend, katalog email dua varian bahasa, processor
+`notify:email`, dan pemberitahuan pasca-hapus akun bagi pengguna tanpa nomor HP — dependensi
+keamanan yang dititipkan Phase 03 sejak 2026-08-10, **kini lunas**.
+
+**Kenapa PR-049 dipecah** (preseden PR-033a..i, PR-043a/b, PR-048a/b). Isi PR-049 utuh
+adalah dua pekerjaan dengan bentuk kegagalan yang berbeda sama sekali: satu kabar keamanan
+yang tidak punya kanal lain dan tidak tunduk preferensi apa pun, dan satu kelompok kabar
+kenyamanan yang seluruh gunanya justru diatur preferensi. Menggabungkannya berarti satu
+review yang harus memegang keduanya, dan — lebih buruk — satu kolom `notification_prefs`
+yang bentuknya diputuskan sambil lalu di PR yang sedang sibuk memikirkan phishing.
+
+* **PR-049a** *(ini)*: kanal email + kabar pasca-hapus. Tidak menyentuh preferensi sama sekali.
+* **PR-049b**: kolom `notification_prefs`, `PUT /me/notification-prefs`, toggle di web, dan
+  email sambutan/status lamaran yang menghormatinya.
+
+**AC dipetakan:** AC-1 (terkirim, Resend ditiru), AC-2 (template aksesibel), AC-4
+(retry/backoff + DLQ), AC-5 (kedua varian) → PR-049a. AC-3 (opt-out dihormati) → PR-049b,
+sebab opt-out belum punya tempat disimpan; yang dibuktikan di sini adalah kebalikannya —
+bahwa kabar pasca-hapus **tidak boleh** tunduk padanya.
+
+### Keputusan yang membentuk sisanya
+
+**1. `fetch` mentah, bukan paket `resend`.** Alasan yang sama dengan `fcm.sender.ts` dan
+`fonnte.sender.ts`: repo ini tidak punya infrastruktur mock HTTP, sedangkan DI `FetchLike`
+membuat SETIAP cabang galat provider bisa diuji tanpa dependensi baru. Panggilannya satu POST
+dengan lima field.
+
+**2. `alamat-ditolak` adalah NILAI BALIK, bukan exception** — mengikuti `token-mati` di
+PR-048b, dan alasannya sama: alamat yang ditolak tidak akan menjadi sah pada percobaan
+keempat. Menjadikannya exception berarti empat panggilan jaringan dan satu baris DLQ untuk
+sesuatu yang jawabannya sudah pasti, dan DLQ yang berisi hal-hal yang tidak bisa diperbaiki
+siapa pun adalah DLQ yang berhenti dibaca orang.
+
+**3. Alamat email TIDAK ikut payload job.** Payload mengendap di Redis (AOF, `noeviction`) di
+luar jangkauan enkripsi kolom ADR-007. Job membawa `{ jenis, userId }`; alamatnya dibaca
+worker saat job berjalan — aturan yang sama dengan `notify:push` yang membawa `notificationId`
+alih-alih token perangkat.
+
+**4. TANPA `jobId` deterministik**, dan ini sengaja berbeda dari `notify:push`. Akun yang
+dipulihkan support lalu dihapus lagi harus mendapat kabar KEDUA, sedangkan `jobId` turunan
+`userId` akan membuat BullMQ menolaknya diam-diam selama job pertama masih tersimpan. Kabar
+ganda jauh lebih ringan daripada kabar yang hilang — pertukaran yang sama dengan retry push
+di PR-048b, hanya arahnya kebalikan.
+
+**5. Alamat yang BELUM terbukti tidak dikirimi apa pun.** Alamat hasil ketik sendiri lewat
+`PUT /me` tidak pernah dibuktikan miliknya (PR-020a, `emailVerified: false`). Mengirimi kabar
+"akun Anda sudah dihapus" ke sana berarti mengabarkan keadaan akun seseorang kepada orang
+lain yang kebetulan alamatnya diketikkan — dan pada pesan bertema keamanan, itu justru bahan
+phishing yang ampuh. Akibatnya jangkauan kabar ini persis: **pengguna Google-only selalu
+tercakup** (Google mengirim `email_verified`), pengguna bernomor tetap lewat SMS, dan tidak
+ada akun yang jatuh ke luar keduanya — pendaftaran hanya lewat OTP (punya nomor) atau Google
+(punya alamat terverifikasi). Bila suatu saat ada yang jatuh ke luar, service mencatatnya
+sebagai `error`, bukan diam.
+
+### Satu keputusan aksesibilitas yang menentukan bentuk template
+
+**Kabar ini TIDAK tunduk pada preferensi kanal, tetapi TETAP tunduk pada preferensi bahasa.**
+Keduanya preferensi; hanya satu yang boleh membungkam. Opt-out email yang membungkam kabar
+pasca-hapus bukan lagi preferensi melainkan lubang — pengguna yang mematikan email
+berbulan-bulan lalu akan kehilangan satu-satunya bukti bahwa akunnya dihapus. Sebaliknya,
+varian bahasa **wajib** dihormati: justru pengguna yang paling terbantu teks sederhana yang
+tidak boleh menerima kabar terpenting dalam bentuk yang paling sulit ia baca. Preferensinya
+dibaca lewat service `accessibility` yang SAMA dengan yang melayani `/me/accessibility`, dan
+barisnya selamat dari soft delete akun — jadi pilihan bahasa seseorang tetap berlaku pada
+kabar terakhir yang ia terima. Kegagalan membacanya tidak menggagalkan kabar.
+
+Tiga aturan aksesibilitas email ditegakkan perakit dan **diuji**, bukan sekadar ditulis:
+bagian teks polos selalu ikut; tidak ada gambar sama sekali (jadi tidak ada `alt` yang bisa
+lupa ditulis dan tidak ada teks yang hilang saat klien memblokir gambar); warna dan ukuran
+huruf disebut inline dengan rasio kontras tertulis (14,9:1 dan 7,0:1 terhadap latar). Ditambah
+`lang="id"` — tanpanya pembaca layar melafalkan Bahasa Indonesia dengan aturan bunyi bahasa
+bawaan sistem, kegagalan aksesibilitas email yang paling sering dan paling murah dihindari.
+
+### Scope selesai
+
+* **`packages/schemas/src/queue.ts`** — `notifyEmailJobSchema`, `discriminatedUnion` sejak
+  anggota pertamanya: gerbang U-02 memisahkan dua jenis kabar yang jatuh ke antrean yang
+  sama, dan pembeda sepenting itu tidak boleh berupa field opsional yang bisa lupa diisi.
+* **`core/config/env.ts` + `.env.example`** — `RESEND_API_KEY` & `EMAIL_FROM` opsional
+  **sebagai pasangan** (pola Twilio/FCM), plus `RESEND_BASE_URL` dan `EMAIL_SEND_TIMEOUT_MS`.
+* **`services/email.sender.ts`** — POST `/emails`, klasifikasi galat, dan redaksi alamat pada
+  setiap keterangan provider (`[alamat]`) — provider lazim mengutip balik alamat tujuan, yang
+  berarti PII bisa masuk log lewat pintu yang tidak kita tulis sendiri.
+* **`services/email-template.service.ts`** — katalog + perakit HTML/teks dua varian.
+* **`services/email.service.ts`** — pemilihan alamat, penolakan alamat belum terbukti,
+  pemilihan varian bahasa, dan agregasi hasil.
+* **`modules/auth`** — `findPenerimaPascaHapus` (menembus penjaga soft delete secara
+  eksplisit), produser antrean di `account.service.ts`, `queues` menembus `createAuthModule`.
+* **`apps/worker`** — processor `notify-email` + perakitan di composition root.
+* **Test:** `email-sender.test.ts` (18), `email-template.test.ts` (20), `email.test.ts` (17),
+  `auth-account.test.ts` (+7 termasuk blok gerbang U-02), `auth-account-db.test.ts` (+2),
+  `queue.test.ts` (+1).
+
+### Risiko & batas yang diketahui
+
+* **Jendela commit→enqueue** (U-17, lihat gerbang di atas).
+* **Kabar pasca-hapus SMS masih *fire-and-forget*.** PR ini membuat jalur email durabel dan
+  **tidak menyentuh** jalur SMS PR-021 — padahal bagi pengguna bernomor, SMS itu juga
+  satu-satunya kanal sesudah penghapusan. Tidak ditarik ke sini karena antrean yang tersedia
+  bernama `notify-email` dan menaruh SMS di atasnya adalah kebohongan nama yang akan hidup
+  lebih lama daripada PR ini. Dicatat sebagai **U-18**.
+* **Belum pernah diuji terhadap Resend sungguhan** — seluruh bukti dari provider yang ditiru.
+  Yang hanya bisa dijawab pengiriman nyata: apakah HTML-nya tampil benar di Gmail/Outlook
+  (keduanya menulis ulang CSS), dan apakah domainnya lolos SPF/DKIM. Sejenis dengan utang AC
+  PR-030 #1 dan PR-048 #1.
+* **`apps/worker` tetap tanpa test.** Processor sengaja setipis mungkin karena itu.
+
+### Next steps
+
+* **PR-049b — preferensi kanal.** Kolom `notification_prefs`, `PUT /me/notification-prefs`,
+  toggle web, dan email sambutan/status lamaran. **Migrasi baru wajib ditinjau baris per
+  baris untuk `DROP INDEX` yang tidak disengaja** (perintah owner 2026-09-05, U-15).
+* **PR-050 — notification center web.**
+* **U-09** — rename `OtpSender`/`OtpMessage` TIDAK dibayar di sini. PR ini memang menyentuh
+  kanal pengiriman, tetapi menambah kanal BARU di sebelahnya alih-alih mengubah yang lama;
+  rename sekarang akan mencampur perubahan nama lintas-berkas ke dalam PR yang sedang
+  membawa keputusan keamanan. Tetap kandidat untuk PR-049b.

@@ -110,6 +110,29 @@ export function createAuthUserRepository(prisma: AppPrisma) {
     },
 
     /**
+     * Alamat tujuan pemberitahuan pasca-hapus (PR-049a) — dibaca WORKER, sesudah
+     * akunnya terhapus.
+     *
+     * `deletedAt: { not: null }` bukan sekadar jalan keluar dari penjaga soft
+     * delete (core/db): ia SYARAT KEBENARAN. Job ini hanya boleh mengabarkan
+     * penghapusan yang benar-benar terjadi — bila akunnya sempat dipulihkan
+     * lewat support di antara enqueue dan eksekusi, yang benar adalah tidak
+     * mengirim apa pun, bukan mengirim kabar yang sudah tidak berlaku.
+     *
+     * `emailVerified` ikut karena PEMANGGIL yang harus memutuskannya, bukan
+     * query ini: alasan menolak alamat yang belum terbukti ditulis di
+     * `email.service.ts`, di tempat keputusannya diambil.
+     */
+    async findPenerimaPascaHapus(
+      id: string,
+    ): Promise<{ email: string | null; emailVerified: boolean } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: { not: null } },
+        select: { email: true, emailVerified: true },
+      });
+    },
+
+    /**
      * Hapus akun (soft) + matikan seluruh sesinya — SATU TRANSAKSI.
      *
      * Dua tabel, satu invarian: "akun terhapus tidak punya sesi hidup". Karena

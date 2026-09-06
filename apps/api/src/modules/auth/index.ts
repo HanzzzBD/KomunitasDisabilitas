@@ -13,6 +13,7 @@ import { createOtpRepository, type OtpRedisLike } from "./repositories/otp.repos
 import { createAuthUserRepository } from "./repositories/user.repository.js";
 import { createOtpService, type OtpService } from "./services/otp.service.js";
 import { createOtpController } from "./controllers/otp.controller.js";
+import type { QueueRegistry } from "../../core/queue/index.js";
 import { createAccountService } from "./services/account.service.js";
 import { createAccountController } from "./controllers/account.controller.js";
 import { createGoogleService } from "./services/google.service.js";
@@ -57,6 +58,12 @@ export interface AuthModuleDeps {
   sender?: OtpSender;
   /** undefined = endpoint Google tertutup (503). */
   google?: GoogleAuthConfig;
+  /**
+   * Registry antrean — produser `notify:email` untuk pemberitahuan pasca-hapus
+   * bagi akun tanpa nomor HP (PR-049a). API hanya MEMPRODUKSI; konsumennya
+   * proses apps/worker terpisah (ADR-004).
+   */
+  queues?: Pick<QueueRegistry, "enqueue">;
   /**
    * Pasangan kunci RS256 (PR-018a); undefined = sesi tidak bisa diterbitkan,
    * sehingga /auth/refresh DAN kedua metode masuk sama-sama menjawab 503.
@@ -175,6 +182,10 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
         // adalah jaring pengaman, bukan syarat: tanpa provider, penghapusan tetap
         // berjalan dan hanya pemberitahuannya yang tidak terkirim.
         sender: deps.sender,
+        // Akun tanpa nomor HP (selalu berarti: masuk lewat Google) dikabari
+        // lewat email, dan lewat ANTREAN — lihat gerbang U-02 di
+        // account.service.ts. Tanpa registry, cabang itu diam.
+        queues: deps.queues,
         auditLog: deps.auditLog,
         logger: deps.logger,
       }),
@@ -272,5 +283,13 @@ export {
   type SessionTokens,
 } from "./services/session.service.js";
 export { createSessionCookie, REFRESH_COOKIE, type SessionCookie } from "./controllers/session-cookie.js";
+/**
+ * Repository akun. Diekspor untuk composition root apps/worker (PR-049a), yang
+ * merakit jalur email dari potongan dua modul: template dan adapter dari
+ * `notifications`, alamat tujuan dari sini — sebab tabel `users` dimiliki modul
+ * ini. Jalan masuknya PARAMETER di composition root, bukan import lintas modul
+ * di dalam service (aturan boundaries PR-002), persis pola `devices` PR-048b.
+ */
+export { createAuthUserRepository, type AuthUserRepository } from "./repositories/user.repository.js";
 export { createFonnteSender, FONNTE_PROVIDER, type FetchLike } from "./services/fonnte.sender.js";
 export { createTwilioSender, TWILIO_PROVIDER } from "./services/twilio.sender.js";

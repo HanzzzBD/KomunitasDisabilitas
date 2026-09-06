@@ -193,6 +193,10 @@ export async function startApi(options: BootOptions): Promise<void> {
           cookieSecure: env.NODE_ENV !== "development",
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
           sender: createOtpSenderFromEnv(env, logger),
+          // Produser `notify:email` (PR-049a): pemberitahuan pasca-hapus bagi
+          // akun tanpa nomor HP. Lewat antrean, bukan panggilan langsung —
+          // gerbang U-02, alasannya di account.service.ts.
+          queues,
           // undefined bila kredensial Google kosong → /auth/google jawab 503.
           google: createGoogleConfigFromEnv(env),
           routes: routeRegistry.forModule("/api/v1"),

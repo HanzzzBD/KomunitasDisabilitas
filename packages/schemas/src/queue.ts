@@ -313,3 +313,35 @@ export const notifyPushJobSchema = z
   .strict();
 
 export type NotifyPushJob = z.infer<typeof notifyPushJobSchema>;
+
+/**
+ * Payload job `notify:email` (PR-049a, SDD §16).
+ *
+ * BERBENTUK UNION SEJAK AWAL meski hari ini hanya punya satu anggota. Alasannya
+ * bukan ramalan: gerbang U-02 (lihat log PR-049a) memisahkan dua jenis kabar
+ * yang jatuh ke antrean yang sama — kabar yang menjadi SATU-SATUNYA kanal bagi
+ * penerimanya, dan kabar biasa yang tunduk pada preferensi. Keduanya tidak
+ * boleh dibedakan lewat field opsional yang bisa lupa diisi; `jenis` yang wajib
+ * membuat pembeda itu terbaca di payload dan ditegakkan `discriminatedUnion`.
+ *
+ * SENGAJA HANYA REFERENSI — tidak ada alamat email di sini. Payload job
+ * mengendap di Redis (AOF, `noeviction`) di luar jangkauan enkripsi kolom
+ * ADR-007; alamat email adalah PII, dan antrean bukan tempatnya bermalam.
+ * Alamatnya dibaca worker dari baris `users` saat job berjalan — aturan yang
+ * sama dengan `notify:push` yang membawa `notificationId`, bukan token.
+ */
+export const notifyEmailJobSchema = z
+  .discriminatedUnion("jenis", [
+    /**
+     * Pemberitahuan pasca-hapus akun bagi pengguna TANPA nomor HP (dependensi
+     * keamanan Phase 03; lihat dokumen phase 07). Kabar ini tidak tunduk pada
+     * preferensi kanal mana pun — alasannya di `email-template.service.ts`.
+     */
+    z.object({ jenis: z.literal("akun_dihapus"), userId: z.string().uuid() }).strict(),
+  ])
+  .describe("Job kanal email");
+
+export type NotifyEmailJob = z.infer<typeof notifyEmailJobSchema>;
+
+/** Jenis kabar email yang terdaftar — kunci katalog template (apps/api). */
+export type NotifyEmailJenis = NotifyEmailJob["jenis"];
