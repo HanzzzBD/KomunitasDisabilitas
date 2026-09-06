@@ -30,6 +30,7 @@ import { Terlindungi } from "../shared/rute/terlindungi.js";
  */
 const PANEL = [
   { ke: "/pengaturan", kunci: "pengaturan.nav.akun", tepat: true },
+  { ke: "/pengaturan/notifikasi", kunci: "pengaturan.nav.notifikasi", tepat: false },
   { ke: "/pengaturan/aksesibilitas", kunci: "pengaturan.nav.aksesibilitas", tepat: false },
 ] as const;
 
@@ -57,7 +58,7 @@ export function Pengaturan() {
         */}
         <nav aria-label={t("pengaturan.nav.label")}>
           {/*
-            <ul>: jumlah panelnya diumumkan lebih dulu ("daftar, 2 item"),
+            <ul>: jumlah panelnya diumumkan lebih dulu ("daftar, 3 item"),
             sehingga pengguna tahu seberapa panjang navigasinya sebelum
             menyusurinya.
           */}

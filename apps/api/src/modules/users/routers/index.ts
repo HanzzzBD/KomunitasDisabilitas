@@ -12,7 +12,7 @@
 // TIDAK ADA saluran input untuk menyebut pengguna lain. Saat endpoint ber-param
 // lahir (mis. admin membaca profil orang), itulah tempat `access.self` dipakai.
 import type { Router } from "express";
-import { updateMeSchema } from "@nawasena/schemas";
+import { updateMeSchema, updateNotificationChannelPrefsSchema } from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { UsersController } from "../controllers/users.controller.js";
@@ -29,5 +29,22 @@ export function createUsersRouter(controller: UsersController, routes: RouteRegi
   // pemiliknya datang dari sesi, dan endpoint ini sengaja tidak menerima
   // parameter apa pun yang bisa dipakai menyebut pengguna lain.
   routes.get("/me/export", access.authenticated(), asyncHandler(controller.exportMe));
+  // Preferensi kanal notifikasi (PR-049b). Bentuk yang sama dengan
+  // `/me/accessibility`: baca mengembalikan `null` apa adanya, tulis bersifat
+  // sebagian, dan `null` pada sebuah kanal adalah perintah kembali ke bawaan.
+  routes.get(
+    "/me/notification-prefs",
+    access.authenticated(),
+    asyncHandler(controller.notificationPrefs),
+  );
+  routes.put(
+    "/me/notification-prefs",
+    access.authenticated(),
+    // Penolakan kanal asing (`.strict()`) dan "sebutkan setidaknya satu" ada di
+    // skema, bukan di service: satu tempat untuk aturan yang sama-sama dipakai
+    // klien dan server.
+    validate({ body: updateNotificationChannelPrefsSchema }),
+    asyncHandler(controller.updateNotificationPrefs),
+  );
   return routes.router;
 }

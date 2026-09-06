@@ -116,6 +116,52 @@ export function createUserProfileRepository(prisma: AppPrisma) {
         throw err;
       }
     },
+
+    /**
+     * Preferensi kanal notifikasi apa adanya dari kolom jsonb (PR-049b).
+     *
+     * Mengembalikan `unknown`, dengan sengaja: kolomnya `Json?` dan DB tidak
+     * menegakkan apa pun di sana, jadi repository yang mengklaim tipe konkret
+     * akan berbohong tentang baris yang ditulis versi kode lain. Yang mengurai
+     * dan memvalidasinya adalah service, lewat zod.
+     */
+    async findNotificationPrefs(id: string): Promise<{ prefs: unknown } | null> {
+      const row = await prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { notificationPrefs: true },
+      });
+      return row === null ? null : { prefs: row.notificationPrefs };
+    },
+
+    /**
+     * Tulis preferensi kanal.
+     *
+     * Menerima objek yang SUDAH digabung service, bukan patch: penggabungan
+     * "field yang tidak disebut tidak berubah" menuntut membaca nilai lama
+     * lebih dulu, dan menaruh baca-lalu-tulis itu di repository berarti
+     * menyembunyikan sebuah balapan di lapisan yang tidak boleh punya logika.
+     */
+    async updateNotificationPrefs(
+      id: string,
+      prefs: Prisma.InputJsonValue,
+    ): Promise<{ prefs: unknown } | null> {
+      try {
+        const row = await prisma.user.update({
+          where: { id, deletedAt: null },
+          data: { notificationPrefs: prefs },
+          select: { notificationPrefs: true },
+        });
+        return { prefs: row.notificationPrefs };
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === RECORD_NOT_FOUND
+        ) {
+          return null;
+        }
+        throw err;
+      }
+    },
   };
 }
 

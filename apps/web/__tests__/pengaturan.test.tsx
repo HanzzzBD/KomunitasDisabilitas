@@ -87,6 +87,19 @@ function klienPalsu(me: OpsiRender["me"], hitung: { n: number }): ApiClient {
       // baris berubah. Penarikannya diuji tersendiri di
       // `sambungkan-server.test.tsx`.
       if (path === "/me/accessibility") return new Promise(() => {}) as Promise<never>;
+      // `GET /me/notifications?limit=1` adalah infrastruktur kerangka sejak
+      // PR-050: lencana notifikasi hidup di `TataLetak`, jadi ia terbit di
+      // halaman mana pun begitu status sesi "masuk". Dijawab NOL notifikasi dan
+      // TIDAK dicatat di `jejak` — berkas ini menguji apa yang dikirim HALAMAN,
+      // dan permintaan kerangka yang ikut tercatat akan membuat setiap
+      // pemeriksaan "tidak ada yang dikirim" gagal atas hal yang bukan
+      // pokoknya.
+      if (path.startsWith("/me/notifications")) {
+        return Promise.resolve({
+          data: [],
+          meta: { nextCursor: null, unreadCount: 0 },
+        }) as Promise<never>;
+      }
       if (path === "/me") {
         hitung.n += 1;
         return me === "gagal"
@@ -189,7 +202,11 @@ describe("kerangka & navigasi", () => {
     await tungguJudul("Akun & Data Saya");
 
     const nav = screen.getByRole("navigation", { name: "Bagian pengaturan" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(2);
+    // Tiga panel sejak PR-049b (akun, notifikasi, aksesibilitas). Angkanya
+    // ditulis apa adanya, bukan diturunkan dari `PANEL`: jumlah yang dihitung
+    // dari sumber yang sama dengan kode produksi akan tetap cocok meski satu
+    // panel diam-diam hilang dari navigasinya.
+    expect(within(nav).getAllByRole("link")).toHaveLength(3);
   });
 
   it("panel yang sedang dibuka ditandai TEPAT SATU aria-current", async () => {

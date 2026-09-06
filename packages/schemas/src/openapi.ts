@@ -26,6 +26,17 @@ import {
 } from "./accessibility.js";
 import { aiQuotaResponseSchema } from "./ai.js";
 import {
+  deviceResponseSchema,
+  notificationIdParamsSchema,
+  notificationListQuerySchema,
+  notificationChannelPrefsResponseSchema,
+  notificationListResponseSchema,
+  notificationReadAllResponseSchema,
+  notificationReadResponseSchema,
+  updateNotificationChannelPrefsSchema,
+  registerDeviceSchema,
+} from "./notifications.js";
+import {
   careerItemParamsSchema,
   createEducationSchema,
   createExperienceSchema,
@@ -456,6 +467,42 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
         },
       },
 
+      // Preferensi kanal notifikasi (PR-049b). Mengatur kanal yang MENGEJAR
+      // pengguna keluar dari aplikasi; in-app tidak ada di sini sebab ia bukan
+      // kanal yang dikirimi melainkan riwayat yang bisa dibaca ulang.
+      "/me/notification-prefs": {
+        get: {
+          operationId: "getMyNotificationPrefs",
+          tags: ["notifications"],
+          summary: "Preferensi kanal notifikasi sendiri",
+          description:
+            "Mengembalikan preferensi TERSIMPAN, dengan `null` dipertahankan apa adanya. " +
+            "`null` berarti pengguna belum pernah memilih kanal itu — berbeda dari memilih " +
+            "nilai bawaan. Klien menghitung kanal yang berlaku sendiri lewat `kanalBerlaku()` " +
+            "(@nawasena/schemas); bawaannya email mati, push hidup.",
+          responses: {
+            "200": jsonOk("Preferensi kanal", notificationChannelPrefsResponseSchema),
+            ...responsSesi,
+          },
+        },
+        put: {
+          operationId: "updateMyNotificationPrefs",
+          tags: ["notifications"],
+          summary: "Perbarui preferensi kanal notifikasi sendiri",
+          description:
+            "Kanal yang tidak dikirim berarti tidak diubah; mengirim `null` mengembalikannya " +
+            "ke bawaan. Preferensi ini TIDAK berlaku bagi pemberitahuan keamanan akun " +
+            "(mis. kabar pasca-hapus akun): kabar itu tidak punya kanal lain, dan opt-out " +
+            "yang membungkamnya bukan preferensi melainkan lubang.",
+          requestBody: jsonBody(updateNotificationChannelPrefsSchema),
+          responses: {
+            "200": jsonOk("Preferensi setelah diperbarui", notificationChannelPrefsResponseSchema),
+            "400": errorResponse("Input tidak valid, atau tidak ada kanal yang disebut"),
+            ...responsSesi,
+          },
+        },
+      },
+
       // Profil pencari kerja (PR-037/PR-040). Kolom sensitif (ragam disabilitas,
       // kebutuhan akomodasi) hanya ikut bila consent-nya aktif — lihat 403 di PUT.
       "/me/profile": {
@@ -518,6 +565,89 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
         buat: createSkillSchema,
         ubah: updateSkillSchema,
       }),
+
+      // Notifikasi in-app (PR-047, PRD FR-5.4). Hanya milik pemanggil sendiri.
+      "/me/notifications": {
+        get: {
+          operationId: "listMyNotifications",
+          tags: ["notifications"],
+          summary: "Daftar notifikasi sendiri",
+          description:
+            "Terbaru dulu, ber-cursor. Setiap notifikasi membawa kalimatnya dalam " +
+            "KEDUA varian bahasa (`id` dan `id-simple`) sekaligus: mode teks " +
+            "sederhana adalah state global klien (ADR-008) yang bisa dinyalakan " +
+            "kapan saja, dan daftar yang sudah terbuka harus ikut berubah tanpa " +
+            "permintaan baru. `meta.unreadCount` selalu jumlah SELURUH yang belum " +
+            "dibaca — tidak terpengaruh halaman maupun `unreadOnly`.",
+          requestParams: { query: notificationListQuerySchema },
+          responses: {
+            "200": jsonOk("Halaman notifikasi", notificationListResponseSchema),
+            "400": errorResponse("`limit` di luar 1–100, atau cursor tidak terbaca"),
+            ...responsSesi,
+          },
+        },
+      },
+      // Tandai SEMUA dibaca (PR-050). Endpoint tersendiri, bukan perulangan di
+      // klien: klien hanya memegang halaman yang sudah diunduhnya, jadi versi
+      // klien akan menandai 20 dari 200 dan menyisakan lencana yang tetap merah.
+      "/me/notifications/read-all": {
+        post: {
+          operationId: "markAllNotificationsRead",
+          tags: ["notifications"],
+          summary: "Tandai seluruh notifikasi sendiri sebagai dibaca",
+          description:
+            "Idempoten: pemanggilan kedua menandai 0 baris dan TIDAK menggeser waktu baca " +
+            "yang sudah tercatat. `unreadCount` pada jawabannya tidak dijamin nol — " +
+            "notifikasi baru bisa lahir di antara penandaan dan penghitungan.",
+          responses: {
+            "200": jsonOk("Jumlah yang ditandai", notificationReadAllResponseSchema),
+            ...responsSesi,
+          },
+        },
+      },
+
+      "/me/notifications/{id}/read": {
+        post: {
+          operationId: "markNotificationRead",
+          tags: ["notifications"],
+          summary: "Tandai satu notifikasi sudah dibaca",
+          description:
+            "Idempoten: menandai yang sudah dibaca tetap 200 dan tidak menggeser " +
+            "waktu baca yang sudah tercatat. Notifikasi milik pengguna lain " +
+            "berperilaku seperti yang tidak ada — 404, bukan 403, sebab " +
+            "keberadaannya sendiri bukan informasi yang layak dibocorkan.",
+          requestParams: { path: notificationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Notifikasi setelah ditandai", notificationReadResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+      },
+
+      // Perangkat penerima push (PR-048a). Dipakai klien mobile (PR-088/094);
+      // web push di luar scope MVP.
+      "/me/devices": {
+        post: {
+          operationId: "registerMyDevice",
+          tags: ["notifications"],
+          summary: "Daftarkan perangkat penerima push",
+          description:
+            "Idempoten: klien memanggilnya pada SETIAP peluncuran aplikasi, bukan sekali " +
+            "seumur pemasangan, jadi pemanggilan ulang dengan token yang sama hanya " +
+            "menggeser `lastSeenAt` — 200, bukan 201 dan bukan error. Token bersifat unik " +
+            "global: perangkat yang berpindah akun BERPINDAH kepemilikan barisnya, supaya " +
+            "pemilik lama berhenti menerima notifikasi pemilik baru. Jawabannya sengaja " +
+            "tidak memuat kembali `fcmToken`.",
+          requestBody: jsonBody(registerDeviceSchema),
+          responses: {
+            "200": jsonOk("Perangkat terdaftar", deviceResponseSchema),
+            "400": errorResponse("Token kosong/terlalu panjang, atau platform tidak dikenal"),
+            ...responsSesi,
+          },
+        },
+      },
 
       // Jatah AI harian (PR-043a, ADR-012). Hanya milik pemanggil sendiri.
       "/ai/quota": {

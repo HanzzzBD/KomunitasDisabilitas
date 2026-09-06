@@ -17,7 +17,7 @@
 // (butuh kaskade CSS sungguhan — `e2e/aksesibilitas.spec.ts`), dan urutan
 // pembacaan NVDA (butuh telinga manusia — checklist manual PR ini).
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { within, act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiError, type ApiClient } from "@nawasena/api-client";
@@ -69,6 +69,17 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil): ApiClient {
       // Penarikan itu punya berkasnya sendiri: `sambungkan-server.test.tsx`.
       if (path === "/me/accessibility" && (opsi?.method ?? "GET") === "GET") {
         return new Promise(() => {}) as Promise<never>;
+      }
+      // `GET /me/notifications?limit=1` adalah infrastruktur kerangka sejak
+      // PR-050 (lencana notifikasi di `TataLetak`), dan berlaku di halaman mana
+      // pun begitu status sesi "masuk". Diperlakukan sama dengan dua di atas:
+      // dijawab kosong dan TIDAK dicatat, sebab berkas ini memeriksa apa yang
+      // dikirim WIZARD.
+      if (path.startsWith("/me/notifications")) {
+        return Promise.resolve({
+          data: [],
+          meta: { nextCursor: null, unreadCount: 0 },
+        }) as Promise<never>;
       }
 
       jejak.push({ path, method: opsi?.method ?? "GET", body: opsi?.body });
@@ -261,7 +272,12 @@ describe("AC 2 — kemajuan diumumkan, bukan hanya diwarnai", () => {
     renderWizard();
     await screen.findByRole("heading", { name: "Ragam disabilitas", level: 2 }, { timeout: 5000 });
 
-    const wilayah = screen.getByRole("status");
+    // DILINGKUPI `<main>`: sejak PR-050 kerangka aplikasi punya live region
+    // sendiri (pengumuman notifikasi baru), jadi `getByRole("status")` tanpa
+    // lingkup menemukan dua. Dua region polite di satu halaman adalah keadaan
+    // yang sah — pengumumannya mengantre — dan yang perlu diperbaiki adalah
+    // pertanyaannya, bukan halamannya.
+    const wilayah = within(screen.getByRole("main")).getByRole("status");
     expect(wilayah).toHaveTextContent("Langkah 1 dari 4: Ragam disabilitas");
 
     await userEvent.click(tombol("Lanjut"));

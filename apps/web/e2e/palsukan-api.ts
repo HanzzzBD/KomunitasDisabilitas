@@ -69,6 +69,43 @@ const BERKAS_UJI = {
     educations: [],
     skills: [],
   },
+  // Bagian `accessibility` dan `notifications` WAJIB sejak 2026-09-05 (utang
+  // U-03 & U-04). Peringatan di komentar `profile` di atas terbukti tepat:
+  // saat kedua bagian ini ditambahkan ke kontrak, ketiga test di berkas ini
+  // jatuh dengan timeout — tombolnya ditekan dan tidak terjadi apa-apa, sebab
+  // klien menolak berkas yang tidak lolos `dataExportSchema`.
+  accessibility: {
+    textScale: 150,
+    highContrast: null,
+    reduceMotion: null,
+    simpleLanguage: true,
+    prefersSignLanguage: null,
+    largeTouchTargets: null,
+    screenReaderHint: null,
+  },
+  // PR-049b. Nilai campuran dengan sengaja: satu kanal yang benar-benar dipilih
+  // dan satu yang belum, supaya berkas uji ini bisa menangkap `null` yang
+  // diam-diam berubah menjadi `false` di sepanjang jalur.
+  notificationChannels: { email: true, push: null },
+  // Satu notifikasi, bukan array kosong: berkas uji yang kosong tidak akan
+  // pernah menangkap bentuk yang salah pada isinya.
+  notifications: [
+    {
+      id: "01912345-89ab-7def-8123-4567890abd01",
+      type: "auth.selamat_datang",
+      title: {
+        id: "Selamat datang di Nawasena",
+        "id-simple": "Selamat datang, senang Anda di sini",
+      },
+      body: {
+        id: "Lengkapi profil Anda agar lowongan yang cocok bisa kami tampilkan.",
+        "id-simple": "Isi profil Anda dulu. Setelah itu kami tunjukkan kerja yang cocok.",
+      },
+      params: {},
+      readAt: null,
+      createdAt: "2026-01-15T20:00:00.000Z",
+    },
+  ],
 } as const;
 
 /**
@@ -108,12 +145,40 @@ const PREFERENSI_UJI = {
   screenReaderHint: false,
 } as const;
 
+/**
+ * Satu notifikasi uji (PR-050) — BELUM DIBACA dengan sengaja.
+ *
+ * Kalimatnya sama persis dengan katalog template server (`template.service.ts`)
+ * supaya berkas ini tidak menjadi tempat kalimat versi kedua tumbuh: yang
+ * diperiksa gerbang a11y harus berbentuk sama dengan yang dilihat pengguna.
+ */
+const DIBACA_PADA = "2026-01-16T03:00:00.000Z";
+
+const NOTIFIKASI_UJI = {
+  id: "01912345-89ab-7def-8123-4567890abd01",
+  type: "auth.selamat_datang",
+  title: {
+    id: "Selamat datang di Nawasena",
+    "id-simple": "Selamat datang, senang Anda di sini",
+  },
+  body: {
+    id: "Lengkapi profil Anda agar lowongan yang cocok bisa kami tampilkan.",
+    "id-simple": "Isi profil Anda dulu. Setelah itu kami tunjukkan kerja yang cocok.",
+  },
+  params: {},
+  readAt: null as string | null,
+  createdAt: "2026-01-15T20:00:00.000Z",
+};
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
 
 export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<void> {
   const bersesi = halaman?.butuhSesi === true;
+  // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
+  // boleh saling mewarisi notifikasi yang sudah ditandai oleh yang lain.
+  const notifikasi: { readAt: string | null } & typeof NOTIFIKASI_UJI = { ...NOTIFIKASI_UJI };
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -144,6 +209,57 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
       return route.fulfill(
         jsonkan(200, { data: { ...PREFERENSI_UJI, ...(kirim as Record<string, unknown>) } }),
+      );
+    }
+    // --- Notification center (PR-050) ---
+    //
+    // DIPERIKSA SEBELUM `/me/notification-prefs` DAN `/me`: `endsWith` menelan
+    // alamat berdasarkan akhirannya, dan cabang yang lebih umum di atas cabang
+    // yang lebih spesifik adalah cara endpoint diam-diam tidak pernah terjawab.
+    if (jalur.endsWith("/me/notifications/read-all")) {
+      const ditandai = notifikasi.readAt === null ? 1 : 0;
+      notifikasi.readAt = DIBACA_PADA;
+      return route.fulfill(jsonkan(200, { data: { ditandai }, meta: { unreadCount: 0 } }));
+    }
+    if (jalur.endsWith("/read")) {
+      // KEADAANNYA BENAR-BENAR BERUBAH, tidak sekadar dijawab 200. Palsu yang
+      // tetap menjawab `readAt: null` sesudah penandaan berhasil membuat
+      // pemuatan ulang mengembalikan tandanya — dan test alur "terima → baca"
+      // akan gagal atas kesalahan di PALSU-nya, bukan di aplikasinya.
+      notifikasi.readAt = DIBACA_PADA;
+      return route.fulfill(
+        jsonkan(200, { data: { ...notifikasi }, meta: { unreadCount: 0 } }),
+      );
+    }
+    if (jalur.endsWith("/me/notifications")) {
+      // SATU notifikasi BELUM DIBACA, bukan daftar kosong: gerbang a11y
+      // memeriksa halaman ini dengan axe, dan halaman kosong tidak merender
+      // satu pun item — penanda "belum dibaca", tombol tandai, maupun waktunya.
+      // Daftar kosong akan membuat gerbangnya lulus atas halaman yang bukan
+      // halaman yang dilihat pengguna sungguhan.
+      return route.fulfill(
+        jsonkan(200, {
+          data: [{ ...notifikasi }],
+          meta: { nextCursor: null, unreadCount: notifikasi.readAt === null ? 1 : 0 },
+        }),
+      );
+    }
+    if (jalur.endsWith("/me/notification-prefs")) {
+      // DIPERIKSA SEBELUM `/me`, alasan yang sama dengan `/me/accessibility`.
+      //
+      // Nilai awalnya CAMPURAN — satu kanal yang benar-benar dipilih dan satu
+      // yang belum — supaya gerbang ini bisa menangkap `null` yang diam-diam
+      // berubah menjadi `false` di sepanjang jalur. Preferensi yang seluruhnya
+      // `null` akan tampak benar meski panelnya kehilangan pembedaan itu.
+      //
+      // `PUT` MEMANTULKAN badan permintaan di atas nilai awal: jawaban yang
+      // tidak mencerminkan yang barusan dikirim membuat cacat "sakelar kembali
+      // ke posisi lama sesudah disimpan" lolos tanpa gejala.
+      const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
+      return route.fulfill(
+        jsonkan(200, {
+          data: { email: true, push: null, ...(kirim as Record<string, unknown>) },
+        }),
       );
     }
     // --- Profil karier (PR-040) ---

@@ -110,6 +110,55 @@ export function createAuthUserRepository(prisma: AppPrisma) {
     },
 
     /**
+     * Alamat tujuan pemberitahuan pasca-hapus (PR-049a) — dibaca WORKER, sesudah
+     * akunnya terhapus.
+     *
+     * `deletedAt: { not: null }` bukan sekadar jalan keluar dari penjaga soft
+     * delete (core/db): ia SYARAT KEBENARAN. Job ini hanya boleh mengabarkan
+     * penghapusan yang benar-benar terjadi — bila akunnya sempat dipulihkan
+     * lewat support di antara enqueue dan eksekusi, yang benar adalah tidak
+     * mengirim apa pun, bukan mengirim kabar yang sudah tidak berlaku.
+     *
+     * `emailVerified` ikut karena PEMANGGIL yang harus memutuskannya, bukan
+     * query ini: alasan menolak alamat yang belum terbukti ditulis di
+     * `email.service.ts`, di tempat keputusannya diambil.
+     */
+    async findPenerimaPascaHapus(
+      id: string,
+    ): Promise<{ email: string | null; emailVerified: boolean } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: { not: null } },
+        select: { email: true, emailVerified: true },
+      });
+    },
+
+    /**
+     * Alamat tujuan kabar email BIASA (PR-049b) — dibaca worker, untuk akun yang
+     * masih hidup.
+     *
+     * Sengaja TERPISAH dari `findPenerimaPascaHapus` alih-alih satu fungsi
+     * berparameter: yang membedakan keduanya adalah sikap terhadap soft delete,
+     * dan query yang buta-atau-tidak-buta tergantung argumen adalah persis
+     * tempat kebocoran akun terhapus lahir. Di sini penjaga `core/db` bekerja
+     * sebagaimana mestinya — `deletedAt` tidak disebut, jadi baris terhapus
+     * tidak akan pernah terbaca.
+     *
+     * `notificationPrefs` ikut di query yang SAMA. Akibatnya pemeriksaan opt-out
+     * di konsumen tidak berbiaya satu perjalanan DB pun, dan karena itu tidak
+     * ada alasan melewatkannya.
+     */
+    async findPenerimaAktif(id: string): Promise<{
+      email: string | null;
+      emailVerified: boolean;
+      notificationPrefs: unknown;
+    } | null> {
+      return prisma.user.findFirst({
+        where: { id },
+        select: { email: true, emailVerified: true, notificationPrefs: true },
+      });
+    },
+
+    /**
      * Hapus akun (soft) + matikan seluruh sesinya — SATU TRANSAKSI.
      *
      * Dua tabel, satu invarian: "akun terhapus tidak punya sesi hidup". Karena

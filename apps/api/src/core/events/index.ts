@@ -22,6 +22,8 @@
 //      menggagalkan job akan membatalkan pekerjaan yang sudah benar, lalu
 //      mengulanginya — dan pengulangan itu menerbitkan event yang sama lagi.
 import type {
+  ApplicationStatusChangedEvent,
+  ApplicationSubmittedEvent,
   JobClosedEvent,
   ProfileUpdatedEvent,
   UserRegisteredEvent,
@@ -53,6 +55,31 @@ export interface DomainEvents {
    * dalam handler-nya.
    */
   "profile.updated": ProfileUpdatedEvent;
+  /**
+   * Lamaran baru terkirim (PR-076). PELANGGANNYA SUDAH ADA — notifikasi in-app
+   * (PR-047) — sedangkan PENERBITNYA belum: modul `applications` lahir di
+   * Phase 12. Urutan itu disengaja dan tidak berbahaya: `emit` yang tidak
+   * pernah dipanggil tidak melahirkan apa pun, dan pelanggan yang sudah
+   * terpasang lebih dulu berarti penerbitnya kelak tidak perlu menyentuh satu
+   * baris pun di modul notifications.
+   *
+   * Penerbitnya harus hidup DI PROSES API (batas 1 di atas). Lamaran dikirim
+   * lewat permintaan HTTP, jadi ini terpenuhi dengan sendirinya — tetapi bila
+   * suatu saat pengiriman dipindah ke worker, notifikasinya diam-diam berhenti.
+   */
+  "application.submitted": ApplicationSubmittedEvent;
+  /**
+   * Status pipeline lamaran berpindah (PR-078). Pelanggan pertamanya PR-047.
+   *
+   * Batas 2 di atas berlaku penuh di sini dan pantas dibaca dua kali: event yang
+   * hilang saat proses mati berarti notifikasi yang TIDAK PERNAH ada, dan
+   * pengguna tidak punya cara mengetahui bahwa ia kehilangan sesuatu. Yang
+   * menahannya hari ini adalah bahwa statusnya sendiri tetap benar di DB dan
+   * tetap terbaca di layar lamaran. Bila kelak notifikasi menjadi satu-satunya
+   * kabar (mis. sesudah email PR-049), kabar itu harus lahir dari job antrean
+   * yang dipicu event ini — bukan dari handler-nya.
+   */
+  "application.status_changed": ApplicationStatusChangedEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;

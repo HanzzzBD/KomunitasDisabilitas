@@ -48,6 +48,15 @@ function rakit(options: { row?: UserProfileRow | null; emailBentrok?: boolean } 
     findAccountForExport: () => {
       throw new Error("Alur profil tidak boleh menyentuh jalur ekspor");
     },
+    // Preferensi kanal (PR-049b) punya service-nya sendiri
+    // (`notification-prefs.service.ts`) dan diuji di berkasnya sendiri; alur
+    // profil tidak boleh menyentuhnya.
+    findNotificationPrefs: () => {
+      throw new Error("Alur profil tidak boleh menyentuh preferensi kanal");
+    },
+    updateNotificationPrefs: () => {
+      throw new Error("Alur profil tidak boleh menyentuh preferensi kanal");
+    },
     updateProfile: (_id, data) => {
       if (options.emailBentrok === true) return Promise.reject(new EmailSudahDipakaiError());
       tersimpan.push(data);

@@ -14,6 +14,7 @@ import { createAccessibilityRepository } from "./repositories/accessibility.repo
 import { createAccessibilityService } from "./services/accessibility.service.js";
 import { createAccessibilityController } from "./controllers/accessibility.controller.js";
 import { createAccessibilityRouter } from "./routers/index.js";
+import { createAccessibilityExportContributor } from "./services/accessibility-export.service.js";
 
 export interface AccessibilityModuleDeps {
   prisma: AppPrisma;
@@ -30,7 +31,20 @@ export interface AccessibilityModuleDeps {
   events: EventBus;
 }
 
-export function createAccessibilityModule(deps: AccessibilityModuleDeps): Router {
+export interface AccessibilityModule {
+  router: Router;
+  /**
+   * Bagian `accessibility` berkas ekspor PDP (utang U-03, dibayar 2026-09-05).
+   *
+   * DIKEMBALIKAN, tidak didaftarkan sendiri — bentuk yang sama dengan
+   * `profiles.exportContributor` (PR-038): agregator ekspornya milik modul
+   * `users`, dan satu-satunya jalan masuk ke sana adalah parameter, bukan
+   * registry global yang bisa diisi kapan saja oleh siapa saja.
+   */
+  exportContributor: ReturnType<typeof createAccessibilityExportContributor>;
+}
+
+export function createAccessibilityModule(deps: AccessibilityModuleDeps): AccessibilityModule {
   void deps.auditLog;
 
   const service = createAccessibilityService({
@@ -50,7 +64,11 @@ export function createAccessibilityModule(deps: AccessibilityModuleDeps): Router
   // (lihat `getMe`).
   deps.events.on("auth.user_registered", (payload) => service.provisionDefaults(payload.userId));
 
-  return createAccessibilityRouter(createAccessibilityController(service), deps.routes);
+  return {
+    router: createAccessibilityRouter(createAccessibilityController(service), deps.routes),
+    // Service yang SAMA dengan yang melayani endpoint — bukan instance kedua.
+    exportContributor: createAccessibilityExportContributor({ accessibility: service }),
+  };
 }
 
 export {
@@ -68,3 +86,7 @@ export {
   type AccessibilityController,
 } from "./controllers/accessibility.controller.js";
 export { createAccessibilityRouter } from "./routers/index.js";
+export {
+  createAccessibilityExportContributor,
+  type AccessibilityExportDeps,
+} from "./services/accessibility-export.service.js";

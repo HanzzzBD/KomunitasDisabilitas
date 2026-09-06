@@ -20,6 +20,7 @@ import {
   type ExportContributor,
 } from "./services/export.service.js";
 import { createUsersController } from "./controllers/users.controller.js";
+import type { NotificationPrefsService } from "./services/notification-prefs.service.js";
 import { createUsersRouter } from "./routers/index.js";
 
 export interface UsersModuleDeps {
@@ -36,6 +37,15 @@ export interface UsersModuleDeps {
    * repository yang di-import agregator, yang akan melanggar batas modul.
    */
   contributors?: readonly ExportContributor[];
+  /**
+   * Preferensi kanal notifikasi (PR-049b). Dirakit di composition root, bukan di
+   * sini, sebab PEMBACANYA ada dua: endpoint `/me/notification-prefs` di modul
+   * ini, dan produser job email di modul `notifications`. Merakitnya di dalam
+   * salah satu modul lalu menyerahkannya ke modul lain akan membuat keduanya
+   * saling membutuhkan — modul `users` sudah menerima kontributor ekspor DARI
+   * `notifications`, jadi arah sebaliknya menutup lingkaran.
+   */
+  notificationPrefs: NotificationPrefsService;
 }
 
 export function createUsersModule(deps: UsersModuleDeps): Router {
@@ -51,6 +61,7 @@ export function createUsersModule(deps: UsersModuleDeps): Router {
         quotaRepository: createExportQuotaRepository(deps.redis),
         auditLog: deps.auditLog,
       }),
+      deps.notificationPrefs,
     ),
     deps.routes,
   );
@@ -72,6 +83,7 @@ export { createUsersService, type UsersActor, type UsersService } from "./servic
 export {
   createAccountContributor,
   createExportService,
+  createNotificationChannelsContributor,
   EXPORT_POLICY,
   type ExportContributor,
   type ExportService,
@@ -90,3 +102,10 @@ export {
   type RetentionPolicy,
   type RetentionService,
 } from "./services/retention.service.js";
+export {
+  createNotificationPrefsService,
+  uraiPrefs,
+  type NotificationPrefsActor,
+  type NotificationPrefsService,
+  type NotificationPrefsServiceDeps,
+} from "./services/notification-prefs.service.js";

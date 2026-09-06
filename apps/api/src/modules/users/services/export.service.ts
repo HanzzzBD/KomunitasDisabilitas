@@ -26,6 +26,7 @@ import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
 import type { ExportQuotaRepository } from "../repositories/export-quota.repository.js";
 import type { UserProfileRepository } from "../repositories/user.repository.js";
+import type { NotificationPrefsService } from "./notification-prefs.service.js";
 import type { UsersActor } from "./users.service.js";
 
 /** Entitas audit modul ini (tanpa PII). */
@@ -161,3 +162,30 @@ export function createExportService(deps: ExportServiceDeps) {
 }
 
 export type ExportService = ReturnType<typeof createExportService>;
+
+/**
+ * Bagian `notificationChannels` berkas ekspor (PR-049b).
+ *
+ * Membaca lewat service yang SAMA dengan yang melayani
+ * `/me/notification-prefs` — bukan pembacaan kedua. Alasannya sama dengan
+ * kontributor aksesibilitas (U-03): berkas ekspor tidak boleh menyimpang dari
+ * apa yang dilihat pemiliknya di pengaturannya.
+ *
+ * Ditulis di PR yang SAMA dengan kolomnya, bukan menyusul. U-03 dan U-04 adalah
+ * dua bagian data pengguna yang tidak ikut terekspor selama lima phase, dan
+ * yang membuatnya bertahan selama itu bukan kesulitan teknis melainkan tidak
+ * adanya yang meninjau ulang saat blocker-nya lunas.
+ */
+export function createNotificationChannelsContributor(
+  prefs: Pick<NotificationPrefsService, "getMe">,
+): ExportContributor {
+  return {
+    bagian: "notificationChannels",
+    async kumpulkan(userId) {
+      // Penanda asal, bukan requestId palsu — alasan lengkapnya di
+      // `accessibility-export.service.ts`. `getMe` tidak menulis apa pun dan
+      // tidak menyentuh audit, jadi nilai ini tidak pernah dipakai apa-apa.
+      return prefs.getMe({ userId, requestId: "ekspor-pdp" });
+    },
+  };
+}

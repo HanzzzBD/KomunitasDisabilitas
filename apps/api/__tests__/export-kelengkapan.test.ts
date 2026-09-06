@@ -34,24 +34,48 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   experiences: "profile",
   educations: "profile",
   skills: "profile",
+  // Dibayar 2026-09-05 (U-03 & U-04). Keduanya sempat berada di DITUNDA dengan
+  // alasan yang sudah berhenti benar — lihat catatan di atas DITUNDA.
+  accessibility_profiles: "accessibility",
+  notifications: "notifications",
 };
 
 /**
- * Menunggu modul pemiliknya lahir. Daftar ini ADALAH AC-1 PR-022 ("ekspor
+ * Belum menjadi bagian berkas ekspor. Daftar ini ADALAH AC-1 PR-022 ("ekspor
  * memuat akun, preferensi, profil, CV, lamaran, notifikasi") — dipindahkan dari
  * checklist dokumen ke tempat yang tidak bisa dilewati.
  *
- * Tabelnya sudah ada sejak migrasi 02–03, tetapi TIDAK ADA endpoint yang bisa
- * mengisinya: pengguna hari ini tidak bisa membuat profil karier, CV, lamaran,
- * atau notifikasi. Jadi ekspor tanpa bagian-bagian ini bukan ekspor yang
- * setengah jadi — ia lengkap terhadap data yang benar-benar bisa dimiliki.
+ * KETIGA SISANYA BENAR-BENAR BELUM BISA ADA. Tabelnya sudah ada sejak migrasi
+ * 02–03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini tidak bisa
+ * membuat CV maupun melamar, dan `ai_usage` menunggu endpoint AI pertama. Jadi
+ * ekspor tanpa bagian-bagian ini bukan ekspor yang setengah jadi — ia lengkap
+ * terhadap data yang benar-benar bisa dimiliki seseorang.
+ *
+ * PELAJARAN YANG DIBAYAR MAHAL, SENGAJA DITINGGALKAN DI SINI. Sampai 2026-09-05,
+ * kalimat pembenar di atas juga dipakai untuk `accessibility_profiles` dan
+ * `notifications` — padahal blocker keduanya sudah lunas (modul accessibility
+ * sejak Phase 04, notifications sejak PR-047) dan datanya sudah ada untuk
+ * pengguna sungguhan. Selama lima phase, orang yang memakai haknya mengunduh
+ * data pribadi menerima berkas yang kurang, tanpa satu pun gejala. Keduanya
+ * ditemukan lewat rekonsiliasi utang, bukan lewat laporan pengguna, dan dibayar
+ * hari itu juga — keduanya kini ada di TERDAFTAR.
+ *
+ * Penjaga ini TIDAK gagal: `DITUNDA` memang keadaan yang sah, dan ia tidak bisa
+ * (dan tidak seharusnya) memutuskan kapan utang dibayar. Yang tidak ada adalah
+ * peninjauan ULANG alasannya saat blocker-nya lunas.
+ *
+ * ATURAN YANG LAHIR DARINYA: setiap kali sebuah modul baru lahir, periksa apakah
+ * ia menghapus alasan penundaan di daftar ini. Status utang dilacak di
+ * docs/utang-teknis.md.
  */
 const DITUNDA: Readonly<Record<string, string>> = {
-  accessibility_profiles: "modul accessibility (Phase 04) — preferensi UI milik pengguna",
-  resumes: "modul resumes (Phase 09) — CV beserta isinya",
-  applications: "modul applications (Phase 12) — riwayat lamaran & status",
-  notifications: "modul notifications (Phase 07) — riwayat pemberitahuan",
-  ai_usage: "modul AI (Phase 06) — pemakaian fitur AI oleh pengguna ybs",
+  resumes: "modul resumes (Phase 09) — belum ada endpoint yang bisa membuat CV",
+  applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
+  // Pemiliknya dikoreksi 2026-09-05 (U-05): Phase 06 melahirkan MODULNYA, bukan
+  // datanya. `boot.ts` belum merakit `aiClient` (U-06), jadi belum ada satu pun
+  // baris `ai_usage` milik siapa pun. Yang akan melahirkan datanya PR-066.
+  ai_usage:
+    "PR-066 (endpoint AI pertama) — Phase 06 melahirkan modulnya, bukan datanya; tabel masih kosong",
 };
 
 /**
@@ -67,6 +91,8 @@ const DIKECUALIKAN: Readonly<Record<string, string>> = {
     "relasi `verified_by` adalah KEPENGARANGAN admin atas entitas lain, bukan data pribadi subjeknya. Mengekspornya membocorkan data perusahaan ke berkas milik seseorang.",
   jobs: "relasi `created_by` — sama seperti companies: data lowongan milik platform, bukan milik kuratornya.",
   sign_videos: "relasi `created_by` — sama seperti companies: konten kamus BISINDO milik platform.",
+  devices:
+    "kredensial pengiriman, bukan data pribadi — alasannya sama persis dengan refresh_tokens. Isinya token FCM: siapa pun yang memegangnya bisa mengirim notifikasi ke layar kunci perangkat itu, dan mengekspornya memindahkan kemampuan itu ke berkas yang beredar lewat email/cloud. Yang tersisa (platform, last_seen_at) tidak memberi tahu pemiliknya apa pun yang tidak sudah ia ketahui dari perangkat di tangannya. Dihapus saat purge — lihat TABEL_DIHAPUS di purge.service.ts.",
 };
 
 /** Tabel yang barisnya terikat pada seorang pengguna (parser: helpers/prisma-schema). */
@@ -177,6 +203,139 @@ describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", (
         tabel in TERDAFTAR || tabel in DITUNDA,
         `${tabel} hilang dari ekspor DAN dari daftar utang AC-1`,
       ).toBe(true);
+    }
+  });
+});
+
+/**
+ * KOLOM `users` yang TIDAK ikut ke berkas ekspor, beserta alasannya (PR-049b).
+ *
+ * KENAPA LAPISAN KEDUA INI ADA. Penjaga di atas bekerja per TABEL, dan `users`
+ * sudah `TERDAFTAR` sejak PR-022 — jadi kolom baru di tabel itu tidak pernah
+ * menyalakan apa pun. Persis itulah yang terjadi pada `notification_prefs`
+ * (migrasi 15): satu `ALTER TABLE` menambahkan data pribadi yang bisa saja tidak
+ * pernah ikut terekspor, dan seluruh gerbang tetap hijau.
+ *
+ * Kelalaian bentuk ini sudah terjadi dua kali dengan wujud lain (U-03, U-04) dan
+ * bertahan lima phase. Yang membuatnya bertahan bukan kesulitan teknis melainkan
+ * ketiadaan penagih — jadi penagihnya ditulis di sini, pada PR yang menambahkan
+ * kolomnya, bukan pada PR yang kelak menemukannya lagi.
+ */
+const KOLOM_USERS_DIKECUALIKAN: Readonly<Record<string, string>> = {
+  google_id:
+    "Pengenal opaque milik Google — tautan kredensial yang tidak berarti apa pun bagi " +
+    "pengguna. Digantikan `authMethods` yang menjawab pertanyaan sebenarnya: 'bagaimana " +
+    "saya masuk ke akun ini'.",
+  token_version:
+    "Penghitung internal kill-switch sesi (SDD §8.1). Bukan data pengguna; nilainya tidak " +
+    "berarti apa-apa di luar server.",
+  last_active_at:
+    "Jejak operasional, bukan data yang diberikan pengguna. Tidak dipakai pengguna maupun " +
+    "layanan lain saat ia memindahkan datanya.",
+  deleted_at:
+    "Penanda soft delete. Berkas ekspor hanya bisa diminta akun AKTIF, jadi kolom ini " +
+    "selalu NULL bagi setiap ekspor yang pernah dibuat.",
+};
+
+/** Kolom `users` yang benar-benar ikut, dipetakan ke bagian berkasnya. */
+const KOLOM_USERS_TERDAFTAR: Readonly<Record<string, string>> = {
+  id: "account.id",
+  phone: "account.phone",
+  email: "account.email",
+  email_verified: "account.emailVerified",
+  full_name: "account.fullName",
+  role: "account.role",
+  created_at: "account.createdAt",
+  notification_prefs: "notificationChannels",
+};
+
+/** Tipe skalar Prisma yang dipakai repo ini. */
+const SKALAR = new Set(["String", "Int", "Boolean", "DateTime", "Json", "Float", "BigInt", "Decimal", "Bytes"]);
+
+/** Nama setiap `enum` yang dideklarasikan di schema — enum adalah KOLOM, bukan relasi. */
+function enumDiSchema(prismaSchema: string): Set<string> {
+  return new Set([...prismaSchema.matchAll(/^enum (\w+) \{/gm)].map((m) => m[1]!));
+}
+
+/** Nama kolom DB setiap field skalar model `User` di schema.prisma. */
+function kolomUsers(prismaSchema: string): string[] {
+  const model = /model User \{([\s\S]*?)\n\}/.exec(prismaSchema);
+  if (model === null) throw new Error("model User tidak ditemukan di schema.prisma");
+
+  const kolom: string[] = [];
+  for (const baris of model[1]!.split("\n")) {
+    const bersih = baris.trim();
+    // Komentar dokumentasi, atribut blok, dan baris kosong dilewati.
+    if (bersih === "" || bersih.startsWith("///") || bersih.startsWith("@@")) continue;
+
+    const cocok = /^(\w+)\s+(\w+)(\[\])?(\?)?/.exec(bersih);
+    if (cocok === null) continue;
+    const [, nama, tipe, larik] = cocok;
+    // Relasi bukan kolom. Pembedanya BUKAN `@relation` — relasi satu-ke-satu
+    // yang FK-nya ada di sisi lain (`accessibilityProfile`, `seekerProfile`)
+    // tidak menuliskannya sama sekali. Yang bisa dipercaya: tipenya. Kolom
+    // selalu bertipe skalar Prisma atau enum yang dideklarasikan di schema ini.
+    if (larik !== undefined) continue;
+    if (!SKALAR.has(tipe!) && !enumDiSchema(prismaSchema).has(tipe!)) continue;
+    const map = /@map\("([^"]+)"\)/.exec(bersih);
+    kolom.push(map === null ? nama! : map[1]!);
+  }
+  return kolom;
+}
+
+describe("kelengkapan ekspor — setiap KOLOM users sudah diputuskan (PR-049b)", () => {
+  const kolom = kolomUsers(schema);
+
+  it("pemindainya benar-benar menemukan kolom, bukan daftar kosong", () => {
+    // Penjaga yang lulus secara hampa lebih berbahaya daripada tidak ada
+    // penjaga: ia membuat orang berhenti memeriksa.
+    expect(kolom.length).toBeGreaterThan(8);
+    expect(kolom).toContain("full_name");
+    expect(kolom).toContain("notification_prefs");
+    // Relasi TIDAK boleh ikut terhitung sebagai kolom.
+    expect(kolom).not.toContain("notifications");
+    expect(kolom).not.toContain("devices");
+  });
+
+  it("setiap kolom users ikut diekspor ATAU dikecualikan dengan alasan", () => {
+    const belumDiputuskan = kolom.filter(
+      (k) => KOLOM_USERS_TERDAFTAR[k] === undefined && KOLOM_USERS_DIKECUALIKAN[k] === undefined,
+    );
+
+    expect(
+      belumDiputuskan,
+      "Kolom users berikut belum diputuskan nasibnya di berkas ekspor. Tambahkan ke " +
+        "KOLOM_USERS_TERDAFTAR bila ikut, atau ke KOLOM_USERS_DIKECUALIKAN beserta alasannya. " +
+        "Data pribadi yang tidak ikut terekspor tidak menimbulkan gejala apa pun.",
+    ).toEqual([]);
+  });
+
+  it("tidak ada kolom yang didaftarkan padahal sudah tidak ada di schema", () => {
+    // Arah sebaliknya: daftar yang menyebut kolom mati membuat penjaga ini
+    // tampak lebih ketat daripada kenyataannya.
+    const hantu = [
+      ...Object.keys(KOLOM_USERS_TERDAFTAR),
+      ...Object.keys(KOLOM_USERS_DIKECUALIKAN),
+    ].filter((k) => !kolom.includes(k));
+
+    expect(hantu, "Kolom ini sudah tidak ada di schema.prisma — hapus dari daftarnya.").toEqual([]);
+  });
+
+  it("setiap pengecualian membawa alasan yang benar-benar ditulis", () => {
+    for (const [nama, alasan] of Object.entries(KOLOM_USERS_DIKECUALIKAN)) {
+      expect(alasan.trim().length, `alasan pengecualian ${nama} kosong`).toBeGreaterThan(30);
+    }
+  });
+
+  it("bagian yang ditunjuk kolom TERDAFTAR benar-benar ada di kontrak ekspor", () => {
+    // Menutup kebohongan yang paling mudah: mendaftarkan kolom ke bagian yang
+    // tidak pernah ada, lalu merasa aman.
+    const bentuk = dataExportSchema._def.shape();
+    for (const tujuan of Object.values(KOLOM_USERS_TERDAFTAR)) {
+      const bagian = tujuan.split(".")[0]!;
+      expect(Object.keys(bentuk), `bagian "${bagian}" tidak ada di dataExportSchema`).toContain(
+        bagian,
+      );
     }
   });
 });

@@ -103,6 +103,12 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
     findDeleteContext() {
       throw new Error("Alur OTP tidak boleh menyentuh jalur hapus akun");
     },
+    findPenerimaPascaHapus() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur kabar pasca-hapus");
+    },
+    findPenerimaAktif() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur kabar email");
+    },
     deleteAccount() {
       throw new Error("Alur OTP tidak boleh menyentuh jalur hapus akun");
     },

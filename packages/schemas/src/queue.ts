@@ -287,3 +287,85 @@ export const aiUsageRecordJobSchema = z
   .strict();
 
 export type AiUsageRecordJob = z.infer<typeof aiUsageRecordJobSchema>;
+
+/**
+ * Payload job `notify:push` (PR-048b, SDD §16).
+ *
+ * SENGAJA HANYA DUA REFERENSI, bukan salinan kalimatnya. Alasannya sama dengan
+ * keputusan induk PR-047: yang disimpan sistem ini adalah `type` + referensi,
+ * dan kalimatnya dirakit saat dibaca. Job yang membawa judul dan isi akan
+ * mengirim kalimat versi LAMA bila ia sempat mengendap di antrean melewati
+ * perbaikan teks — dan tidak ada yang akan menyadarinya.
+ *
+ * `userId` ikut meski bisa diturunkan dari notifikasinya: ia yang membuat
+ * pembacaan di worker menyebut `where { id, userId }`, sehingga job yang
+ * payload-nya dirusak seseorang tidak bisa membuat processor membaca notifikasi
+ * milik orang lain.
+ *
+ * IDEMPOTENSINYA datang dari `jobId` deterministik (`push:<notificationId>`),
+ * yang ditolak BullMQ bila sudah ada — bukan dari isi payload ini.
+ */
+export const notifyPushJobSchema = z
+  .object({
+    notificationId: z.string().uuid(),
+    userId: z.string().uuid(),
+  })
+  .strict();
+
+export type NotifyPushJob = z.infer<typeof notifyPushJobSchema>;
+
+/**
+ * Payload job `notify:email` (PR-049a, SDD §16).
+ *
+ * BERBENTUK UNION SEJAK AWAL meski hari ini hanya punya satu anggota. Alasannya
+ * bukan ramalan: gerbang U-02 (lihat log PR-049a) memisahkan dua jenis kabar
+ * yang jatuh ke antrean yang sama — kabar yang menjadi SATU-SATUNYA kanal bagi
+ * penerimanya, dan kabar biasa yang tunduk pada preferensi. Keduanya tidak
+ * boleh dibedakan lewat field opsional yang bisa lupa diisi; `jenis` yang wajib
+ * membuat pembeda itu terbaca di payload dan ditegakkan `discriminatedUnion`.
+ *
+ * SENGAJA HANYA REFERENSI — tidak ada alamat email di sini. Payload job
+ * mengendap di Redis (AOF, `noeviction`) di luar jangkauan enkripsi kolom
+ * ADR-007; alamat email adalah PII, dan antrean bukan tempatnya bermalam.
+ * Alamatnya dibaca worker dari baris `users` saat job berjalan — aturan yang
+ * sama dengan `notify:push` yang membawa `notificationId`, bukan token.
+ */
+export const notifyEmailJobSchema = z
+  .discriminatedUnion("jenis", [
+    /**
+     * Pemberitahuan pasca-hapus akun bagi pengguna TANPA nomor HP (dependensi
+     * keamanan Phase 03; lihat dokumen phase 07). Kabar ini tidak tunduk pada
+     * preferensi kanal mana pun — alasannya di `email-template.service.ts`.
+     */
+    z.object({ jenis: z.literal("akun_dihapus"), userId: z.string().uuid() }).strict(),
+    /**
+     * Kabar biasa yang juga dikirim lewat email, bila pemiliknya menyalakan
+     * kanal itu (PR-049b). Membawa `notificationId`, BUKAN kalimatnya — dan
+     * bukan pula `jenis` tersendiri per tipe notifikasi.
+     *
+     * KENAPA SATU VARIAN UNTUK SELURUH TIPE NOTIFIKASI. Kalimat email ini
+     * dirakit renderer yang SAMA dengan yang melayani layar dan push
+     * (`template.service.ts`), jadi email tidak punya katalog kalimatnya
+     * sendiri yang bisa menyimpang. Tipe notifikasi baru otomatis ikut
+     * terkirim lewat email tanpa menyentuh berkas ini — dan itu memang yang
+     * benar: kanal adalah cara mengantar, bukan tempat menulis ulang.
+     *
+     * `userId` ikut meski bisa diturunkan dari notifikasinya, dengan alasan
+     * yang sama seperti `notify:push`: ia yang membuat pembacaan di worker
+     * menyebut `where { id, userId }`, sehingga job yang payload-nya dirusak
+     * tidak bisa membuat processor membaca notifikasi milik orang lain.
+     */
+    z
+      .object({
+        jenis: z.literal("notifikasi"),
+        userId: z.string().uuid(),
+        notificationId: z.string().uuid(),
+      })
+      .strict(),
+  ])
+  .describe("Job kanal email");
+
+export type NotifyEmailJob = z.infer<typeof notifyEmailJobSchema>;
+
+/** Jenis kabar email yang terdaftar — kunci katalog template (apps/api). */
+export type NotifyEmailJenis = NotifyEmailJob["jenis"];

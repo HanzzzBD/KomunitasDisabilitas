@@ -6,7 +6,7 @@
 // lapisan ini adalah keputusan — cara pembuktian mana yang diterima, kapan
 // ditolak, dan apa yang tercatat saat ditolak.
 import { describe, it, expect, vi } from "vitest";
-import { AUDIT_ACTION } from "@nawasena/schemas";
+import { AUDIT_ACTION, QUEUE_NAME } from "@nawasena/schemas";
 import { AppError } from "../src/core/http/index.js";
 import {
   buildAccountDeletedMessage,
@@ -315,6 +315,19 @@ function fakeSender(opsi: { gagal?: boolean } = {}) {
 /** Beri kesempatan pengiriman fire-and-forget menyelesaikan microtask-nya. */
 const tungguSebentar = () => new Promise((r) => setTimeout(r, 0));
 
+/** Registry antrean penangkap; `gagal: true` meniru Redis yang tidak terjangkau. */
+function fakeQueues(opsi: { gagal?: boolean } = {}) {
+  const diantre: Array<{ name: string; payload: unknown }> = [];
+  const queues = {
+    async enqueue(name: string, payload: unknown) {
+      if (opsi.gagal === true) throw new Error("redis tidak terjangkau");
+      diantre.push({ name, payload });
+      return { id: "job-1", name };
+    },
+  } as unknown as Parameters<typeof createAccountService>[0]["queues"];
+  return { queues, diantre };
+}
+
 describe("pemberitahuan pasca-hapus", () => {
   it("isi pesan menyebut apa yang terjadi, batas waktu, dan cara melapor", () => {
     // Ketiganya adalah SELURUH gunanya. Pesan yang hanya berkata "akun dihapus"
@@ -380,7 +393,7 @@ describe("pemberitahuan pasca-hapus", () => {
       otp: { konfirmasiKode: async () => {} },
       sender: fakeSender({ gagal: true }).sender,
       auditLog: fakeAudit().auditLog,
-      logger: { warn },
+      logger: { warn, error: vi.fn() },
     });
 
     await expect(service.deleteAccount(actor, { otpCode: "482913" })).resolves.toEqual({
@@ -395,16 +408,18 @@ describe("pemberitahuan pasca-hapus", () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain(PHONE);
   });
 
-  it("akun tanpa nomor: penghapusan tetap berjalan, tidak ada yang dikirim", async () => {
+  it("akun tanpa nomor: SMS tidak dipakai — kanalnya email (PR-049a)", async () => {
     const { repository, dipanggil } = fakeUserRepository(
       { phone: null, googleId: GOOGLE_ID },
       { revokedCount: 0 },
     );
     const { sender, terkirim } = fakeSender();
+    const { queues } = fakeQueues();
     const service = createAccountService({
       userRepository: repository,
       google: fakeGoogle(GOOGLE_ID),
       sender,
+      queues,
       auditLog: fakeAudit().auditLog,
     });
 
@@ -412,9 +427,9 @@ describe("pemberitahuan pasca-hapus", () => {
     await tungguSebentar();
 
     expect(dipanggil.hapus).toBe(1);
-    // Celah yang diketahui: pengguna Google-only tidak punya kanal apa pun
-    // sampai verifikasi email ada. Diuji supaya ia tetap terlihat sebagai
-    // keputusan, bukan hilang menjadi asumsi.
+    // Kanal WhatsApp/SMS memang tidak dipakai — akun ini tidak punya nomor.
+    // Sampai PR-049a, itu berarti ia tidak menerima APA PUN; sekarang kabarnya
+    // lewat antrean email (diuji di blok "gerbang U-02" di bawah).
     expect(terkirim).toEqual([]);
   });
 
@@ -433,6 +448,130 @@ describe("pemberitahuan pasca-hapus", () => {
     await service.deleteAccount(actor, { otpCode: "482913" });
 
     expect(dipanggil.hapus).toBe(1);
+  });
+});
+
+/**
+ * GERBANG U-02 — durabilitas kabar (keputusan owner 2026-09-05).
+ *
+ * Blok ini menguji satu hal, dan satu hal itu adalah seluruh alasan PR-049a
+ * ada: bagi pengguna Google-only, kabar "akun Anda sudah dihapus" adalah
+ * SATU-SATUNYA kabar yang ia terima. Ia tidak punya nomor, dan sesudah
+ * penghapusan ia tidak punya sesi maupun layar tempat notifikasi in-app bisa
+ * dibaca. Kabar yang dikirim `void ...catch()` seperti jalur SMS akan ikut mati
+ * bersama prosesnya — tanpa retry, tanpa jejak, dan tanpa satu pun cara
+ * pengguna mengetahui bahwa jendela pembatalan 30 hari itu ada.
+ */
+describe("gerbang U-02 — kabar pasca-hapus lahir dari ANTREAN", () => {
+  function rakitTanpaNomor(opsiAntrean: { gagal?: boolean } = {}) {
+    const { repository, dipanggil } = fakeUserRepository(
+      { phone: null, googleId: GOOGLE_ID },
+      { revokedCount: 2 },
+    );
+    const { queues, diantre } = fakeQueues(opsiAntrean);
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const service = createAccountService({
+      userRepository: repository,
+      google: fakeGoogle(GOOGLE_ID),
+      queues,
+      auditLog: fakeAudit().auditLog,
+      logger,
+    });
+    return { service, diantre, dipanggil, logger };
+  }
+
+  it("job notify-email diantrekan, membawa REFERENSI saja", async () => {
+    const { service, diantre } = rakitTanpaNomor();
+
+    await service.deleteAccount(actor, { google: GOOGLE_INPUT });
+
+    expect(diantre).toHaveLength(1);
+    expect(diantre[0]?.name).toBe(QUEUE_NAME.NOTIFY_EMAIL);
+    // Tanpa alamat email di payload: job mengendap di Redis (AOF, noeviction)
+    // di luar jangkauan enkripsi kolom ADR-007, dan alamat email adalah PII.
+    expect(diantre[0]?.payload).toEqual({ jenis: "akun_dihapus", userId: USER_ID });
+  });
+
+  it("job sudah tersimpan SEBELUM permintaan dijawab", async () => {
+    // Di-await, berbeda dari jalur SMS. Yang ditunggu hanya penulisan job ke
+    // Redis (milidetik), bukan panggilan provider yang bisa memakan sepuluh
+    // detik — jadi biaya latensinya tidak ada, sementara imbalannya nyata:
+    // begitu 204 dijawab, kabarnya sudah berada di luar proses ini.
+    const { service, diantre } = rakitTanpaNomor();
+
+    await service.deleteAccount(actor, { google: GOOGLE_INPUT });
+
+    // TANPA `tungguSebentar()` — bila ini fire-and-forget, di sini masih kosong.
+    expect(diantre).toHaveLength(1);
+  });
+
+  it("TIDAK diantrekan saat konfirmasi gagal — akunnya masih utuh", async () => {
+    const { repository } = fakeUserRepository({ phone: null, googleId: GOOGLE_ID });
+    const { queues, diantre } = fakeQueues();
+    const service = createAccountService({
+      userRepository: repository,
+      // `sub` berbeda → consent sah tetapi milik akun Google lain.
+      google: fakeGoogle("google-sub-orang-lain"),
+      queues,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { google: GOOGLE_INPUT }).catch(() => undefined);
+
+    expect(diantre).toEqual([]);
+  });
+
+  it("antrean tidak terjangkau TIDAK menggagalkan penghapusan, tetapi berteriak", async () => {
+    // Akunnya sudah terhapus saat pengantrean dicoba; membalas kesalahan di
+    // titik ini akan membuat pengguna mengira penghapusannya gagal lalu
+    // mencobanya lagi. `error`, bukan `warn`: ia berarti seseorang tidak akan
+    // pernah tahu akunnya dihapus.
+    const { service, dipanggil, logger } = rakitTanpaNomor({ gagal: true });
+
+    await expect(service.deleteAccount(actor, { google: GOOGLE_INPUT })).resolves.toEqual({
+      revokedCount: 2,
+    });
+
+    expect(dipanggil.hapus).toBe(1);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("tanpa registry antrean: penghapusan tetap berjalan", async () => {
+    const { repository, dipanggil } = fakeUserRepository(
+      { phone: null, googleId: GOOGLE_ID },
+      { revokedCount: 0 },
+    );
+    const service = createAccountService({
+      userRepository: repository,
+      google: fakeGoogle(GOOGLE_ID),
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { google: GOOGLE_INPUT });
+
+    expect(dipanggil.hapus).toBe(1);
+  });
+
+  it("akun BERNOMOR tidak ikut mengantre — kanalnya SMS, bukan dua-duanya", async () => {
+    // Dua kabar untuk satu peristiwa bukan ketelitian melainkan kebisingan, dan
+    // nomor HP adalah kanal yang sudah TERBUKTI miliknya (setiap akun bernomor
+    // pernah menerima kode OTP di sana).
+    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null }, { revokedCount: 1 });
+    const { sender, terkirim } = fakeSender();
+    const { queues, diantre } = fakeQueues();
+    const service = createAccountService({
+      userRepository: repository,
+      otp: { konfirmasiKode: async () => {} },
+      sender,
+      queues,
+      auditLog: fakeAudit().auditLog,
+    });
+
+    await service.deleteAccount(actor, { otpCode: "482913" });
+    await tungguSebentar();
+
+    expect(terkirim).toHaveLength(1);
+    expect(diantre).toEqual([]);
   });
 });
 

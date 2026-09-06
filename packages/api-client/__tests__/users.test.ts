@@ -37,6 +37,23 @@ const EKSPOR = {
     educations: [],
     skills: [],
   },
+  // Bagian `accessibility` dan `notifications` WAJIB sejak 2026-09-05 (utang
+  // U-03 & U-04). Alasannya sama dengan `profile` di atas: fixture yang
+  // kekurangan bagian wajib ditolak parse-nya — dan itulah tepatnya yang dijaga
+  // test ini. Tujuh `null` = "belum memilih", BUKAN "memilih bawaan".
+  accessibility: {
+    textScale: null,
+    highContrast: null,
+    reduceMotion: null,
+    simpleLanguage: null,
+    prefersSignLanguage: null,
+    largeTouchTargets: null,
+    screenReaderHint: null,
+  },
+  // Bagian `notificationChannels` WAJIB sejak PR-049b, dan ditulis di PR yang
+  // SAMA dengan kolomnya — bukan menyusul seperti U-03/U-04.
+  notificationChannels: { email: null, push: null },
+  notifications: [],
 };
 
 const PROFIL = {

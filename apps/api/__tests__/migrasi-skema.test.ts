@@ -80,3 +80,95 @@ describe("schema.prisma ↔ SQL migrasi", () => {
     expect(sql).toMatch(/CREATE INDEX "refresh_tokens_expires_at_brin".*USING BRIN/i);
   });
 });
+
+/**
+ * Indeks yang BOLEH dihapus sebuah migrasi, beserta alasannya.
+ *
+ * Kosong hari ini, dan itu memang keadaan yang benar: belum ada satu pun indeks
+ * yang pernah sengaja dihapus di repo ini.
+ */
+const DROP_INDEX_DISENGAJA: Readonly<Record<string, string>> = {};
+
+describe("tidak ada migrasi yang menghapus indeks tanpa keputusan (PR-048a)", () => {
+  // KENAPA PENJAGA INI ADA — dan ia lahir dari kejadian nyata, bukan kehati-
+  // hatian abstrak.
+  //
+  // Sebagian indeks repo ini dibuat lewat RAW SQL di migrasi 03 karena Prisma
+  // tidak bisa menyatakannya: HNSW pgvector, GIN, trigram, dan beberapa indeks
+  // komposit. Karena tidak terwakili di schema.prisma, `prisma migrate dev`
+  // membacanya sebagai DRIFT dan dengan patuh menuliskan `DROP INDEX` untuk
+  // "merapikannya" — di TENGAH migrasi yang sebenarnya hanya menambah tabel.
+  //
+  // Itu terjadi saat menyiapkan PR-048a (2026-09-05): migrasi yang seharusnya
+  // hanya membuat `devices` menghasilkan TUJUH `DROP INDEX`, dan menjatuhkannya
+  // di DB dev sebelum ketahuan. Bila lolos ke produksi, pencarian lowongan dan
+  // job matching berubah menjadi seq scan — tanpa satu pun error, tanpa satu pun
+  // test merah. Hanya lambat, dan hanya saat data sudah banyak.
+  //
+  // Penjaga ini tidak memperbaiki sebabnya (utang U-15: deklarasikan indeks yang
+  // representable di schema.prisma). Yang ia jamin: sebab itu tidak bisa lagi
+  // menghasilkan akibat tanpa seseorang menuliskan keputusannya lebih dulu.
+  /**
+   * Komentar `--` DIBUANG sebelum dipindai, dan itu bukan detail.
+   *
+   * Migrasi 06 menuliskan *"Rollback = DROP INDEX ..."* di dalam komentarnya —
+   * kalimat penjelas, bukan pernyataan. Penjaga yang memindai teks mentah akan
+   * menuduhnya menghapus indeks, dan penjaga yang menuduh secara keliru adalah
+   * penjaga yang pertama kali dilonggarkan orang saat ia menghalangi.
+   */
+  const tanpaKomentar = (isi: string): string =>
+    isi
+      .split("\n")
+      .map((baris) => baris.replace(/--.*$/, ""))
+      .join("\n");
+
+  const berkas = readdirSync(MIGRASI)
+    .filter((nama) => statSync(join(MIGRASI, nama)).isDirectory())
+    .map((nama) => ({
+      nama,
+      isi: tanpaKomentar(readFileSync(join(MIGRASI, nama, "migration.sql"), "utf8")),
+    }));
+
+  it("penjaga ini tidak lulus secara hampa", () => {
+    expect(berkas.length).toBeGreaterThanOrEqual(14);
+  });
+
+  it("setiap DROP INDEX terdaftar sebagai keputusan sadar", () => {
+    const temuan: string[] = [];
+
+    for (const { nama, isi } of berkas) {
+      for (const cocok of isi.matchAll(/DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?"?([\w.]+)"?/gi)) {
+        const indeks = (cocok[1] as string).replace(/^public\./, "");
+        if (!(indeks in DROP_INDEX_DISENGAJA)) temuan.push(`${nama} → ${indeks}`);
+      }
+    }
+
+    expect(
+      temuan,
+      "Migrasi berikut menghapus indeks tanpa keputusan tertulis. Bila Anda TIDAK " +
+        "sengaja menuliskannya, ini hampir pasti drift yang dikarang `prisma migrate dev` " +
+        "atas indeks raw-SQL migrasi 03 — hapus barisnya dari migrasi. Bila memang " +
+        "disengaja, daftarkan di DROP_INDEX_DISENGAJA beserta alasannya:\n" +
+        temuan.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("indeks raw-SQL yang tak terwakili schema tetap ada di SQL migrasi", () => {
+    // Arah sebaliknya, dan perlu terpisah: penjaga di atas hanya melihat DROP.
+    // Indeks yang hilang karena migrasinya DIEDIT (bukan di-drop) tidak akan
+    // tertangkap olehnya — sedangkan akibatnya bagi produksi persis sama.
+    for (const indeks of [
+      "jobs_embedding_hnsw",
+      "seeker_profiles_embedding_hnsw",
+      "jobs_fts_gin",
+      "jobs_title_trgm",
+      "jobs_accommodations_gin",
+      "notifications_unread",
+      "applications_user_updated",
+      "applications_job_status",
+      "jobs_status_published_at",
+    ]) {
+      expect(sql, `indeks "${indeks}" hilang dari SQL migrasi`).toContain(`"${indeks}"`);
+    }
+  });
+});
