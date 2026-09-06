@@ -422,9 +422,16 @@ phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti p
 | U-12 | **NVDA sampling** untuk lima komponen (Dialog, Toast, Kerangka, Tab, Kartu) + tiga halaman auth | Log Phase 03 (PR-027/028/030/032a/033) | Menuntut manusia + alat; seluruh klaim "diumumkan" bersandar pada struktur ARIA, bukan pendengaran alat sungguhan |
 | U-13 | **Review copy oleh non-engineer** | Log Phase 03 (PR-029) | Paket teks sudah disiapkan, belum ada yang mereview |
 | U-14 | **AC PR-030 #1** — login OTP end-to-end | Log Phase 03 | Menunggu kredensial provider OTP |
+| U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b (2026-09-05) | Menunggu kredensial FCM + perangkat uji. Yang hanya bisa dijawab FCM sungguhan: apakah bentuk payload `notification` + `data` benar-benar memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti yang diklasifikasikan |
+| U-20 | **Email nyata di staging** (Resend) | Log PR-049a/b (2026-09-06) | Menunggu kredensial Resend + domain ber-SPF/DKIM. Yang hanya bisa dijawab pengiriman nyata: tampilan HTML di Gmail/Outlook (keduanya menulis ulang CSS) dan lolos tidaknya penyaring spam |
 
-Ketiganya **tidak bisa diverifikasi dari disk** dan karena itu tidak ikut direkonsiliasi
-2026-09-05. Statusnya diambil apa adanya dari log terakhir yang menyebutnya.
+Kelimanya **tidak bisa diverifikasi dari disk** dan karena itu tidak pernah ikut rekonsiliasi
+otomatis. Statusnya diambil apa adanya dari log terakhir yang menyebutnya.
+
+**U-19 dan U-20 ditambahkan 2026-09-06 atas keputusan owner:** keduanya sebelumnya hanya hidup
+sebagai prosa di dokumen phase dan log PR-nya — persis bentuk penyimpanan yang membuat berkas
+ini harus dibuat. Keduanya **bukan blocker pengembangan**; keduanya **adalah** syarat sebelum
+kanalnya dinyalakan bagi pengguna sungguhan.
 
 ---
 
@@ -538,3 +545,50 @@ pribadi hari ini **kurang** — preferensi aksesibilitas (ada untuk setiap pengg
 Phase 04) dan riwayat notifikasi (ada sejak PR-047) tidak ikut, padahal keduanya data
 pengguna yang sah dan tabelnya sudah terisi. Tidak memblokir PR-048, tetapi tidak boleh
 ikut hanyut sampai Phase 18.
+
+---
+
+## Rekonsiliasi 2026-09-06 (setelah PR-049b merged)
+
+Dijalankan atas perintah owner sesudah PR-049 tuntas. Metodenya sama dengan rekonsiliasi
+2026-09-05: setiap utang **diperiksa terhadap kode**, bukan dibaca ulang dari catatannya
+sendiri — catatan yang memeriksa dirinya sendiri tidak pernah menemukan apa pun.
+
+**LUNAS sejak rekonsiliasi terakhir:**
+
+* **U-11** (pemberitahuan pasca-hapus untuk akun Google-only) — dibayar PR-049a. Diverifikasi:
+  `beritahuLewatEmail` di `account.service.ts` mengantre `notify-email`, dan `email.service.ts`
+  mengirimnya. Utang ini terbuka sejak 2026-08-10; **27 hari** dari temuan ke lunas.
+
+**Diverifikasi MASIH TERBUKA — dengan bukti, bukan dengan asumsi:**
+
+| Utang | Cara diperiksa | Hasil |
+|---|---|---|
+| U-01 | `prettier --check "apps/api/src/**/*.ts"` | **33 berkas** akan ditulis ulang, dan `pnpm lint` tetap hijau — prettier memang tidak ditegakkan lint. Terkonfirmasi. |
+| U-02 | Gerbang dijalankan ulang untuk PR-049b | Tetap terbuka; lihat "hasil gerbang kedua" di entri U-02. |
+| U-05 | `export-kelengkapan.test.ts` | Atribusi sudah benar; utang pemindahan ke PR-066 tetap terbuka. |
+| U-06 | `grep AiClient apps/api/src/boot.ts` | **0 kecocokan** — jalur AI belum dirakit di composition root. Terkonfirmasi. |
+| U-07 | Tidak ada test yang melarang modul memanggil `createAiGateway` langsung | Terkonfirmasi. |
+| U-08 | `readdirSync(PROMPTS)` di `prompt-registry.test.ts` masih tanpa `{ recursive: true }` | Terkonfirmasi laten. |
+| U-09 | `OtpSender` / `OtpMessage` masih bernama demikian | Terkonfirmasi. |
+| U-10 | Tidak berubah sejak Phase 02 | Terkonfirmasi. |
+| U-15 | Migrasi 15 ditulis tangan; penjaganya hijau; 47 indeks utuh sesudah `migrate deploy` | Terkonfirmasi; penjaganya BEKERJA. |
+| U-16 | Bagian `notifications` ekspor masih tak berpaginasi | Tidak berubah. `notificationChannels` yang ditambahkan PR-049b berukuran tetap, jadi tidak memperburuknya. |
+| U-17 · U-18 | Ditunda atas keputusan owner 2026-09-06 | Tidak disentuh, sesuai perintah. |
+
+**Ditambahkan pada rekonsiliasi ini:** U-19 (push nyata ke perangkat uji) dan U-20 (email nyata
+di staging). Keduanya sudah ada sebagai prosa di log PR-048b dan PR-049a/b sejak ditemukan;
+yang baru adalah **tempatnya** — owner secara eksplisit memutuskan keduanya dicatat sebagai
+verifikasi manual/integrasi, bukan blocker pengembangan.
+
+**Yang paling perlu diperhatikan dari rekonsiliasi ini — U-01 TUMBUH.** Empat berkas baru
+PR-049a/b termasuk di antara 33 berkas yang akan ditulis ulang prettier. Itu bukan kelalaian
+penulisnya: gaya yang ditegakkan CI (`pnpm lint`) memang bukan gaya prettier, jadi setiap PR
+menambah selisihnya. Selama utang ini terbuka, `pnpm format` bukan perintah yang aman
+dijalankan siapa pun — dan CLAUDE.md §10 masih mencantumkannya tanpa peringatan.
+
+**Tidak ada utang yang statusnya keliru.** Tidak ada yang tercatat TERBUKA padahal sudah lunas,
+dan tidak ada yang tercatat LUNAS padahal masih ada.
+
+**Tidak ada blocking debt untuk PR-050.** Notification center web membaca endpoint yang sudah
+ada sejak PR-047 dan tidak menyentuh satu pun jalur yang utangnya terbuka.
