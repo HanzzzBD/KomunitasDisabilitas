@@ -261,3 +261,100 @@ export const deviceResponseSchema = z
   .openapi({ ref: "DeviceResponse" });
 
 export type DeviceResponse = z.infer<typeof deviceResponseSchema>;
+
+// --- Preferensi kanal (PR-049b) -----------------------------------------------
+//
+// TIGA KANAL, HANYA DUA YANG BISA DIATUR. In-app tidak muncul di sini dengan
+// sengaja: ia bukan kanal yang dikirimi, melainkan barisnya sendiri — mematikan
+// "in-app" berarti tidak menulis notifikasi sama sekali, dan pengguna kehilangan
+// riwayat yang bisa ia baca ulang. Yang bisa dimatikan hanyalah yang MENGEJAR
+// pengguna keluar dari aplikasi.
+
+/**
+ * Preferensi kanal sebagaimana TERSIMPAN. `null` = **belum pernah memilih**, dan
+ * itu berbeda dari "memilih nilai bawaan" — alasan yang sama persis dengan
+ * `accessibilityProfileSchema` (PR-036R): bawaan yang dituliskan ke baris
+ * membuat perubahan kebijakan bawaan di kemudian hari tidak pernah menjangkau
+ * siapa pun yang tidak pernah memilih apa-apa.
+ */
+export const notificationChannelPrefsSchema = z
+  .object({
+    /**
+     * Email. Bawaannya MATI (opt-in) — mengirimi orang email yang tidak pernah
+     * ia minta adalah cara tercepat membuat seluruh kanal ini masuk folder spam,
+     * termasuk kabar yang benar-benar ia butuhkan.
+     */
+    email: z.boolean().nullable(),
+    /**
+     * Push. Bawaannya HIDUP (opt-out) — pengguna sudah menyatakan persetujuannya
+     * di tingkat sistem operasi saat mendaftarkan perangkat, jadi meminta
+     * persetujuan kedua di sini hanya membuat kabar tidak sampai kepada orang
+     * yang sudah bilang ya.
+     */
+    push: z.boolean().nullable(),
+  })
+  .openapi({ ref: "NotificationChannelPrefs", description: "Preferensi kanal notifikasi" });
+
+export type NotificationChannelPrefs = z.infer<typeof notificationChannelPrefsSchema>;
+
+/**
+ * Bawaan tiap kanal — dipakai server DAN klien.
+ *
+ * Hidup di `packages/schemas`, bukan sebagai `@default` kolom: lihat alasannya
+ * di skema di atas dan di migrasi 15.
+ */
+export const NOTIFICATION_CHANNEL_DEFAULTS = {
+  email: false,
+  push: true,
+} as const satisfies Record<keyof NotificationChannelPrefs, boolean>;
+
+/** Preferensi yang belum pernah disentuh sama sekali. */
+export const NOTIFICATION_CHANNEL_PREFS_KOSONG: NotificationChannelPrefs = {
+  email: null,
+  push: null,
+};
+
+/**
+ * Kanal mana yang BERLAKU — pilihan pengguna bila ada, bawaan bila belum.
+ *
+ * Satu fungsi, dipakai server (sebelum mengantre) dan klien (menggambar
+ * togglenya). Dua salinan aturan ini berarti tombol yang menyala sementara
+ * kabarnya tidak dikirim, dan tidak ada yang akan menyadarinya.
+ */
+export function kanalBerlaku(
+  prefs: NotificationChannelPrefs | null | undefined,
+): Record<keyof NotificationChannelPrefs, boolean> {
+  return {
+    email: prefs?.email ?? NOTIFICATION_CHANNEL_DEFAULTS.email,
+    push: prefs?.push ?? NOTIFICATION_CHANNEL_DEFAULTS.push,
+  };
+}
+
+/**
+ * PUT /api/v1/me/notification-prefs — badan permintaan.
+ *
+ * Perubahan SEBAGIAN: field yang tidak disebut tidak berubah. `null` adalah
+ * PERINTAH HAPUS, bukan nilai — ia mengembalikan kanal itu ke "belum memilih"
+ * sehingga bawaan bisa berlaku lagi. Bentuk yang sama dengan
+ * `updateAccessibilityPreferencesSchema`, dan alasannya sama.
+ */
+export const updateNotificationChannelPrefsSchema = z
+  .object({
+    email: z.boolean().nullable().optional(),
+    push: z.boolean().nullable().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "Sebutkan setidaknya satu kanal yang ingin diubah",
+  })
+  .openapi({ ref: "UpdateNotificationChannelPrefs" });
+
+export type UpdateNotificationChannelPrefs = z.infer<typeof updateNotificationChannelPrefsSchema>;
+
+export const notificationChannelPrefsResponseSchema = z
+  .object({ data: notificationChannelPrefsSchema })
+  .openapi({ ref: "NotificationChannelPrefsResponse" });
+
+export type NotificationChannelPrefsResponse = z.infer<
+  typeof notificationChannelPrefsResponseSchema
+>;

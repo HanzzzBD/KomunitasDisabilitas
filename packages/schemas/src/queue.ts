@@ -338,6 +338,30 @@ export const notifyEmailJobSchema = z
      * preferensi kanal mana pun — alasannya di `email-template.service.ts`.
      */
     z.object({ jenis: z.literal("akun_dihapus"), userId: z.string().uuid() }).strict(),
+    /**
+     * Kabar biasa yang juga dikirim lewat email, bila pemiliknya menyalakan
+     * kanal itu (PR-049b). Membawa `notificationId`, BUKAN kalimatnya — dan
+     * bukan pula `jenis` tersendiri per tipe notifikasi.
+     *
+     * KENAPA SATU VARIAN UNTUK SELURUH TIPE NOTIFIKASI. Kalimat email ini
+     * dirakit renderer yang SAMA dengan yang melayani layar dan push
+     * (`template.service.ts`), jadi email tidak punya katalog kalimatnya
+     * sendiri yang bisa menyimpang. Tipe notifikasi baru otomatis ikut
+     * terkirim lewat email tanpa menyentuh berkas ini — dan itu memang yang
+     * benar: kanal adalah cara mengantar, bukan tempat menulis ulang.
+     *
+     * `userId` ikut meski bisa diturunkan dari notifikasinya, dengan alasan
+     * yang sama seperti `notify:push`: ia yang membuat pembacaan di worker
+     * menyebut `where { id, userId }`, sehingga job yang payload-nya dirusak
+     * tidak bisa membuat processor membaca notifikasi milik orang lain.
+     */
+    z
+      .object({
+        jenis: z.literal("notifikasi"),
+        userId: z.string().uuid(),
+        notificationId: z.string().uuid(),
+      })
+      .strict(),
   ])
   .describe("Job kanal email");
 

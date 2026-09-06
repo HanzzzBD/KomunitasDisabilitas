@@ -206,3 +206,136 @@ describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", (
     }
   });
 });
+
+/**
+ * KOLOM `users` yang TIDAK ikut ke berkas ekspor, beserta alasannya (PR-049b).
+ *
+ * KENAPA LAPISAN KEDUA INI ADA. Penjaga di atas bekerja per TABEL, dan `users`
+ * sudah `TERDAFTAR` sejak PR-022 — jadi kolom baru di tabel itu tidak pernah
+ * menyalakan apa pun. Persis itulah yang terjadi pada `notification_prefs`
+ * (migrasi 15): satu `ALTER TABLE` menambahkan data pribadi yang bisa saja tidak
+ * pernah ikut terekspor, dan seluruh gerbang tetap hijau.
+ *
+ * Kelalaian bentuk ini sudah terjadi dua kali dengan wujud lain (U-03, U-04) dan
+ * bertahan lima phase. Yang membuatnya bertahan bukan kesulitan teknis melainkan
+ * ketiadaan penagih — jadi penagihnya ditulis di sini, pada PR yang menambahkan
+ * kolomnya, bukan pada PR yang kelak menemukannya lagi.
+ */
+const KOLOM_USERS_DIKECUALIKAN: Readonly<Record<string, string>> = {
+  google_id:
+    "Pengenal opaque milik Google — tautan kredensial yang tidak berarti apa pun bagi " +
+    "pengguna. Digantikan `authMethods` yang menjawab pertanyaan sebenarnya: 'bagaimana " +
+    "saya masuk ke akun ini'.",
+  token_version:
+    "Penghitung internal kill-switch sesi (SDD §8.1). Bukan data pengguna; nilainya tidak " +
+    "berarti apa-apa di luar server.",
+  last_active_at:
+    "Jejak operasional, bukan data yang diberikan pengguna. Tidak dipakai pengguna maupun " +
+    "layanan lain saat ia memindahkan datanya.",
+  deleted_at:
+    "Penanda soft delete. Berkas ekspor hanya bisa diminta akun AKTIF, jadi kolom ini " +
+    "selalu NULL bagi setiap ekspor yang pernah dibuat.",
+};
+
+/** Kolom `users` yang benar-benar ikut, dipetakan ke bagian berkasnya. */
+const KOLOM_USERS_TERDAFTAR: Readonly<Record<string, string>> = {
+  id: "account.id",
+  phone: "account.phone",
+  email: "account.email",
+  email_verified: "account.emailVerified",
+  full_name: "account.fullName",
+  role: "account.role",
+  created_at: "account.createdAt",
+  notification_prefs: "notificationChannels",
+};
+
+/** Tipe skalar Prisma yang dipakai repo ini. */
+const SKALAR = new Set(["String", "Int", "Boolean", "DateTime", "Json", "Float", "BigInt", "Decimal", "Bytes"]);
+
+/** Nama setiap `enum` yang dideklarasikan di schema — enum adalah KOLOM, bukan relasi. */
+function enumDiSchema(prismaSchema: string): Set<string> {
+  return new Set([...prismaSchema.matchAll(/^enum (\w+) \{/gm)].map((m) => m[1]!));
+}
+
+/** Nama kolom DB setiap field skalar model `User` di schema.prisma. */
+function kolomUsers(prismaSchema: string): string[] {
+  const model = /model User \{([\s\S]*?)\n\}/.exec(prismaSchema);
+  if (model === null) throw new Error("model User tidak ditemukan di schema.prisma");
+
+  const kolom: string[] = [];
+  for (const baris of model[1]!.split("\n")) {
+    const bersih = baris.trim();
+    // Komentar dokumentasi, atribut blok, dan baris kosong dilewati.
+    if (bersih === "" || bersih.startsWith("///") || bersih.startsWith("@@")) continue;
+
+    const cocok = /^(\w+)\s+(\w+)(\[\])?(\?)?/.exec(bersih);
+    if (cocok === null) continue;
+    const [, nama, tipe, larik] = cocok;
+    // Relasi bukan kolom. Pembedanya BUKAN `@relation` — relasi satu-ke-satu
+    // yang FK-nya ada di sisi lain (`accessibilityProfile`, `seekerProfile`)
+    // tidak menuliskannya sama sekali. Yang bisa dipercaya: tipenya. Kolom
+    // selalu bertipe skalar Prisma atau enum yang dideklarasikan di schema ini.
+    if (larik !== undefined) continue;
+    if (!SKALAR.has(tipe!) && !enumDiSchema(prismaSchema).has(tipe!)) continue;
+    const map = /@map\("([^"]+)"\)/.exec(bersih);
+    kolom.push(map === null ? nama! : map[1]!);
+  }
+  return kolom;
+}
+
+describe("kelengkapan ekspor — setiap KOLOM users sudah diputuskan (PR-049b)", () => {
+  const kolom = kolomUsers(schema);
+
+  it("pemindainya benar-benar menemukan kolom, bukan daftar kosong", () => {
+    // Penjaga yang lulus secara hampa lebih berbahaya daripada tidak ada
+    // penjaga: ia membuat orang berhenti memeriksa.
+    expect(kolom.length).toBeGreaterThan(8);
+    expect(kolom).toContain("full_name");
+    expect(kolom).toContain("notification_prefs");
+    // Relasi TIDAK boleh ikut terhitung sebagai kolom.
+    expect(kolom).not.toContain("notifications");
+    expect(kolom).not.toContain("devices");
+  });
+
+  it("setiap kolom users ikut diekspor ATAU dikecualikan dengan alasan", () => {
+    const belumDiputuskan = kolom.filter(
+      (k) => KOLOM_USERS_TERDAFTAR[k] === undefined && KOLOM_USERS_DIKECUALIKAN[k] === undefined,
+    );
+
+    expect(
+      belumDiputuskan,
+      "Kolom users berikut belum diputuskan nasibnya di berkas ekspor. Tambahkan ke " +
+        "KOLOM_USERS_TERDAFTAR bila ikut, atau ke KOLOM_USERS_DIKECUALIKAN beserta alasannya. " +
+        "Data pribadi yang tidak ikut terekspor tidak menimbulkan gejala apa pun.",
+    ).toEqual([]);
+  });
+
+  it("tidak ada kolom yang didaftarkan padahal sudah tidak ada di schema", () => {
+    // Arah sebaliknya: daftar yang menyebut kolom mati membuat penjaga ini
+    // tampak lebih ketat daripada kenyataannya.
+    const hantu = [
+      ...Object.keys(KOLOM_USERS_TERDAFTAR),
+      ...Object.keys(KOLOM_USERS_DIKECUALIKAN),
+    ].filter((k) => !kolom.includes(k));
+
+    expect(hantu, "Kolom ini sudah tidak ada di schema.prisma — hapus dari daftarnya.").toEqual([]);
+  });
+
+  it("setiap pengecualian membawa alasan yang benar-benar ditulis", () => {
+    for (const [nama, alasan] of Object.entries(KOLOM_USERS_DIKECUALIKAN)) {
+      expect(alasan.trim().length, `alasan pengecualian ${nama} kosong`).toBeGreaterThan(30);
+    }
+  });
+
+  it("bagian yang ditunjuk kolom TERDAFTAR benar-benar ada di kontrak ekspor", () => {
+    // Menutup kebohongan yang paling mudah: mendaftarkan kolom ke bagian yang
+    // tidak pernah ada, lalu merasa aman.
+    const bentuk = dataExportSchema._def.shape();
+    for (const tujuan of Object.values(KOLOM_USERS_TERDAFTAR)) {
+      const bagian = tujuan.split(".")[0]!;
+      expect(Object.keys(bentuk), `bagian "${bagian}" tidak ada di dataExportSchema`).toContain(
+        bagian,
+      );
+    }
+  });
+});

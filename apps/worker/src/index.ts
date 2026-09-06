@@ -133,6 +133,9 @@ if (!emailSender.tersedia) {
 
 const emailService = createEmailService({
   penerima: createAuthUserRepository(prisma),
+  // Kalimat email notifikasi dirakit dari baris yang SAMA dengan yang dibaca
+  // layar dan push — bukan disalin ke payload job (PR-049b).
+  notificationRepository: createNotificationRepository(prisma),
   sender: emailSender,
   // Varian bahasa mengikuti preferensi penerimanya (ADR-008) — service yang
   // SAMA dengan yang melayani `/me/accessibility`. Barisnya selamat dari soft

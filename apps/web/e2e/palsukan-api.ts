@@ -83,6 +83,10 @@ const BERKAS_UJI = {
     largeTouchTargets: null,
     screenReaderHint: null,
   },
+  // PR-049b. Nilai campuran dengan sengaja: satu kanal yang benar-benar dipilih
+  // dan satu yang belum, supaya berkas uji ini bisa menangkap `null` yang
+  // diam-diam berubah menjadi `false` di sepanjang jalur.
+  notificationChannels: { email: true, push: null },
   // Satu notifikasi, bukan array kosong: berkas uji yang kosong tidak akan
   // pernah menangkap bentuk yang salah pada isinya.
   notifications: [
@@ -177,6 +181,24 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
       return route.fulfill(
         jsonkan(200, { data: { ...PREFERENSI_UJI, ...(kirim as Record<string, unknown>) } }),
+      );
+    }
+    if (jalur.endsWith("/me/notification-prefs")) {
+      // DIPERIKSA SEBELUM `/me`, alasan yang sama dengan `/me/accessibility`.
+      //
+      // Nilai awalnya CAMPURAN — satu kanal yang benar-benar dipilih dan satu
+      // yang belum — supaya gerbang ini bisa menangkap `null` yang diam-diam
+      // berubah menjadi `false` di sepanjang jalur. Preferensi yang seluruhnya
+      // `null` akan tampak benar meski panelnya kehilangan pembedaan itu.
+      //
+      // `PUT` MEMANTULKAN badan permintaan di atas nilai awal: jawaban yang
+      // tidak mencerminkan yang barusan dikirim membuat cacat "sakelar kembali
+      // ke posisi lama sesudah disimpan" lolos tanpa gejala.
+      const kirim = route.request().method() === "PUT" ? route.request().postDataJSON() : {};
+      return route.fulfill(
+        jsonkan(200, {
+          data: { email: true, push: null, ...(kirim as Record<string, unknown>) },
+        }),
       );
     }
     // --- Profil karier (PR-040) ---

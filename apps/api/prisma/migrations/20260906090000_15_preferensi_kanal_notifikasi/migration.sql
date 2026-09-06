@@ -1,0 +1,27 @@
+-- Migrasi 15 — preferensi kanal notifikasi (PR-049b, dokumen phase 07).
+--
+-- DITULIS TANGAN, dan alasannya sama persis dengan migrasi 14: `prisma migrate
+-- dev` untuk perubahan sekecil apa pun tetap mengarang tujuh `DROP INDEX` atas
+-- indeks raw-SQL migrasi 03 (HNSW pgvector, trigram, GIN akomodasi) yang tidak
+-- terwakili di schema.prisma. Menjalankan berkas generate-an itu apa adanya
+-- mengubah pencarian lowongan dan job matching menjadi seq scan tanpa satu pun
+-- error. Utang U-15; perangkapnya sudah menggigit sekali (2026-09-05).
+--
+-- SATU PERNYATAAN, ADITIF, TANPA `DROP` APA PUN. Ditinjau baris per baris
+-- sebelum di-commit (perintah owner 2026-09-05), dan penjaga
+-- `migrasi-skema.test.ts` menegakkannya secara otomatis.
+--
+-- KENAPA JSONB DAN BUKAN DUA KOLOM BOOLEAN. Bentuk preferensi kanal masih akan
+-- berubah — kanal berikutnya (WhatsApp, SignBridge digest) sudah terbayang, dan
+-- masing-masing akan menambah satu kolom beserta satu migrasi pada tabel
+-- terbesar sistem ini. Jsonb menukar penegakan bentuk di DB dengan kemampuan
+-- menambah kanal tanpa menyentuh `users` lagi; penegakan bentuknya pindah ke
+-- zod (`notificationChannelPrefsSchema`), yang memang satu-satunya jalan tulis.
+--
+-- NULLABLE TANPA DEFAULT, dan ini keputusan yang sama dengan migrasi 09
+-- (preferensi aksesibilitas nullable). NULL berarti "belum pernah memilih", dan
+-- itu BERBEDA dari "memilih nilai bawaan": bawaan yang dituliskan ke baris
+-- membuat perubahan kebijakan bawaan di kemudian hari tidak pernah menjangkau
+-- siapa pun yang tidak pernah memilih apa-apa. Sama alasannya, kolom ini tidak
+-- diisi-belakang (backfill) untuk baris yang sudah ada.
+ALTER TABLE "users" ADD COLUMN "notification_prefs" JSONB;

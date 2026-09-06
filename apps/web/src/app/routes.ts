@@ -116,8 +116,7 @@ export const ruteApp: RouteObject[] = [
             // Pengalihan di halaman indeks memang lazim, tetapi ia membuat satu
             // alamat yang dibagikan orang selalu berakhir di alamat lain — dan
             // pengguna yang menekan tombol kembali sesudahnya terlempar bolak-balik.
-            // Dengan dua panel saja, alamat indeks lebih baik BERISI daripada
-            // menunjuk.
+            // Alamat indeks lebih baik BERISI daripada menunjuk.
             index: true,
             lazy: async () => {
               const [{ PengaturanAkun }] = await Promise.all([
@@ -127,6 +126,16 @@ export const ruteApp: RouteObject[] = [
                 muatKatalog("pengaturan", "auth"),
               ]);
               return { Component: PengaturanAkun };
+            },
+          },
+          {
+            path: "notifikasi",
+            lazy: async () => {
+              const [{ PengaturanNotifikasi }] = await Promise.all([
+                import("../routes/pengaturan-notifikasi.js"),
+                muatKatalog("pengaturan"),
+              ]);
+              return { Component: PengaturanNotifikasi };
             },
           },
           {

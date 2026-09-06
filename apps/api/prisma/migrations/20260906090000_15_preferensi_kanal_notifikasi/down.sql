@@ -1,0 +1,11 @@
+-- Kebalikan migrasi 15.
+--
+-- Menurunkannya menghapus pilihan kanal SETIAP pengguna, dan pilihan itu tidak
+-- bisa dipulihkan dari mana pun — tidak ada sumber kedua. Akibat nyatanya:
+-- setiap orang yang pernah menyalakan email kembali ke keadaan "belum memilih",
+-- yang berarti email mati (kanal ini opt-in). Tidak ada kabar yang salah
+-- terkirim; yang hilang adalah kabar yang sudah diminta orangnya.
+--
+-- Karena itu penurunan ini hanya benar bila migrasi 15 memang belum pernah
+-- dipakai pengguna sungguhan. Bila sudah, ekspor kolomnya lebih dulu.
+ALTER TABLE "users" DROP COLUMN IF EXISTS "notification_prefs";

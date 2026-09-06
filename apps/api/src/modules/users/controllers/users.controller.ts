@@ -7,10 +7,11 @@
 // membuat `authOf` melempar 500, bukan membocorkan data.
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import type { UpdateMe } from "@nawasena/schemas";
+import type { UpdateMe, UpdateNotificationChannelPrefs } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import type { UsersActor, UsersService } from "../services/users.service.js";
 import type { ExportService } from "../services/export.service.js";
+import type { NotificationPrefsService } from "../services/notification-prefs.service.js";
 
 /** requestId dari pino-http; fallback bila middleware logger tidak terpasang. */
 function actorOf(req: Request): UsersActor {
@@ -20,7 +21,11 @@ function actorOf(req: Request): UsersActor {
   };
 }
 
-export function createUsersController(service: UsersService, exportService: ExportService) {
+export function createUsersController(
+  service: UsersService,
+  exportService: ExportService,
+  prefsService: NotificationPrefsService,
+) {
   return {
     /** GET /api/v1/me → 200 profil sendiri. */
     async me(req: Request, res: Response): Promise<void> {
@@ -43,6 +48,17 @@ export function createUsersController(service: UsersService, exportService: Expo
      */
     async exportMe(req: Request, res: Response): Promise<void> {
       res.status(200).json({ data: await exportService.exportMe(actorOf(req)) });
+    },
+
+    /** GET /api/v1/me/notification-prefs → 200 preferensi kanal (PR-049b). */
+    async notificationPrefs(req: Request, res: Response): Promise<void> {
+      res.status(200).json({ data: await prefsService.getMe(actorOf(req)) });
+    },
+
+    /** PUT /api/v1/me/notification-prefs → 200 preferensi setelah diperbarui. */
+    async updateNotificationPrefs(req: Request, res: Response): Promise<void> {
+      const body = req.body as UpdateNotificationChannelPrefs;
+      res.status(200).json({ data: await prefsService.updateMe(actorOf(req), body) });
     },
   };
 }

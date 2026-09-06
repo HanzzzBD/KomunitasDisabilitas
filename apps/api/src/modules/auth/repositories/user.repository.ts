@@ -133,6 +133,32 @@ export function createAuthUserRepository(prisma: AppPrisma) {
     },
 
     /**
+     * Alamat tujuan kabar email BIASA (PR-049b) — dibaca worker, untuk akun yang
+     * masih hidup.
+     *
+     * Sengaja TERPISAH dari `findPenerimaPascaHapus` alih-alih satu fungsi
+     * berparameter: yang membedakan keduanya adalah sikap terhadap soft delete,
+     * dan query yang buta-atau-tidak-buta tergantung argumen adalah persis
+     * tempat kebocoran akun terhapus lahir. Di sini penjaga `core/db` bekerja
+     * sebagaimana mestinya — `deletedAt` tidak disebut, jadi baris terhapus
+     * tidak akan pernah terbaca.
+     *
+     * `notificationPrefs` ikut di query yang SAMA. Akibatnya pemeriksaan opt-out
+     * di konsumen tidak berbiaya satu perjalanan DB pun, dan karena itu tidak
+     * ada alasan melewatkannya.
+     */
+    async findPenerimaAktif(id: string): Promise<{
+      email: string | null;
+      emailVerified: boolean;
+      notificationPrefs: unknown;
+    } | null> {
+      return prisma.user.findFirst({
+        where: { id },
+        select: { email: true, emailVerified: true, notificationPrefs: true },
+      });
+    },
+
+    /**
      * Hapus akun (soft) + matikan seluruh sesinya — SATU TRANSAKSI.
      *
      * Dua tabel, satu invarian: "akun terhapus tidak punya sesi hidup". Karena

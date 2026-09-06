@@ -67,6 +67,17 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "pengaturan.nav.aksesibilitas":
     "Harus SAMA dengan judul panel tujuannya (`pengaturan.aksesibilitas.judul`) — pengguna " +
     "mencocokkan kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  // --- panel kanal notifikasi (PR-049b) ---
+  "pengaturan.notifikasi.judul":
+    "Satu kata sehari-hari; nama panel tidak punya bentuk lebih sederhana.",
+  "pengaturan.nav.notifikasi":
+    "Harus SAMA dengan judul panel tujuannya (`pengaturan.notifikasi.judul`) — pengguna " +
+    "mencocokkan kata yang tadi ia tekan dengan judul halaman yang ia buka.",
+  "pengaturan.notifikasi.email":
+    "Label empat kata sehari-hari; 'email' adalah sebutan sehari-harinya di Indonesia.",
+  "pengaturan.notifikasi.push":
+    "Label lima kata sehari-hari, dan sengaja menyebut TEMPAT kabarnya muncul alih-alih " +
+    "istilah 'push' — jadi tidak ada bentuk yang lebih sederhana lagi.",
   "pengaturan.akun.nama": "Label satu kata sehari-hari.",
   "pengaturan.akun.email": "Label satu kata; 'email' adalah sebutan sehari-harinya di Indonesia.",
   "pengaturan.akun.nomor": "Label dua kata; sama dengan label di halaman masuk (`auth.nomor.label`).",

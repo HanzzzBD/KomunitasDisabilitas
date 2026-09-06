@@ -167,6 +167,7 @@ describe("kontributor bagian notifications", () => {
       },
       profile: { ...SEEKER_PROFILE_KOSONG, experiences: [], educations: [], skills: [] },
       accessibility: { ...ACCESSIBILITY_PROFILE_KOSONG },
+      notificationChannels: { email: null, push: null },
       notifications: await kontributor.kumpulkan(USER_ID),
     });
 

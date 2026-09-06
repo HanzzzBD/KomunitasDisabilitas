@@ -158,7 +158,7 @@ interface JobTerantre {
   jobId?: string;
 }
 
-async function boot(): Promise<{
+async function boot(opsiPrefs?: { email: boolean | null; push: boolean | null }): Promise<{
   base: string;
   rows: Baris[];
   events: EventBus;
@@ -179,6 +179,7 @@ async function boot(): Promise<{
   // BERAPA KALI. Yang diuji di sini bukan BullMQ, melainkan keputusan produser:
   // notifikasi yang sudah pernah lahir tidak mengantre push kedua.
   const antre: JobTerantre[] = [];
+  const prefsKanal = opsiPrefs ?? { email: null, push: null };
   const queues = {
     enqueue: (queue: string, payload: unknown, opsi?: { jobId?: string }) => {
       antre.push({ queue, payload, jobId: opsi?.jobId });
@@ -200,6 +201,11 @@ async function boot(): Promise<{
           routes: registry.forModule("/api/v1"),
           events,
           queues: queues as never,
+          // Preferensi kanal (PR-049b). Bawaannya "belum memilih" = email MATI,
+          // jadi test lama tidak berubah perilakunya sama sekali.
+          preferensiKanal: {
+            untukProduser: () => Promise.resolve(prefsKanal),
+          },
           logger,
         }).router,
       );
@@ -447,6 +453,57 @@ describe("POST /me/notifications/:id/read", () => {
   });
 });
 
+describe("produser email (PR-049b)", () => {
+  it("pengguna yang MENYALAKAN email → job notify-email di samping push", async () => {
+    const { events, rows, antre } = await boot({ email: true, push: null });
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+
+    expect(antre.map((j) => j.queue)).toEqual(["notify-push", "notify-email"]);
+    const email = antre[1];
+    expect(email?.payload).toEqual({
+      jenis: "notifikasi",
+      userId: A,
+      notificationId: rows[0]?.id,
+    });
+  });
+
+  it("job email TANPA jobId deterministik — berbeda dari push, dan itu disengaja", async () => {
+    // Kabar ganda jauh lebih ringan daripada kabar yang hilang: `jobId` turunan
+    // `notificationId` akan membuat percobaan kedua ditolak BullMQ diam-diam
+    // selama job pertama masih tersimpan.
+    const { events, antre } = await boot({ email: true, push: null });
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+
+    expect(antre.find((j) => j.queue === "notify-email")?.jobId).toBeUndefined();
+  });
+
+  it("event yang terbit ULANG → TIDAK mengantre email kedua", async () => {
+    // Idempotensi email MEWARISI idempotensi notifikasi, sama seperti push.
+    const { events, antre } = await boot({ email: true, push: null });
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T11:00:00.000Z" });
+    await tunggu();
+
+    expect(antre.filter((j) => j.queue === "notify-email")).toHaveLength(1);
+  });
+
+  it("payload email membawa REFERENSI saja — tidak ada alamat maupun kalimat", async () => {
+    // Payload mengendap di Redis (AOF, noeviction) di luar jangkauan enkripsi
+    // kolom ADR-007. Kalimatnya pun tidak ikut: job yang mengendap melewati
+    // perbaikan teks akan mengirim kalimat lama tanpa ada yang menyadarinya.
+    const { events, antre } = await boot({ email: true, push: null });
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+
+    const payload = JSON.stringify(antre.find((j) => j.queue === "notify-email")?.payload);
+    expect(payload).not.toContain("@");
+    expect(payload).not.toContain("Selamat datang");
+  });
+});
+
 describe("produser push (PR-048b)", () => {
   it("notifikasi baru → satu job notify-push ber-jobId deterministik", async () => {
     const { events, rows, antre } = await boot();
@@ -480,6 +537,17 @@ describe("produser push (PR-048b)", () => {
     await tunggu();
 
     expect(antre).toHaveLength(1);
+  });
+
+  it("email TIDAK ikut diantrekan bila pengguna belum menyalakannya (AC-3)", async () => {
+    // Bawaan email adalah MATI (opt-in). Mayoritas pengguna karena itu tidak
+    // pernah melahirkan job email sama sekali — inilah alasan pemeriksaan
+    // opt-out ada juga di produser, bukan hanya di konsumen.
+    const { events, antre } = await boot();
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+
+    expect(antre.map((j) => j.queue)).toEqual(["notify-push"]);
   });
 
   it("perpindahan status BERIKUTNYA tetap mengantre push tersendiri", async () => {

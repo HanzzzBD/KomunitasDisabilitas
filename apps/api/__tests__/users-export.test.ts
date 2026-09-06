@@ -80,10 +80,17 @@ const kontributorNotifikasi: ExportContributor = {
   kumpulkan: async () => [],
 };
 
-/** Ketiga kontributor modul lain — urutannya sama dengan boot.ts. */
+/** Preferensi kanal notifikasi (PR-049b) — ikut sejak kolomnya lahir. */
+const kontributorKanal: ExportContributor = {
+  bagian: "notificationChannels",
+  kumpulkan: async () => ({ email: null, push: null }),
+};
+
+/** Keempat kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
+  kontributorKanal,
   kontributorNotifikasi,
 ] as const;
 
@@ -239,6 +246,7 @@ describe("agregator ekspor", () => {
       "account",
       "profile",
       "accessibility",
+      "notificationChannels",
       "notifications",
     ]);
   });
@@ -257,7 +265,7 @@ describe("audit ekspor", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile", "accessibility", "notifications"],
+        sections: ["account", "profile", "accessibility", "notificationChannels", "notifications"],
       },
     });
   });

@@ -50,6 +50,9 @@ const EKSPOR = {
     largeTouchTargets: null,
     screenReaderHint: null,
   },
+  // Bagian `notificationChannels` WAJIB sejak PR-049b, dan ditulis di PR yang
+  // SAMA dengan kolomnya — bukan menyusul seperti U-03/U-04.
+  notificationChannels: { email: null, push: null },
   notifications: [],
 };
 

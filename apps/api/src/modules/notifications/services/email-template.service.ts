@@ -34,11 +34,23 @@
 // phishing. Alasan yang sama sudah ditulis di `account.service.ts` (PR-021) untuk
 // pesan SMS-nya, dan berlaku lebih kuat di sini: email jauh lebih mudah
 // dipalsukan daripada SMS.
-import {
-  HARI_SEBELUM_PURGE,
-  type NotificationText,
-  type NotifyEmailJenis,
-} from "@nawasena/schemas";
+import { HARI_SEBELUM_PURGE, type NotificationText, type NotifyEmailJenis } from "@nawasena/schemas";
+import type { TeksNotifikasi } from "./template.service.js";
+
+/**
+ * Jenis email yang kalimatnya ditulis DI SINI.
+ *
+ * Sengaja bukan seluruh `NotifyEmailJenis`: sejak PR-049b ada jenis
+ * `notifikasi`, yang kalimatnya justru TIDAK ditulis di berkas ini — ia dirakit
+ * renderer notifikasi yang sama dengan yang melayani layar dan push. Katalog
+ * yang memaksa jenis itu punya entri di sini akan melahirkan salinan kalimat
+ * kedua, persis yang dicegah `template.service.ts`.
+ *
+ * Kelengkapannya tetap ditegakkan tipe, hanya pindah tempat: `switch (jenis)`
+ * di `email.service.ts` ditutup pemeriksaan `never`, sehingga jenis baru tanpa
+ * jalur render adalah `typecheck` merah.
+ */
+export type EmailJenisBerkatalog = Extract<NotifyEmailJenis, "akun_dihapus">;
 
 /** Satu template email: judul surat, judul isi, dan paragrafnya. */
 export interface TemplateEmail {
@@ -109,7 +121,7 @@ export const EMAIL_TEMPLATE = {
       },
     ],
   },
-} as const satisfies Record<NotifyEmailJenis, TemplateEmail>;
+} as const satisfies Record<EmailJenisBerkatalog, TemplateEmail>;
 
 /** Satu email yang siap dikirim, dalam satu varian bahasa. */
 export interface IsiEmail {
@@ -192,7 +204,7 @@ function rakitTeks(heading: string, paragraf: readonly string[]): string {
  * diuji sebagai snapshot yang dibaca manusia saat review, sama seperti
  * `renderNotifikasi` (PR-047).
  */
-export function renderEmail(jenis: NotifyEmailJenis, sederhana: boolean): IsiEmail {
+export function renderEmail(jenis: EmailJenisBerkatalog, sederhana: boolean): IsiEmail {
   const template: TemplateEmail = EMAIL_TEMPLATE[jenis];
   const heading = pilih(template.heading, sederhana);
   const paragraf = template.paragraf.map((p) => pilih(p, sederhana));
@@ -201,5 +213,33 @@ export function renderEmail(jenis: NotifyEmailJenis, sederhana: boolean): IsiEma
     subject: pilih(template.subject, sederhana),
     html: rakitHtml(heading, paragraf),
     text: rakitTeks(heading, paragraf),
+  };
+}
+
+/**
+ * Rakit email untuk sebuah NOTIFIKASI (PR-049b).
+ *
+ * Kalimatnya datang dari `renderNotifikasi` — renderer yang SAMA dengan yang
+ * melayani layar (PR-047) dan push (PR-048b). Itulah seluruh alasan fungsi ini
+ * hanya membungkus, bukan menulis: kalimat yang ditulis ulang per kanal akan
+ * berbeda dari yang dibacakan pembaca layar lewat kanal lain, dan tidak ada
+ * satu pun test yang bisa menangkap perbedaan itu.
+ *
+ * Kerangka HTML-nya sama dengan email katalog — termasuk `lang="id"`, bagian
+ * teks polos, nihil gambar, dan nihil tautan. Yang terakhir berarti email
+ * notifikasi pun tidak membawa tautan "buka lamaran": kabar boleh menyusul
+ * pengguna keluar dari aplikasi, tautan bertindak di dalamnya tidak.
+ */
+export function renderEmailNotifikasi(teks: TeksNotifikasi, sederhana: boolean): IsiEmail {
+  const judul = pilih(teks.title, sederhana);
+  const isi = [pilih(teks.body, sederhana)];
+
+  return {
+    // Subjek = judul notifikasi apa adanya. Menambahkan awalan ("Nawasena:")
+    // memakan lebar daftar masuk yang sudah sempit, dan nama pengirim sudah
+    // menyebutkannya (EMAIL_FROM).
+    subject: judul,
+    html: rakitHtml(judul, isi),
+    text: rakitTeks(judul, isi),
   };
 }

@@ -21,7 +21,7 @@ import {
   skillSchema,
 } from "./profiles.js";
 import { accessibilityProfileSchema } from "./accessibility.js";
-import { notificationSchema } from "./notifications.js";
+import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -126,6 +126,20 @@ export const dataExportSchema = z
      * "memilih bawaan"; lihat accessibility.service.ts).
      */
     accessibility: accessibilityProfileSchema,
+    /**
+     * Preferensi kanal notifikasi (PR-049b).
+     *
+     * Ikut sejak kolomnya lahir, bukan menyusul — pelajaran U-03/U-04, tempat
+     * dua bagian data pengguna tidak ikut terekspor selama lima phase tanpa satu
+     * pun penjaga menyalak. Bentuknya dipakai ULANG dari
+     * `notificationChannelPrefsSchema` dengan alasan yang sama seperti
+     * `accessibility`: yang dibaca pengguna di berkas ekspornya harus sama persis
+     * dengan yang ia lihat di pengaturannya.
+     *
+     * `null` pada sebuah kanal berarti "belum pernah memilih" — dan berkas ekspor
+     * TIDAK mengklaim pilihan yang tidak pernah dibuat orangnya.
+     */
+    notificationChannels: notificationChannelPrefsSchema,
     /**
      * Riwayat notifikasi (utang U-04, dibayar 2026-09-05).
      *

@@ -11,7 +11,11 @@ import { meSchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
-import { createUsersModule } from "../src/modules/users/index.js";
+import {
+  createNotificationPrefsService,
+  createUserProfileRepository,
+  createUsersModule,
+} from "../src/modules/users/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -35,6 +39,8 @@ interface BarisUser {
   googleId: string | null;
   createdAt: Date;
   deletedAt: Date | null;
+  /** Kolom jsonb migrasi 15 (PR-049b); `undefined` = belum pernah ditulis. */
+  notificationPrefs?: unknown;
 }
 
 function userAwal(): BarisUser[] {
@@ -89,11 +95,17 @@ function fakePrisma(rows: BarisUser[]) {
         data,
       }: {
         where: { id: string };
-        data: { fullName: string; email?: string | null };
+        data: { fullName?: string; email?: string | null; notificationPrefs?: unknown };
       }) => {
         const baris = rows.find((u) => u.deletedAt === null && u.id === where.id);
         if (baris === undefined) {
           return Promise.reject(prismaError("P2025", "Record to update not found"));
+        }
+        // Preferensi kanal (PR-049b) ditulis sendiri: `update` yang sama dipakai
+        // dua repository, dan kolom ini tidak pernah datang bersama `fullName`.
+        if (data.notificationPrefs !== undefined) {
+          baris.notificationPrefs = data.notificationPrefs;
+          return Promise.resolve({ ...baris });
         }
         // Wasit unique parsial `users_email_aktif_key` (migrasi 06) ditiru di
         // sini; kebenarannya terhadap PostgreSQL nyata diuji di users-me-db.
@@ -104,7 +116,7 @@ function fakePrisma(rows: BarisUser[]) {
         ) {
           return Promise.reject(prismaError("P2002", "Unique constraint failed"));
         }
-        baris.fullName = data.fullName;
+        if (data.fullName !== undefined) baris.fullName = data.fullName;
         if (data.email !== undefined) baris.email = data.email;
         return Promise.resolve({ ...baris });
       },
@@ -168,6 +180,9 @@ async function boot(options: { sessionKeys?: typeof SESSION_KEYS } = {}) {
             ttl: () => Promise.resolve(-2),
           },
           routes: registry.forModule("/api/v1"),
+          notificationPrefs: createNotificationPrefsService({
+            userRepository: createUserProfileRepository(prisma),
+          }),
           auditLog: (_actor, action, _entity, _entityId, meta) => {
             audit.push({ action, meta });
           },
@@ -366,5 +381,94 @@ describe("PUT /api/v1/me — audit & log", () => {
     const semua = logSink.join("\n");
     expect(semua).not.toContain("rahasia@contoh.id");
     expect(semua).not.toContain("+6281234567890");
+  });
+});
+
+/** PUT sembarang path — `simpan` di atas terpaku pada `/me`. */
+function kirim(base: string, path: string, token: string | undefined, body: unknown) {
+  return fetch(`${base}${path}`, {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("GET/PUT /api/v1/me/notification-prefs (PR-049b)", () => {
+  it("akun yang belum pernah memilih → 200 dengan dua null, bukan bawaan", async () => {
+    // "Belum memilih" harus punya bentuk di kabel. Tanpa itu toggle di klien
+    // tidak bisa membedakan "saya menyalakannya" dari "kebetulan bawaannya
+    // menyala", dan perubahan kebijakan bawaan tidak akan pernah menjangkau
+    // siapa pun yang tidak pernah memilih apa-apa (pelajaran PR-036R).
+    const { base } = await boot();
+    const res = await ambil(base, "/me/notification-prefs", await tokenUntuk(A));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { email: null, push: null } });
+  });
+
+  it("PUT sebagian → hanya kanal yang disebut yang berubah", async () => {
+    const { base } = await boot();
+    const token = await tokenUntuk(A);
+
+    await kirim(base, "/me/notification-prefs", token, { email: true });
+    const res = await kirim(base, "/me/notification-prefs", token, { push: false });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { email: true, push: false } });
+  });
+
+  it("null mengembalikan kanal ke belum-memilih", async () => {
+    const { base } = await boot();
+    const token = await tokenUntuk(A);
+
+    await kirim(base, "/me/notification-prefs", token, { email: true });
+    const res = await kirim(base, "/me/notification-prefs", token, { email: null });
+
+    expect(await res.json()).toEqual({ data: { email: null, push: null } });
+  });
+
+  it("kanal asing ditolak 400 — bukan diterima lalu diabaikan", async () => {
+    // `.strict()` di skema. Field asing yang diterima diam-diam adalah setelan
+    // yang dikira pengguna tersimpan padahal tidak.
+    const { base } = await boot();
+    const res = await kirim(base, "/me/notification-prefs", await tokenUntuk(A), {
+      whatsapp: true,
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("badan kosong ditolak 400", async () => {
+    // Permintaan yang tidak menyebut satu kanal pun tidak punya arti; menerima
+    // 200 untuknya membuat klien yang mengirim badan kosong karena bug tampak
+    // berhasil.
+    const { base } = await boot();
+    const res = await kirim(base, "/me/notification-prefs", await tokenUntuk(A), {});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("tanpa sesi → 401 pada kedua metode", async () => {
+    const { base } = await boot();
+
+    expect((await ambil(base, "/me/notification-prefs")).status).toBe(401);
+    expect((await kirim(base, "/me/notification-prefs", undefined, { email: true })).status).toBe(
+      401,
+    );
+  });
+
+  it("preferensi satu pengguna tidak terlihat oleh pengguna lain", async () => {
+    // Bentuk paling penting dari "user A tidak bisa membaca user B": endpoint
+    // ini tidak punya parameter untuk menyebut pengguna lain sama sekali —
+    // pemiliknya datang dari sesi.
+    const { base } = await boot();
+    await kirim(base, "/me/notification-prefs", await tokenUntuk(A), { email: true });
+
+    const res = await ambil(base, "/me/notification-prefs", await tokenUntuk(B));
+
+    expect(await res.json()).toEqual({ data: { email: null, push: null } });
   });
 });

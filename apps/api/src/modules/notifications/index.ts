@@ -15,7 +15,8 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { EventBus } from "../../core/events/index.js";
-import { QUEUE_NAME, notifyPushJobSchema } from "@nawasena/schemas";
+import { QUEUE_NAME, kanalBerlaku, notifyEmailJobSchema, notifyPushJobSchema } from "@nawasena/schemas";
+import type { NotificationChannelPrefs } from "@nawasena/schemas";
 import { buildJobId, type QueueRegistry } from "../../core/queue/index.js";
 import type { Logger } from "../../core/logger/index.js";
 import type { DevicesService } from "./services/devices.service.js";
@@ -46,6 +47,14 @@ export interface NotificationsModuleDeps {
    * push, dan bukan alasan memaksa setiap pemanggil mengarang antrean palsu.
    */
   queues?: Pick<QueueRegistry, "enqueue">;
+  /**
+   * Preferensi kanal pemilik notifikasi (PR-049b) — dirakit di composition root
+   * oleh modul `users`, yang memiliki kolomnya. OPSIONAL: tanpanya kabar email
+   * tidak diantrekan sama sekali, keadaan sah bagi test yang tidak sedang
+   * mengujinya. Ketiadaannya TIDAK pernah berarti "kirim ke semua orang" —
+   * default-nya diam, sebab email adalah kanal opt-in.
+   */
+  preferensiKanal?: { untukProduser(userId: string): Promise<NotificationChannelPrefs> };
   logger?: Pick<Logger, "error">;
 }
 
@@ -107,6 +116,59 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       );
     }
   }
+  /**
+   * Antrekan kabar EMAIL untuk notifikasi yang baru lahir (PR-049b).
+   *
+   * Syaratnya sama dengan push (`lahir === true`), jadi idempotensinya pun
+   * mewarisi idempotensi notifikasi — satu penjaga di satu tempat.
+   *
+   * PEMERIKSAAN OPT-OUT DI SINI ADALAH OPTIMASI, BUKAN PENEGAKAN. Email adalah
+   * kanal opt-in, jadi MAYORITAS pengguna tidak menyalakannya; tanpa pemeriksaan
+   * ini setiap notifikasi melahirkan satu job yang pasti dibuang. Yang
+   * MENEGAKKAN aturannya ada di konsumen (`email.service.ts`) — satu-satunya
+   * titik yang dilewati setiap produser email, termasuk yang belum ditulis
+   * siapa pun. Dua tempat, dua peran berbeda, dan itu ditulis di keduanya.
+   *
+   * TANPA `jobId` deterministik, berbeda dari push. Alasannya sama dengan
+   * `akun_dihapus` (PR-049a): kabar ganda jauh lebih ringan daripada kabar yang
+   * hilang, dan `jobId` turunan `notificationId` akan membuat percobaan kedua
+   * ditolak diam-diam selama job pertama masih tersimpan.
+   *
+   * TIDAK PERNAH MENOLAK — alasan yang sama persis dengan `antrekanPush`.
+   */
+  async function antrekanEmail(
+    lahir: boolean,
+    userId: string,
+    notificationId: string,
+  ): Promise<void> {
+    if (!lahir || deps.queues === undefined || deps.preferensiKanal === undefined) return;
+    try {
+      const prefs = await deps.preferensiKanal.untukProduser(userId);
+      if (!kanalBerlaku(prefs).email) return;
+
+      const job = notifyEmailJobSchema.parse({ jenis: "notifikasi", userId, notificationId });
+      await deps.queues.enqueue(QUEUE_NAME.NOTIFY_EMAIL, job);
+    } catch (err) {
+      deps.logger?.error(
+        { err, notificationId },
+        "Gagal mengantrekan email — notifikasinya tetap ada, hanya kabarnya yang tidak dikirim",
+      );
+    }
+  }
+
+  /** Kedua kanal luar sekaligus, untuk satu notifikasi yang baru lahir. */
+  async function antrekanKanalLuar(
+    lahir: boolean,
+    userId: string,
+    notificationId: string,
+  ): Promise<void> {
+    // Berurutan, bukan `Promise.all`: keduanya sudah menelan kegagalannya
+    // sendiri, dan menjalankannya paralel hanya menukar keterbacaan dengan
+    // penghematan beberapa milidetik pada jalur yang tidak ditunggu pengguna.
+    await antrekanPush(lahir, userId, notificationId);
+    await antrekanEmail(lahir, userId, notificationId);
+  }
+
   const devices = createDevicesService({
     deviceRepository: createDeviceRepository(deps.prisma),
   });
@@ -134,7 +196,11 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       params: {},
       kunciPeristiwa: "akun",
     });
-    await antrekanPush(lahir, payload.userId, idNotifikasi("auth.selamat_datang", payload.userId, "akun"));
+    await antrekanKanalLuar(
+      lahir,
+      payload.userId,
+      idNotifikasi("auth.selamat_datang", payload.userId, "akun"),
+    );
   });
 
   // Lamaran terkirim → satu bukti terima per lamaran (PR-076).
@@ -145,7 +211,7 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       params: { applicationId: payload.applicationId, jobId: payload.jobId },
       kunciPeristiwa: payload.applicationId,
     });
-    await antrekanPush(
+    await antrekanKanalLuar(
       lahir,
       payload.userId,
       idNotifikasi("lamaran.terkirim", payload.userId, payload.applicationId),
@@ -177,7 +243,7 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       },
       kunciPeristiwa: kunci,
     });
-    await antrekanPush(
+    await antrekanKanalLuar(
       lahir,
       payload.userId,
       idNotifikasi("lamaran.status_berubah", payload.userId, kunci),
@@ -282,10 +348,13 @@ export {
 export {
   EMAIL_TEMPLATE,
   renderEmail,
+  renderEmailNotifikasi,
+  type EmailJenisBerkatalog,
   type IsiEmail,
   type TemplateEmail,
 } from "./services/email-template.service.js";
 export {
+  bacaPreferensiKanal,
   createEmailService,
   type EmailService,
   type EmailServiceDeps,
