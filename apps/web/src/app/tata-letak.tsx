@@ -7,6 +7,7 @@
 import { Link, Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
+import { LencanaNotifikasi } from "./lencana-notifikasi.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import {
   idPenggunaSaatIni,
@@ -134,6 +135,14 @@ export function TataLetak() {
       */}
       {status === "masuk" && (
         <nav aria-label={t("shell.pintas.label")} className="flex flex-wrap justify-end gap-2 p-2">
+          {/*
+            PALING KIRI di antara pintasan, dan itu bukan selera: lencana
+            notifikasi adalah satu-satunya pintasan yang isinya BERUBAH sendiri,
+            dan pengguna yang menyusurinya dengan Tab harus menemukannya di
+            tempat yang sama setiap kali — bukan bergeser mengikuti pintasan
+            lain yang ditambahkan kemudian.
+          */}
+          <LencanaNotifikasi />
           <Link
             to="/profil"
             className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"

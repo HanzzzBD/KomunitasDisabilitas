@@ -77,6 +77,8 @@ export interface NotificationRepository {
   unreadCount(userId: string): Promise<number>;
   /** Tandai dibaca; `null` bila baris tidak ada ATAU bukan milik `userId`. */
   markRead(userId: string, id: string, saat: Date): Promise<NotificationRow | null>;
+  /** Tandai SELURUH yang belum dibaca; mengembalikan jumlah baris tersentuh. */
+  markAllRead(userId: string, saat: Date): Promise<number>;
   findById(userId: string, id: string): Promise<NotificationRow | null>;
 }
 
@@ -152,6 +154,23 @@ export function createNotificationRepository(prisma: AppPrisma): NotificationRep
         data: { readAt: saat },
       });
       return prisma.notification.findFirst({ where: { id, userId } });
+    },
+
+    async markAllRead(userId, saat) {
+      // `where` yang SAMA PERSIS dengan `unreadCount`
+      // (`user_id = ? AND read_at IS NULL`), dan itu bukan kebetulan: keduanya
+      // memakai indeks parsial `notifications_unread` (migrasi 03). Menambahkan
+      // syarat apa pun di sini — mis. batas waktu — akan melepas indeks itu dan
+      // mengubah "tandai semua" menjadi seq scan atas seluruh riwayat seseorang.
+      //
+      // `readAt: null` juga yang membuat operasi ini IDEMPOTEN: pemanggilan
+      // kedua tidak menemukan baris apa pun, sehingga waktu baca yang sudah
+      // tercatat tidak pernah tergeser.
+      const { count } = await prisma.notification.updateMany({
+        where: { userId, readAt: null },
+        data: { readAt: saat },
+      });
+      return count;
     },
 
     findById(userId, id) {

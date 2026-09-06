@@ -71,6 +71,11 @@ export function createNotificationsController(service: NotificationsService) {
         throw err;
       }
     },
+
+    /** POST /api/v1/me/notifications/read-all → 200 jumlah yang ditandai. */
+    async markAllRead(req: Request, res: Response): Promise<void> {
+      res.status(200).json(await service.markAllRead(actorOf(req)));
+    },
   };
 }
 

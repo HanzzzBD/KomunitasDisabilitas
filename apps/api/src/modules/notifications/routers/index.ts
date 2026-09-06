@@ -33,6 +33,21 @@ export function createNotificationsRouter(
     validate({ query: notificationListQuerySchema }),
     asyncHandler(controller.list),
   );
+  // DIDAFTARKAN SEBELUM `/:id/read`, meski keduanya tidak mungkin bentrok
+  // (jumlah segmennya berbeda). Urutannya tetap disengaja: route berpola
+  // harfiah yang hidup di bawah route ber-parameter adalah bentuk yang suatu
+  // saat benar-benar bentrok begitu polanya berubah, dan bentrokan semacam itu
+  // tidak menimbulkan error — hanya endpoint yang diam-diam tidak pernah
+  // terpanggil.
+  //
+  // Tanpa `validate`: tidak ada input sama sekali. Pemiliknya datang dari sesi,
+  // dan endpoint ini sengaja tidak menerima parameter apa pun yang bisa dipakai
+  // menyebut pengguna lain.
+  routes.post(
+    "/me/notifications/read-all",
+    access.authenticated(),
+    asyncHandler(controller.markAllRead),
+  );
   routes.post(
     "/me/notifications/:id/read",
     access.authenticated(),

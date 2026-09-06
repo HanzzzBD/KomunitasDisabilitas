@@ -22,7 +22,14 @@ import type { KatalogFitur } from "./tipe.js";
  * bisa dibedakan menjadi dua sebab yang sama sekali berbeda — salah ketik, atau
  * katalog yang belum dideklarasikan rutenya. Lihat `sebabKunciHilang`.
  */
-export const FITUR_MALAS = ["auth", "beranda", "pengaturan", "onboarding", "profil"] as const;
+export const FITUR_MALAS = [
+  "auth",
+  "beranda",
+  "pengaturan",
+  "onboarding",
+  "profil",
+  "notifikasi",
+] as const;
 
 export type FiturMalas = (typeof FITUR_MALAS)[number];
 export type NamaFitur = "shell" | FiturMalas;
@@ -40,6 +47,7 @@ const PEMUAT: Readonly<Record<FiturMalas, () => Promise<KatalogFitur>>> = {
   pengaturan: async () => (await import("./katalog/pengaturan.js")).katalogPengaturan,
   onboarding: async () => (await import("./katalog/onboarding.js")).katalogOnboarding,
   profil: async () => (await import("./katalog/profil.js")).katalogProfil,
+  notifikasi: async () => (await import("./katalog/notifikasi.js")).katalogNotifikasi,
 };
 
 const dimuat = new Map<NamaFitur, KatalogFitur>([["shell", katalogShell]]);

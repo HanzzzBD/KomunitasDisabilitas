@@ -58,6 +58,19 @@ function klienPalsu(jejak: Jejak[], opsi: OpsiKlien): ApiClient {
       // aksesibilitas punya berkasnya sendiri, dan membiarkannya menjawab di
       // sini berarti store berubah dari dua arah sekaligus.
       if (path === "/me/accessibility") return new Promise(() => {}) as Promise<never>;
+      // `GET /me/notifications?limit=1` adalah infrastruktur kerangka sejak
+      // PR-050: lencana notifikasi hidup di `TataLetak`, jadi ia terbit di
+      // halaman mana pun begitu status sesi "masuk". Dijawab NOL notifikasi dan
+      // TIDAK dicatat di `jejak` — berkas ini menguji apa yang dikirim HALAMAN,
+      // dan permintaan kerangka yang ikut tercatat akan membuat setiap
+      // pemeriksaan "tidak ada yang dikirim" gagal atas hal yang bukan
+      // pokoknya.
+      if (path.startsWith("/me/notifications")) {
+        return Promise.resolve({
+          data: [],
+          meta: { nextCursor: null, unreadCount: 0 },
+        }) as Promise<never>;
+      }
 
       if (path === "/me/notification-prefs") {
         const method = o?.method ?? "GET";
@@ -104,7 +117,7 @@ function renderPanel(opsi: OpsiKlien = {}) {
 
 /** Panelnya dimuat lazy; tenggat dilonggarkan seperti di `pengaturan.test.tsx`. */
 async function tungguPanel() {
-  await screen.findByRole("heading", { level: 2, name: "Notifikasi" }, { timeout: 5000 });
+  await screen.findByRole("heading", { level: 2, name: "Preferensi notifikasi" }, { timeout: 5000 });
 }
 
 const saklar = (nama: string) => screen.getByRole("checkbox", { name: nama });

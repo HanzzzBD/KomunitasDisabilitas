@@ -214,6 +214,31 @@ export function createNotificationsService(deps: NotificationsServiceDeps) {
         meta: { unreadCount: await notificationRepository.unreadCount(actor.userId) },
       };
     },
+
+    /**
+     * POST /me/notifications/read-all — tandai SELURUHNYA dibaca (PR-050).
+     *
+     * ENDPOINT TERSENDIRI, bukan perulangan `markRead` di klien. Dokumen phase
+     * menulis "Backend Changes: tidak ada" untuk PR-050, dan itu tidak bisa
+     * dipenuhi tanpa mengorbankan hal yang lebih penting: klien hanya memegang
+     * halaman yang sudah diunduhnya, jadi "tandai semua" versi klien akan
+     * menandai 20 dari 200 dan menyisakan lencana yang tetap merah tanpa
+     * penjelasan. Ia juga akan menembakkan satu permintaan per baris.
+     *
+     * `unreadCount` yang dikembalikan SELALU dibaca ulang, tidak diasumsikan
+     * nol: notifikasi baru bisa lahir di antara UPDATE dan hitungan ini, dan
+     * lencana yang dipaksa nol akan menyembunyikannya sampai muat ulang
+     * berikutnya.
+     */
+    async markAllRead(
+      actor: NotificationsActor,
+    ): Promise<{ data: { ditandai: number }; meta: { unreadCount: number } }> {
+      const ditandai = await notificationRepository.markAllRead(actor.userId, clock());
+      return {
+        data: { ditandai },
+        meta: { unreadCount: await notificationRepository.unreadCount(actor.userId) },
+      };
+    },
   };
 }
 

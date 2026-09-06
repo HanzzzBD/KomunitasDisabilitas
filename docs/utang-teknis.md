@@ -415,7 +415,7 @@ phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti p
 
 ---
 
-### U-12 · U-13 · U-14 — Utang verifikasi manual
+### U-12 · U-13 · U-14 · U-19 · U-20 · U-21 — Utang verifikasi manual
 
 | ID | Utang | Sumber | Kenapa belum |
 |---|---|---|---|
@@ -424,6 +424,7 @@ phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti p
 | U-14 | **AC PR-030 #1** — login OTP end-to-end | Log Phase 03 | Menunggu kredensial provider OTP |
 | U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b (2026-09-05) | Menunggu kredensial FCM + perangkat uji. Yang hanya bisa dijawab FCM sungguhan: apakah bentuk payload `notification` + `data` benar-benar memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti yang diklasifikasikan |
 | U-20 | **Email nyata di staging** (Resend) | Log PR-049a/b (2026-09-06) | Menunggu kredensial Resend + domain ber-SPF/DKIM. Yang hanya bisa dijawab pengiriman nyata: tampilan HTML di Gmail/Outlook (keduanya menulis ulang CSS) dan lolos tidaknya penyaring spam |
+| U-21 | **Notification center multi-tab** | Log PR-050 (2026-09-06) | Yang hanya bisa dijawab dua tab sungguhan: apakah lencana di tab kedua ikut turun sesudah tab pertama menandai. Jawaban yang DIHARAPKAN: tidak, sampai tab kedua kembali fokus — cache TanStack tidak dibagi antar-tab. Perlu dipastikan itu memang yang terjadi, bukan sesuatu yang lebih buruk |
 
 Kelimanya **tidak bisa diverifikasi dari disk** dan karena itu tidak pernah ikut rekonsiliasi
 otomatis. Statusnya diambil apa adanya dari log terakhir yang menyebutnya.

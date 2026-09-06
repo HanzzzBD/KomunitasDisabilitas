@@ -59,6 +59,19 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil, profil: Partial<typeof PROFIL>
       // di tengah test yang sedang memeriksa hal lain, dan tidak dicatat sebagai
       // permintaan yang "dikirim halaman ini".
       if (path === "/me/accessibility") return new Promise(() => {}) as Promise<never>;
+      // `GET /me/notifications?limit=1` adalah infrastruktur kerangka sejak
+      // PR-050: lencana notifikasi hidup di `TataLetak`, jadi ia terbit di
+      // halaman mana pun begitu status sesi "masuk". Dijawab NOL notifikasi dan
+      // TIDAK dicatat di `jejak` — berkas ini menguji apa yang dikirim HALAMAN,
+      // dan permintaan kerangka yang ikut tercatat akan membuat setiap
+      // pemeriksaan "tidak ada yang dikirim" gagal atas hal yang bukan
+      // pokoknya.
+      if (path.startsWith("/me/notifications")) {
+        return Promise.resolve({
+          data: [],
+          meta: { nextCursor: null, unreadCount: 0 },
+        }) as Promise<never>;
+      }
       if (path === "/me") return Promise.resolve({ data: { ...PROFIL, ...profil } }) as Promise<never>;
 
       jejak.push({ path, body: opsi?.body });

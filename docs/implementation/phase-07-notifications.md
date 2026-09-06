@@ -317,26 +317,26 @@ Bisnis: US-12 sisi notifikasi — kabar tanpa ketergantungan suara. Teknis: cent
 
 #### Scope
 
-* Halaman/dropdown center + badge navigasi
+* Halaman center + badge navigasi. **HALAMAN, bukan dropdown** — menu melayang menuntut perangkap fokus, pengelolaan Escape, dan penempatan yang tidak menutupi isi pada teks 200%; ketiganya gagal senyap. Halaman ber-alamat juga bisa dibagikan dan dibuka di tab baru.
 * Mark-read (optimistic) + mark-all
 
 #### Technical Notes
 
 **Backend Changes:**
 
-* Tidak ada.
+* **BUKAN "tidak ada" seperti dugaan dokumen ini.** Scope di atas menyebut "mark-all", dan itu tidak bisa dipenuhi dari klien: klien hanya memegang halaman yang sudah diunduhnya, jadi perulangan di klien akan menandai 20 dari 200 dan menyisakan lencana yang tetap merah tanpa penjelasan — sambil menembakkan satu permintaan per baris. Ditambahkan `markAllRead` (repository → service → controller → route).
 
 **Frontend Changes:**
 
-* Feature notifications web.
+* Feature notifications web + lencana di kerangka aplikasi (`app/lencana-notifikasi.tsx`).
 
 **Database Changes:**
 
-* Tidak ada.
+* Tidak ada. `markAllRead` memakai indeks parsial `notifications_unread` yang sudah ada sejak migrasi 03 — dijaga EXPLAIN di `notifications-db.test.ts`.
 
 **API Changes:**
 
-* Tidak ada (konsumsi).
+* POST /api/v1/me/notifications/read-all
 
 **Security Considerations:**
 
@@ -344,11 +344,11 @@ Bisnis: US-12 sisi notifikasi — kabar tanpa ketergantungan suara. Teknis: cent
 
 **Testing Checklist:**
 
-* [ ] Unit Test (store unread)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (terima→baca→navigasi)
-* [ ] Accessibility Test (axe + aria-live manual NVDA)
-* [ ] Manual Verification (multi-tab)
+* [x] Unit Test — `notifikasi.test.tsx` (23, dirender lewat `ruteApp` produksi), `notifikasi-tautan.test.ts` (4), `notifications.test.ts` (+4 tandai-semua)
+* [x] Integration Test — BUKAN N/A seperti dugaan dokumen ini: `notifications-http.test.ts` (+5, server nyata) dan `notifications-db.test.ts` (+3, PostgreSQL nyata — termasuk EXPLAIN yang membuktikan UPDATE tandai-semua masih bisa memakai indeks parsial)
+* [x] E2E Test (terima→baca) — `e2e/notifikasi.spec.ts` (4, peramban sungguhan). **Navigasi ke entitas terkait belum bisa diuji**: halamannya lahir Phase 12 (lihat AC-4)
+* [x] Accessibility Test (axe) — halaman masuk registry gerbang a11y; `heading-order` yang ditemukannya sudah dikoreksi. **aria-live NVDA** tetap bagian U-12 (verifikasi manual)
+* [ ] Manual Verification (multi-tab) — dicatat sebagai verifikasi manual; jawaban yang diharapkan ada di log PR-050
 
 **Deliverables:**
 
@@ -364,11 +364,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Badge unread akurat tanpa refresh (refetch on focus).
-* [ ] Notifikasi baru diumumkan SR tanpa mencuri fokus.
-* [ ] Mark-read optimistic + rollback saat gagal.
-* [ ] Navigasi dari notifikasi ke entitas terkait (lamaran).
-* [ ] Keyboard-only lengkap.
+* [x] Badge unread akurat tanpa refresh (refetch on focus). — `refetchOnWindowFocus` dinyalakan KHUSUS untuk lencana (bawaan repo `false`, dan alasannya tetap berlaku bagi daftarnya); angkanya selalu berasal dari jawaban server, tidak pernah dihitung sendiri di dua tempat.
+* [x] Notifikasi baru diumumkan SR tanpa mencuri fokus. — `role="status"` polite di kerangka aplikasi; pemuatan PERTAMA dan PENURUNAN sengaja diam, dan yang diumumkan adalah SELISIH sebagai satu kalimat (mitigasi risiko "aria-live spam saat burst").
+* [x] Mark-read optimistic + rollback saat gagal. — rollback mengembalikan seluruh isi cache apa adanya, bukan menghitung mundur; kalimat "tandanya kami kembalikan" ikut diumumkan.
+* [ ] **SEBAGIAN** — Navigasi dari notifikasi ke entitas terkait (lamaran). Halaman `/lamaran/:id` lahir di **Phase 12**; yang dibangun di sini adalah SEAM-nya (`tautanNotifikasi()`), dan `notifikasi-tautan.test.ts` menjaga ketiadaannya sehingga perubahan di Phase 12 tidak bisa lolos tanpa meninjau ulang AC ini. Tautan ke alamat yang belum ada akan mengantar pengguna ke 404 — "belum bisa" berubah menjadi "rusak".
+* [x] Keyboard-only lengkap. — diuji di jsdom DAN di peramban sungguhan (`e2e/notifikasi.spec.ts`).
 
 #### Dependencies
 

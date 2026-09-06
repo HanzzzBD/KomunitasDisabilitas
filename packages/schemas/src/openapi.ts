@@ -31,6 +31,7 @@ import {
   notificationListQuerySchema,
   notificationChannelPrefsResponseSchema,
   notificationListResponseSchema,
+  notificationReadAllResponseSchema,
   notificationReadResponseSchema,
   updateNotificationChannelPrefsSchema,
   registerDeviceSchema,
@@ -586,6 +587,25 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      // Tandai SEMUA dibaca (PR-050). Endpoint tersendiri, bukan perulangan di
+      // klien: klien hanya memegang halaman yang sudah diunduhnya, jadi versi
+      // klien akan menandai 20 dari 200 dan menyisakan lencana yang tetap merah.
+      "/me/notifications/read-all": {
+        post: {
+          operationId: "markAllNotificationsRead",
+          tags: ["notifications"],
+          summary: "Tandai seluruh notifikasi sendiri sebagai dibaca",
+          description:
+            "Idempoten: pemanggilan kedua menandai 0 baris dan TIDAK menggeser waktu baca " +
+            "yang sudah tercatat. `unreadCount` pada jawabannya tidak dijamin nol — " +
+            "notifikasi baru bisa lahir di antara penandaan dan penghitungan.",
+          responses: {
+            "200": jsonOk("Jumlah yang ditandai", notificationReadAllResponseSchema),
+            ...responsSesi,
+          },
+        },
+      },
+
       "/me/notifications/{id}/read": {
         post: {
           operationId: "markNotificationRead",

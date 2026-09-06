@@ -12,8 +12,14 @@
 // `onSuccess` adalah amplop yang suatu saat lupa dibuka.
 import {
   notificationChannelPrefsResponseSchema,
+  notificationListResponseSchema,
+  notificationReadAllResponseSchema,
+  notificationReadResponseSchema,
   updateNotificationChannelPrefsSchema,
   type NotificationChannelPrefs,
+  type NotificationListResponse,
+  type NotificationReadAllResponse,
+  type NotificationReadResponse,
   type UpdateNotificationChannelPrefs,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
@@ -64,4 +70,86 @@ export async function updateNotificationPrefs(
     responseSchema: notificationChannelPrefsResponseSchema,
   });
   return res.data;
+}
+
+// --- Notification center (PR-050) ---------------------------------------------
+
+/**
+ * Key cache TanStack untuk notifikasi — DILINGKUPI PEMILIKNYA, alasan
+ * lengkapnya di `accessibilityKeys`.
+ *
+ * DUA KEY, bukan satu, dan itu bukan kelalaian. `daftar` dipakai
+ * `useInfiniteQuery` di halaman center; `lencana` dipakai kerangka aplikasi yang
+ * hidup di SETIAP halaman dan hanya butuh satu angka. Menyatukannya berarti
+ * kerangka ikut mengunduh (dan menyimpan) seluruh halaman riwayat yang tidak
+ * pernah ia tampilkan — dan `useInfiniteQuery` tidak bisa berbagi key dengan
+ * `useQuery` biasa.
+ *
+ * Konsistensinya dijaga di satu tempat: setiap mutasi menulis `unreadCount`
+ * jawaban server ke `lencana` DAN membatalkan `daftar`. Angka lencana karena itu
+ * selalu berasal dari server, tidak pernah dihitung ulang di klien.
+ */
+export const notificationsKeys = {
+  daftar: (sub: string | null, unreadOnly: boolean) =>
+    queryKey("notifications-daftar", { sub: sub ?? "anonim", unreadOnly: String(unreadOnly) }),
+  lencana: (sub: string | null) => queryKey("notifications-lencana", { sub: sub ?? "anonim" }),
+};
+
+export interface OpsiDaftarNotifikasi {
+  limit?: number;
+  cursor?: string;
+  unreadOnly?: boolean;
+}
+
+/**
+ * GET /me/notifications — satu halaman notifikasi milik pemilik sesi.
+ *
+ * Mengembalikan AMPLOP UTUH (`{ data, meta }`), berbeda dari
+ * `getNotificationPrefs` di atas: `meta.nextCursor` dan `meta.unreadCount`
+ * keduanya dipakai pemanggil, jadi membuang amplopnya di sini hanya akan
+ * memaksa setiap pemanggil merakitnya kembali.
+ */
+export async function listNotifications(
+  client: ApiClient,
+  opsi: OpsiDaftarNotifikasi = {},
+): Promise<NotificationListResponse> {
+  const query = new URLSearchParams();
+  if (opsi.limit !== undefined) query.set("limit", String(opsi.limit));
+  if (opsi.cursor !== undefined) query.set("cursor", opsi.cursor);
+  // `unreadOnly` hanya dikirim bila `true`: server sudah berbawaan `false`, dan
+  // parameter yang selalu ikut membuat dua permintaan yang setara punya URL
+  // berbeda — yang berarti dua entri cache peramban untuk satu jawaban.
+  if (opsi.unreadOnly === true) query.set("unreadOnly", "true");
+
+  const akhiran = query.size === 0 ? "" : `?${query.toString()}`;
+  return client.request(`/me/notifications${akhiran}`, {
+    responseSchema: notificationListResponseSchema,
+  });
+}
+
+/** POST /me/notifications/:id/read — idempoten; `readAt` yang sudah ada tidak bergeser. */
+export async function markNotificationRead(
+  client: ApiClient,
+  id: string,
+): Promise<NotificationReadResponse> {
+  return client.request(`/me/notifications/${encodeURIComponent(id)}/read`, {
+    method: "POST",
+    responseSchema: notificationReadResponseSchema,
+  });
+}
+
+/**
+ * POST /me/notifications/read-all — tandai seluruhnya dibaca.
+ *
+ * Satu permintaan, bukan perulangan `markNotificationRead`: klien hanya memegang
+ * halaman yang sudah diunduhnya, jadi perulangan akan menandai sebagian saja dan
+ * menyisakan lencana yang tetap merah tanpa penjelasan.
+ */
+export async function markAllNotificationsRead(
+  client: ApiClient,
+): Promise<NotificationReadAllResponse> {
+  return client.request("/me/notifications/read-all", {
+    method: "POST",
+    responseSchema: notificationReadAllResponseSchema,
+  });
 }

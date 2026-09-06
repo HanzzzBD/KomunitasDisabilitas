@@ -45,15 +45,34 @@ export type NotificationText = z.infer<typeof notificationTextSchema>;
  *
  * Penamaan `<domain>.<peristiwa>` mengikuti nama event yang melahirkannya, bukan
  * nama layar yang menampilkannya: layar berganti, peristiwa tidak.
+ *
+ * NILAINYA DIBERI NAMA (`NOTIFICATION_TYPE`), mengikuti `QUEUE_NAME` dan
+ * `AUDIT_ACTION`. Dua alasan, dan yang kedua tidak terduga:
+ *
+ *   1. Salah ketik `"lamaran.status_berubah"` menjadi galat `typecheck` di
+ *      tempat pemakaian, bukan cabang yang diam-diam tidak pernah cocok.
+ *   2. Prefiks `auth.` di sini BENTROK dengan nama katalog i18n `auth` di
+ *      apps/web. Penjaga `i18n-lazy.test.ts` memindai literal berpola
+ *      `"<prefiks>."` untuk menentukan katalog yang wajib dimuat sebuah rute,
+ *      dan tidak punya cara membedakan tipe notifikasi dari kunci teks —
+ *      halaman notification center karena itu dipaksa memuat katalog `auth`
+ *      yang tidak pernah ia sentuh. Konstanta bernama menghapus literalnya dari
+ *      kode klien tanpa melonggarkan penjaganya.
  */
+export const NOTIFICATION_TYPE = {
+  /** Akun baru dibuat — sapaan pertama, sekaligus arah langkah berikutnya. */
+  AUTH_SELAMAT_DATANG: "auth.selamat_datang",
+  /** Lamaran terkirim — bukti terima yang bisa dibaca ulang. */
+  LAMARAN_TERKIRIM: "lamaran.terkirim",
+  /** Status lamaran berpindah tahap. */
+  LAMARAN_STATUS_BERUBAH: "lamaran.status_berubah",
+} as const;
+
 export const notificationTypeSchema = z
   .enum([
-    /** Akun baru dibuat — sapaan pertama, sekaligus arah langkah berikutnya. */
-    "auth.selamat_datang",
-    /** Lamaran terkirim — bukti terima yang bisa dibaca ulang. */
-    "lamaran.terkirim",
-    /** Status lamaran berpindah tahap. */
-    "lamaran.status_berubah",
+    NOTIFICATION_TYPE.AUTH_SELAMAT_DATANG,
+    NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
+    NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
   ])
   .openapi({ ref: "NotificationType", description: "Tipe notifikasi terdaftar" });
 
@@ -196,6 +215,33 @@ export const notificationReadResponseSchema = z
   .openapi({ ref: "NotificationReadResponse" });
 
 export type NotificationReadResponse = z.infer<typeof notificationReadResponseSchema>;
+
+/**
+ * Jawaban tandai-SEMUA-dibaca (PR-050).
+ *
+ * `ditandai` ADA meski klien bisa hidup tanpanya: ia satu-satunya cara pengguna
+ * tahu berapa banyak yang barusan berubah, dan "0" adalah jawaban yang berguna —
+ * ia berarti tidak ada yang belum dibaca, bukan bahwa permintaannya gagal.
+ *
+ * `unreadCount` TIDAK dijamin nol. Notifikasi baru bisa lahir di antara UPDATE
+ * dan hitungan ini; lencana yang dipaksa nol akan menyembunyikannya sampai muat
+ * ulang berikutnya.
+ */
+export const notificationReadAllResponseSchema = z
+  .object({
+    data: z.object({
+      ditandai: z.number().int().min(0).openapi({
+        description: "Jumlah notifikasi yang baru saja berpindah menjadi terbaca",
+        example: 3,
+      }),
+    }),
+    meta: z.object({
+      unreadCount: z.number().int().min(0),
+    }),
+  })
+  .openapi({ ref: "NotificationReadAllResponse" });
+
+export type NotificationReadAllResponse = z.infer<typeof notificationReadAllResponseSchema>;
 
 // --- Perangkat penerima push (PR-048a) ---------------------------------------
 //
