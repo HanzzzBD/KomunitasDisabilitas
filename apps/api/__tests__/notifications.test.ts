@@ -88,6 +88,15 @@ function fakeRepository(): NotificationRepository {
       if (row.readAt === null) row.readAt = saat;
       return Promise.resolve({ ...row });
     },
+    markAllRead(userId, saat) {
+      let count = 0;
+      for (const r of milik(userId)) {
+        if (r.readAt !== null) continue;
+        r.readAt = saat;
+        count += 1;
+      }
+      return Promise.resolve(count);
+    },
 
     findById(userId, id) {
       const row = baris.find((r) => r.id === id && r.userId === userId);
@@ -326,5 +335,71 @@ describe("markRead", () => {
     await expect(
       service.markRead(aktor(A), "018f4c1e-0000-7000-8000-0000000c0001"),
     ).rejects.toBeInstanceOf(NotifikasiTidakDitemukanError);
+  });
+});
+
+describe("tandai SEMUA dibaca (PR-050)", () => {
+  async function beberapa(userId: string, jumlah: number) {
+    const service = rakit();
+    for (let i = 0; i < jumlah; i += 1) {
+      await service.terbitkan({
+        userId,
+        type: "lamaran.status_berubah",
+        params: { applicationId: LAMARAN, jobId: JOB, status: "interview" },
+        kunciPeristiwa: `${LAMARAN}:${String(i)}`,
+      });
+    }
+    return service;
+  }
+
+  it("menandai seluruhnya dan melaporkan berapa yang berubah", async () => {
+    const service = await beberapa(A, 3);
+
+    const hasil = await service.markAllRead(aktor(A));
+
+    expect(hasil.data.ditandai).toBe(3);
+    expect(hasil.meta.unreadCount).toBe(0);
+    expect(baris.every((r) => r.readAt !== null)).toBe(true);
+  });
+
+  it("IDEMPOTEN: pemanggilan kedua menandai 0 dan tidak menggeser waktu baca", async () => {
+    // Klien yang menekan tombolnya dua kali — atau mengirim ulang karena
+    // jaringan putus — tidak boleh menghapus jejak kapan sesuatu benar-benar
+    // dibaca.
+    const service = await beberapa(A, 2);
+    await service.markAllRead(aktor(A));
+    const waktuAwal = baris.map((r) => r.readAt?.toISOString());
+
+    const kedua = await service.markAllRead(aktor(A));
+
+    expect(kedua.data.ditandai).toBe(0);
+    expect(baris.map((r) => r.readAt?.toISOString())).toEqual(waktuAwal);
+  });
+
+  it("TIDAK menyentuh notifikasi milik orang lain", async () => {
+    // Bentuk paling penting dari isolasi di endpoint tanpa parameter: yang
+    // membatasinya adalah `userId` dari sesi di dalam `where`, bukan filter
+    // yang bisa lupa dipasang di lapisan atas.
+    const service = await beberapa(A, 2);
+    await service.terbitkan({
+      userId: B,
+      type: "auth.selamat_datang",
+      params: {},
+      kunciPeristiwa: "akun",
+    });
+
+    const hasil = await service.markAllRead(aktor(A));
+
+    expect(hasil.data.ditandai).toBe(2);
+    expect(baris.filter((r) => r.userId === B).every((r) => r.readAt === null)).toBe(true);
+  });
+
+  it("tanpa satu pun yang belum dibaca → 0, bukan kegagalan", async () => {
+    const service = rakit();
+
+    await expect(service.markAllRead(aktor(A))).resolves.toEqual({
+      data: { ditandai: 0 },
+      meta: { unreadCount: 0 },
+    });
   });
 });

@@ -1795,6 +1795,48 @@
         }
       }
     },
+    "/me/notifications/read-all": {
+      "post": {
+        "operationId": "markAllNotificationsRead",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Tandai seluruh notifikasi sendiri sebagai dibaca",
+        "description": "Idempoten: pemanggilan kedua menandai 0 baris dan TIDAK menggeser waktu baca yang sudah tercatat. `unreadCount` pada jawabannya tidak dijamin nol — notifikasi baru bisa lahir di antara penandaan dan penghitungan.",
+        "responses": {
+          "200": {
+            "description": "Jumlah yang ditandai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationReadAllResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/notifications/{id}/read": {
       "post": {
         "operationId": "markNotificationRead",
@@ -3554,6 +3596,41 @@
         "required": [
           "nextCursor",
           "unreadCount"
+        ]
+      },
+      "NotificationReadAllResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "ditandai": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Jumlah notifikasi yang baru saja berpindah menjadi terbaca",
+                "example": 3
+              }
+            },
+            "required": [
+              "ditandai"
+            ]
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "unreadCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "unreadCount"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
         ]
       },
       "NotificationReadResponse": {

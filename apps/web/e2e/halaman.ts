@@ -107,7 +107,8 @@ export const HALAMAN: readonly HalamanDijaga[] = [
       await page.fill("input[autocomplete='one-time-code']", "123456");
     },
   },
-  { nama: "pengaturan — notifikasi", jalur: "/pengaturan/notifikasi", butuhSesi: true },
+  { nama: "notification center", jalur: "/notifikasi", butuhSesi: true },
+  { nama: "pengaturan — preferensi notifikasi", jalur: "/pengaturan/notifikasi", butuhSesi: true },
   { nama: "pengaturan — aksesibilitas", jalur: "/pengaturan/aksesibilitas", butuhSesi: true },
 
   // Profil karier (PR-040) — DUA entri untuk SATU alamat, satu per keadaan

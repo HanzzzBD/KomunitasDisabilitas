@@ -14,13 +14,15 @@ import type { katalogBeranda } from "./beranda.js";
 import type { katalogPengaturan } from "./pengaturan.js";
 import type { katalogOnboarding } from "./onboarding.js";
 import type { katalogProfil } from "./profil.js";
+import type { katalogNotifikasi } from "./notifikasi.js";
 
 type SemuaKatalog = typeof katalogShell &
   typeof katalogAuth &
   typeof katalogBeranda &
   typeof katalogPengaturan &
   typeof katalogOnboarding &
-  typeof katalogProfil;
+  typeof katalogProfil &
+  typeof katalogNotifikasi;
 
 /** Seluruh kunci yang sah, diturunkan dari katalog — bukan ditulis ulang. */
 export type KunciTeks = keyof SemuaKatalog;

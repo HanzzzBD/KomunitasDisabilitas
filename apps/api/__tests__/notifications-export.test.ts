@@ -79,6 +79,9 @@ function rakit(rows: NotificationRow[] = RIWAYAT) {
     },
     unreadCount: async () => 0,
     markRead: async () => null,
+    markAllRead: () => {
+      throw new Error("berkas ini tidak menguji tandai-semua-dibaca (PR-050)");
+    },
     findById: async () => null,
   };
 

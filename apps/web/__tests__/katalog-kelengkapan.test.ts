@@ -67,12 +67,21 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "pengaturan.nav.aksesibilitas":
     "Harus SAMA dengan judul panel tujuannya (`pengaturan.aksesibilitas.judul`) — pengguna " +
     "mencocokkan kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  // --- notification center (PR-050) ---
+  "notifikasi.judul":
+    "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana. " +
+    "Harus SAMA dengan lencana di kerangka aplikasi — pengguna mencocokkan kata " +
+    "yang tadi ia tekan dengan judul halaman yang ia buka.",
+  "shell.notifikasi.lencanaKosong":
+    "Alasan yang sama dengan `notifikasi.judul`, dan HARUS identik dengannya.",
+  "notifikasi.saring.semua": "Satu kata sehari-hari; label saringan tidak punya bentuk lebih sederhana.",
+  "notifikasi.saring.belumDibaca":
+    "Dua kata sehari-hari, dan HARUS sama dengan penanda pada tiap notifikasi " +
+    "(`notifikasi.belumDibacaTanda`) — saringan yang menamai keadaan dengan kata " +
+    "berbeda dari penandanya membuat pengguna mengira keduanya hal yang berbeda.",
+  "notifikasi.belumDibacaTanda":
+    "Alasan yang sama dengan `notifikasi.saring.belumDibaca`, dan HARUS identik dengannya.",
   // --- panel kanal notifikasi (PR-049b) ---
-  "pengaturan.notifikasi.judul":
-    "Satu kata sehari-hari; nama panel tidak punya bentuk lebih sederhana.",
-  "pengaturan.nav.notifikasi":
-    "Harus SAMA dengan judul panel tujuannya (`pengaturan.notifikasi.judul`) — pengguna " +
-    "mencocokkan kata yang tadi ia tekan dengan judul halaman yang ia buka.",
   "pengaturan.notifikasi.email":
     "Label empat kata sehari-hari; 'email' adalah sebutan sehari-harinya di Indonesia.",
   "pengaturan.notifikasi.push":

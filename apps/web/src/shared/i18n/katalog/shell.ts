@@ -55,6 +55,34 @@ export const katalogShell = {
     id: "Pintasan halaman",
     "id-simple": "Pintasan halaman",
   },
+  // --- Lencana notifikasi (PR-050) ---
+  //
+  // DI KATALOG SHELL, bukan katalog `notifikasi`, dan itu bukan kelalaian
+  // penempatan: lencananya hidup di kerangka aplikasi — ia tampil di SETIAP
+  // halaman, termasuk halaman yang tidak pernah memuat katalog notifikasi.
+  // Menaruh teksnya di katalog malas berarti lencana yang membacakan kuncinya
+  // sendiri kepada pengguna screen reader di sebagian besar halaman.
+  "shell.notifikasi.lencana": {
+    // `{jumlah}` diinterpolasi. Kalimat UTUH, bukan angka telanjang di sebelah
+    // kata "Notifikasi": yang terakhir dibacakan screen reader sebagai dua hal
+    // terpisah, dan angkanya kehilangan artinya.
+    id: "Notifikasi, {jumlah} belum dibaca",
+    "id-simple": "Notifikasi, {jumlah} belum Anda baca",
+  },
+  "shell.notifikasi.lencanaKosong": {
+    id: "Notifikasi",
+    "id-simple": "Notifikasi",
+  },
+  "shell.notifikasi.baru": {
+    // Diumumkan lewat live region `polite` saat jumlah belum-dibaca NAIK.
+    // TIDAK menyebut isinya, dan itu disengaja: pengumuman yang membacakan
+    // seluruh notifikasi akan menyela apa pun yang sedang dibaca pengguna di
+    // halaman lain, dan beberapa notifikasi yang tiba sekaligus akan
+    // dibacakan berurutan sampai selesai. Satu kalimat pendek per perubahan
+    // adalah mitigasi "aria-live spam saat burst" yang ditulis dokumen phase.
+    id: "{jumlah} notifikasi baru",
+    "id-simple": "Ada {jumlah} kabar baru",
+  },
   "shell.pintas.profil": {
     // Menyebut kata yang sama dengan judul halaman tujuannya ("Profil karier
     // saya"), dipendekkan supaya muat di bilah sempit ponsel. Pengguna

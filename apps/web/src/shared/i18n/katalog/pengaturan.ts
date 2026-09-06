@@ -345,8 +345,13 @@ export const katalogPengaturan = {
   // butuhkan saat ingin memeriksa "apa yang terjadi dengan lamaran saya".
   // Panel yang diam soal ini membuat orang mengira ada sakelar yang hilang.
   "pengaturan.notifikasi.judul": {
-    id: "Notifikasi",
-    "id-simple": "Notifikasi",
+    // "PREFERENSI notifikasi", bukan "Notifikasi" — dan itu koreksi, bukan
+    // selera. Sejak PR-050 ada halaman `/notifikasi` (notification center) yang
+    // namanya memang "Notifikasi"; dua tautan bernama sama yang mengantar ke
+    // tempat berbeda adalah kegagalan yang paling terasa justru bagi pengguna
+    // yang menyusuri halaman lewat daftar tautan screen reader.
+    id: "Preferensi notifikasi",
+    "id-simple": "Pengaturan kabar",
   },
   "pengaturan.notifikasi.penjelasan": {
     id: "Pilih cara kami mengabari Anda saat ada perkembangan lamaran. Kabar di dalam aplikasi selalu ada dan tidak bisa dimatikan.",
@@ -416,8 +421,10 @@ export const katalogPengaturan = {
     "id-simple": "Pilihan Anda belum berubah. Coba tekan lagi.",
   },
   "pengaturan.nav.notifikasi": {
-    id: "Notifikasi",
-    "id-simple": "Notifikasi",
+    // HARUS sama dengan `pengaturan.notifikasi.judul` — pengguna mencocokkan
+    // kata yang tadi ia tekan dengan judul halaman yang ia buka.
+    id: "Preferensi notifikasi",
+    "id-simple": "Pengaturan kabar",
   },
 
   "pengaturan.aksesibilitas.judul": {

@@ -231,3 +231,51 @@ describe("kepemilikan ditegakkan query, bukan pemeriksaan terpisah", () => {
     expect(sesudah?.readAt).toBeNull();
   });
 });
+
+describe("tandai SEMUA dibaca — terhadap PostgreSQL (PR-050)", () => {
+  it("hanya menyentuh baris milik pemanggil", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    await terbitkan("semua-a1");
+    await terbitkan("semua-a2");
+    await terbitkan("semua-b1", userLain);
+
+    const ditandai = await repository.markAllRead(userId, new Date());
+
+    expect(ditandai).toBe(2);
+    // Dibaca lewat klien MENTAH: yang dibuktikan di sini bukan jawaban
+    // repository melainkan keadaan tabelnya.
+    const milikLain = await mentah.notification.findMany({ where: { userId: userLain } });
+    expect(milikLain.every((r) => r.readAt === null)).toBe(true);
+  });
+
+  it("pemanggilan kedua tidak menggeser waktu baca yang sudah tercatat", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    await terbitkan("semua-idem");
+    const pertama = new Date("2026-09-06T10:00:00.000Z");
+    await repository.markAllRead(userId, pertama);
+
+    const ditandai = await repository.markAllRead(userId, new Date("2026-09-06T11:00:00.000Z"));
+
+    expect(ditandai).toBe(0);
+    const baris = await mentah.notification.findFirst({ where: { userId } });
+    expect(baris?.readAt?.getTime()).toBe(pertama.getTime());
+  });
+
+  it("bentuk query-nya BISA memakai indeks parsial notifications_unread", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // `where` UPDATE-nya sama persis dengan `unreadCount`, dan itu bukan
+    // kebetulan yang boleh hilang: menambahkan syarat apa pun akan melepas
+    // indeks parsial ini dan mengubah "tandai semua" menjadi seq scan atas
+    // seluruh riwayat seseorang. `enable_seqscan = off` dipakai dengan alasan
+    // yang sama seperti di atas.
+    const plan = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SET LOCAL enable_seqscan = off`;
+      return tx.$queryRaw<Array<{ "QUERY PLAN": string }>>`
+        EXPLAIN UPDATE notifications SET read_at = now()
+        WHERE user_id = ${userId}::uuid AND read_at IS NULL
+      `;
+    });
+
+    expect(plan.map((r) => r["QUERY PLAN"]).join("\n")).toContain("notifications_unread");
+  });
+});

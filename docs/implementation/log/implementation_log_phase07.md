@@ -774,3 +774,146 @@ Satu pernyataan aditif, tanpa `DEFAULT`, tanpa backfill. **Nol `DROP INDEX`** �
 * **U-09** — rename `OtpSender`/`OtpMessage` tetap belum dibayar. PR ini tidak menyentuh
   transport OTP sama sekali, jadi memasukkannya berarti perubahan lintas-berkas tanpa satu pun
   hubungan dengan scope-nya.
+
+---
+
+## PR-050 — Notification Center FE
+
+> **Phase:** [07 - Notifications](../phase-07-notifications.md#pr-050---notification-center-fe)
+> **Tanggal:** 2026-09-06
+> **Status:** Selesai — **PR terakhir Phase 07**
+
+### Ringkasan hasil
+
+Halaman `/notifikasi` (daftar + saringan + muat lebih banyak), lencana belum-dibaca di
+kerangka aplikasi beserta pengumumannya, mark-read optimistik dengan rollback, dan
+tandai-semua. Dengan ini keempat PR Phase 07 selesai.
+
+### Keputusan yang membentuk sisanya
+
+**1. HALAMAN, bukan dropdown.** Dokumen phase menulis "Halaman/dropdown center". Yang dipilih
+halaman, dan alasannya aksesibilitas: menu melayang menuntut perangkap fokus, pengelolaan
+Escape, dan penempatan yang tidak menutupi isi pada teks 200% — tiga hal yang sama-sama gagal
+senyap. Halaman ber-alamat juga bisa dibagikan, di-bookmark, dan dibuka di tab baru.
+
+**2. Endpoint `POST /me/notifications/read-all` DITAMBAHKAN — dokumen phase menulis "Backend
+Changes: tidak ada".** Itu tidak bisa dipenuhi tanpa mengorbankan hal yang lebih penting:
+klien hanya memegang halaman yang sudah diunduhnya, jadi "tandai semua" versi klien akan
+menandai 20 dari 200 dan menyisakan lencana yang tetap merah tanpa penjelasan. Ia juga akan
+menembakkan satu permintaan per baris. Scope PR-050 sendiri menyebut "mark-all", jadi yang
+keliru adalah baris "Backend Changes", bukan permintaannya.
+
+**3. DUA query, bukan satu.** `daftar` (`useInfiniteQuery`, halaman center) dan `lencana`
+(`useQuery`, kerangka aplikasi, `limit=1`). Menyatukannya berarti kerangka ikut mengunduh dan
+menyimpan seluruh riwayat yang tidak pernah ia tampilkan — di SETIAP halaman — dan
+`useInfiniteQuery` memang tidak bisa berbagi key dengan `useQuery` biasa. Konsistensinya
+dijaga satu arah: setiap mutasi menulis `unreadCount` **jawaban server** ke cache lencana.
+Angkanya tidak pernah dihitung sendiri di dua tempat.
+
+**4. `refetchOnWindowFocus` dinyalakan HANYA untuk lencana.** Bawaan repo `false`, dan
+alasannya tertulis di `query-client.ts`: "konten yang berubah sendiri di bawah kursor
+menghilangkan konteks yang sedang dibaca". Alasan itu tidak berlaku bagi satu angka di
+navigasi yang tidak sedang dibaca siapa pun, sementara AC-1 menuntut lencana akurat tanpa
+muat ulang. Daftarnya sendiri tetap memakai bawaan — ia justru konten yang sedang dibaca.
+
+**5. Mark-read optimistik, mark-ALL tidak.** Menandai satu baris menyentuh baris yang ada di
+layar, jadi keadaan optimistiknya jujur. "Tandai semua" menyentuh baris yang belum tentu ada
+di cache (halaman yang belum diunduh), jadi keadaan optimistiknya akan berbohong tentang
+bagian yang tidak terlihat — di sana yang dikerjakan justru menunggu jawaban lalu memakai
+angka server.
+
+**6. Rollback mengembalikan SELURUH isi cache apa adanya, bukan menghitung mundur.**
+Perhitungan mundur salah bila jawaban lain tiba di antara keduanya, dan salahnya tidak akan
+pernah terlihat sampai seseorang menandai dua notifikasi pada saat yang hampir sama.
+
+### AC-4 — dibayar sebagai SEAM, dan itu perlu dibaca utuh
+
+AC-4 berbunyi *"navigasi dari notifikasi ke entitas terkait (lamaran)"*. **Entitasnya belum
+punya halaman:** modul `applications` lahir di Phase 12 (PR-076/PR-078), dan tidak ada route
+`/lamaran/:id` di `app/routes.ts`. Merender tautan ke alamat yang tidak ada berarti mengantar
+pengguna ke layar 404 dari kabar yang justru ingin ia tindak lanjuti — "belum bisa" berubah
+menjadi "rusak".
+
+Yang dibangun karena itu adalah seam-nya: `tautanNotifikasi()` menjawab `null` untuk setiap
+tipe hari ini, seluruh jalur render sudah menangani "ada tautan" dan "tidak ada", dan
+`notifikasi-tautan.test.ts` MENJAGA ketiadaan itu — test-nya akan merah begitu Phase 12
+mengubah satu fungsi, sehingga perubahan tujuan navigasi tidak bisa terjadi tanpa seseorang
+meninjau ulang AC ini. Tanpa seam, PR Phase 12 harus menyentuh komponen daftar, test-nya, dan
+katalog teksnya sekaligus.
+
+**AC-4 karena itu ditandai TERPENUHI SEBAGIAN**, dengan sisanya bernama dan ber-penjaga —
+bukan dicentang atas pekerjaan yang tidak ada.
+
+### Tiga hal yang ditemukan gerbang, bukan oleh mata
+
+**`heading-order` (axe).** Judul tiap notifikasi semula `h3` di bawah `h1` halaman tanpa `h2`
+di antaranya — peta halaman bagi pengguna screen reader berbohong tentang kedalaman.
+Dikoreksi menjadi `h2`.
+
+**Dua tautan bernama "Notifikasi" yang mengantar ke tempat berbeda.** Ditemukan Playwright
+sebagai locator ambigu di `/pengaturan`: lencana kerangka dan panel preferensi sama-sama
+bernama "Notifikasi". Itu bukan masalah test melainkan masalah pengguna — paling terasa justru
+bagi yang menyusuri halaman lewat daftar tautan screen reader. Panel pengaturannya diganti
+nama menjadi **"Preferensi notifikasi"**, yang memang lebih akurat: ia mengatur preferensi,
+bukan menampilkan notifikasi.
+
+**Prefiks `auth.` bentrok antara tipe notifikasi dan nama katalog i18n.** Penjaga
+`i18n-lazy.test.ts` memindai literal berpola `"<prefiks>."` untuk menentukan katalog yang
+wajib dimuat sebuah rute, dan `case "auth.selamat_datang":` di `tautan.ts` terbaca sebagai
+pemakaian katalog `auth` — halaman center dipaksa mengunduh katalog yang tidak pernah ia
+sentuh. Diselesaikan dengan menambahkan `NOTIFICATION_TYPE` di `packages/schemas` (mengikuti
+`QUEUE_NAME` dan `AUDIT_ACTION`) dan memakainya di klien: literalnya hilang dari kode web
+**tanpa melonggarkan penjaganya**, dan salah ketik tipe notifikasi kini menjadi `typecheck`
+merah di setiap tempat pemakaian.
+
+### Scope selesai
+
+* **Backend:** `markAllRead` (repository + service + controller + route), skema jawaban,
+  path OpenAPI. Route `read-all` didaftarkan SEBELUM `/:id/read` — keduanya tidak bentrok hari
+  ini, tetapi route harfiah di bawah route ber-parameter adalah bentuk yang suatu saat
+  benar-benar bentrok tanpa error, hanya endpoint yang diam-diam tidak terpanggil.
+* **`packages/api-client`:** `listNotifications`, `markNotificationRead`,
+  `markAllNotificationsRead`, `notificationsKeys` (dua key, dilingkupi `sub`).
+* **`apps/web`:** `features/notifikasi` (daftar + seam tautan), `app/lencana-notifikasi.tsx`
+  (lencana + live region), route `/notifikasi`, katalog i18n `notifikasi` (fitur malas ke-6)
+  plus tiga kunci lencana di katalog **shell** — lencana hidup di kerangka, jadi teksnya tidak
+  boleh menunggu katalog malas.
+* **Test:** `notifikasi.test.tsx` (23), `notifikasi-tautan.test.ts` (4),
+  `e2e/notifikasi.spec.ts` (4, peramban sungguhan), `notifications.test.ts` (+4),
+  `notifications-http.test.ts` (+5), `notifications-db.test.ts` (+3, termasuk EXPLAIN yang
+  membuktikan UPDATE-nya masih bisa memakai indeks parsial `notifications_unread`).
+
+### AC PR-050
+
+| AC | Status | Bukti |
+|---|---|---|
+| Badge unread akurat tanpa refresh (refetch on focus) | Terpenuhi | `notifikasi.test.tsx` (lencana turun sesudah menandai) + `e2e/notifikasi.spec.ts`; `refetchOnWindowFocus` dinyalakan khusus untuk lencana |
+| Notifikasi baru diumumkan SR tanpa mencuri fokus | Terpenuhi | `notifikasi.test.tsx` — `role="status"` polite, fokus tak berpindah, pemuatan pertama & penurunan sengaja DIAM |
+| Mark-read optimistic + rollback saat gagal | Terpenuhi | `notifikasi.test.tsx` (tanda berubah sebelum jawaban; dikembalikan saat gagal beserta kalimatnya) |
+| Navigasi dari notifikasi ke entitas terkait | **Sebagian** | Seam `tautanNotifikasi()` + `notifikasi-tautan.test.ts`. Halaman lamaran lahir Phase 12; lihat bagian AC-4 di atas |
+| Keyboard-only lengkap | Terpenuhi | `notifikasi.test.tsx` (Tab menjangkau seluruh kendali; Enter menandai) + `e2e/notifikasi.spec.ts` di peramban sungguhan |
+
+### Risiko & batas yang diketahui
+
+* **Lencana menambah satu permintaan kecil per pemuatan kerangka.** `staleTime` 60 detik
+  membuat perpindahan halaman tidak mengulangnya. Konsekuensinya nyata di test: berkas yang
+  memeriksa "tidak ada permintaan yang dikirim" harus mengecualikan permintaan kerangka —
+  empat berkas disesuaikan, dengan alasannya ditulis di masing-masing.
+* **Dua live region polite di satu halaman** (kerangka + halaman). Sah menurut spesifikasi —
+  pengumumannya mengantre — tetapi `getByRole("status")` tanpa lingkup kini ambigu; satu test
+  onboarding disempitkan ke `<main>`.
+* **Pengumuman notifikasi baru bergantung pada refetch**, bukan push ke klien: ia terdengar
+  saat jendela kembali fokus atau saat halaman center memuat, bukan seketika notifikasinya
+  lahir. Realtime (SSE/WebSocket) bukan scope MVP dan tidak ada di backlog Phase 07.
+* **Verifikasi manual multi-tab BELUM ditempuh** (checklist dokumen phase). Yang hanya bisa
+  dijawab dua tab sungguhan: apakah lencana di tab kedua ikut turun sesudah tab pertama
+  menandai. Jawaban yang diharapkan: TIDAK sampai tab kedua kembali fokus — cache TanStack
+  tidak dibagi antar-tab. Dicatat bersama U-12..U-14 sebagai verifikasi manual.
+* **NVDA sampling untuk live region** tetap bagian U-12: seluruh klaim "diumumkan" di sini
+  bersandar pada struktur ARIA, bukan pendengaran alat sungguhan.
+
+### Next steps
+
+* **Phase 07 exit criteria** terpenuhi di sisi PR: PR-047..PR-050 selesai. `phase-07 → main`
+  menunggu perintah eksplisit owner (CLAUDE.md §5.8 butir 8).
+* **Phase 08 — Companies & Jobs.**

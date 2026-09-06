@@ -111,11 +111,14 @@ function fakePrisma(rows: Baris[]) {
         where,
         data,
       }: {
-        where: WhereList & { id: string };
+        where: WhereList & { id?: string };
         data: { readAt: Date };
       }) => {
+        // `id` OPSIONAL sejak PR-050: tandai-satu menyebutnya, tandai-SEMUA
+        // tidak. Fake yang menuntutnya akan diam-diam menandai nol baris —
+        // tepat bentuk kegagalan yang membuat jawaban 200 tampak benar.
         const sasaran = rows.filter(
-          (r) => r.id === where.id && cocok(r, where) && (where.readAt !== null || true),
+          (r) => (where.id === undefined || r.id === where.id) && cocok(r, where),
         );
         for (const row of sasaran) row.readAt = data.readAt;
         return Promise.resolve({ count: sasaran.length });
@@ -224,6 +227,13 @@ function tokenUntuk(userId: string): Promise<string> {
 
 function ambil(base: string, path: string, token?: string) {
   return fetch(`${base}${path}`, {
+    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+  });
+}
+
+function tandaiSemua(base: string, token?: string) {
+  return fetch(`${base}/me/notifications/read-all`, {
+    method: "POST",
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
   });
 }
@@ -565,5 +575,75 @@ describe("produser push (PR-048b)", () => {
 
     expect(antre).toHaveLength(2);
     expect(new Set(antre.map((j) => j.jobId)).size).toBe(2);
+  });
+});
+
+describe("POST /me/notifications/read-all (PR-050)", () => {
+  async function tiga(): Promise<{ base: string; rows: Baris[] }> {
+    const { base, events, rows } = await boot();
+    events.emit("auth.user_registered", { userId: A, registeredAt: "2026-09-05T10:00:00.000Z" });
+    await tunggu();
+    for (const to of ["in_review", "interview"] as const) {
+      events.emit("application.status_changed", {
+        applicationId: LAMARAN,
+        userId: A,
+        jobId: JOB,
+        to,
+        changedAt: "2026-09-05T10:00:00.000Z",
+      });
+      await tunggu();
+    }
+    return { base, rows };
+  }
+
+  it("route-nya benar-benar terpasang — bukan tertelan `/:id/read`", async () => {
+    // Kegagalan yang paling mungkin di sini tidak menghasilkan error apa pun:
+    // `read-all` yang cocok dengan pola `/:id/read` akan diperlakukan sebagai
+    // id dan dijawab 400 oleh validasi UUID. 200 di sini membuktikan urutan
+    // pendaftarannya benar.
+    const { base } = await tiga();
+
+    const res = await tandaiSemua(base, await tokenUntuk(A));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("seluruhnya ditandai; jawabannya menyebut berapa DAN sisa yang belum dibaca", async () => {
+    const { base } = await tiga();
+
+    const res = await tandaiSemua(base, await tokenUntuk(A));
+
+    expect(await res.json()).toEqual({
+      data: { ditandai: 3 },
+      meta: { unreadCount: 0 },
+    });
+  });
+
+  it("idempoten: pemanggilan kedua 200 dengan ditandai 0", async () => {
+    const { base } = await tiga();
+    const token = await tokenUntuk(A);
+    await tandaiSemua(base, token);
+
+    const kedua = await tandaiSemua(base, token);
+
+    expect(kedua.status).toBe(200);
+    expect(await kedua.json()).toMatchObject({ data: { ditandai: 0 } });
+  });
+
+  it("TIDAK menyentuh notifikasi pengguna lain", async () => {
+    const { base, rows } = await tiga();
+    const { events } = await boot();
+    void events;
+
+    await tandaiSemua(base, await tokenUntuk(B));
+
+    // B tidak punya notifikasi sama sekali; milik A harus tetap utuh.
+    expect(rows.every((r) => r.readAt === null)).toBe(true);
+  });
+
+  it("tanpa sesi → 401", async () => {
+    const { base } = await tiga();
+
+    expect((await tandaiSemua(base)).status).toBe(401);
   });
 });

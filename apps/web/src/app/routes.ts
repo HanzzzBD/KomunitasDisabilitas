@@ -155,6 +155,24 @@ export const ruteApp: RouteObject[] = [
         ],
       },
       {
+        // Notification center (PR-050) — SAUDARA `pengaturan`, bukan anaknya,
+        // dengan alasan yang sama seperti `profil`: panel pengaturan menjawab
+        // "bagaimana aplikasi ini berperilaku untuk saya", sedangkan halaman ini
+        // menampilkan ISI. Menaruhnya di bawah `/pengaturan` akan menyeret
+        // kerangka navigasi panel ikut muncul di atas daftar kabar.
+        //
+        // Alamatnya juga yang ditunjuk lencana di kerangka aplikasi, jadi ia
+        // dibuka dari SETIAP halaman — bukan hanya dari dalam pengaturan.
+        path: "notifikasi",
+        lazy: async () => {
+          const [{ Notifikasi }] = await Promise.all([
+            import("../routes/notifikasi.js"),
+            muatKatalog("notifikasi"),
+          ]);
+          return { Component: Notifikasi };
+        },
+      },
+      {
         // Profil karier (PR-040) — SAUDARA `pengaturan`, bukan anaknya.
         //
         // Panel pengaturan menjawab "bagaimana aplikasi ini berperilaku untuk
