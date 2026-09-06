@@ -72,7 +72,7 @@ Bisnis: pengguna selalu tahu status lamarannya via kanal visual (PRD FR-5.4). Te
 
 * [x] Unit Test (renderer) — `notifications-template.test.ts` (snapshot kedua varian, ditulis tangan) + `notifications.test.ts`
 * [x] Integration Test (event→row; idempoten) — `notifications-http.test.ts` (server nyata, `emit` → daftar) + `notifications-db.test.ts` (PostgreSQL nyata, termasuk dua tulis paralel)
-* [ ] E2E Test (via PR-050)
+* [x] E2E Test (via PR-050) — `e2e/notifikasi.spec.ts` (peramban sungguhan): daftar tampil, tandai dibaca, lencana ikut turun. **Terhadap API yang DIPALSUKAN**, mengikuti konvensi seluruh e2e repo ini (`palsukan-api.ts`) — jadi yang dibuktikannya adalah klien memakai kontraknya dengan benar, bukan server menyajikannya. Sisi server dibuktikan `notifications-http.test.ts` (server nyata) dan `notifications-db.test.ts` (PostgreSQL nyata).
 * [x] Accessibility Test (N/A backend) — kedua varian bahasa dikirim sekaligus; dijaga penjaga "id-simple bukan salinan mentah id"
 * [ ] Manual Verification (curl)
 
@@ -388,6 +388,40 @@ Phase 07 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+### Status verifikasi — 2026-09-06
+
+Diperiksa sebelum `phase-07 → main`, dan ditulis di sini supaya keputusannya bisa dibaca
+kembali tanpa menggali riwayat PR.
+
+| Kondisi | Status |
+|---|---|
+| Seluruh 4 PR merged | **Ya.** PR-047 (#128), PR-048a/b (#130, #132), PR-049a/b (#133, #134), PR-050 (#136). PR-048 dan PR-049 masing-masing dipecah dua; alasannya di catatan pemecahan tiap PR. |
+| Setiap checklist AC terpenuhi | **21 dari 22.** Yang tersisa: **AC-4 PR-050** (navigasi ke lamaran) — halamannya lahir Phase 12. Rinciannya di bawah. |
+| CI hijau penuh | **Ya.** `lint-typecheck-test` dan `a11y` hijau pada keempat PR. |
+| Tidak ada regresi E2E | **Ya.** Gerbang a11y tumbuh 52 → 60 pemeriksaan sepanjang phase ini, seluruhnya hijau. |
+
+**Satu AC yang TIDAK terpenuhi, dan kenapa itu dibiarkan.** AC-4 PR-050 menuntut navigasi dari
+notifikasi ke lamaran terkait. Route `/lamaran/:id` lahir di Phase 12 (PR-076/PR-078); tautan
+ke alamat yang belum terpasang mengantar pengguna ke 404 dari kabar yang justru ingin ia
+tindak lanjuti. Yang dibangun adalah seam-nya (`tautanNotifikasi()`) beserta penjaga yang
+membuat perubahannya di Phase 12 tidak bisa lolos tanpa meninjau ulang AC ini. **Keputusan
+owner 2026-09-06: phase ditutup dengan AC ini terpenuhi sebagian.**
+
+**Empat verifikasi manual yang belum ditempuh**, seluruhnya tercatat di
+[registry utang](../utang-teknis.md) dan **bukan blocker** (keputusan owner):
+
+| | Yang hanya bisa dijawab olehnya |
+|---|---|
+| PR-047 — curl | Tidak ada yang tersisa: jalur HTTP-nya sudah diuji terhadap server nyata di `notifications-http.test.ts`. Dibiarkan tak tercentang apa adanya alih-alih dicentang atas test yang bukan curl. |
+| U-19 — push nyata (FCM) | Apakah payload `notification` + `data` benar memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti yang diklasifikasikan. |
+| U-20 — email nyata (Resend) | Tampilan HTML di Gmail/Outlook (keduanya menulis ulang CSS) dan lolos tidaknya penyaring spam. |
+| U-21 — notification center multi-tab | Apakah lencana di tab kedua ikut turun. Jawaban yang diharapkan: tidak sampai tab itu kembali fokus. |
+
+**Utang yang lahir dan lunas di phase ini.** Lahir: U-01, U-02, U-15, U-16, U-17, U-18, U-19,
+U-20, U-21. Lunas: U-03, U-04 (ekspor PDP), U-11 (pemberitahuan pasca-hapus akun Google-only —
+terbuka sejak 2026-08-10). U-02 dijalankan sebagai **gerbang dua kali** (PR-049a dan PR-049b)
+dan tetap terbuka dengan pemicu yang dipersempit.
 
 ## Next Phase
 
