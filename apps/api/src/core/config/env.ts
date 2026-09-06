@@ -240,6 +240,33 @@ const envSchema = z.object({
    * persis perlakuan JWT_PRIVATE_KEY (lihat core/auth/keys.ts).
    */
   FCM_PRIVATE_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+
+  // --- Kanal email transaksional Resend (PR-049a, SDD §16 `notify:email`) ---
+  //
+  // Opsional SEBAGAI GRUP, seperti Twilio dan FCM: nol variabel = kanal email
+  // mati, dan itu keadaan dev yang sah. Berbeda dari push, matinya kanal ini
+  // punya akibat yang harus dibaca sekali lagi sebelum dianggap sepele —
+  // pemberitahuan pasca-hapus akun bagi pengguna Google-only adalah SATU-SATUNYA
+  // kabar yang ia terima (gerbang U-02). Karena itu ketiadaannya berteriak di
+  // log boot worker, bukan hanya dilewati diam-diam.
+  RESEND_API_KEY: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /**
+   * Alamat pengirim, mis. `Nawasena <kabar@nawasena.id>`. WAJIB berdomain yang
+   * sudah terverifikasi SPF/DKIM di Resend — domain tanpa itu membuat kabar
+   * mendarat di folder spam, dan kabar pasca-hapus yang mendarat di spam sama
+   * saja dengan kabar yang tidak dikirim (risiko "deliverability" dokumen phase).
+   */
+  EMAIL_FROM: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  RESEND_BASE_URL: z
+    .string()
+    .url({ message: "harus URL absolut" })
+    .default("https://api.resend.com"),
+  EMAIL_SEND_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(30_000)
+    .default(10_000),
 });
 
 /**
@@ -270,6 +297,12 @@ const GRUP_KREDENSIAL = [
   {
     label: "kredensial service account FCM",
     vars: ["FCM_PROJECT_ID", "FCM_CLIENT_EMAIL", "FCM_PRIVATE_KEY"],
+  },
+  {
+    // Kunci tanpa alamat pengirim tidak bisa mengirim apa pun, dan alamat tanpa
+    // kunci hanya membuat kanal yang terlihat siap padahal menolak setiap kirim.
+    label: "kredensial email Resend",
+    vars: ["RESEND_API_KEY", "EMAIL_FROM"],
   },
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 

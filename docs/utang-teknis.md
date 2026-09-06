@@ -77,11 +77,11 @@ perintah `format` manual.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **TERBUKA — dipersempit 2026-09-06** (gerbang PR-049a sudah dijalankan) |
 | **Jenis** | Durability |
 | **Ditemukan** | PR-047 (2026-09-05) |
-| **Pemilik** | **PR-049 — gate masuk wajib** |
-| **Pemicu** | Saat notifikasi/email menjadi jalur kabar yang lebih kritis |
+| **Pemilik** | Belum ditetapkan — lihat "hasil gerbang" di bawah |
+| **Pemicu** | Saat kabar in-app/push menjadi SATU-SATUNYA kabar bagi suatu peristiwa |
 
 `core/events` adalah bus in-process tanpa persistensi, retry, maupun urutan (batas 2 yang
 ditulis di kepala berkasnya). Event yang terbit saat proses mati memang hilang — dan
@@ -107,6 +107,25 @@ yang belum matang, dengan biaya satu processor baru dan satu jalur yang harus di
 
 Gate ini juga ditempelkan di dokumen phase (PR-049 → "Gate masuk"), sebab registry yang
 hanya dibaca saat seseorang ingat membacanya bukan penagih.
+
+**HASIL GERBANG (PR-049a, 2026-09-06) — dijawab, bukan diasumsikan.** Penelusuran lengkapnya
+di log PR-049a; ringkasnya:
+
+1. **Ada satu**, dan ia bukan salah satu dari ketiga event notifikasi: **pemberitahuan
+   pasca-hapus akun** (U-11). Yang mengejutkan dari penelusuran itu — kabar tersebut tidak
+   pernah melewati bus event sama sekali. Ia panggilan `void sender.send().catch()` langsung
+   di `account.service.ts`, yang untuk durabilitas justru **lebih lemah** daripada bus:
+   mati bersama proses, tanpa retry, tanpa jejak.
+2. **Sudah dipenuhi.** Kabar itu kini lahir dari job `notify-email` yang **di-await sebelum
+   permintaan dijawab**. U-11 lunas bersamanya.
+3. **Ketiga kabar notifikasi tetap boleh lewat bus**, dan alasannya masih benar: statusnya
+   tetap benar di DB dan tetap terbaca di layar lamaran. PR-049a tidak mengirim satu pun
+   email dari ketiga event itu — email sambutan/status baru lahir di PR-049b, dan **di sanalah
+   pertanyaan ini harus ditanyakan ulang**, sebab email yang lahir dari handler event akan
+   ikut hilang bersama prosesnya tanpa satu pun cara pengguna mengetahuinya.
+
+**Pemicu berikutnya**, karena itu: PR-049b (email sambutan/status lamaran), dan setiap PR
+yang membuat notifikasi in-app menjadi satu-satunya kabar bagi peristiwa baru.
 
 ---
 
@@ -365,8 +384,8 @@ refresh 401 di `/masuk/google`. Diverifikasi 2026-09-05: belum ada mekanisme tol
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
-| **Pemilik** | **PR-049** |
+| **Status** | **LUNAS 2026-09-06** (PR-049a) |
+| **Pemilik** | — |
 | **Sumber** | Log Phase 03 |
 
 Pengguna yang masuk lewat Google dan menghapus akunnya tidak menerima konfirmasi apa pun.
@@ -374,6 +393,13 @@ Pengguna yang masuk lewat Google dan menghapus akunnya tidak menerima konfirmasi
 kanal — pengguna itu sudah tidak punya akun, jadi tidak punya layar untuk melihatnya.
 Kehilangan email di sini bukan kehilangan pemberitahuan, melainkan satu-satunya bukti bahwa
 permintaan hapusnya diproses. Harus dinilai di gate U-02.
+
+**PEMBAYARANNYA (PR-049a, 2026-09-06).** Akun tanpa nomor HP kini dikabari lewat email, dan
+kabarnya lahir dari job antrean `notify-email` — bukan dari panggilan langsung seperti jalur
+SMS-nya. Jangkauannya persis: pengguna Google-only selalu tercakup, sebab Google mengirim
+`email_verified`. Alamat yang diketik sendiri lewat `PUT /me` **sengaja tidak** dikirimi apa
+pun — mengabarkan keadaan akun seseorang ke alamat yang belum terbukti miliknya adalah bahan
+phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti pesan SMS-nya.
 
 ---
 
@@ -387,6 +413,62 @@ permintaan hapusnya diproses. Harus dinilai di gate U-02.
 
 Ketiganya **tidak bisa diverifikasi dari disk** dan karena itu tidak ikut direkonsiliasi
 2026-09-05. Statusnya diambil apa adanya dari log terakhir yang menyebutnya.
+
+---
+
+### U-17 — Jendela commit→enqueue pada kabar pasca-hapus
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Durability |
+| **Ditemukan** | PR-049a (2026-09-06), sebagai batas yang disisakan gerbang U-02 |
+| **Pemilik** | Belum ditetapkan |
+| **Pemicu** | Saat ada peristiwa KEDUA yang kabarnya wajib durabel — dua penulis job "penting" tanpa outbox berarti dua tempat jendela yang sama terbuka |
+
+`account.service.ts` mengantrekan job `notify-email` **sesudah** transaksi hapus commit,
+bukan di dalamnya. Proses yang mati persis di antara keduanya — atau Redis yang tidak
+terjangkau tepat saat itu — tetap kehilangan kabarnya.
+
+**Kenapa ini tetap kemajuan besar, bukan masalah yang sama dengan nama baru.** Sebelumnya
+jendelanya adalah SELURUH umur pengiriman: satu panggilan provider fire-and-forget yang bisa
+memakan sepuluh detik, tanpa retry, dan mati bersama proses. Sekarang jendelanya milidetik
+penulisan ke Redis, dan kegagalannya berisik (`error`, menyebut akibatnya secara harfiah).
+
+**Yang menutupnya sepenuhnya:** *transactional outbox* — niat kirim ditulis ke tabel dalam
+transaksi yang SAMA dengan penghapusan, lalu satu pekerja memancarkannya ke antrean. Biayanya
+satu tabel, satu job pemancar, dan satu jalur baru yang harus dirawat. Tidak diambil di
+PR-049a: untuk satu peristiwa, biaya perawatannya lebih besar daripada jendela yang ditutup.
+Pemicunya ditulis di atas justru supaya perhitungan itu ditinjau ulang saat peristiwa kedua
+lahir — bukan saat sudah ada lima.
+
+---
+
+### U-18 — Kabar pasca-hapus lewat SMS masih *fire-and-forget*
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Durability |
+| **Ditemukan** | PR-049a (2026-09-06) |
+| **Pemilik** | Belum ditetapkan |
+| **Pemicu** | Saat antrean pengiriman yang tidak bernama-email lahir (mis. `notify-sms`), atau saat U-17 dibayar dengan outbox — outbox membuat kanal tujuan menjadi detail, bukan penghalang |
+
+PR-049a membuat jalur **email** durabel dan tidak menyentuh jalur **SMS** PR-021 — padahal
+bagi pengguna bernomor, SMS itu juga satu-satunya kanal sesudah penghapusan: ia sama-sama
+tidak punya sesi maupun layar. Jadi asimetrinya nyata, dan ditulis di sini apa adanya alih-
+alih dibiarkan terlihat seperti kelalaian.
+
+**Kenapa tidak ditarik ke PR-049a.** Antrean yang tersedia bernama `notify-email` (SDD §16).
+Menaruh job SMS di atasnya adalah kebohongan nama yang akan hidup jauh lebih lama daripada PR
+ini — dan nama queue adalah key Redis, jadi memperbaikinya belakangan berarti migrasi antrean.
+Pilihan yang benar adalah queue tersendiri atau outbox, dan keduanya keputusan yang tidak
+pantas diambil sambil lalu di PR yang sedang membawa keputusan keamanan.
+
+**Beda tingkat risikonya, dan ini yang membuat urutannya benar:** pengguna bernomor
+membuktikan diri dengan **kode OTP baru** saat menghapus akun; pengguna Google-only dengan
+consent Google yang `auth_time`-nya tidak pernah dikirim (0 dari 16 token terukur, verifikasi
+PR-033c-2). Jalur dengan bukti terlemah didahulukan.
 
 ---
 

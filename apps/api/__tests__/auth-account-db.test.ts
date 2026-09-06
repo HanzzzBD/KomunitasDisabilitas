@@ -126,6 +126,49 @@ describe("deleteAccount — satu transaksi, dua tabel (integration)", () => {
   });
 });
 
+/**
+ * PR-049a. Satu-satunya hal di jalur kabar pasca-hapus yang TIDAK BISA
+ * dibuktikan dengan fake, dan justru yang paling mudah salah tanpa gejala.
+ *
+ * `findPenerimaPascaHapus` harus menembus penjaga soft delete (core/db) —
+ * sebab pada saat job-nya berjalan, akunnya memang sudah terhapus. Andai
+ * jalan keluarnya tidak bekerja, query mengembalikan `null` untuk SETIAP
+ * penerima yang sah, service melaporkannya sebagai "akun-tidak-terhapus", job
+ * berakhir sukses, dan tidak satu pun kabar pernah terkirim. Seluruh test unit
+ * tetap hijau. Hanya PostgreSQL sungguhan yang bisa menjawab ini.
+ */
+describe("findPenerimaPascaHapus — menembus penjaga soft delete (PR-049a)", () => {
+  it("mengembalikan alamat akun yang SUDAH terhapus", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const id = uuidV7();
+    await mentah.user.create({
+      data: {
+        id,
+        fullName: NAMA_UJI,
+        phone: nomorBaru(),
+        email: `pr049a-${id}@contoh.uji`,
+        emailVerified: true,
+      },
+    });
+    await authRepository.deleteAccount(id, new Date());
+
+    expect(await authRepository.findPenerimaPascaHapus(id)).toEqual({
+      email: `pr049a-${id}@contoh.uji`,
+      emailVerified: true,
+    });
+  });
+
+  it("akun yang MASIH aktif tidak mengembalikan apa pun", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    // `deletedAt: { not: null }` bukan sekadar jalan keluar dari penjaga: ia
+    // syarat kebenaran. Akun yang dipulihkan support di antara enqueue dan
+    // eksekusi tidak boleh menerima kabar "akun Anda sudah dihapus".
+    const { id } = await buatAkun();
+
+    expect(await authRepository.findPenerimaPascaHapus(id)).toBeNull();
+  });
+});
+
 describe("penjaga soft delete — lintas modul (AC)", () => {
   it("repository auth DAN users sama-sama buta terhadap akun terhapus", async (ctx) => {
     if (!dbTersedia) return ctx.skip();
