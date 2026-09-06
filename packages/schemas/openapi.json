@@ -731,6 +731,108 @@
         }
       }
     },
+    "/me/notification-prefs": {
+      "get": {
+        "operationId": "getMyNotificationPrefs",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Preferensi kanal notifikasi sendiri",
+        "description": "Mengembalikan preferensi TERSIMPAN, dengan `null` dipertahankan apa adanya. `null` berarti pengguna belum pernah memilih kanal itu — berbeda dari memilih nilai bawaan. Klien menghitung kanal yang berlaku sendiri lewat `kanalBerlaku()` (@nawasena/schemas); bawaannya email mati, push hidup.",
+        "responses": {
+          "200": {
+            "description": "Preferensi kanal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelPrefsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateMyNotificationPrefs",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Perbarui preferensi kanal notifikasi sendiri",
+        "description": "Kanal yang tidak dikirim berarti tidak diubah; mengirim `null` mengembalikannya ke bawaan. Preferensi ini TIDAK berlaku bagi pemberitahuan keamanan akun (mis. kabar pasca-hapus akun): kabar itu tidak punya kanal lain, dan opt-out yang membungkamnya bukan preferensi melainkan lubang.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationChannelPrefs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferensi setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationChannelPrefsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau tidak ada kanal yang disebut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/profile": {
       "get": {
         "operationId": "getMyProfile",
@@ -2325,6 +2427,9 @@
           "accessibility": {
             "$ref": "#/components/schemas/AccessibilityProfile"
           },
+          "notificationChannels": {
+            "$ref": "#/components/schemas/NotificationChannelPrefs"
+          },
           "notifications": {
             "type": "array",
             "items": {
@@ -2338,6 +2443,7 @@
           "account",
           "profile",
           "accessibility",
+          "notificationChannels",
           "notifications"
         ],
         "additionalProperties": false,
@@ -2748,6 +2854,28 @@
         ],
         "description": "Profil tersimpan; null = belum diatur pengguna"
       },
+      "NotificationChannelPrefs": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "push": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "push"
+        ],
+        "description": "Preferensi kanal notifikasi"
+      },
       "Notification": {
         "type": "object",
         "properties": {
@@ -2899,6 +3027,35 @@
         },
         "additionalProperties": false,
         "description": "Profil tersimpan; null = belum diatur pengguna"
+      },
+      "NotificationChannelPrefsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/NotificationChannelPrefs"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateNotificationChannelPrefs": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "push": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "SeekerProfileResponse": {
         "type": "object",

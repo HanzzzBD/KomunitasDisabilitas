@@ -24,6 +24,11 @@ export {
   accessibilityKeys,
 } from "./endpoints/accessibility.js";
 export {
+  getNotificationPrefs,
+  updateNotificationPrefs,
+  notificationPrefsKeys,
+} from "./endpoints/notifications.js";
+export {
   getProfile,
   updateProfile,
   experiencesApi,

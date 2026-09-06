@@ -29,8 +29,10 @@ import {
   deviceResponseSchema,
   notificationIdParamsSchema,
   notificationListQuerySchema,
+  notificationChannelPrefsResponseSchema,
   notificationListResponseSchema,
   notificationReadResponseSchema,
+  updateNotificationChannelPrefsSchema,
   registerDeviceSchema,
 } from "./notifications.js";
 import {
@@ -459,6 +461,42 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           responses: {
             "200": jsonOk("Preferensi setelah diperbarui", accessibilityResponseSchema),
             "400": errorResponse("Input tidak valid"),
+            ...responsSesi,
+          },
+        },
+      },
+
+      // Preferensi kanal notifikasi (PR-049b). Mengatur kanal yang MENGEJAR
+      // pengguna keluar dari aplikasi; in-app tidak ada di sini sebab ia bukan
+      // kanal yang dikirimi melainkan riwayat yang bisa dibaca ulang.
+      "/me/notification-prefs": {
+        get: {
+          operationId: "getMyNotificationPrefs",
+          tags: ["notifications"],
+          summary: "Preferensi kanal notifikasi sendiri",
+          description:
+            "Mengembalikan preferensi TERSIMPAN, dengan `null` dipertahankan apa adanya. " +
+            "`null` berarti pengguna belum pernah memilih kanal itu — berbeda dari memilih " +
+            "nilai bawaan. Klien menghitung kanal yang berlaku sendiri lewat `kanalBerlaku()` " +
+            "(@nawasena/schemas); bawaannya email mati, push hidup.",
+          responses: {
+            "200": jsonOk("Preferensi kanal", notificationChannelPrefsResponseSchema),
+            ...responsSesi,
+          },
+        },
+        put: {
+          operationId: "updateMyNotificationPrefs",
+          tags: ["notifications"],
+          summary: "Perbarui preferensi kanal notifikasi sendiri",
+          description:
+            "Kanal yang tidak dikirim berarti tidak diubah; mengirim `null` mengembalikannya " +
+            "ke bawaan. Preferensi ini TIDAK berlaku bagi pemberitahuan keamanan akun " +
+            "(mis. kabar pasca-hapus akun): kabar itu tidak punya kanal lain, dan opt-out " +
+            "yang membungkamnya bukan preferensi melainkan lubang.",
+          requestBody: jsonBody(updateNotificationChannelPrefsSchema),
+          responses: {
+            "200": jsonOk("Preferensi setelah diperbarui", notificationChannelPrefsResponseSchema),
+            "400": errorResponse("Input tidak valid, atau tidak ada kanal yang disebut"),
             ...responsSesi,
           },
         },

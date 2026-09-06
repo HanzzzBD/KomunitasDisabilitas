@@ -106,6 +106,9 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
     findPenerimaPascaHapus() {
       throw new Error("Alur OTP tidak boleh menyentuh jalur kabar pasca-hapus");
     },
+    findPenerimaAktif() {
+      throw new Error("Alur OTP tidak boleh menyentuh jalur kabar email");
+    },
     deleteAccount() {
       throw new Error("Alur OTP tidak boleh menyentuh jalur hapus akun");
     },

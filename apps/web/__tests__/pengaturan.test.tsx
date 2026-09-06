@@ -189,7 +189,11 @@ describe("kerangka & navigasi", () => {
     await tungguJudul("Akun & Data Saya");
 
     const nav = screen.getByRole("navigation", { name: "Bagian pengaturan" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(2);
+    // Tiga panel sejak PR-049b (akun, notifikasi, aksesibilitas). Angkanya
+    // ditulis apa adanya, bukan diturunkan dari `PANEL`: jumlah yang dihitung
+    // dari sumber yang sama dengan kode produksi akan tetap cocok meski satu
+    // panel diam-diam hilang dari navigasinya.
+    expect(within(nav).getAllByRole("link")).toHaveLength(3);
   });
 
   it("panel yang sedang dibuka ditandai TEPAT SATU aria-current", async () => {

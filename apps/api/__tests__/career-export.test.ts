@@ -167,6 +167,7 @@ describe("kontributor bagian profile", () => {
       // merakit modul lain hanya untuk memenuhi kontrak akan membuat kegagalan
       // kelak menunjuk modul yang salah.
       accessibility: { ...ACCESSIBILITY_PROFILE_KOSONG },
+      notificationChannels: { email: null, push: null },
       notifications: [],
     });
 

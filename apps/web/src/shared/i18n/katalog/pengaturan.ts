@@ -336,6 +336,90 @@ export const katalogPengaturan = {
   // dulu menjelaskan ketiadaan kendali dihapus bersama keadaan kosongnya:
   // kalimat "belum tersedia" yang tertinggal di katalog akan dipungut kembali
   // oleh halaman berikutnya yang mencarinya, dan kali itu ia berbohong.
+  // --- Panel kanal notifikasi (PR-049b) ---
+  //
+  // KENAPA "IN-APP" TIDAK PUNYA SAKELAR DI SINI, dan kenapa itu dikatakan
+  // kepada pengguna alih-alih didiamkan: notifikasi in-app bukan kanal yang
+  // dikirimi melainkan riwayat yang bisa dibaca ulang. Mematikannya berarti
+  // tidak menulis apa pun, dan pengguna kehilangan catatan yang justru ia
+  // butuhkan saat ingin memeriksa "apa yang terjadi dengan lamaran saya".
+  // Panel yang diam soal ini membuat orang mengira ada sakelar yang hilang.
+  "pengaturan.notifikasi.judul": {
+    id: "Notifikasi",
+    "id-simple": "Notifikasi",
+  },
+  "pengaturan.notifikasi.penjelasan": {
+    id: "Pilih cara kami mengabari Anda saat ada perkembangan lamaran. Kabar di dalam aplikasi selalu ada dan tidak bisa dimatikan.",
+    // Dipecah menjadi kalimat-kalimat pendek, satu gagasan masing-masing, dan
+    // "perkembangan lamaran" → "kabar tentang lamaran Anda".
+    "id-simple": "Pilih cara kami mengabari Anda. Kabar di dalam aplikasi selalu ada. Itu tidak bisa dimatikan.",
+  },
+  "pengaturan.notifikasi.legenda": {
+    id: "Kabar di luar aplikasi",
+    // Menyebut TEMPATNYA, bukan istilah "kanal" yang tidak berarti apa-apa
+    // bagi pembacanya.
+    "id-simple": "Kabar yang datang ke luar aplikasi",
+  },
+  "pengaturan.notifikasi.email": {
+    id: "Kirim ke email saya",
+    "id-simple": "Kirim ke email saya",
+  },
+  "pengaturan.notifikasi.emailBantuan": {
+    // MENYEBUTKAN PENGECUALIANNYA. Pemberitahuan keamanan akun (mis. kabar
+    // bahwa akun sudah dihapus) tetap dikirim meski sakelar ini mati — kabar
+    // itu tidak punya kanal lain. Pengguna yang mematikan email lalu tidak
+    // diberi tahu tentang pengecualian ini akan mengira kami mengabaikan
+    // pilihannya.
+    id: "Mati secara bawaan. Pemberitahuan keamanan akun, seperti kabar bahwa akun Anda dihapus, tetap dikirim ke email meski sakelar ini mati.",
+    "id-simple": "Bawaannya mati. Satu hal tetap kami kirim: kabar penting tentang keamanan akun Anda. Contohnya kalau akun Anda dihapus.",
+  },
+  "pengaturan.notifikasi.push": {
+    id: "Kirim ke layar ponsel saya",
+    // "Push" adalah istilah mesin; yang dipahami pembacanya adalah TEMPAT
+    // kabar itu muncul.
+    "id-simple": "Kirim ke layar ponsel saya",
+  },
+  "pengaturan.notifikasi.pushBantuan": {
+    id: "Hidup secara bawaan. Kabar muncul di layar ponsel Anda meski aplikasi sedang tertutup.",
+    "id-simple": "Bawaannya hidup. Kabar muncul di ponsel Anda walau aplikasi ditutup.",
+  },
+  "pengaturan.notifikasi.memuat": {
+    id: "Memuat pilihan Anda…",
+    "id-simple": "Sebentar, pilihan Anda sedang dibuka…",
+  },
+  "pengaturan.notifikasi.menyimpan": {
+    id: "Menyimpan pilihan Anda…",
+    "id-simple": "Sebentar, pilihan Anda sedang disimpan…",
+  },
+  "pengaturan.notifikasi.tersimpan": {
+    id: "Pilihan Anda sudah tersimpan ke akun.",
+    "id-simple": "Pilihan Anda sudah masuk ke akun Anda.",
+  },
+  "pengaturan.notifikasi.galat": {
+    id: "Pilihan Anda belum bisa dikirim ke akun Anda. Periksa koneksi internet Anda.",
+    "id-simple": "Pilihan Anda belum sampai ke akun Anda. Cek internet Anda.",
+  },
+  "pengaturan.notifikasi.gagalMuat": {
+    id: "Sakelar di bawah menampilkan setelan bawaan, bukan pilihan Anda yang tersimpan.",
+    // Kalimat ini mencegah kesalahpahaman yang paling mahal di halaman ini:
+    // pengguna melihat sakelar bawaan, mengira itu pilihannya, lalu tidak
+    // mengubah apa pun.
+    "id-simple": "Sakelar di bawah bukan pilihan Anda. Itu setelan bawaan.",
+  },
+  "pengaturan.notifikasi.belumBerubah": {
+    // BERBEDA dari kalimat serupa di panel aksesibilitas, dan bedanya penting:
+    // di sana pilihan pengguna tetap berlaku di perangkatnya meski gagal
+    // terkirim. Kanal notifikasi hanya hidup di akun, jadi gagal berarti
+    // benar-benar belum berubah. Mengatakan sebaliknya akan membuat seseorang
+    // mengira ia sudah berhenti menerima email padahal belum.
+    id: "Pilihan Anda belum berubah. Coba tekan sakelarnya sekali lagi.",
+    "id-simple": "Pilihan Anda belum berubah. Coba tekan lagi.",
+  },
+  "pengaturan.nav.notifikasi": {
+    id: "Notifikasi",
+    "id-simple": "Notifikasi",
+  },
+
   "pengaturan.aksesibilitas.judul": {
     id: "Aksesibilitas",
     "id-simple": "Aksesibilitas",

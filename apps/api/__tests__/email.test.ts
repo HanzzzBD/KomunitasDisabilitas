@@ -52,6 +52,14 @@ function rakit(opsi: Opsi = {}) {
     penerima: {
       findPenerimaPascaHapus: async () =>
         opsi.baris === undefined ? { email: ALAMAT, emailVerified: true } : opsi.baris,
+      findPenerimaAktif: async () => {
+        throw new Error("Berkas ini hanya menguji jalur akun_dihapus (PR-049a)");
+      },
+    },
+    notificationRepository: {
+      findById: async () => {
+        throw new Error("Berkas ini hanya menguji jalur akun_dihapus (PR-049a)");
+      },
     },
     sender,
     accessibility: {

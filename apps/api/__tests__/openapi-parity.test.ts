@@ -92,6 +92,7 @@ function routeNyata(): { method: string; path: string }[] {
     redis: stub(),
     routes: registry.forModule(PREFIX),
     auditLog: stub(),
+    notificationPrefs: stub(),
   });
   createAccessibilityModule({
     prisma: stub(),

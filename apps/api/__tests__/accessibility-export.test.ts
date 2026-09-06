@@ -131,6 +131,7 @@ describe("kontributor bagian accessibility", () => {
       },
       profile: { ...SEEKER_PROFILE_KOSONG, experiences: [], educations: [], skills: [] },
       accessibility: await kontributor.kumpulkan(USER_ID),
+      notificationChannels: { email: null, push: null },
       notifications: [],
     });
 

@@ -23,7 +23,12 @@ import {
   createOtpSenderFromEnv,
   createSessionUserSource,
 } from "./modules/auth/index.js";
-import { createUsersModule } from "./modules/users/index.js";
+import {
+  createNotificationChannelsContributor,
+  createNotificationPrefsService,
+  createUserProfileRepository,
+  createUsersModule,
+} from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
@@ -151,6 +156,15 @@ export async function startApi(options: BootOptions): Promise<void> {
     events,
   });
 
+  // Preferensi kanal notifikasi (PR-049b). Dirakit DI SINI, bukan di dalam salah
+  // satu modul, sebab pembacanya DUA: endpoint `/me/notification-prefs` (modul
+  // users, pemilik kolomnya) dan produser job email (modul notifications).
+  // Merakitnya di salah satu lalu menyerahkannya ke yang lain akan menutup
+  // lingkaran — modul users sudah menerima kontributor ekspor dari notifications.
+  const notificationPrefs = createNotificationPrefsService({
+    userRepository: createUserProfileRepository(prisma),
+  });
+
   const notifications = createNotificationsModule({
     prisma,
     routes: routeRegistry.forModule("/api/v1"),
@@ -158,6 +172,10 @@ export async function startApi(options: BootOptions): Promise<void> {
     // proses apps/worker terpisah (ADR-004), yang merakit adapter FCM-nya
     // sendiri dari env yang sama.
     queues,
+    // Produser job `notify:email` (PR-049b) memeriksanya lebih dulu: email
+    // adalah kanal OPT-IN, jadi tanpa pemeriksaan ini mayoritas notifikasi
+    // melahirkan job yang pasti dibuang konsumen.
+    preferensiKanal: notificationPrefs,
     logger,
     // Pelanggan `auth.user_registered` (bersama modul accessibility),
     // `application.submitted`, dan `application.status_changed` — instance bus
@@ -216,6 +234,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           redis: redis.cache,
           routes: routeRegistry.forModule("/api/v1"),
           auditLog,
+          notificationPrefs,
           // Bagian berkas ekspor dari modul lain. URUTANNYA menentukan urutan
           // key di berkas yang diunduh pengguna (agregatornya berjalan
           // berurutan), jadi disusun dari yang paling mendasar ke yang paling
@@ -228,6 +247,9 @@ export async function startApi(options: BootOptions): Promise<void> {
             // U-03: preferensi aksesibilitas. Ada untuk SETIAP pengguna sejak
             // PR-034, dan selama lima phase tidak ikut terekspor.
             accessibility.exportContributor,
+            // PR-049b: preferensi kanal notifikasi. Ditulis bersama kolomnya,
+            // bukan menyusul — pelajaran U-03/U-04.
+            createNotificationChannelsContributor(notificationPrefs),
             // U-04: riwayat notifikasi. Utang yang dilahirkan PR-047 sendiri.
             notifications.exportContributor,
           ],

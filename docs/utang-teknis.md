@@ -124,8 +124,20 @@ di log PR-049a; ringkasnya:
    pertanyaan ini harus ditanyakan ulang**, sebab email yang lahir dari handler event akan
    ikut hilang bersama prosesnya tanpa satu pun cara pengguna mengetahuinya.
 
-**Pemicu berikutnya**, karena itu: PR-049b (email sambutan/status lamaran), dan setiap PR
-yang membuat notifikasi in-app menjadi satu-satunya kabar bagi peristiwa baru.
+**HASIL GERBANG KEDUA (PR-049b, 2026-09-06).** Dijalankan ulang, dan jawabannya **tidak ada**:
+ketiga sumber email biasa sudah punya baris `notifications` yang bisa dibaca ulang di layar
+dan push sejak PR-048b, sedangkan FAKTA yang dikabarkan tetap benar di DB.
+
+Satu hal yang perlu dicatat supaya tidak ditanyakan lagi dari nol: email di PR-049b **tidak
+menambah satu pun kelas kegagalan baru** pada U-02. Event yang hilang saat proses mati berarti
+baris notifikasinya pun tidak pernah lahir — jadi tidak ada keadaan "ada di layar tetapi
+emailnya hilang". Yang hilang tetap *pemberitahuan*, bukan *informasi*. Emailnya sendiri
+tetap lahir dari job antrean (bukan dikirim di dalam handler), meski gerbang tidak menuntutnya:
+pengiriman di dalam handler tidak punya retry, dan hiccup provider adalah kegagalan yang paling
+sering terjadi di jalur ini.
+
+**Pemicu berikutnya**, karena itu: setiap PR yang membuat notifikasi in-app menjadi
+satu-satunya kabar bagi peristiwa baru — bukan penambahan kanal.
 
 ---
 

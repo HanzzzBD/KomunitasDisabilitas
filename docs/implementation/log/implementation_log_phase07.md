@@ -620,3 +620,157 @@ bawaan sistem, kegagalan aksesibilitas email yang paling sering dan paling murah
   kanal pengiriman, tetapi menambah kanal BARU di sebelahnya alih-alih mengubah yang lama;
   rename sekarang akan mencampur perubahan nama lintas-berkas ke dalam PR yang sedang
   membawa keputusan keamanan. Tetap kandidat untuk PR-049b.
+
+---
+
+## PR-049b — Preferensi Kanal Notifikasi
+
+> **Phase:** [07 - Notifications](../phase-07-notifications.md#pr-049---email-transaksional-resend)
+> **Tanggal:** 2026-09-06
+> **Status:** Selesai — **PR-049 tuntas** (AC 5/5)
+
+### Gerbang U-02 dijalankan ulang — dan jawabannya berbeda dari PR-049a
+
+PR-049a menjawab gerbang untuk kabar pasca-hapus. Gerbang itu **berlaku lagi di sini**, sebab
+PR ini adalah yang pertama mengirim email dari **bus event in-process**.
+
+1. **Apakah ada peristiwa yang kabarnya menjadi satu-satunya lewat kanal ini?** **Tidak.**
+   Ketiga sumbernya (`auth.user_registered`, `application.submitted`,
+   `application.status_changed`) sudah melahirkan baris `notifications` yang bisa dibaca ulang
+   di layar, dan sejak PR-048b juga push. Lebih penting: FAKTA yang dikabarkan tetap benar di
+   DB — status lamaran tetap terbaca di layar lamaran. Kehilangan email di sini berarti
+   kehilangan *pemberitahuan*, bukan *informasi*.
+2. **Bila ya, kabarnya wajib lahir dari job antrean.** Tidak berlaku — tetapi **dilakukan
+   juga**: email lahir dari job `notify-email`, bukan dikirim di dalam handler event. Bukan
+   karena gerbang menuntutnya, melainkan karena pengiriman di dalam handler tidak punya retry
+   sama sekali, dan hiccup provider adalah kegagalan yang PALING sering terjadi di jalur ini.
+3. **Alasan penundaan, ditulis supaya PR berikutnya tidak mengulang dari nol.** Yang masih
+   bisa hilang adalah event yang terbit saat proses API mati sebelum handler-nya jalan — dan
+   bila itu terjadi, yang hilang BUKAN hanya email: baris notifikasinya pun tidak pernah
+   lahir, jadi tidak ada keadaan "ada di layar tetapi emailnya hilang". Email di sini tidak
+   menambah satu pun kelas kegagalan baru pada U-02. **U-02 tetap TERBUKA, tetap tanpa
+   pemilik**, dan pemicunya tidak berubah: peristiwa yang kabarnya menjadi satu-satunya.
+
+### Ringkasan hasil
+
+Separuh kedua PR-049: kolom `notification_prefs`, endpoint `GET/PUT /me/notification-prefs`,
+panel `/pengaturan/notifikasi` di web, dan email untuk notifikasi biasa yang menghormati
+preferensi itu. Dengan ini **seluruh AC PR-049 terpenuhi**.
+
+### Keputusan yang membentuk sisanya
+
+**1. Email notifikasi TIDAK punya katalog kalimatnya sendiri.** Ini keputusan terbesar di PR
+ini. Dokumen phase menyebut tiga template email ("welcome, status lamaran, CV siap"), yang
+terbaca seolah email butuh salinan kalimatnya sendiri. Ketiganya sudah menjadi tipe notifikasi
+di `template.service.ts` — jadi yang dibuat bukan tiga template, melainkan satu varian job
+`{ jenis: "notifikasi", notificationId }` yang merender lewat renderer YANG SAMA dengan yang
+melayani layar dan push. Akibatnya: tipe notifikasi baru otomatis ikut terkirim lewat email
+tanpa menyentuh berkas email mana pun, dan kalimat email tidak bisa menyimpang dari kalimat
+layar. ("CV siap" tetap tidak ada — `resume.*` belum jadi event; modul resumes lahir Phase 09.)
+
+**2. Opt-out diperiksa DUA KALI, dengan dua peran yang berbeda.** Produser (proses API)
+memeriksanya sebagai **optimasi**: email adalah kanal opt-in, jadi mayoritas pengguna tidak
+menyalakannya dan tanpa pemeriksaan ini setiap notifikasi melahirkan job yang pasti dibuang.
+Konsumen (worker) memeriksanya sebagai **penegakan**: ia satu-satunya titik yang dilewati
+setiap produser email, termasuk produser yang belum ditulis siapa pun. Pemeriksaan konsumen
+tidak berbiaya satu perjalanan DB pun — `notificationPrefs` ikut di query yang sudah membaca
+alamatnya. Konsekuensinya jujur: pengguna yang mematikan email sesudah job terlanjur mengantre
+tetap tidak menerimanya (preferensi dibaca saat kabar DIKIRIM), dan itu arah yang benar bagi
+sebuah opt-out.
+
+**3. `notification_prefs` jsonb di `users`, bukan tabel tersendiri** — mengikuti dokumen
+phase. Bentuk preferensi kanal masih akan berubah (WhatsApp, digest SignBridge sudah
+terbayang), dan masing-masing akan menuntut satu kolom plus satu migrasi pada tabel TERBESAR
+sistem ini. Penegakan bentuknya pindah ke zod, yang memang satu-satunya jalan tulis.
+
+**4. `null` = "belum pernah memilih", bukan "memilih bawaan"** — pelajaran PR-036R/migrasi 09
+diterapkan sejak awal, bukan diperbaiki belakangan. Bawaan (`email: false`, `push: true`) hidup
+di `packages/schemas` dan dipakai server DAN klien lewat SATU fungsi `kanalBerlaku()`. Dua
+salinan aturan ini berarti tombol yang menyala sementara kabarnya tidak dikirim.
+
+**5. Bentuk jsonb yang rusak jatuh ke "belum memilih", yang berarti email MATI.** Arah
+jatuhnya penting: bentuk rusak yang jatuh ke "semua kanal menyala" akan mengirimi orang email
+yang tidak pernah ia minta — cara tercepat membuat seluruh kanal ini masuk folder spam,
+termasuk kabar yang benar-benar ia butuhkan.
+
+**6. Kabar keamanan TIDAK tunduk preferensi, dan itu DIKATAKAN kepada pengguna.** Panel
+menyebutkan pengecualiannya di teks bantuan sakelar email. Pengguna yang mematikan email lalu
+tetap menerima kabar pasca-hapus tanpa pernah diberi tahu akan mengira pilihannya diabaikan.
+
+### Penjaga baru: kolom `users` yang tidak ikut terekspor
+
+`export-kelengkapan.test.ts` bekerja per TABEL, dan `users` sudah `TERDAFTAR` sejak PR-022 —
+jadi satu `ALTER TABLE ADD COLUMN` bisa menambahkan data pribadi yang tidak pernah ikut
+terekspor **tanpa satu pun gerbang menyalak**. Persis bentuk kegagalan U-03/U-04, yang bertahan
+lima phase bukan karena sulit melainkan karena tidak ada penagihnya.
+
+Ditambahkan lapisan kedua: setiap kolom skalar model `User` wajib berada di
+`KOLOM_USERS_TERDAFTAR` (dipetakan ke bagian berkasnya) atau `KOLOM_USERS_DIKECUALIKAN`
+(beserta alasan tertulis, minimal 30 karakter). Ditambah pemeriksaan arah sebaliknya (kolom
+hantu) dan pemeriksaan bahwa bagian yang ditunjuk benar-benar ada di `dataExportSchema`.
+`notificationChannels` sendiri masuk ekspor di PR yang SAMA dengan kolomnya.
+
+### Tinjauan migrasi baris per baris (perintah owner 2026-09-05)
+
+Migrasi 15 ditulis tangan. Isinya, setelah komentar dibuang:
+
+```
+migration.sql:27  ALTER TABLE "users" ADD COLUMN "notification_prefs" JSONB;
+down.sql:11       ALTER TABLE "users" DROP COLUMN IF EXISTS "notification_prefs";
+```
+
+Satu pernyataan aditif, tanpa `DEFAULT`, tanpa backfill. **Nol `DROP INDEX`** — satu-satunya
+`DROP` adalah penurunan kolomnya sendiri di `down.sql`. Diverifikasi terhadap DB dev setelah
+`migrate deploy`: **47 indeks**, dan kedelapan indeks raw-SQL (`jobs_embedding_hnsw`,
+`seeker_profiles_embedding_hnsw`, `jobs_title_trgm`, `jobs_fts_gin`,
+`jobs_accommodations_gin`, `audit_logs_created_at_brin`, `refresh_tokens_expires_at_brin`,
+`refresh_tokens_revoked_at_brin`) masih ada. Penjaga `migrasi-skema.test.ts` tetap hijau.
+
+### Scope selesai
+
+* **Migrasi 15** + `schema.prisma` (`notificationPrefs Json?`).
+* **`packages/schemas`** — `notificationChannelPrefsSchema`, `updateNotification…`,
+  `NOTIFICATION_CHANNEL_DEFAULTS`, `kanalBerlaku()`; varian `notifikasi` pada
+  `notifyEmailJobSchema`; bagian `notificationChannels` di `dataExportSchema`; dua path OpenAPI.
+* **`modules/users`** — `notification-prefs.service.ts`, dua metode repository, endpoint
+  `GET/PUT /me/notification-prefs`, kontributor ekspor.
+* **`modules/notifications`** — `renderEmailNotifikasi`, jalur `notifikasi` di `email.service.ts`
+  (termasuk penegakan opt-out), produser `antrekanEmail`.
+* **`modules/auth`** — `findPenerimaAktif` (membaca alamat + preferensi dalam satu query).
+* **`apps/web`** — `features/notifikasi-kanal`, route `/pengaturan/notifikasi`, panel navigasi
+  ketiga, 12 kunci katalog (kedua varian), klien `@nawasena/api-client`, palsu e2e.
+* **Test:** `notification-prefs.test.ts` (17), `email-notifikasi.test.ts` (14),
+  `notifikasi-kanal.test.tsx` (9), `users-me-http.test.ts` (+7), `notifications-http.test.ts`
+  (+5), `export-kelengkapan.test.ts` (+5 penjaga kolom), plus pembaruan fixture ekspor di enam
+  berkas.
+
+### AC PR-049 — seluruhnya terpenuhi
+
+| AC | Bukti |
+|---|---|
+| Email terkirim sesuai preferensi (mock Resend) | `email-notifikasi.test.ts` + `notifications-http.test.ts` (produser) |
+| Template HTML aksesibel | `email-template.test.ts` (PR-049a) + `email-notifikasi.test.ts` (kerangka yang sama dipakai email notifikasi) |
+| Opt-out email dihormati | `email-notifikasi.test.ts` (penegakan di konsumen, termasuk bentuk jsonb rusak) + `users-me-http.test.ts` |
+| Retry/backoff + DLQ | `queue.test.ts` + `email.test.ts` (PR-049a) |
+| Kedua varian bahasa ter-render | `email-template.test.ts` + `email-notifikasi.test.ts` |
+
+### Risiko & batas yang diketahui
+
+* **Jendela ubah-preferensi vs job yang sudah mengantre** — pilihan dibaca saat kabar dikirim.
+  Dinilai benar, bukan cacat: opt-out yang berlaku ke belakang justru akan membatalkan kabar
+  yang sah saat dikirim.
+* **Balapan tulis preferensi tidak dikunci.** Dua permintaan bersamaan atas kanal BERBEDA bisa
+  membuat yang belakangan menimpa yang duluan. Tidak dikunci: kedua penulisnya orang yang SAMA
+  di layar yang sama, dan `SELECT … FOR UPDATE` pada tabel terbesar sistem ini tidak sebanding.
+* **U-02 tetap TERBUKA** (lihat gerbang di atas), **U-17** dan **U-18** tetap ditunda sesuai
+  keputusan owner.
+* **Belum pernah diuji terhadap Resend sungguhan** — dicatat sebagai verifikasi manual, bukan
+  blocker (keputusan owner 2026-09-06).
+* **`apps/worker` tetap tanpa test.** Processor `notify-email` tidak berubah di PR ini.
+
+### Next steps
+
+* **PR-050 — notification center web.** PR terakhir Phase 07.
+* **U-09** — rename `OtpSender`/`OtpMessage` tetap belum dibayar. PR ini tidak menyentuh
+  transport OTP sama sekali, jadi memasukkannya berarti perubahan lintas-berkas tanpa satu pun
+  hubungan dengan scope-nya.

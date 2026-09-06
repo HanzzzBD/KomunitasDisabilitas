@@ -18,7 +18,12 @@ import {
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
-import { createUsersModule, EXPORT_POLICY } from "../src/modules/users/index.js";
+import {
+  createNotificationPrefsService,
+  createUserProfileRepository,
+  createUsersModule,
+  EXPORT_POLICY,
+} from "../src/modules/users/index.js";
 import type { ExportRedisLike } from "../src/modules/users/repositories/export-quota.repository.js";
 import {
   assertRoutesDeclared,
@@ -171,6 +176,12 @@ async function boot() {
         createUsersModule({
           prisma: fakePrisma(baris),
           redis: fakeRedis(),
+          // Endpoint preferensi kanal (PR-049b) tidak diuji di berkas ini;
+          // service-nya tetap dirakit sebab modul menuntutnya, dan merakitnya
+          // dari prisma palsu yang sama lebih jujur daripada stub kosong.
+          notificationPrefs: createNotificationPrefsService({
+            userRepository: createUserProfileRepository(fakePrisma(baris)),
+          }),
           routes: registry.forModule("/api/v1"),
           auditLog: (_actor, action, _entity, entityId, meta) => {
             audit.push({ action, entityId, meta });
@@ -193,6 +204,10 @@ async function boot() {
             // Dua bagian WAJIB sejak 2026-09-05 (U-03 & U-04) — penampung
             // kosong, dengan alasan yang sama seperti `profile` di atas.
             { bagian: "accessibility", kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }) },
+            {
+              bagian: "notificationChannels",
+              kumpulkan: async () => ({ email: null, push: null }),
+            },
             { bagian: "notifications", kumpulkan: async () => [] },
           ],
         }),
@@ -321,7 +336,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile", "accessibility", "notifications"],
+        sections: ["account", "profile", "accessibility", "notificationChannels", "notifications"],
       },
     });
   });
