@@ -21,6 +21,9 @@ import {
   EDUCATION_YEAR_MIN,
   profileUpdatedEventSchema,
   updateExperienceSchema,
+  companyVerifiedEventSchema,
+  createCompanySchema,
+  updateCompanySchema,
   type RequestOtp,
   type SafeProfile,
 } from "../src/index.js";
@@ -247,6 +250,70 @@ describe("sub-entitas karier (PR-038)", () => {
       "section",
       "updatedAt",
       "userId",
+    ]);
+  });
+});
+
+describe("profil perusahaan (PR-051)", () => {
+  it("field wajib minimal: hanya name → deskripsi/website/city/akomodasi berdefault", () => {
+    expect(createCompanySchema.parse({ name: "PT Contoh" })).toEqual({
+      name: "PT Contoh",
+      description: null,
+      website: null,
+      city: null,
+      accommodationsAvailable: [],
+    });
+  });
+
+  it("nama kosong/spasi ditolak", () => {
+    expect(createCompanySchema.safeParse({ name: "" }).success).toBe(false);
+    expect(createCompanySchema.safeParse({ name: "   " }).success).toBe(false);
+  });
+
+  it("website harus URL sah", () => {
+    expect(createCompanySchema.safeParse({ name: "X", website: "bukan-url" }).success).toBe(false);
+    expect(
+      createCompanySchema.safeParse({ name: "X", website: "https://contoh.id" }).success,
+    ).toBe(true);
+  });
+
+  it("taksonomi akomodasi liar ditolak, nilai valid diterima", () => {
+    expect(
+      createCompanySchema.safeParse({ name: "X", accommodationsAvailable: ["kursi_pijat"] })
+        .success,
+    ).toBe(false);
+    expect(
+      createCompanySchema.safeParse({
+        name: "X",
+        accommodationsAvailable: ["akses_kursi_roda", "juru_bahasa_isyarat"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("field asing di create ditolak", () => {
+    expect(createCompanySchema.safeParse({ name: "X", verifiedBy: "y" }).success).toBe(false);
+  });
+
+  it("update: badan kosong sah, field yang tidak disebut tidak ikut berubah", () => {
+    expect(updateCompanySchema.parse({})).toEqual({});
+    expect(updateCompanySchema.parse({ name: "Baru" })).toEqual({ name: "Baru" });
+  });
+
+  it("update: inclusivityStatus HANYA menerima unverified/self_claimed — 'verified' ditolak", () => {
+    expect(
+      updateCompanySchema.safeParse({ inclusivityStatus: "unverified" }).success,
+    ).toBe(true);
+    expect(
+      updateCompanySchema.safeParse({ inclusivityStatus: "self_claimed" }).success,
+    ).toBe(true);
+    expect(updateCompanySchema.safeParse({ inclusivityStatus: "verified" }).success).toBe(false);
+  });
+
+  it("event company.verified tidak membawa satu pun isi profil perusahaan", () => {
+    expect(Object.keys(companyVerifiedEventSchema.shape).sort()).toEqual([
+      "companyId",
+      "verifiedAt",
+      "verifiedBy",
     ]);
   });
 });

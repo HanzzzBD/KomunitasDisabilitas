@@ -74,11 +74,11 @@ Bisnis: Inclusive Company Profile — transparansi akomodasi perusahaan (USP PRD
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service verify)
-* [ ] Integration Test (RBAC + audit + event)
+* [x] Unit Test (service verify) — `companies.test.ts` (11 test)
+* [x] Integration Test (RBAC + audit + event) — `companies-http.test.ts` (19 test)
 * [ ] E2E Test (via PR-053)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (curl)
+* [x] Manual Verification (curl) — lihat log implementasi PR-051
 
 **Deliverables:**
 
@@ -94,11 +94,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Seeker tidak dapat memutasi (403, matrix).
-* [ ] Verify → status berubah + audit + event.
-* [ ] Public GET hanya field publik (snapshot kontrak).
-* [ ] Taksonomi akomodasi tervalidasi.
-* [ ] Un-verify (koreksi) dimungkinkan + audit.
+* [x] Seeker tidak dapat memutasi (403, matrix).
+* [x] Verify → status berubah + audit + event.
+* [x] Public GET hanya field publik (snapshot kontrak).
+* [x] Taksonomi akomodasi tervalidasi.
+* [x] Un-verify (koreksi) dimungkinkan + audit.
 
 #### Dependencies
 

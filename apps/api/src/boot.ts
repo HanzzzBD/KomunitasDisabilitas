@@ -32,6 +32,7 @@ import {
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
+import { createCompaniesModule } from "./modules/companies/index.js";
 import { createAiModule } from "./modules/ai/index.js";
 import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
 import {
@@ -264,6 +265,17 @@ export async function startApi(options: BootOptions): Promise<void> {
         }),
       );
       app.use(profiles.router);
+      // Admin-only PERTAMA di repo (PR-051) — `/companies/:id` di dalamnya
+      // tetap publik (US-09); lihat komentar router modul untuk alasannya.
+      app.use(
+        createCompaniesModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          auditLog,
+          // Penerbit `company.verified`; belum ada pelanggan (core/events).
+          events,
+        }).router,
+      );
     },
   });
 

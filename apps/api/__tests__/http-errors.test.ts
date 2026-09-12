@@ -95,6 +95,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Jatah bantuan AI Anda hari ini sudah habis",
           "status": 429,
         },
+        "PERUSAHAAN_TIDAK_DITEMUKAN": {
+          "hint": "Periksa kembali tautan atau ID perusahaan",
+          "message": "Perusahaan tidak ditemukan",
+          "status": 404,
+        },
         "RUTE_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali alamat yang Anda tuju",
           "message": "Halaman atau data tidak ditemukan",

@@ -24,6 +24,7 @@
 import type {
   ApplicationStatusChangedEvent,
   ApplicationSubmittedEvent,
+  CompanyVerifiedEvent,
   JobClosedEvent,
   ProfileUpdatedEvent,
   UserRegisteredEvent,
@@ -80,6 +81,16 @@ export interface DomainEvents {
    * yang dipicu event ini — bukan dari handler-nya.
    */
   "application.status_changed": ApplicationStatusChangedEvent;
+  /**
+   * Perusahaan diverifikasi admin (PR-051, PRD FR-6.1). Penerbitnya modul
+   * `companies`, DI PROSES API — endpoint verify berjalan lewat HTTP. Belum
+   * ada pelanggan: kandidat pengonsumsinya adalah cache/feed perusahaan
+   * terverifikasi, bila kelak dibutuhkan (belum ada di backlog MVP).
+   *
+   * TIDAK memuat isi profil perusahaan — sama seperti `job.closed`, pelanggan
+   * yang membutuhkannya membaca dari modul `companies`.
+   */
+  "company.verified": CompanyVerifiedEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;
