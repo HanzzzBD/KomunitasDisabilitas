@@ -262,3 +262,166 @@ browser Chromium nyata) — 2/2 lulus.
   admin lain) sesuai backlog.
 
 ---
+
+## PR-053 — Admin Companies FE
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-053---admin-companies-fe)
+> **Tanggal:** 2026-09-12
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Konsumen PERTAMA `Tabel` (PR-052) dengan data sungguhan: `/admin/companies`
+(daftar + sortir), `/admin/companies/baru` (tambah), `/admin/companies/:id`
+(ubah + verifikasi). Tidak ada backend/database — murni frontend di atas
+kontrak PR-051 yang sudah ada.
+
+Tiga keputusan yang membentuk seluruh sisanya:
+
+**1. Halaman terpisah untuk tambah/ubah, bukan dialog atau baris tabel yang
+berubah jadi form di tempat** (dikonfirmasi via `AskUserQuestion` sebelum
+implementasi). Form perusahaan cukup panjang (nama, deskripsi, situs, kota,
+enam kotak centang akomodasi) untuk membuatnya sulit dijaga aksesibel di
+dalam modal atau di dalam satu `<tr>` — halaman sendiri berarti URL yang bisa
+ditandai, tombol kembali yang bekerja alami, dan fokus yang tidak perlu
+dijerat.
+
+**2. Status verifikasi TIDAK ADA di formulir sebagai field biasa.**
+`updateCompanySchema.inclusivityStatus` (PR-051) hanya menerima
+`unverified`/`self_claimed` — menaruhnya sebagai dropdown di form utama
+berisiko admin yang memperbaiki satu salah ketik nama TIDAK SENGAJA
+menurunkan status "verified" bila nilai dropdown itu tidak sengaja tersentuh
+saat form dibangun ulang dari data server. Satu-satunya jalan mengubah status
+adalah tombol **Verifikasi** — aksi terpisah, dengan dialog konfirmasinya
+sendiri (Security Considerations: "dampak label publik"). Un-verify TIDAK
+diekspos di UI ini — AC PR-053 tidak memintanya, dan jalur PUT admin (PR-051)
+tetap tersedia di server bila kelak dibutuhkan.
+
+**3. GET /admin/companies/:id TIDAK ADA di server (dengan sengaja, PR-051) —
+halaman Ubah mencari barisnya dari `listCompaniesAdmin()`.** Cache TanStack
+yang sudah terisi dari halaman daftar membuat perpindahan ke halaman Ubah
+terasa seketika; navigasi LANGSUNG ke alamatnya (tautan disalin, dibuka tab
+baru) tetap bekerja lewat satu permintaan daftar segar. Konsekuensinya:
+navigasi LANGSUNG ke `/admin/companies/:id` dengan id yang tidak ada di
+daftar menampilkan "tidak ditemukan" — keadaan yang sah dan diuji, bukan
+kegagalan.
+
+**KEJADIAN: `noValidate` yang terlupa, ditemukan test, bukan dugaan.** Draf
+pertama `FormulirPerusahaan` tidak menulis `noValidate` pada `<form>`.
+Kolom nama menulis atribut `required` (lewat `KolomForm`, untuk pengumuman
+screen reader) — dan `required` juga membuat PERAMBAN memblokir submit
+serta menampilkan gelembung validasi bawaannya sendiri, dalam bahasa
+peramban, tidak tersambung ke kolom manapun. Akibatnya `onSubmit` — dan
+seluruh pesan galat Bahasa Indonesia yang tersambung `aria-describedby` —
+TIDAK PERNAH terpanggil sama sekali pada form kosong. Bug produksi
+sungguhan, ditangkap `admin-companies.test.tsx` (bukan e2e — jsdom cukup
+displin untuk menegakkan constraint validation API yang sama seperti
+peramban), sebelum sempat terkirim. Pola yang sama PERSIS sudah didokumentasikan
+di `profil/daftar-karier.ts` (PR-040) dengan catatan "terbukti, bukan diduga"
+— dan sekarang terbukti dua kali.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 — `@nawasena/api-client`
+**9 berkas / 80 lulus**, `@nawasena/web` **48 berkas / 625 lulus**. Build
+produksi + `cek:budget`: 110,2/200 KB gzip (LOLOS). `playwright test`
+(browser Chromium nyata, atas hasil build): 11/11 lulus, termasuk alur penuh
+klik "Ubah" dari daftar → form terisi data nyata → buka dialog verifikasi →
+konfirmasi → badge berubah jadi "Terverifikasi" → tombol Verifikasi hilang.
+
+### Scope selesai
+
+**`packages/api-client` (baru: endpoint companies)**
+
+* **`src/endpoints/companies.ts`** — `listCompaniesAdmin`, `createCompanyAdmin`,
+  `updateCompanyAdmin`, `verifyCompanyAdmin`, `companiesKeys.adminList()`
+  (TANPA params — daftar penuh sama untuk semua admin, beda dengan
+  `profilesKeys` yang dilingkupi `sub`). TIDAK ADA `getCompanyAdmin`: server
+  memang tidak menyediakannya (lihat keputusan #3).
+* **`__tests__/companies.test.ts`** (11 test) — amplop `{data}` dibuka, body
+  divalidasi SEBELUM berangkat (`inclusivityStatus: "verified"` ditolak DI
+  KLIEN, taksonomi liar ditolak di klien), `verify` tanpa badan.
+
+**`apps/web` (fitur `features/admin/companies-*`, route `admin-companies*`)**
+
+* **`features/admin/companies-badan.ts`** — `NilaiPerusahaan` (form value,
+  TANPA status — keputusan #2), `keNilai`/`keBadanBuat`/`keBadanUbah`.
+* **`features/admin/companies-status-badge.tsx`** — `StatusBadge`: teks
+  ("Terverifikasi"/"Klaim mandiri"/"Belum diverifikasi") sebagai sumber
+  kebenaran, warna sebagai penguat (WCAG 1.4.1).
+* **`features/admin/companies-formulir.tsx`** — `FormulirPerusahaan`:
+  nama/deskripsi/website/kota + fieldset taksonomi akomodasi (checkbox dari
+  `ACCOMMODATION_NEEDS`, label DIPINJAM dari katalog `profil` — taksonomi yang
+  sama harus terbaca sama oleh admin dan pencari kerja). `noValidate` (lihat
+  kejadian di atas).
+* **`features/admin/companies-daftar.tsx`** — `DaftarPerusahaan`: `Tabel`
+  dengan tiga kolom sortable (nama/kota/status) + kolom aksi ("Ubah" ber-
+  `aria-label` menyebut nama perusahaan), sortir CLIENT-SIDE (daftar admin
+  tanpa pagination, PR-051).
+* **`features/admin/companies-pesan-galat.ts`** — `periksa`/`pesanGalatSimpan`
+  (pola sama `profil/pesan-galat.ts`, diduplikasi bukan diimpor lintas fitur).
+* **`routes/admin-companies.tsx`** — halaman daftar, delegasi tipis ke
+  `DaftarPerusahaan`. Impor LANGSUNG ke berkas fitur (bukan barrel
+  `features/admin/index.js`) — barrel itu juga mengekspor `FormulirPerusahaan`
+  yang memakai katalog `profil`, dan mengimpornya lewat barrel akan membuat
+  `i18n-lazy.test.ts` mengira halaman daftar butuh katalog yang tidak pernah
+  ia pakai (ditangkap test, diperbaiki sebelum commit).
+* **`routes/admin-companies-formulir.tsx`** — satu komponen untuk BUAT dan
+  UBAH (`useParams().id` menentukan mode), mutasi `simpan`+`verifikasi`
+  memakai `queryClient.setQueryData` (bukan `invalidateQueries`) untuk
+  memperbarui cache daftar SEKETIKA tanpa permintaan tambahan.
+* **`app/routes.ts`** — tiga route baru sebagai SAUDARA (bukan anak
+  "companies") di bawah `admin`: "companies/baru" dan "companies/:id"
+  masing-masing halaman PENUH, tidak berbagi kerangka navigasi tambahan.
+* **`routes/admin.tsx`** — `SEKSI` bertambah entri "Perusahaan"; panel
+  `AdminRingkasan` diperbarui dari placeholder "belum ada modul" (PR-052)
+  menjadi kartu tautan sungguhan ke `/admin/companies` — placeholder lama
+  sudah tidak jujur begitu modul companies ada.
+* **`shared/i18n/katalog/admin.ts`** — ~40 kunci baru `admin.companies.*` +
+  `admin.nav.companies` + `admin.ringkasan.companies.*`.
+
+**Test (3 berkas baru)**
+
+* `apps/web/__tests__/admin-companies.test.tsx` (13 test, jsdom/testing-library)
+  — daftar (render, kosong, sortir, aria-label aksi), formulir tambah
+  (validasi kosong SEBELUM terkirim, submit sukses + redirect, taksonomi),
+  formulir ubah (terisi, tidak ditemukan, submit), verifikasi (dialog, batal,
+  konfirmasi + badge berubah).
+* `e2e/admin-companies.spec.ts` (3 test, Playwright/Chromium) — alur SUNGGUHAN
+  lewat klik (bukan navigasi langsung dengan id palsu): daftar→Ubah→form
+  terisi (axe), dialog verifikasi terbuka (axe) + konfirmasi, alur
+  Buat→redirect ke Ubah.
+* `e2e/halaman.ts` + `e2e/palsukan-api.ts` — 3 entri baru di registry axe
+  generik (daftar, tambah, ubah-tidak-ditemukan) + mock
+  `/admin/companies*`.
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Halaman terpisah untuk buat/ubah | Form panjang (7 kolom + taksonomi) lebih aksesibel di halaman sendiri; URL bisa ditandai/dibagikan | Dialog (fokus-trap pada form sepanjang ini merepotkan) atau baris tabel yang berubah jadi form (`Tabel` berbasis `<table>` asli, bukan `<ul>`) — ditanyakan ke user, dijawab eksplisit |
+| Status verifikasi bukan field form biasa | `PUT` yang bisa mengubah status berisiko menurunkannya tanpa sengaja saat admin hanya memperbaiki field lain | Dropdown status di form utama — ditolak; mengulang risiko yang sudah dihindari di PR-051 (`editableInclusivityStatusSchema`) |
+| Cache list diperbarui via `setQueryData`, bukan `invalidateQueries` | Respons mutasi (create/update/verify) SUDAH berisi baris lengkap — memvalidasi ulang berarti permintaan GET tambahan yang jawabannya sudah kita punya | `invalidateQueries` saja — ditolak; menambah latensi terlihat tanpa manfaat |
+| Route dinamis diuji lewat alur klik sungguhan (`admin-companies.spec.ts`), bukan `HALAMAN` generik | `registry-halaman.test.ts` menavigasi literal `/admin/companies/:id` — `useParams().id` karena itu SELALU literal `":id"`, tidak pernah cocok UUID sungguhan manapun | Memaksakan fixture ber-id `":id"` — ditolak; gagal validasi `idSchema` (UUID) di `companyAdminListResponseSchema`, menghasilkan galat SALAH ("respons tidak dikenal", bukan "tidak ditemukan") |
+
+### Risiko & batas yang diketahui
+
+* **Un-verify tidak ada di UI.** PUT admin tetap menerimanya (PR-051), tetapi
+  admin harus memakai jalur lain (curl/Prisma Studio) untuk mengoreksi status
+  "verified" yang keliru sampai UI-nya dibangun (tidak diminta AC PR-053).
+* **Sortir daftar sepenuhnya client-side.** Aman untuk skala pilot
+  (puluhan perusahaan, PR-051 sengaja tanpa pagination); perlu direvisi
+  bersamaan bila/ketika daftar admin lain mendapat pagination.
+* **Manual verification terhadap data seed TIDAK diulang di sesi ini** —
+  kontrak respons yang dikonsumsi FE ini sudah diverifikasi manual (curl)
+  terhadap 5 perusahaan seed sungguhan di sesi PR-051; sesi ini bersandar
+  pada kesamaan kontrak itu, bukan menjalankan ulang verifikasi live.
+
+### Next steps
+
+* **PR-054** — Halaman publik perusahaan, konsumen `GET /companies/:id`.
+* **PR-055/057** — Jobs BE + Admin Jobs FE — pemakai `Tabel` berikutnya;
+  polanya (halaman terpisah, cache via `setQueryData`) bisa dipinjam langsung.
+* **Un-verify UI** — bila kelak dibutuhkan, tambahkan sebagai aksi terpisah
+  (dialog sendiri) di `admin-companies-formulir.tsx`, BUKAN sebagai field
+  dropdown di form utama — alasannya di keputusan #2 tetap berlaku.
+
+---

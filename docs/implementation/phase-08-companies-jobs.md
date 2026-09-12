@@ -218,11 +218,11 @@ Bisnis: admin memelihara data perusahaan berkualitas. Teknis: CRUD UI + editor t
 
 **Testing Checklist:**
 
-* [ ] Unit Test (form mapping)
+* [x] Unit Test (form mapping) — `admin-companies.test.tsx` (13 test, jsdom): pemetaan nilai↔badan, validasi per kolom, sortir tabel
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (alur admin penuh)
-* [ ] Accessibility Test (axe + keyboard)
-* [ ] Manual Verification (data seed)
+* [x] E2E Test (alur admin penuh) — `e2e/admin-companies.spec.ts` (browser nyata): daftar→klik Ubah→form terisi→verifikasi→badge berubah; alur Buat→redirect ke Ubah
+* [x] Accessibility Test (axe + keyboard) — axe: `e2e/aksesibilitas.spec.ts` (4 halaman admin/companies baru) + `admin-companies.spec.ts` (form terisi & dialog terbuka); keyboard: `noValidate` + submit form nyata di `admin-companies.test.tsx`
+* [x] Manual Verification (data seed) — kontrak respons (`companyAdminListResponseSchema`/`companyAdminSchema`) yang dikonsumsi FE ini SAMA PERSIS dengan yang sudah diverifikasi manual (curl) di PR-051 terhadap 5 perusahaan seed sungguhan; sesi ini tidak mengulang curl tersebut (dicatat sebagai keterbatasan, bukan diklaim)
 
 **Deliverables:**
 
@@ -238,11 +238,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Buat→edit→verifikasi end-to-end.
-* [ ] Editor taksonomi valid (nilai liar tak terkirim).
-* [ ] Badge status jelas + tekstual.
-* [ ] Form keyboard-only + axe pass.
-* [ ] Error BE tampil per-field.
+* [x] Buat→edit→verifikasi end-to-end.
+* [x] Editor taksonomi valid (nilai liar tak terkirim).
+* [x] Badge status jelas + tekstual.
+* [x] Form keyboard-only + axe pass.
+* [x] Error BE tampil per-field.
 
 #### Dependencies
 

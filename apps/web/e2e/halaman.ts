@@ -187,5 +187,27 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   // Admin shell (PR-052).
   { nama: "admin — ringkasan", jalur: "/admin", butuhSesi: true, butuhAdmin: true },
 
+  // Kurasi perusahaan (PR-053).
+  { nama: "admin — daftar perusahaan", jalur: "/admin/companies", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — tambah perusahaan",
+    jalur: "/admin/companies/baru",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    // Jalur LITERAL `:id` — Playwright membuka alamat ini APA ADANYA, jadi
+    // `useParams().id` selalu literal `":id"`, yang tidak pernah cocok dengan
+    // id UUID sungguhan mana pun. Keadaan yang teruji di sini karena itu
+    // memang "perusahaan tidak ditemukan" — lihat komentar `PERUSAHAAN_UJI_ID`
+    // di `palsukan-api.ts`. Keadaan form terisi + dialog verifikasi diuji
+    // lewat alur sungguhan (klik "Ubah" dari daftar) di
+    // `admin-companies.spec.ts`, bukan lewat registry generik ini.
+    nama: "admin — ubah perusahaan (tidak ditemukan)",
+    jalur: "/admin/companies/:id",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

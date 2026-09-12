@@ -6,7 +6,7 @@
 // test — alasan yang sama dengan `pengaturan.test.tsx`: route produksi yang
 // salah tulis (lupa memasang guard, lupa route indeks) harus terlihat DI SINI.
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import type { ApiClient } from "@nawasena/api-client";
@@ -160,12 +160,24 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     expect(tautan).toHaveAttribute("aria-current", "page");
   });
 
-  it("belum ada modul admin → keadaan kosong yang menjelaskan, bukan layar diam", async () => {
+  it("panel ringkasan menautkan ke bagian Perusahaan (PR-053)", async () => {
     renderAdmin();
 
     expect(
-      await screen.findByRole("heading", { level: 3, name: "Belum ada modul yang tersedia" }),
+      await screen.findByRole("heading", { level: 3, name: "Perusahaan" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Buka daftar perusahaan" })).toHaveAttribute(
+      "href",
+      "/admin/companies",
+    );
+  });
+
+  it("navigasi punya DUA entri: Ringkasan dan Perusahaan", async () => {
+    renderAdmin();
+    await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
+
+    const nav = screen.getByRole("navigation", { name: "Bagian admin" });
+    expect(within(nav).getAllByRole("link")).toHaveLength(2);
   });
 });
 

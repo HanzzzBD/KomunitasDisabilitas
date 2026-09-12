@@ -261,6 +261,38 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "Satu kata sehari-hari. Harus SAMA dengan `admin.ringkasan.judul` — pengguna mencocokkan " +
     "kata yang tadi ia tekan dengan judul halaman yang terbuka.",
   "admin.ringkasan.judul": "Satu kata sehari-hari; nama panel tidak punya bentuk lebih sederhana.",
+
+  // --- admin/companies (PR-053) ---
+  // Sebagian besar di sini LABEL pendek — nama kolom tabel, judul halaman,
+  // label tombol — pola yang sama dengan `pengaturan`/`profil`: dua-tiga kata
+  // sehari-hari tidak punya bentuk yang lebih sederhana.
+  "admin.nav.companies":
+    "Satu kata sehari-hari. Harus SAMA dengan `admin.companies.judul` — pengguna mencocokkan " +
+    "kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  "admin.ringkasan.companies.judul": "Satu kata sehari-hari; nama bagian tidak punya bentuk lebih sederhana.",
+  "admin.ringkasan.companies.tautan": "Label tautan tiga kata sehari-hari.",
+  "admin.companies.judul": "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana.",
+  "admin.companies.tambah": "Label tombol dua kata sehari-hari.",
+  "admin.companies.tabelJudul": "Caption tabel dua kata sehari-hari — nama tabelnya sendiri.",
+  "admin.companies.kolom.nama": "Judul kolom satu kata.",
+  "admin.companies.kolom.kota": "Judul kolom satu kata.",
+  "admin.companies.kolom.status": "Judul kolom satu kata, istilah yang sudah dipakai sehari-hari.",
+  "admin.companies.kolom.aksi":
+    "Judul kolom satu kata; kolom ini hanya berisi tautan Ubah dan judulnya tidak tampil visual, " +
+    "tetapi tetap wajib bagi scope=col.",
+  "admin.companies.ubah": "Label tautan satu kata sehari-hari.",
+  "admin.companies.ubahLabel":
+    "Label tombol dua kata + nama perusahaan — sudah menyebut aksinya secara harfiah.",
+  "admin.companies.cobaLagi": "Label tombol dua kata sehari-hari, sama dengan `pengaturan.akun.cobaLagi`.",
+  "admin.companies.kosong.judul": "Kalimat tiga kata, sudah sesederhana mungkin.",
+  "admin.companies.form.judulBuat": "Label tombol/judul dua kata sehari-hari.",
+  "admin.companies.form.judulUbah": "Pola judul 'Ubah {nama}' — sudah harfiah.",
+  "admin.companies.form.kembaliKeDaftar": "Label tautan empat kata sehari-hari, sudah menyebut tujuannya.",
+  "admin.companies.form.nama": "Label kolom dua kata sehari-hari.",
+  "admin.companies.form.kota": "Label kolom satu kata.",
+  "admin.companies.form.simpan": "Label tombol satu kata sehari-hari.",
+  "admin.companies.form.batal": "Label tombol satu kata sehari-hari, sama dengan `pengaturan.hapus.batal`.",
+  "admin.companies.verifikasi.dialogBatal": "Label tombol satu kata sehari-hari.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<
