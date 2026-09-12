@@ -122,3 +122,143 @@ lulus**. `pnpm --filter @nawasena/schemas check:openapi` sinkron.
 * **PR-055** — Jobs BE, memakai taksonomi akomodasi yang sama (`accommodationNeedSchema`).
 
 ---
+
+## PR-052 — Admin Shell FE
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-052---admin-shell-fe)
+> **Tanggal:** 2026-09-12
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Route `/admin` lazy pertama beserta guard perannya, dan komponen `Tabel`
+aksesibel di `@nawasena/ui` — reusable lintas fitur admin yang menyusul
+(PR-053, PR-057, PR-077, PR-081, PR-083, PR-085). Tidak ada backend/database:
+seluruh scope PR ini murni frontend.
+
+Dua keputusan yang membentuk seluruh sisanya:
+
+**1. Dua guard terpisah, ditumpuk — bukan satu guard gabungan.** `Terlindungi`
+(PR-030a, menjaga SESI) dipasang DI LUAR, `PenjagaAdmin` (baru, menjaga PERAN)
+DI DALAM. Memeriksa peran sebelum ada sesi sama sekali tidak berarti apa pun —
+`/me` akan gagal 401 sebelum sempat menjawab peran. Pemisahan ini juga yang
+membuat "guard role FE adalah UX, bukan keamanan" (Security Considerations)
+bisa dinyatakan TEPAT: `PenjagaAdmin` murni percantik pengalaman, sedangkan
+`Terlindungi` yang sudah ada tetap menjaga sesi seperti biasa. RBAC
+sesungguhnya (`access.role("admin")`, PR-019) ada di server; guard FE ini
+gagal-tertutup (galat `/me` diperlakukan sama dengan "bukan admin") tetapi
+tetap bisa dilewati siapa pun yang mengubah kode klien — dan itu tidak
+masalah, sebab server tidak pernah mempercayainya.
+
+**2. Pesan penolakan adalah flash message lewat `location.state`, bukan query
+string atau toast.** AC menuntut "redirect + pesan", dan `PenyediaToast` yang
+ada di `@nawasena/ui` belum pernah dipasang di `apps/web` (belum ada
+pemakainya) — memasangnya sekarang demi satu pesan akan menambah satu sistem
+notifikasi baru untuk PR yang scope-nya "shell + guard + tabel". Query string
+bertahan setelah refresh dan tersalin ke tautan yang dibagikan; state React
+Router hanya menempel pada SATU entri riwayat (dari `<Navigate replace
+state={...}>`), sehingga pesan "Anda ditolak" otomatis hilang begitu pengguna
+berpindah ke alamat lain. Dibaca dan diumumkan (`role="alert"`) di
+`TataLetak`, satu-satunya komponen yang dilewati SETIAP halaman — pola yang
+sama dengan `BannerLuring`.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9 — `@nawasena/ui` **14
+berkas / 188 lulus**, `@nawasena/web` **47 berkas / 611 lulus**. Build
+produksi + `pnpm cek:budget`: bundel awal 110,0 KB gzip (LOLOS, sisa 90 KB),
+kedua chunk `admin-*.js` terkonfirmasi ada di daftar "chunk lazy" — TIDAK di
+payload awal. `playwright test -g admin` (axe + skip-link, atas hasil build,
+browser Chromium nyata) — 2/2 lulus.
+
+### Scope selesai
+
+**`packages/ui` (baru: `Tabel`)**
+
+* **`src/tabel.tsx`** — komponen tabel generik `Tabel<T>`. Header sortable
+  adalah `<button>` NATIF di dalam `<th scope="col">` — itulah seluruh
+  jawaban "sortable via keyboard": fokusabel via Tab, aktif via Enter/Spasi,
+  tanpa satu baris penanganan tombol pun ditulis tangan. `aria-sort` ditaruh
+  di `<th>` (bukan di tombolnya) sesuai WAI-ARIA APG. Pengurutan TERKENDALI
+  PEMANGGIL (`urutan`/`onUrutkan`) — komponen ini tidak tahu bagaimana
+  membandingkan nilai bertipe apa pun, hanya tahu cara menampilkan keadaan
+  urut yang diberi tahu. `judul` (wajib) → `<caption>`; `kosong` (wajib) →
+  baris pengganti saat `data` kosong, pola yang sama dengan `children` wajib
+  di `KeadaanKosong`.
+* **`__tests__/tabel.test.tsx`** (15 test) — scope=col tiap header, caption
+  menamai tabel, aktivasi Enter/Spasi lewat `userEvent.keyboard` (bukan
+  panggilan handler langsung), `aria-sort` mengikuti prop bukan state
+  internal, kolom tanpa `urut` tidak pernah dapat `aria-sort`, keadaan kosong
+  + `colSpan`, isi sel bawaan vs `render` kustom, axe (terisi & kosong).
+* **`src/index.ts`** — `Tabel` diekspor bersama `KolomTabel`/`UrutanTabel`.
+
+**`apps/web` (route `/admin` + guard)**
+
+* **`src/shared/rute/penjaga-admin.tsx`** (baru) — `PenjagaAdmin`: `useQuery`
+  `GET /me`, `WilayahMemuat` selama menunggu, `<Navigate to="/" replace
+  state={{pesanAkses}}>` bila bukan admin (termasuk saat query gagal —
+  fail-closed).
+* **`src/app/tata-letak.tsx`** — `PesanAksesDitolak` baru: membaca
+  `location.state.pesanAkses`, merender `role="alert"` bila ada. Diletakkan
+  di bawah tautan lompat (yang harus tetap elemen fokusabel pertama).
+* **`src/routes/admin.tsx`** (baru) — `Admin` (shell: `Terlindungi` →
+  `PenjagaAdmin` → `<h1>` + `<nav>` + `<Outlet/>`) dan `AdminRingkasan`
+  (panel indeks: `KeadaanKosong` — belum ada modul admin lain). Array
+  `SEKSI` (satu entri hari ini) mengikuti pola `PANEL` di `pengaturan.tsx`,
+  siap ditambah PR-053 dst. tanpa menulis ulang navigasinya.
+* **`src/app/routes.ts`** — route `admin` lazy + anak indeks lazy,
+  `muatKatalog("admin")` di keduanya.
+* **`src/shared/i18n/katalog/admin.ts`** (baru) + wiring
+  (`katalog/index.ts`, `registri.ts` — `FITUR_MALAS`+`PEMUAT`,
+  `katalog/semua.ts`, `__tests__/setup.ts`).
+* **`e2e/halaman.ts`** — flag baru `butuhAdmin` di `HalamanDijaga`; satu
+  entri terdaftar (`admin — ringkasan`).
+* **`e2e/palsukan-api.ts`** — `GET /me` menjawab `role: "admin"` bila
+  `halaman.butuhAdmin === true`, else `"seeker"` (bawaan sebelumnya).
+
+**Test (2 berkas baru, 1 diperluas selain yang di atas)**
+
+* `apps/web/__tests__/admin.test.tsx` (11 test) — dijalankan lewat `ruteApp`
+  PRODUKSI (bukan router karangan test), pola yang sama dengan
+  `pengaturan.test.tsx`: penjagaan sesi (keluar→/masuk, tujuan terbawa),
+  AC penolakan peran (seeker→"/", pesan `role="alert"`, admin tidak
+  dialihkan), navigasi keyboard-only (Tab+Enter, `aria-current`), axe.
+* `apps/web/__tests__/katalog-kelengkapan.test.ts` — empat entri baru di
+  `SAMA_DENGAN_SENGAJA` (label pendek yang `id`/`id-simple`-nya memang sama).
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| `Tabel` di `@nawasena/ui`, bukan di fitur admin | Tidak tahu apa pun tentang domain (companies/jobs/users) — sama kategorinya dengan `Tab`/`Dialog`; enam PR admin berikutnya memakainya | Menaruhnya di fitur `admin` lalu mengimpornya lintas fitur — dilarang `eslint-plugin-boundaries` |
+| Pengurutan terkendali pemanggil, `Tabel` tidak mengurutkan `data` | Perbandingan yang benar (tanggal, angka, string berlokal) hanya diketahui pemanggil; `Tabel` hanya tahu `kunci`+`render` | `Tabel` mengurutkan sendiri via `Array.sort` generik — akan salah untuk kolom non-string tanpa cara memberi tahu komparatornya |
+| Pesan penolakan via `location.state`, bukan toast/query string | Toast belum pernah dipasang di `apps/web`; query string bertahan lewat refresh & tautan yang dibagikan, sedangkan state menempel satu entri riwayat lalu otomatis hilang | Memasang `PenyediaToast` sekarang — scope creep untuk PR "shell+guard+tabel"; query string — pesan "Anda ditolak" ikut tersalin ke tautan |
+| Guard peran fail-closed saat `/me` gagal | Pengguna yang perannya tidak bisa dipastikan tidak boleh melihat isi admin hanya karena jaringan bermasalah — sejalan dengan "guard adalah UX", bukan alasan melonggarkannya | Menampilkan retry/isi admin saat galat — kebocoran UX yang tidak perlu, RBAC BE tetap jadi jaring pengaman tetapi pengalamannya buruk |
+| Nav admin: array `SEKSI` (satu entri) sejak sekarang | PR-053 dst. menambah BARIS, bukan menulis ulang pola navigasi — sama seperti `PANEL` di `pengaturan.tsx` | Tautan tunggal ditulis tangan tanpa array — akan ditulis ulang total begitu entri kedua datang |
+
+### Risiko & batas yang diketahui
+
+* **NVDA sungguhan TIDAK dijalankan** — lingkungan pengembangan ini tidak
+  punya screen reader terpasang. Yang menggantikannya: axe (jsdom DAN
+  browser Chromium nyata via Playwright) plus pengujian peran/nama/state
+  ARIA eksplisit (`scope=col`, `aria-sort`, `role="alert"`, `aria-current`).
+  Utang ini sejalur dengan gerbang Lighthouse a11y=100 yang berjalan di CI
+  (job `a11y`) tetapi belum pernah dijalankan LOKAL untuk halaman ini di
+  sesi ini — CI akan menjadi pemeriksaan sungguhan pertama.
+* **Belum ada penemuan `/admin` dari navigasi utama.** Tidak ada tautan di
+  `TataLetak` menuju `/admin` bagi admin yang sedang masuk — sesuai scope
+  (`session store` tidak menyimpan `role`, hanya `status`; menambahkannya
+  butuh mengubah kontrak store yang di luar scope "shell+guard+tabel").
+  Admin membuka `/admin` lewat alamat langsung. Dicatat, bukan tersembunyi,
+  supaya PR yang menambah pintasan navigasi tahu titik mulainya.
+* **`Tabel` belum punya pemakai sungguhan.** PR-053 adalah konsumen pertama
+  dengan data nyata (daftar perusahaan); sampai saat itu kebenarannya hanya
+  dibuktikan test terisolasi, bukan di halaman produksi.
+
+### Next steps
+
+* **PR-053** — Admin Companies FE: konsumen pertama `Tabel` dengan data
+  sungguhan (daftar perusahaan dari PR-051), form, dan alur verifikasi.
+  Menambah entri kedua ke array `SEKSI` di `routes/admin.tsx`.
+* **PR-057/077/081/083/085** — pemakai `Tabel` berikutnya (jobs, users,
+  admin lain) sesuai backlog.
+
+---

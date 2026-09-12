@@ -214,6 +214,35 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Admin shell (PR-052) — SAUDARA `pengaturan`, bukan anaknya: ia
+        // ruang kerja admin, bukan setelan akun. `role("admin")` ditegakkan
+        // di dalam komponen `Admin` (`Terlindungi` + `PenjagaAdmin`), alasan
+        // yang sama seperti `Pengaturan`: berkas ini `.ts` murni data.
+        path: "admin",
+        lazy: async () => {
+          const [{ Admin }] = await Promise.all([
+            import("../routes/admin.js"),
+            muatKatalog("admin"),
+          ]);
+          return { Component: Admin };
+        },
+        children: [
+          {
+            // Panel indeks: "/admin" langsung menampilkan Ringkasan, dengan
+            // alasan yang sama seperti indeks `/pengaturan` — alamat indeks
+            // lebih baik BERISI daripada menunjuk.
+            index: true,
+            lazy: async () => {
+              const [{ AdminRingkasan }] = await Promise.all([
+                import("../routes/admin.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminRingkasan };
+            },
+          },
+        ],
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

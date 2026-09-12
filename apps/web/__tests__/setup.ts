@@ -92,6 +92,7 @@ import { katalogPengaturan } from "../src/shared/i18n/katalog/pengaturan.js";
 import { katalogOnboarding } from "../src/shared/i18n/katalog/onboarding.js";
 import { katalogProfil } from "../src/shared/i18n/katalog/profil.js";
 import { katalogNotifikasi } from "../src/shared/i18n/katalog/notifikasi.js";
+import { katalogAdmin } from "../src/shared/i18n/katalog/admin.js";
 
 seedKatalogUntukTest({
   shell: katalogShell,
@@ -101,4 +102,5 @@ seedKatalogUntukTest({
   onboarding: katalogOnboarding,
   profil: katalogProfil,
   notifikasi: katalogNotifikasi,
+  admin: katalogAdmin,
 });

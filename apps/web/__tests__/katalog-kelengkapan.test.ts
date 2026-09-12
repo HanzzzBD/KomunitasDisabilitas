@@ -252,6 +252,15 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "shell.judulDokumen":
     "Pola judul tab, bukan kalimat: isinya hanya nama halaman + nama produk, dan " +
     "keduanya sudah disederhanakan di kuncinya masing-masing.",
+
+  // --- admin (PR-052) ---
+  "admin.judul": "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana.",
+  "admin.nav.label":
+    "Nama landmark navigasi — dibacakan screen reader, tidak tampil di layar. Dua kata sehari-hari.",
+  "admin.nav.ringkasan":
+    "Satu kata sehari-hari. Harus SAMA dengan `admin.ringkasan.judul` — pengguna mencocokkan " +
+    "kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  "admin.ringkasan.judul": "Satu kata sehari-hari; nama panel tidak punya bentuk lebih sederhana.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<

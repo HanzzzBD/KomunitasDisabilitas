@@ -44,6 +44,30 @@ export const ID_KONTEN_UTAMA = "konten-utama";
  */
 const JALUR_DIKECUALIKAN: readonly string[] = ["/onboarding", "/masuk", "/masuk/google"];
 
+/**
+ * Pesan flash dari `PenjagaAdmin` (PR-052) — dibaca lewat `location.state`,
+ * bukan lewat query string. Query string bertahan setelah refresh dan
+ * disalin ke tautan; state React Router hanya menempel pada SATU entri
+ * riwayat, sehingga pesan "Anda ditolak" tidak ikut terbawa saat halaman ini
+ * dibagikan atau dimuat ulang.
+ */
+function PesanAksesDitolak() {
+  const lokasi = useLocation();
+  const state = lokasi.state as { pesanAkses?: string } | null;
+  const pesan = state?.pesanAkses;
+
+  // Dirender bersyarat, bukan disembunyikan CSS: alasan yang sama dengan
+  // `BannerLuring` — elemen yang selalu ada lalu di-`display:none` tidak
+  // pernah memicu pengumuman `role="alert"`.
+  if (pesan === undefined) return null;
+
+  return (
+    <div role="alert" className="p-2">
+      <p className="text-base font-semibold text-gray-900">{pesan}</p>
+    </div>
+  );
+}
+
 export function TataLetak() {
   const t = useTeks();
 
@@ -106,6 +130,14 @@ export function TataLetak() {
       >
         {t("shell.lompatKeKonten")}
       </a>
+
+      {/*
+        Pesan flash pasca-pengalihan (PR-052) — lihat `PesanAksesDitolak` di
+        atas. DI BAWAH tautan lompat: alasan yang sama seperti pintasan
+        preferensi di bawah — tautan lompat harus tetap elemen fokusabel
+        PERTAMA.
+      */}
+      <PesanAksesDitolak />
 
       {/*
         PINTASAN KE PANEL PREFERENSI (PR-036, AC-5: "panel terjangkau dalam ≤ 2
