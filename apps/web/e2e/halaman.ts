@@ -48,6 +48,15 @@ export interface HalamanDijaga {
    * setelah halaman dimuat.
    */
   butuhSesi?: true;
+  /**
+   * Halaman ini hanya bisa dicapai pengguna berperan admin (PR-052).
+   *
+   * Menyiratkan `butuhSesi` — tidak perlu menulis keduanya. Tanpa penanda ini,
+   * `PenjagaAdmin` akan melihat peran "seeker" (bawaan `palsukanApi`) dan
+   * mengalihkan ke "/", sehingga gerbangnya memeriksa halaman beranda sambil
+   * mengira sedang memeriksa halaman admin.
+   */
+  butuhAdmin?: true;
 }
 
 export const HALAMAN: readonly HalamanDijaga[] = [
@@ -174,6 +183,9 @@ export const HALAMAN: readonly HalamanDijaga[] = [
       await page.waitForSelector('h2:text-is("Ringkasan")');
     },
   },
+
+  // Admin shell (PR-052).
+  { nama: "admin — ringkasan", jalur: "/admin", butuhSesi: true, butuhAdmin: true },
 
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

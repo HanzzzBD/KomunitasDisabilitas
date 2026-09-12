@@ -31,3 +31,6 @@ export { KeadaanKosong, type KeadaanKosongProps } from "./keadaan-kosong.js";
 // pemakai keduanya (panel preferensi) benar-benar lahir — lihat catatan
 // panjang di berkasnya.
 export { KotakCentang, type KotakCentangProps } from "./kotak-centang.js";
+// Tabel (PR-052) — dipakai lintas fitur admin (PR-053 dst.), bukan domain
+// tertentu; lihat catatan batas di kepala berkas ini.
+export { Tabel, type TabelProps, type KolomTabel, type UrutanTabel } from "./tabel.js";

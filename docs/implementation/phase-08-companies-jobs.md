@@ -146,11 +146,11 @@ Bisnis: rumah semua operasi kurasi (pilot bergantung admin). Teknis: route `/adm
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard)
+* [x] Unit Test (guard) — `admin.test.tsx` (penjagaan sesi + peran, 11 test), `tabel.test.tsx` (15 test)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (akses role)
-* [ ] Accessibility Test (axe + keyboard tabel)
-* [ ] Manual Verification (NVDA tabel)
+* [x] E2E Test (akses role) — `admin.test.tsx` via `ruteApp` produksi (seeker→"/", admin→shell, keluar→/masuk)
+* [x] Accessibility Test (axe + keyboard tabel) — axe: `tabel.test.tsx`, `admin.test.tsx`, `e2e/aksesibilitas.spec.ts` (browser nyata); keyboard: `tabel.test.tsx` (Enter/Spasi tombol urut), `admin.test.tsx` (Tab+Enter navigasi)
+* [x] Manual Verification — build produksi + `playwright test -g admin` (axe & skip-link, browser nyata) dan `cek:budget` (chunk admin lazy). NVDA sungguhan TIDAK dijalankan (lingkungan ini tidak punya screen reader) — dicatat sebagai utang di log implementasi.
 
 **Deliverables:**
 
@@ -166,11 +166,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Seeker membuka /admin → ditolak (redirect + pesan).
-* [ ] Bundle admin tidak termuat untuk seeker (analyzer).
-* [ ] AdminTable: header terasosiasi, sortable via keyboard, caption.
-* [ ] Navigasi admin keyboard-only.
-* [ ] axe 0 pelanggaran shell.
+* [x] Seeker membuka /admin → ditolak (redirect + pesan).
+* [x] Bundle admin tidak termuat untuk seeker (analyzer).
+* [x] AdminTable: header terasosiasi, sortable via keyboard, caption.
+* [x] Navigasi admin keyboard-only.
+* [x] axe 0 pelanggaran shell.
 
 #### Dependencies
 

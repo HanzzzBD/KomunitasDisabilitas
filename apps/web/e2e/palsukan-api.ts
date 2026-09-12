@@ -350,7 +350,11 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       return route.fulfill(jsonkan(200, { data: BERKAS_UJI }));
     }
     if (jalur.endsWith("/me")) {
-      return route.fulfill(jsonkan(200, { data: PROFIL_UJI }));
+      // `role` mengikuti `butuhAdmin` (PR-052): tanpa ini, `PenjagaAdmin`
+      // SELALU melihat "seeker" dan mengalihkan halaman admin ke "/" —
+      // gerbangnya lulus atas beranda sambil mengira sedang memeriksa /admin.
+      const role = halaman?.butuhAdmin === true ? "admin" : "seeker";
+      return route.fulfill(jsonkan(200, { data: { ...PROFIL_UJI, role } }));
     }
     if (jalur.endsWith("/auth/otp/request")) {
       return route.fulfill(jsonkan(202, { data: { retryAfterSeconds: 0 } }));
