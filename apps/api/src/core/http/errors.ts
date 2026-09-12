@@ -179,6 +179,12 @@ export const ERROR_CATALOG = {
     message: "Jatah bantuan AI Anda hari ini sudah habis",
     hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
   },
+  // --- Perusahaan (PR-051) ---
+  PERUSAHAAN_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Perusahaan tidak ditemukan",
+    hint: "Periksa kembali tautan atau ID perusahaan",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

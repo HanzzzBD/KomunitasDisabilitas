@@ -2016,6 +2016,495 @@
           }
         }
       }
+    },
+    "/companies/{id}": {
+      "get": {
+        "operationId": "getCompany",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Profil inklusivitas perusahaan (publik)",
+        "security": [],
+        "description": "Profil publik satu perusahaan — akomodasi tersedia, status verifikasi, tanpa field internal (`verifiedBy`). Tidak dibatasi status verifikasi: perusahaan `unverified` tetap punya halaman publik (PR-054).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profil perusahaan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanyPublic"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/companies": {
+      "get": {
+        "operationId": "listCompaniesAdmin",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Daftar seluruh perusahaan (admin)",
+        "description": "Tanpa pagination dengan sengaja: skala pilot MVP (puluhan perusahaan, bukan ribuan) tidak membutuhkannya.",
+        "responses": {
+          "200": {
+            "description": "Daftar perusahaan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CompanyAdmin"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCompanyAdmin",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Tambah perusahaan (admin)",
+        "description": "Status verifikasi lahir `unverified` — lihat POST .../verify.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCompany"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Perusahaan yang baru dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanyAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/companies/{id}": {
+      "put": {
+        "operationId": "updateCompanyAdmin",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Perbarui satu perusahaan (admin)",
+        "description": "Field yang tidak dikirim berarti tidak diubah. `inclusivityStatus` hanya menerima `unverified`/`self_claimed` — koreksi turun dari `verified` dimungkinkan di sini, tetapi naik ke `verified` HANYA lewat POST .../verify (audit + event tersendiri).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCompany"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perusahaan setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanyAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/companies/{id}/verify": {
+      "post": {
+        "operationId": "verifyCompanyAdmin",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Verifikasi inklusivitas perusahaan (admin)",
+        "description": "Menandai perusahaan `verified`, mencatat siapa dan kapan (audit `COMPANY_VERIFIED`), dan menerbitkan event domain `company.verified`. Boleh dipanggil pada perusahaan yang sudah `verified` (re-verifikasi setelah koreksi data) — idempoten pada hasil akhirnya.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perusahaan setelah terverifikasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanyAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3802,6 +4291,230 @@
           "terpakai",
           "sisa"
         ]
+      },
+      "CompanyPublic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inclusivityStatus": {
+            "type": "string",
+            "enum": [
+              "unverified",
+              "self_claimed",
+              "verified"
+            ],
+            "description": "Status verifikasi inklusivitas perusahaan"
+          },
+          "accommodationsAvailable": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            }
+          },
+          "verifiedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "website",
+          "city",
+          "inclusivityStatus",
+          "accommodationsAvailable",
+          "verifiedAt"
+        ],
+        "description": "Profil perusahaan (tampilan publik)"
+      },
+      "CompanyAdmin": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CompanyPublic"
+          }
+        ],
+        "properties": {
+          "verifiedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "verifiedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Profil perusahaan (tampilan admin)"
+      },
+      "CreateCompany": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "default": null
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 300,
+            "default": null
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "default": null
+          },
+          "accommodationsAvailable": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            },
+            "maxItems": 6,
+            "default": []
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCompany": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 300
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "accommodationsAvailable": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            },
+            "maxItems": 6
+          },
+          "inclusivityStatus": {
+            "type": "string",
+            "enum": [
+              "unverified",
+              "self_claimed"
+            ]
+          }
+        },
+        "additionalProperties": false
       }
     }
   }

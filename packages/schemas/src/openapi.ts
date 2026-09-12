@@ -26,6 +26,14 @@ import {
 } from "./accessibility.js";
 import { aiQuotaResponseSchema } from "./ai.js";
 import {
+  companyAdminListResponseSchema,
+  companyAdminResponseSchema,
+  companyIdParamsSchema,
+  companyPublicResponseSchema,
+  createCompanySchema,
+  updateCompanySchema,
+} from "./companies.js";
+import {
   deviceResponseSchema,
   notificationIdParamsSchema,
   notificationListQuerySchema,
@@ -67,6 +75,12 @@ const errorResponse = (description: string) => ({
 const responsSesi = {
   "401": errorResponse("Belum masuk, atau sesi sudah berakhir"),
   "503": errorResponse("Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)"),
+} as const;
+
+/** Sama seperti `responsSesi`, ditambah 403 untuk endpoint `role("admin")` (PR-051). */
+const responsAdmin = {
+  ...responsSesi,
+  "403": errorResponse("Bukan admin"),
 } as const;
 
 const jsonBody = (schema: ZodTypeAny) => ({
@@ -663,6 +677,93 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           responses: {
             "200": jsonOk("Ringkasan jatah AI", aiQuotaResponseSchema),
             ...responsSesi,
+          },
+        },
+      },
+
+      // Perusahaan (PR-051, PRD FR-6.1). Profil publik dilihat kandidat SEBELUM
+      // melamar (US-09); keempat route `/admin/companies*` adalah endpoint
+      // `role("admin")` PERTAMA di seluruh dokumen ini.
+      "/companies/{id}": {
+        get: {
+          operationId: "getCompany",
+          tags: ["companies"],
+          summary: "Profil inklusivitas perusahaan (publik)",
+          security: [], // eksplisit publik: kandidat menilai sebelum melamar, sering tanpa sesi
+          description:
+            "Profil publik satu perusahaan — akomodasi tersedia, status verifikasi, " +
+            "tanpa field internal (`verifiedBy`). Tidak dibatasi status verifikasi: " +
+            "perusahaan `unverified` tetap punya halaman publik (PR-054).",
+          requestParams: { path: companyIdParamsSchema },
+          responses: {
+            "200": jsonOk("Profil perusahaan", companyPublicResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+          },
+        },
+      },
+      "/admin/companies": {
+        get: {
+          operationId: "listCompaniesAdmin",
+          tags: ["companies"],
+          summary: "Daftar seluruh perusahaan (admin)",
+          description:
+            "Tanpa pagination dengan sengaja: skala pilot MVP (puluhan perusahaan, " +
+            "bukan ribuan) tidak membutuhkannya.",
+          responses: {
+            "200": jsonOk("Daftar perusahaan", companyAdminListResponseSchema),
+            ...responsAdmin,
+          },
+        },
+        post: {
+          operationId: "createCompanyAdmin",
+          tags: ["companies"],
+          summary: "Tambah perusahaan (admin)",
+          description: "Status verifikasi lahir `unverified` — lihat POST .../verify.",
+          requestBody: jsonBody(createCompanySchema),
+          responses: {
+            "201": jsonOk("Perusahaan yang baru dibuat", companyAdminResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/companies/{id}": {
+        put: {
+          operationId: "updateCompanyAdmin",
+          tags: ["companies"],
+          summary: "Perbarui satu perusahaan (admin)",
+          description:
+            "Field yang tidak dikirim berarti tidak diubah. `inclusivityStatus` hanya " +
+            "menerima `unverified`/`self_claimed` — koreksi turun dari `verified` " +
+            "dimungkinkan di sini, tetapi naik ke `verified` HANYA lewat " +
+            "POST .../verify (audit + event tersendiri).",
+          requestParams: { path: companyIdParamsSchema },
+          requestBody: jsonBody(updateCompanySchema),
+          responses: {
+            "200": jsonOk("Perusahaan setelah diperbarui", companyAdminResponseSchema),
+            "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/companies/{id}/verify": {
+        post: {
+          operationId: "verifyCompanyAdmin",
+          tags: ["companies"],
+          summary: "Verifikasi inklusivitas perusahaan (admin)",
+          description:
+            "Menandai perusahaan `verified`, mencatat siapa dan kapan (audit " +
+            "`COMPANY_VERIFIED`), dan menerbitkan event domain `company.verified`. " +
+            "Boleh dipanggil pada perusahaan yang sudah `verified` (re-verifikasi " +
+            "setelah koreksi data) — idempoten pada hasil akhirnya.",
+          requestParams: { path: companyIdParamsSchema },
+          responses: {
+            "200": jsonOk("Perusahaan setelah terverifikasi", companyAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
           },
         },
       },
