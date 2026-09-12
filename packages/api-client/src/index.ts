@@ -49,4 +49,13 @@ export {
   type UbahKeahlian,
 } from "./endpoints/profiles.js";
 export { deleteAccount } from "./endpoints/account.js";
+export {
+  listCompaniesAdmin,
+  createCompanyAdmin,
+  updateCompanyAdmin,
+  verifyCompanyAdmin,
+  companiesKeys,
+  type BuatPerusahaan,
+  type UbahPerusahaan,
+} from "./endpoints/companies.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

@@ -170,6 +170,38 @@ const NOTIFIKASI_UJI = {
   createdAt: "2026-01-15T20:00:00.000Z",
 };
 
+/**
+ * Perusahaan uji untuk `/admin/companies*` (PR-053).
+ *
+ * `registry-halaman.test.ts` membaca `path` route APA ADANYA dari `ruteApp` —
+ * untuk route dinamis `companies/:id` itu berarti entri registry yang
+ * menavigasi LANGSUNG ke sana wajib memakai jalur LITERAL
+ * `/admin/companies/:id` (lihat `halaman.ts`). Playwright membuka alamat itu
+ * apa adanya, sehingga `useParams().id` di halaman selalu literal `":id"` —
+ * yang TIDAK PERNAH sama dengan id UUID sungguhan mana pun.
+ *
+ * Ini BUKAN kekurangan: keadaan yang dijangkau lewat navigasi langsung itu
+ * memang "perusahaan tidak ditemukan", dan itulah yang diperiksa di sana.
+ * Keadaan FORM TERISI (dan dialog verifikasinya) dijangkau lewat alur
+ * sungguhan — klik "Ubah" dari daftar — di `admin-companies.spec.ts`, bukan
+ * lewat registry `HALAMAN`.
+ */
+export const PERUSAHAAN_UJI_ID = "01912345-89ab-7def-8123-4567890abd10";
+
+const PERUSAHAAN_UJI = {
+  id: PERUSAHAAN_UJI_ID,
+  name: "PT Uji Fiktif",
+  description: null as string | null,
+  website: null as string | null,
+  city: "Jakarta" as string | null,
+  inclusivityStatus: "unverified" as "unverified" | "self_claimed" | "verified",
+  accommodationsAvailable: [] as string[],
+  verifiedBy: null as string | null,
+  verifiedAt: null as string | null,
+  createdAt: "2026-01-15T20:00:00.000Z",
+  updatedAt: "2026-01-15T20:00:00.000Z",
+};
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
@@ -179,6 +211,9 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
   // boleh saling mewarisi notifikasi yang sudah ditandai oleh yang lain.
   const notifikasi: { readAt: string | null } & typeof NOTIFIKASI_UJI = { ...NOTIFIKASI_UJI };
+  // Sama alasannya untuk daftar perusahaan — mode UBAH menemukan barisnya di
+  // sini, dan mode BUAT menambahkan baris baru ke larik yang sama.
+  const perusahaan: (typeof PERUSAHAAN_UJI)[] = [{ ...PERUSAHAAN_UJI }];
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -345,6 +380,65 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
           },
         }),
       );
+    }
+    // --- Kurasi perusahaan (PR-053) ---
+    //
+    // DIPERIKSA SEBELUM `/me`: alasan yang sama dengan blok lain di atas —
+    // `endsWith("/me")` tidak akan pernah cocok dengan `/admin/companies`,
+    // tetapi urutan ini tetap menahan cabang baru di bawahnya dari menelan
+    // alamat yang lebih spesifik kelak.
+    if (jalur.endsWith("/admin/companies")) {
+      if (route.request().method() === "POST") {
+        const kirim = route.request().postDataJSON() as Record<string, unknown>;
+        const baru = {
+          ...PERUSAHAAN_UJI,
+          description: null,
+          website: null,
+          city: null,
+          accommodationsAvailable: [],
+          ...kirim,
+          id: "01912345-89ab-7def-8123-4567890abd11",
+          inclusivityStatus: "unverified" as const,
+          verifiedBy: null,
+          verifiedAt: null,
+        };
+        perusahaan.push(baru);
+        return route.fulfill(jsonkan(201, { data: baru }));
+      }
+      return route.fulfill(jsonkan(200, { data: perusahaan }));
+    }
+    if (jalur.endsWith("/verify")) {
+      // `decodeURIComponent`: klien mengirim id lewat `encodeURIComponent`
+      // (`@nawasena/api-client`), jadi `:` pada fixture `":id"` tiba di sini
+      // sebagai `%3Aid`.
+      const id = decodeURIComponent(jalur.split("/").slice(-2)[0] ?? "");
+      const baris = perusahaan.find((p) => p.id === id);
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, {
+            code: "PERUSAHAAN_TIDAK_DITEMUKAN",
+            message: "Perusahaan tidak ditemukan",
+          }),
+        );
+      }
+      baris.inclusivityStatus = "verified";
+      baris.verifiedBy = "01912345-89ab-7def-8123-456789abcdef";
+      baris.verifiedAt = "2026-01-16T03:00:00.000Z";
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    if (/\/admin\/companies\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      const baris = perusahaan.find((p) => p.id === id);
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, {
+            code: "PERUSAHAAN_TIDAK_DITEMUKAN",
+            message: "Perusahaan tidak ditemukan",
+          }),
+        );
+      }
+      Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
     }
     if (jalur.endsWith("/me/export")) {
       return route.fulfill(jsonkan(200, { data: BERKAS_UJI }));

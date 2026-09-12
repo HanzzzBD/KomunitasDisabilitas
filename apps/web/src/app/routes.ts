@@ -240,6 +240,45 @@ export const ruteApp: RouteObject[] = [
               return { Component: AdminRingkasan };
             },
           },
+          {
+            // Kurasi perusahaan (PR-053). "companies/baru" dan "companies/:id"
+            // SAUDARA, bukan anak "companies" — keduanya halaman PENUH (form),
+            // tidak berbagi kerangka navigasi tambahan seperti panel
+            // `/pengaturan`, jadi tidak ada gunanya route induk ber-`<Outlet/>`
+            // di antaranya.
+            path: "companies",
+            lazy: async () => {
+              const [{ AdminCompaniesDaftar }] = await Promise.all([
+                import("../routes/admin-companies.js"),
+                // `profil` TIDAK dimuat di sini: daftar hanya menampilkan
+                // nama/kota/status, tidak menyebut taksonomi akomodasi.
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminCompaniesDaftar };
+            },
+          },
+          {
+            path: "companies/baru",
+            lazy: async () => {
+              const [{ AdminCompaniesFormulir }] = await Promise.all([
+                import("../routes/admin-companies-formulir.js"),
+                // `profil` ikut: label taksonomi akomodasi dipinjam dari
+                // katalognya (lihat `companies-formulir.tsx`).
+                muatKatalog("admin", "profil"),
+              ]);
+              return { Component: AdminCompaniesFormulir };
+            },
+          },
+          {
+            path: "companies/:id",
+            lazy: async () => {
+              const [{ AdminCompaniesFormulir }] = await Promise.all([
+                import("../routes/admin-companies-formulir.js"),
+                muatKatalog("admin", "profil"),
+              ]);
+              return { Component: AdminCompaniesFormulir };
+            },
+          },
         ],
       },
       {
