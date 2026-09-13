@@ -23,7 +23,19 @@ import type {
   CompanyRow,
   CompanyUpdatePatch,
 } from "../repositories/companies.repository.js";
-import type { ActiveJobRow, ActiveJobsRepository } from "../repositories/active-jobs.repository.js";
+// Komunikasi antar-modul lewat LAPISAN SERVICE (CLAUDE.md §3.2), bukan
+// repository modul lain — `active-jobs.repository.ts` (PR-054) sudah pindah
+// APA ADANYA ke `modules/jobs` begitu modul itu sungguhan lahir (PR-055).
+//
+// DIEKSPOR ULANG (lihat `export type` di bawah) supaya `../../index.ts`
+// (elemen `module-shared`) bisa memakai tipe ini tanpa mengimpornya langsung
+// dari modul lain — `eslint-plugin-boundaries` hanya mengizinkan
+// `module-shared` menyentuh lapisan MODULNYA SENDIRI (lihat
+// `packages/config/eslint/boundaries.cjs`); lapisan `service`-lah yang
+// dilonggarkan lintas modul, jadi tipe ini harus "singgah" di sini dulu.
+import type { JobsService } from "../../jobs/services/jobs.service.js";
+
+export type { JobsService };
 
 /** Entitas audit modul ini. */
 export const AUDIT_ENTITY = "companies.company";
@@ -36,8 +48,8 @@ export interface CompaniesActor {
 
 export interface CompaniesServiceDeps {
   companiesRepository: CompaniesRepository;
-  /** Ringkasan lowongan aktif untuk halaman publik (PR-054). */
-  activeJobsRepository: ActiveJobsRepository;
+  /** Ringkasan lowongan aktif untuk halaman publik (PR-054; sumbernya modul `jobs` sejak PR-055). */
+  jobsService: JobsService;
   auditLog: AuditLog;
   /** Penerbit `company.verified` (PR-051); belum ada pelanggan (core/events). */
   events: EventBus;
@@ -81,12 +93,8 @@ function keProfilAdmin(row: CompanyRow): CompanyAdmin {
   };
 }
 
-function keRingkasanLowongan(row: ActiveJobRow): JobPublicSummary {
-  return { ...row, publishedAt: keTimestamp(row.publishedAt) };
-}
-
 export function createCompaniesService(deps: CompaniesServiceDeps) {
-  const { companiesRepository, activeJobsRepository, auditLog, events } = deps;
+  const { companiesRepository, jobsService, auditLog, events } = deps;
   const now = deps.clock ?? (() => new Date());
 
   const catatPerubahan = (actor: CompaniesActor, id: string, operation: "create" | "update") =>
@@ -116,8 +124,7 @@ export function createCompaniesService(deps: CompaniesServiceDeps) {
     async getActiveJobs(id: string): Promise<JobPublicSummary[]> {
       const perusahaan = await companiesRepository.findById(id);
       if (perusahaan === null) throw appError("PERUSAHAAN_TIDAK_DITEMUKAN");
-      const rows = await activeJobsRepository.listActiveByCompany(id);
-      return rows.map(keRingkasanLowongan);
+      return jobsService.listActiveByCompany(id);
     },
 
     /** GET /api/v1/admin/companies — seluruh perusahaan, tanpa pagination (skala pilot). */

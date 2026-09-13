@@ -33,7 +33,15 @@ import {
   createCompanySchema,
   updateCompanySchema,
 } from "./companies.js";
-import { companyActiveJobsResponseSchema } from "./jobs.js";
+import {
+  companyActiveJobsResponseSchema,
+  createJobSchema,
+  jobAdminListResponseSchema,
+  jobAdminResponseSchema,
+  jobIdParamsSchema,
+  jobPublicResponseSchema,
+  updateJobSchema,
+} from "./jobs.js";
 import {
   deviceResponseSchema,
   notificationIdParamsSchema,
@@ -781,6 +789,131 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "200": jsonOk("Perusahaan setelah terverifikasi", companyAdminResponseSchema),
             "400": errorResponse("`id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
+          },
+        },
+      },
+
+      // Lowongan (PR-055, PRD FR-4.1). `/jobs/{id}` publik SEPERTI
+      // `/companies/{id}` — kandidat membaca detail sebelum melamar, sering
+      // tanpa sesi. State machine draft→published→closed: `/admin/jobs/{id}
+      // /publish` dan `/close` adalah SATU-SATUNYA jalan menulis `status`.
+      "/jobs/{id}": {
+        get: {
+          operationId: "getJob",
+          tags: ["jobs"],
+          summary: "Detail lowongan (publik)",
+          security: [],
+          description:
+            "Hanya lowongan `published` yang belum lewat `expiresAt` — draft, " +
+            "closed, dan yang sudah kedaluwarsa SEMUANYA 404, tanpa membedakan " +
+            "sebabnya ke klien (PR-055).",
+          requestParams: { path: jobIdParamsSchema },
+          responses: {
+            "200": jsonOk("Detail lowongan", jobPublicResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+          },
+        },
+      },
+      "/admin/jobs": {
+        get: {
+          operationId: "listJobsAdmin",
+          tags: ["jobs"],
+          summary: "Daftar seluruh lowongan (admin)",
+          description: "Tanpa pagination dengan sengaja — pola sama `GET /admin/companies`.",
+          responses: {
+            "200": jsonOk("Daftar lowongan", jobAdminListResponseSchema),
+            ...responsAdmin,
+          },
+        },
+        post: {
+          operationId: "createJobAdmin",
+          tags: ["jobs"],
+          summary: "Tambah lowongan (admin)",
+          description:
+            "Lahir selalu `draft` + `admin_curated`. Akomodasi boleh kosong saat " +
+            "draft — baru wajib terisi sebelum POST .../publish.",
+          requestBody: jsonBody(createJobSchema),
+          responses: {
+            "201": jsonOk("Lowongan yang baru dibuat", jobAdminResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("`companyId` tidak menunjuk perusahaan yang ada"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/jobs/{id}": {
+        put: {
+          operationId: "updateJobAdmin",
+          tags: ["jobs"],
+          summary: "Perbarui satu lowongan (admin)",
+          description:
+            "Field yang tidak dikirim berarti tidak diubah. TIDAK bisa mengubah " +
+            "`status` — satu-satunya jalan ke sana adalah POST .../publish dan " +
+            "POST .../close.",
+          requestParams: { path: jobIdParamsSchema },
+          requestBody: jsonBody(updateJobSchema),
+          responses: {
+            "200": jsonOk("Lowongan setelah diperbarui", jobAdminResponseSchema),
+            "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
+          },
+        },
+        delete: {
+          operationId: "deleteJobAdmin",
+          tags: ["jobs"],
+          summary: "Hapus satu lowongan (admin)",
+          description:
+            "Lowongan yang sudah berlamaran DITOLAK (409) — FK Restrict di database " +
+            "(SDD §6.1) menjaga riwayat lamaran tetap utuh. `close` adalah jalur " +
+            "resmi menyingkirkan lowongan yang sudah berlamaran, bukan delete.",
+          requestParams: { path: jobIdParamsSchema },
+          responses: {
+            "204": { description: "Terhapus — tanpa badan jawaban" },
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Lowongan ini sudah berlamaran"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/jobs/{id}/publish": {
+        post: {
+          operationId: "publishJobAdmin",
+          tags: ["jobs"],
+          summary: "Terbitkan lowongan (admin)",
+          description:
+            "Satu-satunya jalan menuju `status: published`. Menolak selain dari " +
+            "`draft` (409) dan menolak lowongan tanpa satu pun akomodasi (422) — " +
+            "menerbitkan event domain `job.published`.",
+          requestParams: { path: jobIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lowongan setelah diterbitkan", jobAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Lowongan tidak dalam status `draft`"),
+            "422": errorResponse("Lowongan belum mencantumkan akomodasi apa pun"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/jobs/{id}/close": {
+        post: {
+          operationId: "closeJobAdmin",
+          tags: ["jobs"],
+          summary: "Tutup lowongan (admin)",
+          description:
+            "Satu-satunya jalan admin menuju `status: closed`. Menolak selain dari " +
+            "`published` (409) — menerbitkan event domain `job.closed` dengan " +
+            "`reason: closed_by_admin` (dibedakan dari penutupan otomatis PR-024b).",
+          requestParams: { path: jobIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lowongan setelah ditutup", jobAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Lowongan tidak dalam status `published`"),
             ...responsAdmin,
           },
         },

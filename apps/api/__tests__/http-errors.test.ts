@@ -25,6 +25,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "AKOMODASI_LOWONGAN_KOSONG": {
+          "hint": "Tambahkan minimal satu akomodasi lewat PUT sebelum menerbitkan lowongan",
+          "message": "Lowongan ini belum mencantumkan akomodasi apa pun",
+          "status": 422,
+        },
         "ALASAN_AKSES_DIPERLUKAN": {
           "hint": "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
           "message": "Akses data disabilitas harus menyertakan alasan",
@@ -95,6 +100,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Jatah bantuan AI Anda hari ini sudah habis",
           "status": 429,
         },
+        "LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS": {
+          "hint": "Tutup lowongan (status closed) sebagai gantinya",
+          "message": "Lowongan ini sudah punya pelamar dan tidak bisa dihapus",
+          "status": 409,
+        },
+        "LOWONGAN_TIDAK_DITEMUKAN": {
+          "hint": "Periksa kembali tautan atau ID lowongan",
+          "message": "Lowongan tidak ditemukan",
+          "status": 404,
+        },
         "PERUSAHAAN_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali tautan atau ID perusahaan",
           "message": "Perusahaan tidak ditemukan",
@@ -139,6 +154,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Ulangi dari tombol Masuk dengan Google",
           "message": "Data masuk dari Google tidak sah",
           "status": 401,
+        },
+        "TRANSISI_STATUS_TIDAK_VALID": {
+          "hint": "Periksa kembali status lowongan ini sebelum mencoba lagi",
+          "message": "Lowongan tidak bisa berpindah ke status itu dari status saat ini",
+          "status": 409,
         },
         "VALIDATION_ERROR": {
           "hint": "Periksa kembali data yang Anda isi",

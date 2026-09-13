@@ -24,6 +24,10 @@ import {
   companyVerifiedEventSchema,
   createCompanySchema,
   updateCompanySchema,
+  createJobSchema,
+  updateJobSchema,
+  jobPublishedEventSchema,
+  jobCloseReasonSchema,
   type RequestOtp,
   type SafeProfile,
 } from "../src/index.js";
@@ -315,6 +319,117 @@ describe("profil perusahaan (PR-051)", () => {
       "verifiedAt",
       "verifiedBy",
     ]);
+  });
+});
+
+describe("lowongan (PR-055)", () => {
+  const BADAN_MINIMAL = {
+    companyId: "01912345-89ab-7def-8123-456789abcdef",
+    title: "Kasir",
+    description: "Melayani transaksi pelanggan.",
+    employmentType: "part_time",
+    workMode: "onsite",
+  };
+
+  it("field wajib minimal → sisanya berdefault (requirements/city/province null, salary null, akomodasi kosong)", () => {
+    expect(createJobSchema.parse(BADAN_MINIMAL)).toEqual({
+      ...BADAN_MINIMAL,
+      requirements: null,
+      city: null,
+      province: null,
+      salaryMin: null,
+      salaryMax: null,
+      salaryVisible: true,
+      accommodations: [],
+      welcomedDisabilityTypes: [],
+    });
+  });
+
+  it("judul/deskripsi kosong ditolak", () => {
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, title: "" }).success).toBe(false);
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, description: "" }).success).toBe(false);
+  });
+
+  it("taksonomi akomodasi liar ditolak, nilai valid diterima", () => {
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, accommodations: ["kursi_pijat"] }).success,
+    ).toBe(false);
+    expect(
+      createJobSchema.safeParse({
+        ...BADAN_MINIMAL,
+        accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("ragam disabilitas disambut liar ditolak, nilai valid diterima", () => {
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, welcomedDisabilityTypes: ["ghaib"] }).success,
+    ).toBe(false);
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, welcomedDisabilityTypes: ["tuli", "netra"] })
+        .success,
+    ).toBe(true);
+  });
+
+  it("salaryMin > salaryMax ditolak; salaryMin === salaryMax dan tanpa salary diterima", () => {
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 6_000_000, salaryMax: 5_000_000 })
+        .success,
+    ).toBe(false);
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000, salaryMax: 5_000_000 })
+        .success,
+    ).toBe(true);
+    expect(
+      createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000 }).success,
+    ).toBe(true);
+  });
+
+  it("gaji negatif atau bukan bilangan bulat ditolak", () => {
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: -1 }).success).toBe(false);
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000.5 }).success).toBe(
+      false,
+    );
+  });
+
+  it("field asing (mis. status, source) di create ditolak — `.strict()`", () => {
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, status: "published" }).success).toBe(
+      false,
+    );
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, source: "employer" }).success).toBe(
+      false,
+    );
+  });
+
+  it("update: badan kosong sah, field yang tidak disebut tidak ikut berubah", () => {
+    expect(updateJobSchema.parse({})).toEqual({});
+    expect(updateJobSchema.parse({ title: "Kasir Senior" })).toEqual({ title: "Kasir Senior" });
+  });
+
+  it("update: `status` TIDAK ADA di skema — satu-satunya jalan lewat publish/close", () => {
+    expect(updateJobSchema.safeParse({ status: "published" }).success).toBe(false);
+    expect(updateJobSchema.safeParse({ companyId: BADAN_MINIMAL.companyId }).success).toBe(false);
+  });
+
+  it("update: expiresAt menerima ISO 8601 atau null, menolak tanggal rusak", () => {
+    expect(
+      updateJobSchema.safeParse({ expiresAt: "2026-12-31T00:00:00.000Z" }).success,
+    ).toBe(true);
+    expect(updateJobSchema.safeParse({ expiresAt: null }).success).toBe(true);
+    expect(updateJobSchema.safeParse({ expiresAt: "bukan-tanggal" }).success).toBe(false);
+  });
+
+  it("event job.published tidak membawa satu pun isi lowongan", () => {
+    expect(Object.keys(jobPublishedEventSchema.shape).sort()).toEqual([
+      "companyId",
+      "jobId",
+      "publishedAt",
+    ]);
+  });
+
+  it("jobCloseReasonSchema membedakan penutupan otomatis dan oleh admin", () => {
+    expect(jobCloseReasonSchema.options).toEqual(["expired", "closed_by_admin"]);
   });
 });
 

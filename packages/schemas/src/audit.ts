@@ -202,7 +202,9 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     to: z.literal("verified"),
   }),
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: z.object({
-    operation: z.enum(["create", "update", "publish", "close", "moderate"]),
+    // "delete" (PR-055): penghapusan lowongan TANPA lamaran (DB menolak yang
+    // punya lamaran lewat FK Restrict sebelum baris ini sempat ditulis).
+    operation: z.enum(["create", "update", "publish", "close", "delete", "moderate"]),
   }),
   // Nama BAGIAN yang ikut diekspor, bukan isinya. Berguna persis saat ada
   // sengketa "data saya tidak lengkap": ia menunjukkan apa yang platform
