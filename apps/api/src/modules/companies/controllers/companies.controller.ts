@@ -26,6 +26,12 @@ export function createCompaniesController(service: CompaniesService) {
       res.status(200).json({ data: await service.getPublic(id) });
     },
 
+    /** GET /api/v1/companies/:id/jobs → 200 lowongan aktif perusahaan ini. */
+    async getActiveJobs(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as CompanyIdParams;
+      res.status(200).json({ data: await service.getActiveJobs(id) });
+    },
+
     /** GET /api/v1/admin/companies → 200 seluruh perusahaan. */
     async listAdmin(_req: Request, res: Response): Promise<void> {
       res.status(200).json({ data: await service.listAdmin() });

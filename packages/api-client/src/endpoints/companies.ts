@@ -10,11 +10,15 @@
 // jadi satu perusahaan cukup dicari dari hasil `listCompaniesAdmin` yang
 // sudah/akan di-cache TanStack Query, bukan lewat permintaan baru.
 import {
+  companyActiveJobsResponseSchema,
   companyAdminListResponseSchema,
   companyAdminResponseSchema,
+  companyPublicResponseSchema,
   createCompanySchema,
   updateCompanySchema,
   type CompanyAdmin,
+  type CompanyPublic,
+  type JobPublicSummary,
 } from "@nawasena/schemas";
 import type { z } from "zod";
 import type { ApiClient } from "../client.js";
@@ -29,6 +33,10 @@ import { queryKey } from "../query-keys.js";
  */
 export const companiesKeys = {
   adminList: () => queryKey("admin-companies"),
+  /** Profil publik satu perusahaan (PR-054) — dilingkupi `id`, bukan daftar admin. */
+  public: (id: string) => queryKey("company-public", { id }),
+  /** Lowongan aktif satu perusahaan, ditampilkan di halaman publik yang sama. */
+  activeJobs: (id: string) => queryKey("company-active-jobs", { id }),
 };
 
 /** Bentuk MASUKAN skema (`z.input`), bukan keluarannya — lihat alasan sama di `profiles.ts`. */
@@ -39,6 +47,28 @@ export type UbahPerusahaan = z.input<typeof updateCompanySchema>;
 export async function listCompaniesAdmin(client: ApiClient): Promise<CompanyAdmin[]> {
   const res = await client.request("/admin/companies", {
     responseSchema: companyAdminListResponseSchema,
+  });
+  return res.data;
+}
+
+/**
+ * GET /api/v1/companies/:id — profil publik (PR-054). TANPA header sesi:
+ * kandidat menilai perusahaan sering sebelum masuk sama sekali (US-09).
+ */
+export async function getCompanyPublic(client: ApiClient, id: string): Promise<CompanyPublic> {
+  const res = await client.request(`/companies/${encodeURIComponent(id)}`, {
+    responseSchema: companyPublicResponseSchema,
+  });
+  return res.data;
+}
+
+/** GET /api/v1/companies/:id/jobs — lowongan aktif perusahaan ini, terbaru dulu. */
+export async function getCompanyActiveJobs(
+  client: ApiClient,
+  id: string,
+): Promise<JobPublicSummary[]> {
+  const res = await client.request(`/companies/${encodeURIComponent(id)}/jobs`, {
+    responseSchema: companyActiveJobsResponseSchema,
   });
   return res.data;
 }

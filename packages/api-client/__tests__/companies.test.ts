@@ -8,6 +8,8 @@ import {
   createApiClient,
   companiesKeys,
   createCompanyAdmin,
+  getCompanyActiveJobs,
+  getCompanyPublic,
   listCompaniesAdmin,
   updateCompanyAdmin,
   verifyCompanyAdmin,
@@ -154,8 +156,79 @@ describe("verifyCompanyAdmin", () => {
   });
 });
 
+const PERUSAHAAN_PUBLIK = {
+  id: PERUSAHAAN.id,
+  name: PERUSAHAAN.name,
+  description: PERUSAHAAN.description,
+  website: PERUSAHAAN.website,
+  city: PERUSAHAAN.city,
+  inclusivityStatus: PERUSAHAAN.inclusivityStatus,
+  accommodationsAvailable: PERUSAHAAN.accommodationsAvailable,
+  verifiedAt: PERUSAHAAN.verifiedAt,
+};
+
+describe("getCompanyPublic", () => {
+  it("memanggil GET /companies/:id dan membuka amplop `{ data }` (hanya field publik)", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: PERUSAHAAN }));
+
+    await expect(getCompanyPublic(klien(fetch), PERUSAHAAN.id)).resolves.toEqual(PERUSAHAAN_PUBLIK);
+    expect(fetch.mock.calls[0]?.[0]).toBe(`https://x/api/v1/companies/${PERUSAHAAN.id}`);
+  });
+
+  it("id disisipkan aman lewat encodeURIComponent", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: PERUSAHAAN }));
+
+    await getCompanyPublic(klien(fetch), "id aneh/lain");
+
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://x/api/v1/companies/id%20aneh%2Flain");
+  });
+
+  it("jawaban yang menyimpang dari kontrak ditolak", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: { name: 42 } }));
+
+    await expect(getCompanyPublic(klien(fetch), PERUSAHAAN.id)).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
+  });
+});
+
+describe("getCompanyActiveJobs", () => {
+  const LOWONGAN = {
+    id: "01912345-89ab-7def-8123-456789abcd01",
+    title: "Staf Admin",
+    employmentType: "full_time",
+    workMode: "onsite",
+    city: "Jakarta",
+    province: "DKI Jakarta",
+    publishedAt: "2026-08-10T00:00:00.000Z",
+  };
+
+  it("memanggil GET /companies/:id/jobs dan membuka amplop `{ data }`", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [LOWONGAN] }));
+
+    await expect(getCompanyActiveJobs(klien(fetch), PERUSAHAAN.id)).resolves.toEqual([LOWONGAN]);
+    expect(fetch.mock.calls[0]?.[0]).toBe(`https://x/api/v1/companies/${PERUSAHAAN.id}/jobs`);
+  });
+
+  it("jawaban yang menyimpang dari kontrak ditolak", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [{ title: 42 }] }));
+
+    await expect(getCompanyActiveJobs(klien(fetch), PERUSAHAAN.id)).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
+  });
+});
+
 describe("companiesKeys", () => {
   it("adminList() tanpa params — daftar sama untuk semua admin", () => {
     expect(companiesKeys.adminList()).toEqual(["admin-companies"]);
+  });
+
+  it("public(id) dan activeJobs(id) dilingkupi id", () => {
+    expect(companiesKeys.public(PERUSAHAAN.id)).toEqual(["company-public", { id: PERUSAHAAN.id }]);
+    expect(companiesKeys.activeJobs(PERUSAHAAN.id)).toEqual([
+      "company-active-jobs",
+      { id: PERUSAHAAN.id },
+    ]);
   });
 });

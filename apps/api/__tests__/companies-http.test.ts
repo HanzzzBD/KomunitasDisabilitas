@@ -7,6 +7,7 @@
 //   AC-3 public GET hanya field publik (snapshot kontrak)
 //   AC-4 taksonomi akomodasi tervalidasi
 //   AC-5 un-verify (koreksi) dimungkinkan + audit
+//   AC-6 GET /companies/:id/jobs publik, hanya lowongan aktif (PR-054)
 import { describe, it, expect, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import type { PrismaClient } from "@prisma/client";
@@ -61,8 +62,37 @@ function barisBaru(overrides: Partial<BarisCompany> = {}): BarisCompany {
   };
 }
 
-/** Prisma palsu: tabel `companies` in-memory — pola sama dengan profiles-http.test.ts. */
-function fakePrisma(rows: BarisCompany[]) {
+interface BarisJob {
+  id: string;
+  companyId: string;
+  title: string;
+  employmentType: string;
+  workMode: string;
+  city: string | null;
+  province: string | null;
+  status: "draft" | "published" | "closed";
+  publishedAt: Date | null;
+  expiresAt: Date | null;
+}
+
+function jobBaru(overrides: Partial<BarisJob> = {}): BarisJob {
+  return {
+    id: "018f4c1e-2222-7000-8000-000000000001",
+    companyId: "018f4c1e-1111-7000-8000-000000000001",
+    title: "Staf Admin",
+    employmentType: "full_time",
+    workMode: "onsite",
+    city: "Jakarta",
+    province: "DKI Jakarta",
+    status: "published",
+    publishedAt: new Date("2026-08-01T00:00:00Z"),
+    expiresAt: null,
+    ...overrides,
+  };
+}
+
+/** Prisma palsu: tabel `companies`+`jobs` in-memory — pola sama dengan profiles-http.test.ts. */
+function fakePrisma(rows: BarisCompany[], jobs: BarisJob[] = []) {
   const ambil = (id: string) => rows.find((r) => r.id === id);
 
   const company = {
@@ -88,7 +118,29 @@ function fakePrisma(rows: BarisCompany[]) {
     },
   };
 
-  return { company } as unknown as PrismaClient;
+  const job = {
+    findMany: ({
+      where,
+      orderBy,
+    }: {
+      where: { companyId: string; status: string; OR: Array<Record<string, unknown>> };
+      orderBy?: { publishedAt: "asc" | "desc" };
+    }) => {
+      const agora = new Date();
+      let hasil = jobs.filter((j) => j.companyId === where.companyId && j.status === where.status);
+      hasil = hasil.filter((j) => j.expiresAt === null || j.expiresAt > agora);
+      if (orderBy?.publishedAt === "desc") {
+        hasil = [...hasil].sort((a, b) => {
+          const wa = a.publishedAt?.getTime() ?? 0;
+          const wb = b.publishedAt?.getTime() ?? 0;
+          return wb - wa;
+        });
+      }
+      return Promise.resolve(hasil.map((j) => ({ ...j })));
+    },
+  };
+
+  return { company, job } as unknown as PrismaClient;
 }
 
 function testEnv(): Env {
@@ -120,9 +172,10 @@ afterEach(async () => {
   active = null;
 });
 
-async function boot(options: { baris?: BarisCompany[] } = {}) {
+async function boot(options: { baris?: BarisCompany[]; jobs?: BarisJob[] } = {}) {
   const env = testEnv();
   const baris = options.baris ?? [];
+  const jobs = options.jobs ?? [];
   const audit: Jejak[] = [];
   const events = busUji();
   const eventsDiterima: unknown[] = [];
@@ -147,7 +200,7 @@ async function boot(options: { baris?: BarisCompany[] } = {}) {
     routes: (app) => {
       app.use(
         createCompaniesModule({
-          prisma: fakePrisma(baris),
+          prisma: fakePrisma(baris, jobs),
           routes: registry.forModule("/api/v1"),
           auditLog: (_actor, action, entity, entityId, meta) => {
             audit.push({ action, entity, entityId, meta });
@@ -218,6 +271,72 @@ describe("GET /api/v1/companies/:id — publik (AC-3)", () => {
     const res = await panggil(base, "GET", "/companies/bukan-uuid");
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /api/v1/companies/:id/jobs — lowongan aktif publik (AC-6)", () => {
+  it("tanpa token → 200 (publik), hanya lowongan published & belum lewat tenggat", async () => {
+    const perusahaan = barisBaru();
+    const { base } = await boot({
+      baris: [perusahaan],
+      jobs: [
+        jobBaru({ id: "018f4c1e-2222-7000-8000-000000000001", companyId: perusahaan.id }),
+        jobBaru({
+          id: "018f4c1e-2222-7000-8000-000000000002",
+          companyId: perusahaan.id,
+          status: "draft",
+        }),
+        jobBaru({
+          id: "018f4c1e-2222-7000-8000-000000000003",
+          companyId: perusahaan.id,
+          status: "closed",
+        }),
+        jobBaru({
+          id: "018f4c1e-2222-7000-8000-000000000004",
+          companyId: perusahaan.id,
+          expiresAt: new Date("2020-01-01T00:00:00Z"),
+        }),
+      ],
+    });
+
+    const res = await panggil(base, "GET", `/companies/${perusahaan.id}/jobs`);
+    expect(res.status).toBe(200);
+    const body = await badan(res);
+    expect(body.data).toEqual([
+      expect.objectContaining({ id: "018f4c1e-2222-7000-8000-000000000001" }),
+    ]);
+  });
+
+  it("lowongan tanpa tenggat (expiresAt null) tetap aktif", async () => {
+    const perusahaan = barisBaru();
+    const { base } = await boot({
+      baris: [perusahaan],
+      jobs: [jobBaru({ companyId: perusahaan.id, expiresAt: null })],
+    });
+
+    const res = await panggil(base, "GET", `/companies/${perusahaan.id}/jobs`);
+    const body = await badan(res);
+    expect(body.data).toHaveLength(1);
+  });
+
+  it("perusahaan lain tidak ikut terbawa", async () => {
+    const perusahaan = barisBaru();
+    const lain = barisBaru({ id: "018f4c1e-1111-7000-8000-000000000099" });
+    const { base } = await boot({
+      baris: [perusahaan, lain],
+      jobs: [jobBaru({ companyId: lain.id })],
+    });
+
+    const res = await panggil(base, "GET", `/companies/${perusahaan.id}/jobs`);
+    expect((await badan(res)).data).toEqual([]);
+  });
+
+  it("id perusahaan tidak ada → 404 PERUSAHAAN_TIDAK_DITEMUKAN", async () => {
+    const { base } = await boot();
+    const res = await panggil(base, "GET", `/companies/${TAK_ADA}/jobs`);
+
+    expect(res.status).toBe(404);
+    expect(await badan(res)).toMatchObject({ code: "PERUSAHAAN_TIDAK_DITEMUKAN" });
   });
 });
 
@@ -434,21 +553,24 @@ describe("GET /api/v1/admin/companies — daftar admin", () => {
 });
 
 describe("deklarasi akses route (PR-019)", () => {
-  it("companies: satu route publik, empat route admin", async () => {
+  it("companies: dua route publik, empat route admin", async () => {
     const { registry } = await boot();
     const daftar = registry.list();
 
     expect(daftar.map((e) => `${e.method} ${e.path}`).sort()).toEqual([
       "GET /api/v1/admin/companies",
       "GET /api/v1/companies/:id",
+      "GET /api/v1/companies/:id/jobs",
       "POST /api/v1/admin/companies",
       "POST /api/v1/admin/companies/:id/verify",
       "PUT /api/v1/admin/companies/:id",
     ]);
 
-    const publik = daftar.find((e) => e.path === "/api/v1/companies/:id");
-    expect(publik?.access.kind).toBe("public");
-    for (const entri of daftar.filter((e) => e.path !== "/api/v1/companies/:id")) {
+    const publikPaths = ["/api/v1/companies/:id", "/api/v1/companies/:id/jobs"];
+    for (const path of publikPaths) {
+      expect(daftar.find((e) => e.path === path)?.access.kind).toBe("public");
+    }
+    for (const entri of daftar.filter((e) => !publikPaths.includes(e.path))) {
       expect(entri.access).toMatchObject({ kind: "role", roles: ["admin"] });
     }
   });

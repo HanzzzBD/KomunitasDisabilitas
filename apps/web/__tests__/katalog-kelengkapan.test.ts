@@ -293,6 +293,12 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "admin.companies.form.simpan": "Label tombol satu kata sehari-hari.",
   "admin.companies.form.batal": "Label tombol satu kata sehari-hari, sama dengan `pengaturan.hapus.batal`.",
   "admin.companies.verifikasi.dialogBatal": "Label tombol satu kata sehari-hari.",
+
+  // --- Profil publik perusahaan (PR-054) ---
+  "companies.cobaLagi": "Label tombol dua kata sehari-hari, sama dengan `pengaturan.akun.cobaLagi`.",
+  "companies.kembaliBeranda": "Label tautan tiga kata sehari-hari, sudah menyebut tujuannya.",
+  "companies.info.kotaLabel": "Label satu kata, sama dengan `admin.companies.kolom.kota`.",
+  "companies.lowongan.tipe.internship": "Satu kata sehari-hari; tidak ada bentuk yang lebih sederhana.",
 };
 
 const entri = Object.entries(katalog) as ReadonlyArray<

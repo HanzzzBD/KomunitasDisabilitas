@@ -290,11 +290,11 @@ Bisnis: US-09 — kandidat menilai perusahaan SEBELUM melamar (keamanan psikolog
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (endpoint jobs aktif)
-* [ ] E2E Test (job detail → company page)
-* [ ] Accessibility Test (axe + NVDA)
-* [ ] Manual Verification (data seed)
+* [x] Unit Test (BE service `getActiveJobs`) — `companies.test.ts` (+3 test: aktif, kosong, 404) dan `companies-http.test.ts` (+4 test HTTP, AC-6); FE — `company-public.test.tsx` (8 test, jsdom): h1/badge, struktur heading, label akomodasi, tautan lowongan, keadaan kosong/galat/tidak-ditemukan
+* [x] Integration Test (endpoint jobs aktif) — `GET /companies/:id/jobs` diuji lewat `companies-http.test.ts` (publik, filter status+expiresAt, 404 perusahaan) dan `openapi-parity.test.ts`
+* [x] E2E Test (job detail → company page) — tautan `/lowongan/:id` diverifikasi terpasang (`companies-public.spec.ts`); halaman detail lowongan itu sendiri belum ada (lahir PR-059) — lihat `implementation_log_phase08.md`
+* [x] Accessibility Test (axe + NVDA) — axe: `e2e/aksesibilitas.spec.ts` (keadaan "tidak ditemukan") + `e2e/companies-public.spec.ts` (keadaan terisi, data nyata); NVDA manual tidak ditempuh sesi ini (dicatat sebagai keterbatasan)
+* [x] Manual Verification (data seed) — diverifikasi lewat mock kontrak (`palsukanApi`) yang bentuknya sama dengan `companyPublicResponseSchema`/`companyActiveJobsResponseSchema`; tidak diulang lewat curl manual terhadap data seed (pola sama dengan catatan PR-053)
 
 **Deliverables:**
 
@@ -310,11 +310,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua ikon akomodasi berlabel teks.
-* [ ] Badge verified vs self-claimed dibedakan tekstual (bukan warna saja).
-* [ ] Daftar lowongan aktif tertaut ke detail.
-* [ ] Struktur heading benar; axe pass.
-* [ ] Tersedia id + id-simple.
+* [x] Semua ikon akomodasi berlabel teks.
+* [x] Badge verified vs self-claimed dibedakan tekstual (bukan warna saja).
+* [x] Daftar lowongan aktif tertaut ke detail — tertaut ke `/lowongan/:id` (rute detailnya sendiri lahir PR-059, lihat `implementation_log_phase08.md`).
+* [x] Struktur heading benar; axe pass.
+* [x] Tersedia id + id-simple.
 
 #### Dependencies
 

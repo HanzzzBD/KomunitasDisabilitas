@@ -17,6 +17,13 @@ export function createCompaniesRouter(controller: CompaniesController, routes: R
     validate({ params: companyIdParamsSchema }),
     asyncHandler(controller.getPublic),
   );
+  routes.get(
+    "/companies/:id/jobs",
+    // Sama sifatnya dengan GET /companies/:id di atas (US-09, PR-054, Gap G5).
+    access.public("Lowongan aktif perusahaan dilihat kandidat di halaman publik yang sama"),
+    validate({ params: companyIdParamsSchema }),
+    asyncHandler(controller.getActiveJobs),
+  );
 
   routes.get("/admin/companies", access.role("admin"), asyncHandler(controller.listAdmin));
   routes.post(

@@ -54,6 +54,8 @@ export {
   createCompanyAdmin,
   updateCompanyAdmin,
   verifyCompanyAdmin,
+  getCompanyPublic,
+  getCompanyActiveJobs,
   companiesKeys,
   type BuatPerusahaan,
   type UbahPerusahaan,

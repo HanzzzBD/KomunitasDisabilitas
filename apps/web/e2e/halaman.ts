@@ -209,5 +209,17 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     butuhAdmin: true,
   },
 
+  {
+    // Profil publik perusahaan (PR-054, Gap G5). Jalur LITERAL `:id`, alasan
+    // yang sama dengan "admin — ubah perusahaan" di atas: navigasi langsung
+    // ke sini lewat Playwright membuat `useParams().id` bernilai literal
+    // `":id"`, yang tidak pernah cocok dengan id UUID sungguhan mana pun —
+    // jadi keadaan yang teruji di sini memang "perusahaan tidak ditemukan".
+    // Keadaan TERISI (profil + lowongan aktif) diuji lewat navigasi langsung
+    // ke id sungguhan di `companies-public.spec.ts`, bukan lewat registry ini.
+    nama: "companies — profil publik (tidak ditemukan)",
+    jalur: "/companies/:id",
+  },
+
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

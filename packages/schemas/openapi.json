@@ -2099,6 +2099,91 @@
         }
       }
     },
+    "/companies/{id}/jobs": {
+      "get": {
+        "operationId": "getCompanyActiveJobs",
+        "tags": [
+          "companies"
+        ],
+        "summary": "Lowongan aktif perusahaan (publik)",
+        "security": [],
+        "description": "Ringkasan lowongan berstatus `published` dan belum lewat `expiresAt` (atau tanpa tenggat) milik perusahaan ini, terbaru dulu (PR-054, Gap G5).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lowongan aktif perusahaan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/JobPublicSummary"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/companies": {
       "get": {
         "operationId": "listCompaniesAdmin",
@@ -4367,6 +4452,69 @@
           "verifiedAt"
         ],
         "description": "Profil perusahaan (tampilan publik)"
+      },
+      "JobPublicSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "employmentType",
+          "workMode",
+          "city",
+          "province",
+          "publishedAt"
+        ],
+        "description": "Ringkasan lowongan aktif untuk halaman publik perusahaan"
       },
       "CompanyAdmin": {
         "allOf": [

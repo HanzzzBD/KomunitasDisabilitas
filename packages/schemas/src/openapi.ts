@@ -33,6 +33,7 @@ import {
   createCompanySchema,
   updateCompanySchema,
 } from "./companies.js";
+import { companyActiveJobsResponseSchema } from "./jobs.js";
 import {
   deviceResponseSchema,
   notificationIdParamsSchema,
@@ -697,6 +698,23 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           requestParams: { path: companyIdParamsSchema },
           responses: {
             "200": jsonOk("Profil perusahaan", companyPublicResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+          },
+        },
+      },
+      "/companies/{id}/jobs": {
+        get: {
+          operationId: "getCompanyActiveJobs",
+          tags: ["companies"],
+          summary: "Lowongan aktif perusahaan (publik)",
+          security: [], // sama sifatnya dengan GET /companies/{id} di atas
+          description:
+            "Ringkasan lowongan berstatus `published` dan belum lewat `expiresAt` " +
+            "(atau tanpa tenggat) milik perusahaan ini, terbaru dulu (PR-054, Gap G5).",
+          requestParams: { path: companyIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lowongan aktif perusahaan", companyActiveJobsResponseSchema),
             "400": errorResponse("`id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
           },
