@@ -11,6 +11,7 @@ import {
   type CompanyPublic,
   type CreateCompany,
   type InclusivityStatus,
+  type JobPublicSummary,
   type UpdateCompany,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
@@ -22,6 +23,7 @@ import type {
   CompanyRow,
   CompanyUpdatePatch,
 } from "../repositories/companies.repository.js";
+import type { ActiveJobRow, ActiveJobsRepository } from "../repositories/active-jobs.repository.js";
 
 /** Entitas audit modul ini. */
 export const AUDIT_ENTITY = "companies.company";
@@ -34,6 +36,8 @@ export interface CompaniesActor {
 
 export interface CompaniesServiceDeps {
   companiesRepository: CompaniesRepository;
+  /** Ringkasan lowongan aktif untuk halaman publik (PR-054). */
+  activeJobsRepository: ActiveJobsRepository;
   auditLog: AuditLog;
   /** Penerbit `company.verified` (PR-051); belum ada pelanggan (core/events). */
   events: EventBus;
@@ -77,8 +81,12 @@ function keProfilAdmin(row: CompanyRow): CompanyAdmin {
   };
 }
 
+function keRingkasanLowongan(row: ActiveJobRow): JobPublicSummary {
+  return { ...row, publishedAt: keTimestamp(row.publishedAt) };
+}
+
 export function createCompaniesService(deps: CompaniesServiceDeps) {
-  const { companiesRepository, auditLog, events } = deps;
+  const { companiesRepository, activeJobsRepository, auditLog, events } = deps;
   const now = deps.clock ?? (() => new Date());
 
   const catatPerubahan = (actor: CompaniesActor, id: string, operation: "create" | "update") =>
@@ -96,6 +104,20 @@ export function createCompaniesService(deps: CompaniesServiceDeps) {
       const row = await companiesRepository.findById(id);
       if (row === null) throw appError("PERUSAHAAN_TIDAK_DITEMUKAN");
       return keProfilPublik(row);
+    },
+
+    /**
+     * GET /api/v1/companies/:id/jobs — lowongan AKTIF perusahaan ini (PR-054).
+     *
+     * Perusahaan yang tidak ada tetap 404 — jawaban `[]` pada id yang salah
+     * akan terbaca sebagai "perusahaan ini ada tetapi tidak punya lowongan",
+     * padahal keadaannya "perusahaan ini tidak ada sama sekali".
+     */
+    async getActiveJobs(id: string): Promise<JobPublicSummary[]> {
+      const perusahaan = await companiesRepository.findById(id);
+      if (perusahaan === null) throw appError("PERUSAHAAN_TIDAK_DITEMUKAN");
+      const rows = await activeJobsRepository.listActiveByCompany(id);
+      return rows.map(keRingkasanLowongan);
     },
 
     /** GET /api/v1/admin/companies — seluruh perusahaan, tanpa pagination (skala pilot). */

@@ -5,6 +5,7 @@ import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { EventBus } from "../../core/events/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
 import { createCompaniesRepository } from "./repositories/companies.repository.js";
+import { createActiveJobsRepository } from "./repositories/active-jobs.repository.js";
 import { createCompaniesService } from "./services/companies.service.js";
 import { createCompaniesController } from "./controllers/companies.controller.js";
 import { createCompaniesRouter } from "./routers/index.js";
@@ -26,6 +27,7 @@ export interface CompaniesModule {
 export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModule {
   const service = createCompaniesService({
     companiesRepository: createCompaniesRepository(deps.prisma),
+    activeJobsRepository: createActiveJobsRepository(deps.prisma),
     auditLog: deps.auditLog,
     events: deps.events,
     clock: deps.clock,
@@ -42,6 +44,11 @@ export {
   type CompanyRow,
   type CompanyUpdatePatch,
 } from "./repositories/companies.repository.js";
+export {
+  createActiveJobsRepository,
+  type ActiveJobRow,
+  type ActiveJobsRepository,
+} from "./repositories/active-jobs.repository.js";
 export {
   AUDIT_ENTITY,
   createCompaniesService,

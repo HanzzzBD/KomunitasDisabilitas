@@ -11,6 +11,10 @@ import type {
   CompaniesRepository,
   CompanyRow,
 } from "../src/modules/companies/repositories/companies.repository.js";
+import type {
+  ActiveJobRow,
+  ActiveJobsRepository,
+} from "../src/modules/companies/repositories/active-jobs.repository.js";
 import type { AppError } from "../src/core/http/index.js";
 import { busUji } from "./helpers/events.js";
 
@@ -73,11 +77,18 @@ interface Jejak {
   meta: unknown;
 }
 
-function boot(rows: CompanyRow[]) {
+function fakeActiveJobsRepo(baris: Record<string, ActiveJobRow[]>): ActiveJobsRepository {
+  return {
+    listActiveByCompany: (companyId) => Promise.resolve(baris[companyId] ?? []),
+  };
+}
+
+function boot(rows: CompanyRow[], lowongan: Record<string, ActiveJobRow[]> = {}) {
   const audit: Jejak[] = [];
   const events = busUji();
   const service = createCompaniesService({
     companiesRepository: fakeRepo(rows),
+    activeJobsRepository: fakeActiveJobsRepo(lowongan),
     auditLog: (_actor, action, entity, entityId, meta) => {
       audit.push({ action, entity, entityId, meta });
     },
@@ -216,5 +227,41 @@ describe("companies.service — getPublic", () => {
     const { service } = boot([barisBaru({ verifiedBy: ADMIN })]);
     const hasil = await service.getPublic(barisBaru().id);
     expect(hasil).not.toHaveProperty("verifiedBy");
+  });
+});
+
+describe("companies.service — getActiveJobs (PR-054, Gap G5)", () => {
+  const lowongan: ActiveJobRow = {
+    id: "018f4c1e-0000-7000-8000-000000000j01",
+    title: "Staf Admin",
+    employmentType: "full_time",
+    workMode: "onsite",
+    city: "Jakarta",
+    province: "DKI Jakarta",
+    publishedAt: new Date("2026-08-10T00:00:00.000Z"),
+  };
+
+  it("mengembalikan ringkasan lowongan aktif milik perusahaan", async () => {
+    const perusahaan = barisBaru();
+    const { service } = boot([perusahaan], { [perusahaan.id]: [lowongan] });
+
+    const hasil = await service.getActiveJobs(perusahaan.id);
+
+    expect(hasil).toEqual([{ ...lowongan, publishedAt: "2026-08-10T00:00:00.000Z" }]);
+  });
+
+  it("perusahaan tanpa lowongan aktif → array kosong", async () => {
+    const perusahaan = barisBaru();
+    const { service } = boot([perusahaan]);
+
+    expect(await service.getActiveJobs(perusahaan.id)).toEqual([]);
+  });
+
+  it("perusahaan tidak ada → PERUSAHAAN_TIDAK_DITEMUKAN, bukan array kosong", async () => {
+    const { service } = boot([]);
+
+    await expect(
+      service.getActiveJobs("018f4c1e-0000-7000-8000-00000000dead"),
+    ).rejects.toMatchObject({ code: "PERUSAHAAN_TIDAK_DITEMUKAN" });
   });
 });

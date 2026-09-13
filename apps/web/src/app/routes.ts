@@ -282,6 +282,22 @@ export const ruteApp: RouteObject[] = [
         ],
       },
       {
+        // Profil publik perusahaan (PR-054, Gap G5, US-09) — SAUDARA `admin`,
+        // bukan anaknya: ini halaman yang dilihat KANDIDAT, seringkali tanpa
+        // sesi, bukan ruang kerja admin. Penjagaannya tidak ada sama sekali,
+        // dan itu benar: `GET /companies/:id` sendiri publik di server.
+        path: "companies/:id",
+        lazy: async () => {
+          const [{ ProfilPerusahaanPublik }] = await Promise.all([
+            import("../routes/company-public.js"),
+            // `profil` ikut: label akomodasi dipinjam dari katalognya (lihat
+            // `features/companies-publik/akomodasi-daftar.tsx`).
+            muatKatalog("companies", "profil"),
+          ]);
+          return { Component: ProfilPerusahaanPublik };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

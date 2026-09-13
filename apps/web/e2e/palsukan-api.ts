@@ -202,6 +202,40 @@ const PERUSAHAAN_UJI = {
   updatedAt: "2026-01-15T20:00:00.000Z",
 };
 
+/**
+ * Perusahaan uji untuk halaman PUBLIK "/companies/:id" (PR-054, Gap G5).
+ *
+ * ID TERPISAH dari `PERUSAHAAN_UJI_ID` (admin) dengan sengaja: halaman publik
+ * dijangkau lewat navigasi LANGSUNG di `companies-public.spec.ts` (bukan lewat
+ * klik dari sebuah daftar, sebab daftar publik semacam itu tidak ada) — jadi
+ * spec itu perlu id UUID SUNGGUHAN yang route mocking ini kenali, berbeda dari
+ * entri `HALAMAN` generik yang justru sengaja memakai literal `:id` untuk
+ * menjangkau keadaan "tidak ditemukan" (lihat catatan `PERUSAHAAN_UJI_ID`).
+ */
+export const PERUSAHAAN_PUBLIK_UJI_ID = "01912345-89ab-7def-8123-4567890abd20";
+
+const PERUSAHAAN_PUBLIK_UJI = {
+  id: PERUSAHAAN_PUBLIK_UJI_ID,
+  name: "PT Inklusif Publik",
+  description: "Perusahaan uji untuk halaman profil publik.",
+  website: "https://contoh.id",
+  city: "Jakarta",
+  inclusivityStatus: "verified" as "unverified" | "self_claimed" | "verified",
+  accommodationsAvailable: ["akses_kursi_roda", "ramah_screen_reader"] as string[],
+  verifiedAt: "2026-01-16T03:00:00.000Z" as string | null,
+};
+
+/** Satu lowongan aktif — bukan daftar kosong, alasan sama dengan `NOTIFIKASI_UJI`. */
+const LOWONGAN_PUBLIK_UJI = {
+  id: "01912345-89ab-7def-8123-4567890abd21",
+  title: "Staf Admin",
+  employmentType: "full_time",
+  workMode: "onsite",
+  city: "Jakarta",
+  province: "DKI Jakarta",
+  publishedAt: "2026-01-10T00:00:00.000Z",
+};
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
@@ -439,6 +473,28 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       }
       Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
       return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    // --- Profil publik perusahaan (PR-054, Gap G5) ---
+    //
+    // ANCHORED DI AWAL (`^/api/v1/companies/`), BUKAN `endsWith` seperti
+    // blok lain: tanpa jangkar itu, alamat ini ikut cocok dengan akhiran
+    // `/admin/companies/:id` di atas (keduanya sama-sama diakhiri
+    // "companies/<sesuatu>") dan akan menelan permintaan admin yang
+    // seharusnya dijawab blok itu.
+    if (/^\/api\/v1\/companies\/[^/]+\/jobs$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").slice(-2)[0] ?? "");
+      return route.fulfill(
+        jsonkan(200, { data: id === PERUSAHAAN_PUBLIK_UJI_ID ? [LOWONGAN_PUBLIK_UJI] : [] }),
+      );
+    }
+    if (/^\/api\/v1\/companies\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      if (id !== PERUSAHAAN_PUBLIK_UJI_ID) {
+        return route.fulfill(
+          jsonkan(404, { code: "PERUSAHAAN_TIDAK_DITEMUKAN", message: "Perusahaan tidak ditemukan" }),
+        );
+      }
+      return route.fulfill(jsonkan(200, { data: PERUSAHAAN_PUBLIK_UJI }));
     }
     if (jalur.endsWith("/me/export")) {
       return route.fulfill(jsonkan(200, { data: BERKAS_UJI }));

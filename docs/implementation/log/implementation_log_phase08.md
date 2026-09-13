@@ -425,3 +425,188 @@ konfirmasi → badge berubah jadi "Terverifikasi" → tombol Verifikasi hilang.
   dropdown di form utama — alasannya di keputusan #2 tetap berlaku.
 
 ---
+
+## PR-054 — Company Public Profile Page (Gap G5)
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-054---company-public-profile-page-gap-g5)
+> **Tanggal:** 2026-09-13
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Halaman publik `/companies/:id` (US-09): profil inklusivitas perusahaan
+(akomodasi, badge verifikasi) plus lowongan aktifnya, dilihat kandidat
+SEBELUM melamar — sering tanpa sesi. Satu endpoint backend baru,
+`GET /api/v1/companies/:id/jobs`, ditambahkan di modul `companies` yang sudah
+ada (bukan modul `jobs`, yang belum lahir sampai PR-055).
+
+Tiga keputusan yang membentuk seluruh sisanya:
+
+**1. Tautan lowongan menunjuk ke `/lowongan/:id` SEKARANG, meski halaman
+tujuannya sendiri baru lahir di PR-059** (dikonfirmasi via `AskUserQuestion`
+sebelum implementasi). AC "daftar lowongan aktif tertaut ke detail" dibaca
+sebagai tuntutan struktural — `<a href>` sungguhan, bukan kartu tak
+interaktif yang harus ditulis ulang nanti. Sampai PR-059 mendaftarkan rute
+itu, tautannya 404 lewat catch-all `routes.ts`, sama seperti tautan mana pun
+ke rute yang belum lahir — bukan cacat, melainkan urutan backlog yang sudah
+diketahui.
+
+**2. Query lowongan aktif hidup di `modules/companies`, bukan `modules/jobs`.**
+Tabel `jobs` sendiri sudah ada sejak migrasi 03 (PR-011), tetapi modul
+`jobs` belum ada sebagai modul (hanya stub `expiry.service.ts` dari PR-024b)
+— tidak ada batas modul untuk dilanggar, dan dokumen phase sendiri menyebut
+endpoint ini sebagai tambahan pada modul yang sudah ada. `repositories/
+active-jobs.repository.ts` sengaja berkas TERPISAH dari
+`companies.repository.ts` (satu model `Company`, satu model `Job`) supaya
+query ini bisa pindah APA ADANYA begitu `modules/jobs` sungguhan lahir.
+"Aktif" = `status: "published"` DAN (`expiresAt` null ATAU belum lewat) —
+definisi yang SAMA dengan kriteria auto-close `jobs/expiry.service.ts`
+(PR-024b), diverifikasi silang supaya kedua penulis code tidak diam-diam
+menyimpang.
+
+**3. Status verifikasi publik memakai PIL pendek + SATU kalimat penjelasan,
+bukan kalimat panjang sebagai satu-satunya bentuk.** Draf pertama menulis
+kalimat penuh langsung di dalam badge ("Perusahaan ini sudah
+diverifikasi tim kami..."); direvisi menjadi pola yang sama dengan badge
+admin (PR-053) — pil pendek ("Terverifikasi"/"Klaim mandiri"/"Belum
+diverifikasi") sebagai penanda utama, plus satu kalimat di bawahnya yang
+menjelaskan ARTINYA bagi kandidat. AC "dibedakan tekstual, bukan warna saja"
+sudah terpenuhi oleh pil itu sendiri; kalimat tambahan murni untuk audiens
+yang berbeda dari versi admin.
+
+**KEJADIAN: retry bawaan TanStack Query (`MAKS_RETRY=2`, backoff berjenjang)
+membuat keadaan "perusahaan tidak ditemukan" tertahan ~3 detik di layar
+kerangka sebelum pesannya tampil — ditemukan test (`company-public.test.tsx`,
+timeout `findByText`), bukan dugaan.** `PERUSAHAAN_TIDAK_DITEMUKAN` adalah
+kegagalan PERMANEN, bukan sementara: mengulanginya tidak pernah berhasil.
+Query profil publik diberi `retry` kustom yang menyerah SEGERA khusus untuk
+kode ini, sementara kegagalan lain (jaringan, 5xx) tetap memakai bawaan.
+Satu-satunya query di `apps/web` yang menimpa `retry` bawaan — dicatat
+sebagai preseden, bukan pola yang harus ditiru tanpa alasan setara.
+
+Gate hijau: `pnpm lint` 10/10, `pnpm typecheck` 10/10 — `@nawasena/api`
+**110 berkas / 1610 lulus**, `@nawasena/schemas` **3 berkas / 84 lulus**,
+`@nawasena/api-client` **9 berkas / 86 lulus**, `@nawasena/web` **50 berkas /
+641 lulus**. Build produksi + `cek:budget`: 110,4/200 KB gzip (LOLOS),
+`company-public-*.js` terkonfirmasi di daftar chunk lazy — TIDAK di payload
+awal. `playwright test:a11y` (browser Chromium nyata, atas hasil build):
+74/74 lulus, termasuk keadaan "tidak ditemukan" (navigasi literal `:id`,
+`e2e/aksesibilitas.spec.ts`) DAN keadaan terisi dengan data nyata
+(`e2e/companies-public.spec.ts`, axe pass).
+
+### Scope selesai
+
+**Kontrak (`packages/schemas`)**
+
+* **`src/jobs.ts`** — `employmentTypeSchema`, `workModeSchema`,
+  `jobPublicSummarySchema` (ringkasan tanpa field internal — `id`, `title`,
+  `employmentType`, `workMode`, `city`, `province`, `publishedAt`),
+  `companyActiveJobsResponseSchema`.
+* **`src/openapi.ts` + `openapi.json`** — `GET /companies/{id}/jobs`
+  didokumentasikan (publik, `security: []`, sama sifatnya dengan
+  `GET /companies/{id}`).
+
+**Backend (`apps/api/src/modules/companies/`)**
+
+* **`repositories/active-jobs.repository.ts`** (baru) — `listActiveByCompany`,
+  lihat keputusan #2.
+* **`services/companies.service.ts`** — `getActiveJobs(id)`: 404
+  `PERUSAHAAN_TIDAK_DITEMUKAN` bila perusahaannya sendiri tidak ada (mencegah
+  `[]` yang ambigu antara "tidak ada lowongan" dan "tidak ada perusahaan"),
+  lalu memetakan baris repository ke `JobPublicSummary`.
+* **`controllers/` + `routers/`** — `GET /companies/:id/jobs`,
+  `access.public(...)`, `validate({params: companyIdParamsSchema})`.
+* **`index.ts`** — `activeJobsRepository` disuntik ke `createCompaniesService`.
+
+**Frontend (`apps/web`, feature publik baru `features/companies-publik/`)**
+
+* **`shared/i18n/katalog/companies.ts`** (baru) — katalog TERPISAH dari
+  `admin` (halaman ini dibuka tanpa sesi; memuat katalog admin untuknya akan
+  mengunduh teks kurasi yang tidak pernah terlihat) + wiring
+  (`registri.ts`, `katalog/index.ts`, `katalog/semua.ts`, `__tests__/setup.ts`).
+* **`features/companies-publik/status-badge.tsx`** — `StatusBadgePublik`,
+  lihat keputusan #3.
+* **`features/companies-publik/akomodasi-daftar.tsx`** — `DaftarAkomodasi`:
+  satu bentuk ikon (centang, dekoratif, `aria-hidden`) + LABEL TEKS PENUH per
+  akomodasi, label dipinjam dari katalog `profil` (taksonomi sama dengan
+  admin dan panel profil pencari kerja).
+* **`features/companies-publik/lowongan-daftar.tsx`** — `DaftarLowongan`:
+  query `getCompanyActiveJobs`, kartu per lowongan dengan tautan
+  `/lowongan/:id` (keputusan #1), keadaan kosong/galat sendiri.
+* **`features/companies-publik/pesan-galat.ts`** — pola sama
+  `features/admin/companies-pesan-galat.ts`.
+* **`routes/company-public.tsx`** — `ProfilPerusahaanPublik`: h1 nama →
+  h2 Akomodasi → h2 Lowongan aktif, TANPA `<Terlindungi>` (publik dengan
+  sengaja), `retry` kustom pada query profil (lihat kejadian di atas).
+* **`app/routes.ts`** — route `companies/:id` sebagai SAUDARA `admin`, lazy,
+  `muatKatalog("companies", "profil")`.
+* **`packages/api-client/src/endpoints/companies.ts`** — `getCompanyPublic`,
+  `getCompanyActiveJobs`, `companiesKeys.public(id)`/`activeJobs(id)`
+  (dilingkupi `id`, beda dari `adminList()` yang tanpa params).
+
+**Test (4 berkas baru, 3 diperluas)**
+
+* `apps/api/__tests__/companies.test.ts` (+3) — `getActiveJobs`: lowongan
+  aktif kembali, perusahaan tanpa lowongan → `[]`, perusahaan tidak ada →
+  404 (bukan `[]` senyap).
+* `apps/api/__tests__/companies-http.test.ts` (+4, AC-6 baru) — publik tanpa
+  token, filter status(`published`)+`expiresAt` (draft/closed/kedaluwarsa
+  dikecualikan, tanpa-tenggat tetap aktif), tidak bocor ke perusahaan lain,
+  404 perusahaan tidak ada; registry akses (PR-019) diperbarui: dua route
+  publik.
+* `packages/api-client/__tests__/companies.test.ts` (+7) — amplop dibuka
+  (hanya field publik), id via `encodeURIComponent`, kontrak ditolak jika
+  menyimpang, bentuk `companiesKeys.public`/`activeJobs`.
+* `apps/web/__tests__/company-public.test.tsx` (baru, 8 test, jsdom) — h1 +
+  badge tekstual verified/self-claimed, struktur heading (h1→h2→h2), label
+  akomodasi (bukan ikon saja), tautan lowongan ke `/lowongan/:id`, keadaan
+  kosong (akomodasi & lowongan), keadaan "tidak ditemukan".
+* `e2e/companies-public.spec.ts` (baru) — navigasi LANGSUNG ke UUID
+  sungguhan (berbeda dari `admin-companies.spec.ts`: halaman ini publik,
+  tidak perlu alur klik untuk mendapat id nyata), axe pass atas data terisi.
+* `e2e/halaman.ts` + `e2e/palsukan-api.ts` — entri registry baru (keadaan
+  "tidak ditemukan", literal `:id`) + fixture `PERUSAHAAN_PUBLIK_UJI_ID`
+  terpisah dari `PERUSAHAAN_UJI_ID` admin, mock `GET /companies/:id` +
+  `GET /companies/:id/jobs` diberi jangkar `^/api/v1/companies/` supaya
+  tidak menelan permintaan `/admin/companies/:id`.
+* `apps/web/__tests__/katalog-kelengkapan.test.ts` — empat entri baru di
+  `SAMA_DENGAN_SENGAJA` (label pendek yang `id`/`id-simple`-nya memang sama).
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Tautan lowongan ke `/lowongan/:id` sekarang, walau halamannya lahir PR-059 | AC dibaca struktural; tidak perlu ditulis ulang begitu PR-059 mendaftarkan rutenya | Kartu tak-interaktif sampai PR-059 — ditanyakan ke user, dijawab eksplisit: ditolak, butuh revisi kelak tanpa manfaat hari ini |
+| Query lowongan aktif di `modules/companies`, bukan `modules/jobs` | `modules/jobs` belum ada sebagai modul; tabel `Job` sudah ada sejak PR-011; dokumen phase menyebutnya tambahan pada modul yang ada | Membuat kerangka `modules/jobs` minimal hanya untuk satu query — scope creep di luar PR-054 |
+| Badge publik: pil pendek + satu kalimat penjelasan | AC "dibedakan tekstual" sudah terpenuhi pil pendek (pola sama admin); kalimat tambahan menjawab "artinya apa" bagi audiens kandidat | Kalimat panjang sebagai satu-satunya bentuk — draf awal, direvisi: sulit dipindai, tidak konsisten dengan pola badge admin |
+| Retry kustom (menyerah segera) pada `PERUSAHAAN_TIDAK_DITEMUKAN` | Kegagalan permanen; retry bawaan menahan pengguna di kerangka pemuatan ~3 detik sebelum pesan yang sudah pasti sejak percobaan pertama | Membiarkan retry bawaan — ditemukan gagal test dengan timeout; pengalaman pengguna nyata sama buruknya |
+
+### Risiko & batas yang diketahui
+
+* **NVDA sungguhan TIDAK dijalankan** — sama seperti PR-052/053; axe (jsdom
+  dan Chromium nyata) menggantikannya, bukan menirunya sepenuhnya.
+* **Manual verification terhadap data seed TIDAK diulang di sesi ini** —
+  bersandar pada kesamaan kontrak `companyPublicResponseSchema`/
+  `companyActiveJobsResponseSchema` dengan mock (`palsukanApi`), pola yang
+  sama dengan catatan PR-053.
+* **Tautan `/lowongan/:id` 404 sampai PR-059.** Dicatat dengan sengaja
+  (keputusan #1) — bukan cacat yang terlewat, tetapi urutan backlog yang
+  sudah diketahui sejak sebelum PR-054 dimulai.
+* **Retry kustom adalah SATU-SATUNYA query di `apps/web` yang menimpa
+  bawaan `query-client.ts`.** Bila pola ini terbukti berguna di endpoint 404
+  lain (mis. lowongan itu sendiri di PR-059), pertimbangkan mengangkatnya
+  jadi helper bersama alih-alih menyalin logikanya lagi.
+
+### Next steps
+
+* **PR-055** — Jobs BE (CRUD + lifecycle) — modul `jobs` sungguhan lahir;
+  `active-jobs.repository.ts` di `modules/companies` bisa dipindah ke sana
+  APA ADANYA (lihat keputusan #2).
+* **PR-059** — Halaman detail lowongan di `/lowongan/:id` — mengisi rute
+  yang sudah ditautkan PR-054 (keputusan #1); begitu terdaftar, tautan dari
+  halaman ini berhenti 404 tanpa perlu menyentuh kode PR-054 sama sekali.
+* **PR-058** — Halaman browse publik lowongan — kemungkinan pemakai kedua
+  `KUNCI_TIPE`/`KUNCI_MODE` (`features/companies-publik/lowongan-daftar.tsx`);
+  pertimbangkan mengangkatnya ke katalog bersama bila polanya berulang.
+
+---
