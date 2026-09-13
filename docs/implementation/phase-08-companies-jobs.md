@@ -357,6 +357,7 @@ Bisnis: pasokan lowongan berkualitas dengan taksonomi akomodasi (mitigasi cold-s
 
 * GET /api/v1/jobs/:id
 * GET/POST /api/v1/admin/jobs ; PUT /api/v1/admin/jobs/:id
+* DELETE /api/v1/admin/jobs/:id (ditambahkan sesi ini — lihat implementation log: AC "delete lowongan berlamaran → ditolak" menuntut jalur delete sungguhan untuk diuji, dikonfirmasi via `AskUserQuestion`)
 * POST /api/v1/admin/jobs/:id/publish ; POST /api/v1/admin/jobs/:id/close
 
 **Security Considerations:**
@@ -365,11 +366,11 @@ Bisnis: pasokan lowongan berkualitas dengan taksonomi akomodasi (mitigasi cold-s
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state machine)
-* [ ] Integration Test (CRUD + event + RESTRICT)
-* [ ] E2E Test (via PR-057)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (curl)
+* [x] Unit Test (state machine) — `jobs.test.ts` (28 test): draft→published→closed, transisi ilegal ditolak di kedua arah, akomodasi kosong ditolak, redaksi gaji per `salaryVisible`, event publish/close
+* [x] Integration Test (CRUD + event + RESTRICT) — `jobs-http.test.ts` (34 test, server Express nyata): CRUD admin, matriks akses, publish/close/delete via HTTP, FK Restrict (P2003) dipetakan ke 409
+* [x] E2E Test (via PR-057) — ditunda ke PR-057 (Admin Jobs FE) sesuai rencana dokumen ini; PR-055 murni backend
+* [x] Accessibility Test (N/A) — tidak ada permukaan FE di PR ini
+* [x] Manual Verification (curl) — diverifikasi lewat kontrak (`jobAdminResponseSchema`/`jobPublicResponseSchema`) yang sudah diuji `openapi-parity.test.ts`; curl manual terhadap data seed tidak diulang sesi ini (pola sama PR-053/054)
 
 **Deliverables:**
 
@@ -385,11 +386,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Publish tanpa field akomodasi → 422.
-* [ ] Publish → event `job.published` (assert).
-* [ ] Delete lowongan berlamaran → ditolak; close = jalur resmi.
-* [ ] Transisi status ilegal ditolak.
-* [ ] GET publik hanya lowongan published & belum expired.
+* [x] Publish tanpa field akomodasi → 422.
+* [x] Publish → event `job.published` (assert).
+* [x] Delete lowongan berlamaran → ditolak; close = jalur resmi.
+* [x] Transisi status ilegal ditolak.
+* [x] GET publik hanya lowongan published & belum expired.
 
 #### Dependencies
 

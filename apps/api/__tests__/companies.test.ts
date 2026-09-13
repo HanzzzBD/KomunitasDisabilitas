@@ -11,10 +11,8 @@ import type {
   CompaniesRepository,
   CompanyRow,
 } from "../src/modules/companies/repositories/companies.repository.js";
-import type {
-  ActiveJobRow,
-  ActiveJobsRepository,
-} from "../src/modules/companies/repositories/active-jobs.repository.js";
+import type { JobPublicSummary } from "@nawasena/schemas";
+import type { JobsService } from "../src/modules/jobs/services/jobs.service.js";
 import type { AppError } from "../src/core/http/index.js";
 import { busUji } from "./helpers/events.js";
 
@@ -77,18 +75,24 @@ interface Jejak {
   meta: unknown;
 }
 
-function fakeActiveJobsRepo(baris: Record<string, ActiveJobRow[]>): ActiveJobsRepository {
+/**
+ * Fake HANYA `listActiveByCompany` — satu-satunya metode `JobsService` yang
+ * dipanggil `companies.service.ts` (komunikasi antar-modul lewat lapisan
+ * service, PR-055). Dicetak `as unknown as JobsService`, pola yang sama
+ * dengan fake antar-modul lain di repo ini (mis. `akses-sensitif.test.ts`).
+ */
+function fakeJobsService(baris: Record<string, JobPublicSummary[]>): JobsService {
   return {
-    listActiveByCompany: (companyId) => Promise.resolve(baris[companyId] ?? []),
-  };
+    listActiveByCompany: (companyId: string) => Promise.resolve(baris[companyId] ?? []),
+  } as unknown as JobsService;
 }
 
-function boot(rows: CompanyRow[], lowongan: Record<string, ActiveJobRow[]> = {}) {
+function boot(rows: CompanyRow[], lowongan: Record<string, JobPublicSummary[]> = {}) {
   const audit: Jejak[] = [];
   const events = busUji();
   const service = createCompaniesService({
     companiesRepository: fakeRepo(rows),
-    activeJobsRepository: fakeActiveJobsRepo(lowongan),
+    jobsService: fakeJobsService(lowongan),
     auditLog: (_actor, action, entity, entityId, meta) => {
       audit.push({ action, entity, entityId, meta });
     },
@@ -230,24 +234,24 @@ describe("companies.service — getPublic", () => {
   });
 });
 
-describe("companies.service — getActiveJobs (PR-054, Gap G5)", () => {
-  const lowongan: ActiveJobRow = {
+describe("companies.service — getActiveJobs (PR-054/055, Gap G5)", () => {
+  const lowongan: JobPublicSummary = {
     id: "018f4c1e-0000-7000-8000-000000000j01",
     title: "Staf Admin",
     employmentType: "full_time",
     workMode: "onsite",
     city: "Jakarta",
     province: "DKI Jakarta",
-    publishedAt: new Date("2026-08-10T00:00:00.000Z"),
+    publishedAt: "2026-08-10T00:00:00.000Z",
   };
 
-  it("mengembalikan ringkasan lowongan aktif milik perusahaan", async () => {
+  it("mendelegasikan ke jobsService.listActiveByCompany (komunikasi antar-modul lewat service, PR-055)", async () => {
     const perusahaan = barisBaru();
     const { service } = boot([perusahaan], { [perusahaan.id]: [lowongan] });
 
     const hasil = await service.getActiveJobs(perusahaan.id);
 
-    expect(hasil).toEqual([{ ...lowongan, publishedAt: "2026-08-10T00:00:00.000Z" }]);
+    expect(hasil).toEqual([lowongan]);
   });
 
   it("perusahaan tanpa lowongan aktif → array kosong", async () => {

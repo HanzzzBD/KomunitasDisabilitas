@@ -610,3 +610,190 @@ awal. `playwright test:a11y` (browser Chromium nyata, atas hasil build):
   pertimbangkan mengangkatnya ke katalog bersama bila polanya berulang.
 
 ---
+
+## PR-055 — Jobs BE — CRUD + Lifecycle
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-055---jobs-be--crud--lifecycle)
+> **Tanggal:** 2026-09-13
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Modul `jobs` lahir UTUH dari router sampai repository — sebelumnya hanya ada
+lapisan service parsial (`expiry.service.ts`, PR-024b, penutupan otomatis).
+CRUD admin penuh, state machine `draft → published → closed` yang KETAT
+(tanpa jalan mundur), validasi akomodasi wajib sebelum publish, dan endpoint
+publik `GET /jobs/:id` yang hanya pernah menjawab lowongan aktif. Tidak ada
+migrasi — tabel `jobs` sudah ada sejak migrasi 03 (PR-011).
+
+`active-jobs.repository.ts` yang lahir sementara di `modules/companies`
+(PR-054, untuk melayani `GET /companies/:id/jobs` sebelum modul `jobs`
+sungguhan ada) DIPINDAHKAN ke sini apa adanya — persis rencana yang dicatat
+di "Next steps" PR-054 — dan `companies.service.ts` sekarang memanggil
+`JobsService.listActiveByCompany()` (komunikasi antar-modul lewat lapisan
+service, CLAUDE.md §3.2) alih-alih menyentuh `prisma.job` sendiri.
+
+Empat keputusan yang membentuk seluruh sisanya:
+
+**1. DELETE /admin/jobs/:id ditambahkan, di luar API Changes yang tertulis
+di dokumen phase** (dikonfirmasi via `AskUserQuestion` sebelum implementasi).
+Dokumen PR-055 mendaftar GET/POST/PUT/publish/close saja, tetapi AC eksplisit
+"Delete lowongan berlamaran → ditolak; close = jalur resmi" mengasumsikan ada
+jalur delete sungguhan untuk diuji. Lowongan TANPA lamaran (draft yang salah
+dibuat) bisa dihapus (204); yang BERLAMARAN ditolak 409 — FK Restrict Prisma
+(`P2003`) ditangkap repository dan dipetakan ke error rapi, bukan exception
+mentah yang bocor ke klien.
+
+**2. State machine TANPA idempotensi, beda dari `verify()` companies.**
+`publish()` hanya menerima dari `draft`; `close()` hanya menerima dari
+`published`. Memanggil ulang aksi yang sama (publish yang sudah published,
+close yang sudah closed) DITOLAK 409 `TRANSISI_STATUS_TIDAK_VALID` — bukan
+dibiarkan lolos begitu saja seperti `company.verify()` yang sengaja idempoten
+(PR-051). AC PR-055 eksplisit "Transisi status ilegal ditolak" tanpa
+pengecualian apa pun, jadi tidak ada alasan meniru pola company di sini.
+
+**3. Audit publish/close/create/update/delete SEMUANYA memakai
+`ADMIN_RESOURCE_CHANGED` yang sudah ada — TANPA aksi audit baru.** Meta
+schema `auditMetaSchemas[ADMIN_RESOURCE_CHANGED]` (PR-014) SUDAH mengontrak
+`operation: z.enum(["create","update","publish","close","moderate"])`
+sebelum modul `jobs` pernah ada — komentar `JOB_AUTO_CLOSED` di `audit.ts`
+bahkan secara eksplisit menyebut alasannya TIDAK memakai kode ini ("namanya
+berkata ADMIN, sementara pelakunya sistem"), yang berarti sebaliknya berlaku:
+tindakan ADMIN (publish/close/delete manual) MEMANG dimaksudkan memakai kode
+ini. Satu-satunya perubahan kontrak: menambah `"delete"` ke enum
+`operation` (aditif, tidak mengubah data lama).
+
+**4. `job.closed` (event domain) dipakai ULANG untuk penutupan manual,
+dibedakan lewat `reason: "closed_by_admin"` — bukan event baru.**
+Komentar `jobCloseReasonSchema` sejak PR-024b sudah eksplisit mengantisipasi
+ini: "saat penutupan manual lahir (Phase 08), pelanggan yang sudah
+mendengarkan event ini perlu bisa membedakan keduanya". Menambah nilai enum
+itu sekarang menepati janji itu, tanpa memaksa pelanggan lama (belum ada)
+menangani nama event kedua.
+
+Gate hijau: `pnpm lint` 10/10, `pnpm typecheck` 10/10 — `@nawasena/api`
+**113 berkas / 1655 lulus** (1 skip tak terkait), `@nawasena/schemas`
+**3 berkas / 60 lulus**. `pnpm --filter @nawasena/schemas check:openapi`
+sinkron.
+
+### Scope selesai
+
+**Kontrak (`packages/schemas`)**
+
+* **`src/jobs.ts`** — `jobStatusSchema`, `jobSourceSchema`, `jobPublicSchema`
+  (tanpa `status`/`source`/`createdBy`/`salaryVisible` — field internal),
+  `jobAdminSchema` (lengkap), `jobIdParamsSchema`, `createJobSchema`
+  (`.strict()`, `companyId` wajib, `status`/`source` TIDAK ada — server yang
+  menentukan), `updateJobSchema` (`.partial().strict()`, TIDAK memuat
+  `companyId` maupun `status`), keduanya `.superRefine` menolak
+  `salaryMin > salaryMax`. `jobPublishedEventSchema` baru. `jobCloseReasonSchema`
+  diperluas: `["expired", "closed_by_admin"]` (lihat keputusan #4).
+* **`src/audit.ts`** — `operation` di `auditMetaSchemas[ADMIN_RESOURCE_CHANGED]`
+  diperluas: `+ "delete"` (lihat keputusan #3). Tidak ada aksi audit baru.
+* **`src/openapi.ts` + `openapi.json`** — enam endpoint jobs didokumentasikan
+  (`/jobs/{id}` publik, lima `/admin/jobs*`).
+
+**Core**
+
+* **`core/events/index.ts`** — satu entri baru di `DomainEvents`:
+  `job.published`. Belum ada pelanggan — sama seperti `company.verified` saat
+  lahir di PR-051.
+* **`core/http/errors.ts`** — tiga kode baru: `LOWONGAN_TIDAK_DITEMUKAN` (404),
+  `TRANSISI_STATUS_TIDAK_VALID` (409), `AKOMODASI_LOWONGAN_KOSONG` (422),
+  `LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS` (409).
+
+**Modul (`apps/api/src/modules/jobs/`, dilengkapi dari parsial PR-024b)**
+
+* **`repositories/jobs.repository.ts`** (baru) — `listAdmin`, `findById`,
+  `listActiveByCompany` (dipindah dari `modules/companies`, keputusan
+  pemindahan di atas), `create` (menangkap `P2003` → sentinel
+  `"perusahaan-tidak-ada"`, pola sama `ai-usage.repository.ts`), `update`,
+  `publish`/`close` (TERPISAH dari `update`, murni mekanis — kelegalan
+  transisi diputuskan SERVICE, bukan di sini), `delete` (menangkap
+  `P2025`/`P2003` → sentinel `"tidak-ditemukan"`/`"berlamaran"`).
+* **`services/jobs.service.ts`** — state machine (keputusan #2), validasi
+  akomodasi sebelum publish, redaksi `salaryMin`/`salaryMax` berdasar
+  `salaryVisible` di `getPublic` (satu-satunya jalur publik), `listActiveByCompany`
+  untuk konsumen antar-modul (`companies.service.ts`).
+* **`controllers/` + `routers/`** — `access.public(...)` untuk
+  `GET /jobs/:id`, `access.role("admin")` untuk lima route admin
+  (termasuk `DELETE`, keputusan #1).
+* **`index.ts`** — factory `createJobsModule()` PERTAMA di modul ini
+  (sebelumnya hanya re-export `expiry.service.ts`); keduanya kini
+  berdampingan di `index.ts` yang sama.
+
+**Modul (`apps/api/src/modules/companies/`, disesuaikan)**
+
+* **`repositories/active-jobs.repository.ts`** — DIHAPUS, dipindah ke
+  `modules/jobs` apa adanya.
+* **`services/companies.service.ts`** — `CompaniesServiceDeps.jobsService:
+  JobsService` menggantikan `activeJobsRepository`; `getActiveJobs()`
+  mendelegasikan ke `jobsService.listActiveByCompany()`. `JobsService`
+  diekspor ulang dari sini (bukan diimpor langsung dari `../../index.ts`) —
+  `eslint-plugin-boundaries` melarang elemen `module-shared` (`index.ts`)
+  menyentuh modul lain sama sekali, bahkan untuk tipe; hanya elemen
+  `service` yang dilonggarkan lintas modul.
+* **`index.ts`** — `CompaniesModuleDeps.jobsService: JobsService` (tipe
+  diimpor dari `./services/companies.service.js`, alasan di atas).
+
+**`apps/api/src/boot.ts`** — `createJobsModule()` dirakit SEBELUM
+`createCompaniesModule()`, hasilnya (`jobs.service`) disuntikkan ke deps
+companies.
+
+**Test (2 berkas baru, 3 diperluas)**
+
+* `jobs.test.ts` (28 test) — unit service dengan fake repository: state
+  machine kedua arah (publish/close, termasuk penolakan idempotensi),
+  akomodasi kosong ditolak, redaksi gaji, event publish/close, delete
+  (dihapus/berlamaran/tidak-ditemukan), create (companyId valid/tidak valid).
+* `jobs-http.test.ts` (34 test) — server Express nyata: matriks akses
+  (401/403 di enam route admin), CRUD, validasi taksonomi & rentang gaji,
+  publish/close/delete via HTTP (FK Restrict `P2003` → 409 sungguhan lewat
+  Prisma palsu), deklarasi route (PR-019).
+* `companies.test.ts`/`companies-http.test.ts` — `fakeJobsService`/fake
+  `JobsService` menggantikan `fakeActiveJobsRepo`/fake `job` Prisma table
+  (komunikasi antar-modul kini lewat service, bukan `prisma.job` langsung).
+* `openapi-parity.test.ts` — `createJobsModule` ikut dirakit; `jobsService`
+  disuntikkan ke `createCompaniesModule`.
+* `schemas.test.ts` (+12) — `createJobSchema`/`updateJobSchema` valid &
+  invalid (taksonomi, rentang gaji, `status`/`companyId` tidak bisa diubah
+  lewat update), bentuk `jobPublishedEventSchema`, `jobCloseReasonSchema`.
+* `http-errors.test.ts` — snapshot katalog error diperbarui (4 kode baru).
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Tambah `DELETE /admin/jobs/:id` (di luar API Changes tertulis) | AC eksplisit menguji penolakan delete-berlamaran, yang menuntut jalur delete sungguhan untuk diuji lewat HTTP | Tanpa endpoint DELETE, AC diuji hanya di level DB/repository — ditanyakan ke user, dijawab eksplisit: ditolak, AC harus teruji lewat permukaan HTTP sungguhan seperti PR lain |
+| State machine TANPA idempotensi (beda dari `company.verify()`) | AC "transisi ilegal ditolak" eksplisit tanpa pengecualian; tidak ada AC yang meminta re-publish/re-close diperbolehkan | Meniru idempotensi `verify()` — ditolak; itu keputusan PR-051 yang punya AC-nya sendiri ("re-verifikasi setelah koreksi"), tidak berlaku otomatis di sini |
+| Audit lewat `ADMIN_RESOURCE_CHANGED` yang sudah ada, bukan aksi baru | `operation` sudah pra-mengontrak `"publish"`/`"close"` sejak PR-014, sebelum modul `jobs` ada — komentar `JOB_AUTO_CLOSED` mengonfirmasi niat ini secara eksplisit | Aksi audit baru `JOB_PUBLISHED`/`JOB_CLOSED` (meniru `COMPANY_VERIFIED`) — ditolak; mengabaikan kontrak yang sudah disiapkan tepat untuk kasus ini |
+| `job.closed` dipakai ulang dengan `reason` baru, bukan event baru | `jobCloseReasonSchema` sejak PR-024b sudah menulis niat ini secara eksplisit di komentarnya | Event `job.closed_by_admin` terpisah — ditolak; memecah satu transisi status menjadi dua nama event yang harus didengarkan terpisah |
+| `active-jobs.repository.ts` dipindah APA ADANYA ke `modules/jobs` | Rencana eksplisit sejak PR-054 ("Next steps"); satu model (`Job`), satu lokasi kepemilikan query | Membiarkannya di `modules/companies` — ditolak; `modules/jobs` sekarang ada, dan companies tidak lagi punya alasan menyentuh `prisma.job` |
+
+### Risiko & batas yang diketahui
+
+* **Tidak ada E2E di PR ini** — sesuai rencana dokumen phase ("E2E Test via
+  PR-057"): PR-055 murni backend, tidak ada permukaan yang bisa diuji
+  Playwright sampai Admin Jobs FE (PR-057) lahir.
+* **Manual verification terhadap data seed TIDAK diulang di sesi ini** —
+  bersandar pada kesepadanan kontrak (`openapi-parity.test.ts`), pola yang
+  sama dengan catatan PR-053/054.
+* **Taksonomi akomodasi kurang lengkap** (risiko yang sudah dicatat dokumen
+  phase) — mitigasinya sama: taksonomi versioned di `packages/schemas`,
+  mudah ditambah tanpa migrasi.
+* **Tidak ada rubrik "kapan akomodasi dianggap cukup"** — publish hanya
+  menuntut MINIMAL SATU akomodasi terisi (AC eksplisit), bukan kelengkapan
+  taksonomi tertentu. Sama filosofinya dengan tidak adanya rubrik verifikasi
+  tertulis di PR-051.
+
+### Next steps
+
+* **PR-056** — Jobs BE Search FTS + Filter Faceted — konsumen tabel `jobs`
+  berikutnya, di luar scope CRUD/lifecycle PR ini.
+* **PR-057** — Admin Jobs FE — konsumen pertama endpoint admin di sini,
+  E2E yang ditunda dari PR-055 dijalankan di sana.
+* **PR-058/PR-059** — Halaman browse & detail lowongan publik — konsumen
+  `GET /jobs/:id`; PR-059 juga tempat tautan `/lowongan/:id` dari halaman
+  publik perusahaan (PR-054) berhenti 404.
+
+---

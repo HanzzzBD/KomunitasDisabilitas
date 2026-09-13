@@ -2590,6 +2590,733 @@
           }
         }
       }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "operationId": "getJob",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Detail lowongan (publik)",
+        "security": [],
+        "description": "Hanya lowongan `published` yang belum lewat `expiresAt` — draft, closed, dan yang sudah kedaluwarsa SEMUANYA 404, tanpa membedakan sebabnya ke klien (PR-055).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail lowongan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobPublic"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs": {
+      "get": {
+        "operationId": "listJobsAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Daftar seluruh lowongan (admin)",
+        "description": "Tanpa pagination dengan sengaja — pola sama `GET /admin/companies`.",
+        "responses": {
+          "200": {
+            "description": "Daftar lowongan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/JobAdmin"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createJobAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Tambah lowongan (admin)",
+        "description": "Lahir selalu `draft` + `admin_curated`. Akomodasi boleh kosong saat draft — baru wajib terisi sebelum POST .../publish.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lowongan yang baru dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`companyId` tidak menunjuk perusahaan yang ada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}": {
+      "put": {
+        "operationId": "updateJobAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Perbarui satu lowongan (admin)",
+        "description": "Field yang tidak dikirim berarti tidak diubah. TIDAK bisa mengubah `status` — satu-satunya jalan ke sana adalah POST .../publish dan POST .../close.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lowongan setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteJobAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Hapus satu lowongan (admin)",
+        "description": "Lowongan yang sudah berlamaran DITOLAK (409) — FK Restrict di database (SDD §6.1) menjaga riwayat lamaran tetap utuh. `close` adalah jalur resmi menyingkirkan lowongan yang sudah berlamaran, bukan delete.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Terhapus — tanpa badan jawaban"
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lowongan ini sudah berlamaran",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}/publish": {
+      "post": {
+        "operationId": "publishJobAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Terbitkan lowongan (admin)",
+        "description": "Satu-satunya jalan menuju `status: published`. Menolak selain dari `draft` (409) dan menolak lowongan tanpa satu pun akomodasi (422) — menerbitkan event domain `job.published`.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lowongan setelah diterbitkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lowongan tidak dalam status `draft`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Lowongan belum mencantumkan akomodasi apa pun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}/close": {
+      "post": {
+        "operationId": "closeJobAdmin",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Tutup lowongan (admin)",
+        "description": "Satu-satunya jalan admin menuju `status: closed`. Menolak selain dari `published` (409) — menerbitkan event domain `job.closed` dengan `reason: closed_by_admin` (dibedakan dari penutupan otomatis PR-024b).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lowongan setelah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobAdmin"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Cursor halaman berikut; null bila halaman terakhir"
+                        },
+                        "degraded": {
+                          "type": "boolean",
+                          "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+                          "example": true
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lowongan tidak dalam status `published`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4660,6 +5387,560 @@
               "unverified",
               "self_claimed"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobPublic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "requirements": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "salaryMin": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "salaryMax": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "accommodations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            }
+          },
+          "welcomedDisabilityTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            }
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "title",
+          "description",
+          "requirements",
+          "employmentType",
+          "workMode",
+          "city",
+          "province",
+          "salaryMin",
+          "salaryMax",
+          "accommodations",
+          "welcomedDisabilityTypes",
+          "publishedAt",
+          "expiresAt"
+        ],
+        "description": "Profil lowongan (tampilan publik)"
+      },
+      "JobAdmin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "requirements": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "salaryMin": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "salaryMax": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "salaryVisible": {
+            "type": "boolean"
+          },
+          "accommodations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            }
+          },
+          "welcomedDisabilityTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "admin_curated",
+              "employer",
+              "aggregated"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "closed"
+            ]
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "title",
+          "description",
+          "requirements",
+          "employmentType",
+          "workMode",
+          "city",
+          "province",
+          "salaryMin",
+          "salaryMax",
+          "salaryVisible",
+          "accommodations",
+          "welcomedDisabilityTypes",
+          "source",
+          "status",
+          "createdBy",
+          "publishedAt",
+          "expiresAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Profil lowongan (tampilan admin)"
+      },
+      "CreateJob": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "requirements": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 3000,
+            "default": null
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "default": null
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "default": null
+          },
+          "salaryMin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "salaryMax": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null
+          },
+          "salaryVisible": {
+            "type": "boolean",
+            "default": true
+          },
+          "accommodations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            },
+            "maxItems": 6,
+            "default": []
+          },
+          "welcomedDisabilityTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            },
+            "maxItems": 5,
+            "default": []
+          }
+        },
+        "required": [
+          "companyId",
+          "title",
+          "description",
+          "employmentType",
+          "workMode"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateJob": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "requirements": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 3000
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "salaryMin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "salaryMax": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "salaryVisible": {
+            "type": "boolean"
+          },
+          "accommodations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            },
+            "maxItems": 6
+          },
+          "welcomedDisabilityTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tuli",
+                "netra",
+                "daksa",
+                "autisme",
+                "lainnya"
+              ],
+              "description": "Ragam disabilitas (FR-2.1)"
+            },
+            "maxItems": 5
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
           }
         },
         "additionalProperties": false

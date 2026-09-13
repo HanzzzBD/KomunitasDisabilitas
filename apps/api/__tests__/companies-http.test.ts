@@ -11,11 +11,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import type { PrismaClient } from "@prisma/client";
-import { AUDIT_ACTION, type UserRole } from "@nawasena/schemas";
+import { AUDIT_ACTION, type JobPublicSummary, type UserRole } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
 import { createCompaniesModule } from "../src/modules/companies/index.js";
+import type { JobsService } from "../src/modules/jobs/services/jobs.service.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -91,8 +92,8 @@ function jobBaru(overrides: Partial<BarisJob> = {}): BarisJob {
   };
 }
 
-/** Prisma palsu: tabel `companies`+`jobs` in-memory — pola sama dengan profiles-http.test.ts. */
-function fakePrisma(rows: BarisCompany[], jobs: BarisJob[] = []) {
+/** Prisma palsu: tabel `companies` in-memory — pola sama dengan profiles-http.test.ts. */
+function fakePrisma(rows: BarisCompany[]) {
   const ambil = (id: string) => rows.find((r) => r.id === id);
 
   const company = {
@@ -118,29 +119,40 @@ function fakePrisma(rows: BarisCompany[], jobs: BarisJob[] = []) {
     },
   };
 
-  const job = {
-    findMany: ({
-      where,
-      orderBy,
-    }: {
-      where: { companyId: string; status: string; OR: Array<Record<string, unknown>> };
-      orderBy?: { publishedAt: "asc" | "desc" };
-    }) => {
-      const agora = new Date();
-      let hasil = jobs.filter((j) => j.companyId === where.companyId && j.status === where.status);
-      hasil = hasil.filter((j) => j.expiresAt === null || j.expiresAt > agora);
-      if (orderBy?.publishedAt === "desc") {
-        hasil = [...hasil].sort((a, b) => {
-          const wa = a.publishedAt?.getTime() ?? 0;
-          const wb = b.publishedAt?.getTime() ?? 0;
-          return wb - wa;
-        });
-      }
-      return Promise.resolve(hasil.map((j) => ({ ...j })));
-    },
-  };
+  return { company } as unknown as PrismaClient;
+}
 
-  return { company, job } as unknown as PrismaClient;
+/**
+ * Fake `JobsService` — komunikasi antar-modul lewat lapisan service (PR-055),
+ * bukan lagi lewat `prisma.job` langsung di modul `companies`. Hanya
+ * `listActiveByCompany` yang dipanggil endpoint yang diuji file ini; metode
+ * lain `JobsService` tidak pernah tersentuh (`as unknown as`, pola yang sama
+ * dengan fake antar-modul lain di repo ini).
+ */
+function fakeJobsService(jobs: BarisJob[]): JobsService {
+  return {
+    listActiveByCompany: (companyId: string): Promise<JobPublicSummary[]> => {
+      const agora = new Date();
+      const aktif = jobs.filter(
+        (j) =>
+          j.companyId === companyId &&
+          j.status === "published" &&
+          (j.expiresAt === null || j.expiresAt > agora),
+      );
+      aktif.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
+      return Promise.resolve(
+        aktif.map((j) => ({
+          id: j.id,
+          title: j.title,
+          employmentType: j.employmentType as JobPublicSummary["employmentType"],
+          workMode: j.workMode as JobPublicSummary["workMode"],
+          city: j.city,
+          province: j.province,
+          publishedAt: j.publishedAt?.toISOString() ?? null,
+        })),
+      );
+    },
+  } as unknown as JobsService;
 }
 
 function testEnv(): Env {
@@ -200,12 +212,13 @@ async function boot(options: { baris?: BarisCompany[]; jobs?: BarisJob[] } = {})
     routes: (app) => {
       app.use(
         createCompaniesModule({
-          prisma: fakePrisma(baris, jobs),
+          prisma: fakePrisma(baris),
           routes: registry.forModule("/api/v1"),
           auditLog: (_actor, action, entity, entityId, meta) => {
             audit.push({ action, entity, entityId, meta });
           },
           events,
+          jobsService: fakeJobsService(jobs),
         }).router,
       );
     },

@@ -33,6 +33,7 @@ import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
+import { createJobsModule } from "./modules/jobs/index.js";
 import { createAiModule } from "./modules/ai/index.js";
 import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
 import {
@@ -265,6 +266,20 @@ export async function startApi(options: BootOptions): Promise<void> {
         }),
       );
       app.use(profiles.router);
+      // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk
+      // `GET /companies/:id/jobs` (PR-054/055, komunikasi antar-modul lewat
+      // lapisan service — CLAUDE.md §3.2). Penerbit `job.published` +
+      // `job.closed` (reason `closed_by_admin`); `job.closed` sudah punya
+      // pelanggan SISTEM sejak PR-024b (worker retention), tetapi lewat
+      // proses TERPISAH (bus ini in-process, lihat core/events) — jadi tetap
+      // belum ada pelanggan DI PROSES API ini.
+      const jobs = createJobsModule({
+        prisma,
+        routes: routeRegistry.forModule("/api/v1"),
+        auditLog,
+        events,
+      });
+      app.use(jobs.router);
       // Admin-only PERTAMA di repo (PR-051) — `/companies/:id` di dalamnya
       // tetap publik (US-09); lihat komentar router modul untuk alasannya.
       app.use(
@@ -274,6 +289,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           auditLog,
           // Penerbit `company.verified`; belum ada pelanggan (core/events).
           events,
+          jobsService: jobs.service,
         }).router,
       );
     },
