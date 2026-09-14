@@ -2591,6 +2591,121 @@
         }
       }
     },
+    "/jobs": {
+      "get": {
+        "operationId": "searchJobs",
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cari lowongan (publik)",
+        "security": [],
+        "description": "Pencarian FTS bahasa Indonesia + trigram (toleransi typo ringan) pada judul/deskripsi, dengan filter kota/provinsi/mode kerja/akomodasi (⊇ — lowongan harus punya SEMUA akomodasi yang diminta) dan cursor pagination. Hanya lowongan `published` yang belum lewat `expiresAt`. Terbaru dulu (`publishedAt` lalu `id` sebagai penengah, format cursor sama dengan `GET /me/notifications`, lihat core/pagination).",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–100)",
+              "example": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "city",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "province",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "workMode",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "onsite",
+                "hybrid",
+                "remote"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "accommodations",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "akses_kursi_roda",
+                  "ramah_screen_reader",
+                  "wawancara_via_teks",
+                  "jam_kerja_fleksibel",
+                  "ruang_kerja_tenang",
+                  "juru_bahasa_isyarat"
+                ],
+                "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Halaman hasil pencarian",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`limit` di luar 1–100, atau cursor tidak terbaca",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/{id}": {
       "get": {
         "operationId": "getJob",
@@ -5390,6 +5505,126 @@
           }
         },
         "additionalProperties": false
+      },
+      "JobSearchResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobSearchResult"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "JobSearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "employmentType": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "contract",
+              "internship",
+              "freelance"
+            ]
+          },
+          "workMode": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "accommodations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "akses_kursi_roda",
+                "ramah_screen_reader",
+                "wawancara_via_teks",
+                "jam_kerja_fleksibel",
+                "ruang_kerja_tenang",
+                "juru_bahasa_isyarat"
+              ],
+              "description": "Taksonomi akomodasi (selaras jobs.accommodations)"
+            }
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "companyName",
+          "title",
+          "employmentType",
+          "workMode",
+          "city",
+          "province",
+          "accommodations",
+          "publishedAt"
+        ],
+        "description": "Satu hasil pencarian lowongan (kartu publik)"
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor halaman berikut; null bila halaman terakhir"
+          }
+        },
+        "required": [
+          "nextCursor"
+        ]
       },
       "JobPublic": {
         "type": "object",

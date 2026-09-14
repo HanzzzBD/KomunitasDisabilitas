@@ -797,3 +797,270 @@ companies.
   publik perusahaan (PR-054) berhenti 404.
 
 ---
+
+## PR-056 — Jobs BE — Search FTS + Filter Faceted
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-056---jobs-be--search-fts--filter-faceted)
+> **Tanggal:** 2026-09-14
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`GET /api/v1/jobs` — pencarian publik lowongan: FTS bahasa Indonesia
+(`title`+`description`) ATAU kemiripan kata trigram (toleransi typo ringan)
+pada judul, filter kota/provinsi/mode kerja/akomodasi (⊇ — job harus punya
+SEMUA akomodasi yang diminta), dan cursor pagination. Satu-satunya query raw
+SQL modul `jobs` (Prisma tidak punya API untuk FTS/trigram/containment jsonb);
+tidak ada migrasi — ketiga indeks GIN dan indeks komposit `(status,
+published_at DESC)` sudah ada sejak migrasi 03 (PR-011), PR ini murni
+memakainya.
+
+Empat keputusan yang membentuk seluruh sisanya:
+
+**1. Trigram pakai operator `<%` (kemiripan KATA), BUKAN `%` (kemiripan
+string-penuh) — koreksi terhadap rencana awal implementasi sendiri.**
+Percobaan pertama memakai `title % query` gagal lolos test DB: query pendek
+("pelangan") dibandingkan trigram SELURUH judul multi-kata ("Staf Layanan
+Pelanggan") nyaris selalu jatuh di bawah ambang batas similarity, sebab
+proporsi trigram yang beririsan terhadap total trigram judul kecil. `<%`
+(`word_similarity`) mencari kecocokan SEBAGIAN — apakah `query` mirip SALAH
+SATU kata di dalam `title` — bentuk yang sebenarnya dimaksud AC "typo ringan
+tetap menemukan". Keduanya didukung indeks GIN `gin_trgm_ops` yang sama
+(`jobs_title_trgm`); bukti EXPLAIN di bawah memakai `<%`.
+
+**2. Cursor pagination DIPINDAHKAN dari `modules/notifications/services/kursor.ts`
+ke `core/pagination/index.ts` — menepati janji komentar aslinya.** Komentar
+`kursor.ts` sejak PR-047 sudah eksplisit menyatakan "begitu konsumen KEDUA
+lahir, kode ini pindah ke core apa adanya". PR-056 adalah konsumen kedua itu.
+Field posisi digeneralisasi dari `createdAt` (nama kolom domain notifikasi)
+menjadi `sortAt` (generik) — modul `core/pagination` sengaja tidak tahu kolom
+apa yang dipakai pemanggilnya untuk mengurutkan (`createdAt` di notifikasi,
+`publishedAt` di lowongan); pemanggil memetakan sendiri di titik pemakaian.
+Format cursor (base64url dari `ISO8601|id`) TIDAK berubah — kompatibel dengan
+cursor lama yang mungkin masih beredar di klien.
+
+**3. `JobSearchResult` skema BARU (bukan reuse `jobPublicSummarySchema`
+PR-054) — lebih kaya, sesuai kebutuhan PR-058 yang TIDAK PUNYA Backend
+Changes sendiri.** Dokumen PR-058 (Web Jobs Browse) mendaftar "Tidak ada"
+untuk Backend Changes — artinya seluruh field yang dibutuhkan kartu daftar
+publik (AC PR-058 "Kartu = satu kesatuan bagi SR: nama, perusahaan, akomodasi,
+lokasi") HARUS sudah tersedia dari PR-056. `jobPublicSummarySchema` (dipakai
+`GET /companies/:id/jobs`) sengaja minimal dan tidak menyebut nama perusahaan
+(ia sudah tahu perusahaannya sendiri) maupun akomodasi — tidak cukup untuk
+kartu pencarian lintas-perusahaan. `JobSearchResult` menambah `companyName`
+(JOIN `companies`) dan `accommodations`.
+
+**4. Query param `workMode` (camelCase), BUKAN `work_mode` seperti tertulis
+literal di dokumen phase.** Prosa PR-056 di `phase-08-companies-jobs.md`
+menulis `work_mode`, tetapi SELURUH field lain di kontrak (`packages/schemas`)
+memakai camelCase tanpa kecuali (`jobPublicSchema.workMode`,
+`jobAdminSchema.workMode`, dst. — SDD §11 "camelCase+Schema") dan seluruh
+query param yang sudah ada (`unreadOnly` di notifikasi) juga camelCase.
+`work_mode` diperlakukan sebagai penulisan prosa informal, bukan kontrak
+literal yang harus diikuti persis.
+
+Gate hijau: `pnpm typecheck`/`pnpm lint` bersih di `@nawasena/api` DAN
+`@nawasena/schemas`. `@nawasena/api` **113 berkas / 1683 lulus** (1 skip tak
+terkait). `@nawasena/schemas` **3 berkas / 69 lulus**.
+`pnpm --filter @nawasena/schemas check:openapi` sinkron.
+
+### Scope selesai
+
+**Kontrak (`packages/schemas`)**
+
+* **`src/jobs.ts`** — `jobSearchQuerySchema` (`paginationQuerySchema.extend`:
+  `query`/`city`/`province` opsional dengan batas panjang, `workMode` enum,
+  `accommodations` via `z.preprocess` yang menyatukan bentuk array berulang
+  qs (`?accommodations=a&accommodations=b`) MAUPUN satu string dipisah koma
+  (`?accommodations=a,b`) sebelum divalidasi taksonomi — pola BARU, belum ada
+  presedennya di repo ini untuk filter array via query string), `JobSearchResult`
+  (keputusan #3), `jobSearchResponseSchema` (`data`+`meta: paginationMetaSchema`,
+  reuse langsung — tidak perlu meta khusus, beda dari notifikasi yang punya
+  `unreadCount`).
+* **`src/openapi.ts` + `openapi.json`** — `GET /jobs` didokumentasikan,
+  didaftar SEBELUM `/jobs/{id}` (daftar sebelum detail; tidak bentrok di
+  Express karena jumlah segmen path beda).
+
+**Core**
+
+* **`core/pagination/index.ts`** (baru) — `encodeKursor`/`decodeKursor`/
+  `KursorTidakValidError`/`PosisiKursor` (keputusan #2). Dipakai `jobs` DAN
+  `notifications` (disesuaikan, lihat di bawah).
+
+**Modul (`apps/api/src/modules/jobs/`)**
+
+* **`repositories/jobs.repository.ts`** — `search()` (baru): raw SQL
+  `$queryRaw`+`Prisma.sql`/`Prisma.join`, kondisi `WHERE` dirakit BERTAHAP
+  (hanya kondisi yang filternya diminta), FTS (`jobs_fts_gin`) ATAU trigram
+  `<%` (`jobs_title_trgm`, keputusan #1) di-OR, containment akomodasi `@>`
+  (`jobs_accommodations_gin`), keyset `(published_at, id) < (cursor)` dengan
+  `::uuid` eksplisit pada sisi `id` (lihat "Risiko & batas" — bug yang
+  ditangkap test DB), `JOIN companies` untuk `companyName`. Urutan SELALU
+  `published_at DESC, id DESC` — TIDAK diberi peringkat relevansi (rank FTS)
+  meski AC tidak melarangnya; tidak ada AC yang memintanya, dan mengurutkan
+  berdasar skor relevansi akan memaksa cursor menyimpan skor ter-cache (skor
+  FTS bukan nilai stabil yang bisa dibandingkan lintas halaman tanpa
+  menyimpan ulang query-nya di cursor) — kompleksitas yang tidak dibeli AC
+  mana pun.
+* **`services/jobs.service.ts`** — `search()` (baru): decode cursor (melempar
+  `KursorTidakValidError` ke controller bila rusak — TIDAK ditangkap di sini,
+  pola sama `notifications.service.ts`), `limit+1`/`hasMore`/`nextCursor`
+  (pola sama persis `notifications.service.ts`), pemetaan `JobSearchRow` →
+  `JobSearchResult`.
+* **`controllers/` + `routers/`** — `GET /jobs` → `access.public(...)` (sama
+  alasannya dengan `GET /jobs/:id`: kandidat mencari lowongan sering tanpa
+  sesi), cursor rusak → `VALIDATION_ERROR` (pola sama
+  `notifications.controller.ts`, kode error TIDAK baru).
+
+**Modul (`apps/api/src/modules/notifications/`, disesuaikan — keputusan #2)**
+
+* **`services/kursor.ts`** — DIHAPUS, dipindah ke `core/pagination/index.ts`
+  apa adanya (field `createdAt`→`sortAt`).
+* **`services/notifications.service.ts`** — impor dari `core/pagination`;
+  `keKursorHalaman()` (baru, privat) memetakan `PosisiKursor.sortAt` ↔
+  `KursorHalaman.createdAt` di titik pemakaian.
+* **`controllers/notifications.controller.ts`**, **`index.ts`** — impor
+  `KursorTidakValidError` dari `core/pagination`; re-export lokal
+  (`decodeKursor`/`encodeKursor`/`KursorTidakValidError` dari `index.ts`)
+  DIHAPUS — tidak ada pemakai di luar modul ini (diverifikasi via grep
+  sebelum dihapus), dan modul lain kini mengimpor `core/pagination` langsung.
+
+**Test (2 berkas baru, 3 diperluas)**
+
+* `jobs-search.test.ts` (9 test, unit, repository palsu) — pagination
+  (limit+1/hasMore/nextCursor termasuk daftar kosong), filter diteruskan apa
+  adanya (termasuk yang tidak disebut → `undefined`, bukan nilai kosong),
+  cursor valid/rusak, pemetaan `JobSearchResult`. FTS/trigram/containment
+  SENGAJA TIDAK diuji di sini — repository palsu tidak menjalankan SQL
+  sungguhan.
+* `jobs-search-db.test.ts` (19 test, PostgreSQL nyata, skip otomatis bila DB
+  tak terjangkau) — FTS (judul+deskripsi), trigram typo (termasuk kata yang
+  "sama sekali tidak mirip" TIDAK ditemukan — bukan typo, memang beda),
+  containment ⊇ (tiga arah: lebih banyak tetap cocok, sebagian tidak cocok,
+  kosong tidak cocok apa pun), filter kota+workMode (AND), status
+  published-only + belum expired, `companyName` dari JOIN, cursor stabil
+  (penyusuran penuh tanpa lompat/ulang, baris baru lahir di tengah,
+  `publishedAt` identik), cursor rusak → error, EXPLAIN empat bentuk predikat
+  (bukti index, lihat di bawah), performa 1.000 seed (bukti p95, lihat di
+  bawah).
+* `jobs-http.test.ts` — assertion registry route diperbarui: "satu route
+  publik" → "dua route publik" (`/jobs` + `/jobs/:id`), keduanya
+  `access.public`.
+* `jobs.test.ts` — `fakeRepo.search` stub (melempar, "tidak dipakai" — berkas
+  ini menguji state machine PR-055, bukan pencarian).
+* `schemas.test.ts` (+9) — `jobSearchQuerySchema`: bawaan kosong sah, batas
+  `limit` (warisan `paginationQuerySchema`), `workMode` taksonomi,
+  `accommodations` KETIGA bentuk input (array, string dipisah koma, nilai di
+  luar taksonomi ditolak di kedua bentuk, string kosong → `undefined`),
+  batas panjang `query`/`city`/`province`.
+
+### Bukti EXPLAIN (AC)
+
+Diambil `psql EXPLAIN` langsung terhadap dev DB lokal (Docker, `nawasena-dev-postgres-1`,
+20 baris `jobs` dari data seed — bukan tabel kosong):
+
+```
+-- FTS
+Bitmap Heap Scan on jobs j  (cost=153.44..208.70 rows=72 width=16)
+  Recheck Cond: (to_tsvector('indonesian'::regconfig, ...) @@ '''langgan'''::tsquery)
+  ->  Bitmap Index Scan on jobs_fts_gin  (cost=0.00..153.42 rows=72 width=0)
+
+-- Trigram (<%)
+Bitmap Heap Scan on jobs j  (cost=562.55..579.27 rows=6 width=16)
+  Filter: ('pelangan'::text <% title)
+  ->  Bitmap Index Scan on jobs_title_trgm  (cost=0.00..562.55 rows=6 width=0)
+        Index Cond: (title %> 'pelangan'::text)
+
+-- Containment akomodasi
+Bitmap Heap Scan on jobs j  (cost=21.28..30.72 rows=3 width=16)
+  Recheck Cond: (accommodations @> '["akses_kursi_roda"]'::jsonb)
+  ->  Bitmap Index Scan on jobs_accommodations_gin  (cost=0.00..21.28 rows=3 width=0)
+
+-- Daftar tanpa filter query (status + urut published_at)
+Sort  (cost=113.00..114.53 rows=612 width=24)
+  Sort Key: published_at DESC
+  ->  Bitmap Heap Scan on jobs j  (cost=41.02..84.67 rows=612 width=24)
+        Recheck Cond: (status = 'published'::"JobStatus")
+        ->  Bitmap Index Scan on jobs_status_published_at (cost=0.00..40.87 rows=612 width=0)
+```
+
+Keempatnya dipilih planner TANPA `enable_seqscan = off` sekalipun (baris seed
+saja sudah cukup membuat GIN lebih murah dari seqscan). Test otomatis
+(`jobs-search-db.test.ts`, describe "EXPLAIN memakai indeks") menguji tiap
+predikat SENDIRI-SENDIRI (tanpa `status = 'published'` yang repository
+sesungguhnya selalu sertakan) DENGAN `enable_seqscan = off` — pada tabel test
+sekecil itu, planner yang melihat `status='published'` DAN salah satu
+predikat GIN akan memilih `jobs_status_published_at` (btree satu-kolom, lebih
+murah di baris sedikit) dan menjadikan predikat GIN sekadar `Filter:`, BUKAN
+karena indeks GIN-nya tidak terpakai — melainkan karena pada titik data test
+ada indeks lain yang planner anggap lebih murah. Yang AC minta adalah bukti
+BISA-tidaknya bentuk predikat ini memakai indeksnya sendiri, jadi test
+mengisolasi predikatnya (pola sama `notifications-db.test.ts` mengisolasi
+`notifications_unread`).
+
+### Bukti performa (AC p95 < 200ms)
+
+`jobs-search-db.test.ts` men-seed 1.000 lowongan `published` (kota/provinsi/
+workMode/akomodasi bervariasi round-robin) lalu mengukur 20 pemanggilan
+`service.search()` atas tujuh skenario (tanpa filter, FTS, trigram typo,
+filter kota, filter workMode, filter akomodasi, kombinasi). **p95 terukur:
+2,1 ms** — jauh di bawah ambang 200 ms.
+
+**Batas representativitas, dicatat eksplisit:** ini dev DB lokal (Docker
+Desktop, WSL2, laptop pengembang), BUKAN VPS produksi target (4 vCPU/8GB,
+CLAUDE.md §1). Angkanya bukti bahwa BENTUK query memakai indeks dengan benar
+(rencana eksekusi Bitmap Index Scan, bukan Seq Scan — lihat EXPLAIN di atas),
+bukan jaminan angka p95 yang sama persis di produksi. Pada skala 1.000 baris
+dengan indeks GIN/btree yang tepat, margin 2,1ms vs 200ms (≈95×) memberi
+ruang toleransi besar terhadap perbedaan spek mesin.
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Trigram `<%` (kemiripan kata), bukan `%` (kemiripan string-penuh) | `%` gagal pada query pendek vs judul multi-kata (trigram overlap kecil terhadap total) — ditemukan lewat kegagalan test DB sungguhan, bukan dugaan | `%` sesuai draf awal — ditolak, tidak lolos test "typo ringan tetap menemukan" dengan judul realistis |
+| Cursor pagination pindah ke `core/pagination` | Komentar `kursor.ts` sejak PR-047 sudah menjanjikan ini persis untuk momen "konsumen kedua lahir" | Duplikasi logika cursor di `modules/jobs` — ditolak; dua format cursor berbeda tidak akan pernah terlihat salah sampai seseorang menukarnya antar-endpoint |
+| `JobSearchResult` skema baru (bukan reuse `jobPublicSummarySchema`) | PR-058 tidak punya Backend Changes sendiri — field kartu (nama perusahaan, akomodasi) harus sudah lengkap dari sini | Reuse `jobPublicSummarySchema` — ditolak; kurang `companyName`/`accommodations`, akan memaksa PR-058 menambah Backend Changes yang dokumennya sendiri bilang "Tidak ada" |
+| Urutan SELALU `published_at DESC, id DESC`, tanpa ranking relevansi FTS | Tidak ada AC yang meminta ranking relevansi; ranking butuh menyimpan skor di cursor (query yang sama harus diulang tiap halaman) — kompleksitas tak terbeli | Order by `ts_rank(...)  DESC` — ditolak; cursor jadi harus membawa `query` string itu sendiri supaya skornya bisa dihitung ulang tiap halaman, dan tidak ada AC yang memintanya |
+| `workMode` camelCase (bukan `work_mode` sesuai prosa dokumen phase) | Konsisten dengan SELURUH field kontrak lain (`jobPublicSchema.workMode`, dst.) dan query param yang sudah ada (`unreadOnly`) | Ikuti literal `work_mode` — ditolak; akan jadi satu-satunya query param snake_case di seluruh API |
+
+### Risiko & batas yang diketahui
+
+* **Bug `uuid < text` ditangkap test DB, bukan review kode.** Perbandingan
+  tuple keyset `(published_at, id) < (cursor)` awalnya tidak mem-cast `id`
+  cursor ke `::uuid` — Prisma mengirim parameter sebagai `text`/`unknown`,
+  dan Postgres tidak punya operator `uuid < text` bawaan untuk desugar
+  perbandingan baris. Lolos `tsc`/lint (valid secara TypeScript), baru
+  gagal saat `jobs-search-db.test.ts` benar-benar memanggil halaman kedua.
+  Dicatat di sini karena pola yang sama (parameter Prisma tanpa cast tipe DB
+  eksplisit di dalam perbandingan majemuk) berisiko terulang di modul lain
+  yang memakai raw SQL keyset.
+* **Test data harus diisolasi dari data seed dev DB (20 jobs sejak PR-001) —
+  ditemukan lewat kegagalan test, bukan diantisipasi dari awal.** Draf
+  pertama `jobs-search-db.test.ts` mengasumsikan tabel `jobs` kosong di luar
+  baris yang dibuat test itu sendiri; nyatanya dev DB berbagi baris seed
+  yang sama di seluruh test file. Setiap `service.search()` di berkas ini
+  sekarang diberi filter `city: ISOLASI` (nilai kota fiktif yang tidak
+  mungkin ada di seed manapun) SELAIN kelompok yang sengaja menguji filter
+  kota itu sendiri.
+* **Tidak ada E2E di PR ini** — sesuai rencana dokumen phase ("E2E Test via
+  PR-058"): PR-056 murni backend.
+* **Tidak ada ranking relevansi FTS** (lihat tabel keputusan) — hasil
+  terurut kronologis (`publishedAt` terbaru dulu), BUKAN diurutkan seberapa
+  relevan cocoknya dengan `query`. Untuk skala pilot (ratusan lowongan)
+  dampaknya kecil; dicatat sebagai batas desain, bukan bug.
+* **Angka p95 dari dev DB lokal, bukan VPS produksi** (lihat "Bukti
+  performa" di atas) — margin besar (≈95×) dijadikan mitigasi, bukan
+  pengukuran ulang di lingkungan produksi (belum ada, Phase 16).
+
+### Next steps
+
+* **PR-057** — Admin Jobs FE — tidak bergantung pada PR-056 (mengonsumsi
+  `/admin/jobs*` dari PR-055).
+* **PR-058** — Web Jobs Browse — konsumen `GET /jobs` PERTAMA; `JobSearchResult`
+  dirancang supaya PR-058 tidak butuh Backend Changes sendiri (keputusan #3).
+* **PR-059** — Job Detail Page — tidak langsung bergantung pada PR-056
+  (mengonsumsi `GET /jobs/:id` dari PR-055), tetapi biasanya dicapai lewat
+  klik dari hasil PR-058.
+
+---

@@ -8,7 +8,13 @@
 // perubahan kontrak, bukan detail internal satu modul.
 import "zod-openapi/extend";
 import { z } from "zod";
-import { idSchema, successEnvelopeSchema, timestampSchema } from "./common.js";
+import {
+  idSchema,
+  paginationMetaSchema,
+  paginationQuerySchema,
+  successEnvelopeSchema,
+  timestampSchema,
+} from "./common.js";
 import { accommodationNeedSchema, disabilityTypeSchema } from "./profiles.js";
 
 /**
@@ -335,3 +341,88 @@ export const jobPublishedEventSchema = z.object({
 });
 
 export type JobPublishedEvent = z.infer<typeof jobPublishedEventSchema>;
+
+// ============================================================================
+// PR-056 — Jobs BE: Search FTS + Filter Faceted (ADR-018)
+// ============================================================================
+
+/**
+ * `accommodations` sebagai QUERY STRING. Express/`qs` mengembalikan parameter
+ * berulang (`?accommodations=a&accommodations=b`) sebagai array, dan parameter
+ * tunggal (`?accommodations=a,b` ATAU `?accommodations=a`) sebagai string —
+ * preprocess ini menyatukan KEDUA bentuk (array maupun string dipisah koma)
+ * menjadi satu array sebelum divalidasi terhadap taksonomi akomodasi, supaya
+ * klien tidak perlu tahu perilaku serialisasi query-nya sendiri.
+ */
+const jobSearchAccommodationsSchema = z.preprocess((nilai) => {
+  if (nilai === undefined) return undefined;
+  const daftar = Array.isArray(nilai) ? nilai : [nilai];
+  const bersih = daftar
+    .flatMap((item) => (typeof item === "string" ? item.split(",") : []))
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return bersih.length > 0 ? bersih : undefined;
+}, z.array(accommodationNeedSchema).optional());
+
+/**
+ * GET /api/v1/jobs — query pencarian publik.
+ *
+ * `query` mencocokkan FTS bahasa Indonesia (`title`+`description`) ATAU
+ * kemiripan trigram `title` (toleransi typo ringan) — keduanya di-OR-kan di
+ * repository, bukan di sini (lihat `jobs.repository.ts`). `accommodations`
+ * adalah filter ⊇ (job HARUS punya SEMUA nilai yang diminta), ditegakkan
+ * lewat containment jsonb `@>` di atas indeks GIN `jobs_accommodations_gin`.
+ * `cursor`/`limit` dari `paginationQuerySchema` yang sama dengan notifikasi
+ * (PR-047) — format cursor SATU untuk seluruh API, lihat `core/pagination`.
+ */
+export const jobSearchQuerySchema = paginationQuerySchema
+  .extend({
+    query: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200, { message: "Kata kunci maksimal 200 karakter" })
+      .optional(),
+    city: z.string().trim().min(1).max(100).optional(),
+    province: z.string().trim().min(1).max(100).optional(),
+    workMode: workModeSchema.optional(),
+    accommodations: jobSearchAccommodationsSchema,
+  })
+  .openapi({ ref: "JobSearchQuery" });
+
+export type JobSearchQuery = z.infer<typeof jobSearchQuerySchema>;
+
+/**
+ * Satu hasil pencarian — bentuk KARTU publik (PR-058 memakainya apa adanya,
+ * tanpa permintaan BE tambahan; lihat Technical Notes PR-058: "Tidak ada"
+ * untuk Backend Changes). SENGAJA lebih kaya dari `jobPublicSummarySchema`
+ * (PR-054): kartu daftar butuh nama perusahaan DAN akomodasi supaya kandidat
+ * screen reader mendapat satu kesatuan informasi tanpa membuka detail dulu
+ * (AC PR-058 "Kartu = satu kesatuan bagi SR"), sedangkan ringkasan lowongan
+ * aktif di halaman perusahaan (PR-054) sudah tahu perusahaannya sendiri.
+ */
+export const jobSearchResultSchema = z
+  .object({
+    id: idSchema,
+    companyId: idSchema,
+    companyName: z.string(),
+    title: z.string(),
+    employmentType: employmentTypeSchema,
+    workMode: workModeSchema,
+    city: z.string().nullable(),
+    province: z.string().nullable(),
+    accommodations: z.array(accommodationNeedSchema),
+    publishedAt: timestampSchema,
+  })
+  .openapi({ ref: "JobSearchResult", description: "Satu hasil pencarian lowongan (kartu publik)" });
+
+export type JobSearchResult = z.infer<typeof jobSearchResultSchema>;
+
+export const jobSearchResponseSchema = z
+  .object({
+    data: z.array(jobSearchResultSchema),
+    meta: paginationMetaSchema,
+  })
+  .openapi({ ref: "JobSearchResponse" });
+
+export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;

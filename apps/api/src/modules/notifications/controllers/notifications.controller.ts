@@ -10,7 +10,7 @@ import type { Request, Response } from "express";
 import type { NotificationIdParams, NotificationListQuery } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import { appError } from "../../../core/http/index.js";
-import { KursorTidakValidError } from "../services/kursor.js";
+import { KursorTidakValidError } from "../../../core/pagination/index.js";
 import {
   NotifikasiTidakDitemukanError,
   type NotificationsActor,

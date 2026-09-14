@@ -40,6 +40,8 @@ import {
   jobAdminResponseSchema,
   jobIdParamsSchema,
   jobPublicResponseSchema,
+  jobSearchQuerySchema,
+  jobSearchResponseSchema,
   updateJobSchema,
 } from "./jobs.js";
 import {
@@ -798,6 +800,31 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
       // `/companies/{id}` — kandidat membaca detail sebelum melamar, sering
       // tanpa sesi. State machine draft→published→closed: `/admin/jobs/{id}
       // /publish` dan `/close` adalah SATU-SATUNYA jalan menulis `status`.
+      //
+      // `/jobs` (PR-056, ADR-018): pencarian FTS+trigram+filter ber-cursor —
+      // jalur temu-lowongan non-AI kelas satu. Terdaftar SEBELUM `/jobs/{id}`
+      // di dokumen ini (daftar sebelum detail); keduanya tidak bentrok di
+      // Express karena jumlah segmen path berbeda.
+      "/jobs": {
+        get: {
+          operationId: "searchJobs",
+          tags: ["jobs"],
+          summary: "Cari lowongan (publik)",
+          security: [],
+          description:
+            "Pencarian FTS bahasa Indonesia + trigram (toleransi typo ringan) pada " +
+            "judul/deskripsi, dengan filter kota/provinsi/mode kerja/akomodasi " +
+            "(⊇ — lowongan harus punya SEMUA akomodasi yang diminta) dan cursor " +
+            "pagination. Hanya lowongan `published` yang belum lewat `expiresAt`. " +
+            "Terbaru dulu (`publishedAt` lalu `id` sebagai penengah, format cursor " +
+            "sama dengan `GET /me/notifications`, lihat core/pagination).",
+          requestParams: { query: jobSearchQuerySchema },
+          responses: {
+            "200": jsonOk("Halaman hasil pencarian", jobSearchResponseSchema),
+            "400": errorResponse("`limit` di luar 1–100, atau cursor tidak terbaca"),
+          },
+        },
+      },
       "/jobs/{id}": {
         get: {
           operationId: "getJob",
