@@ -438,11 +438,11 @@ Bisnis: jalur temu-lowongan non-AI kelas satu (degradasi & SEO masa depan) (ADR-
 
 **Testing Checklist:**
 
-* [ ] Unit Test (builder)
-* [ ] Integration Test (relevansi + filter + cursor)
-* [ ] E2E Test (via PR-058)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (query aneh/injeksi)
+* [x] Unit Test (builder) — `jobs-search.test.ts` (9 test): pagination limit+1/hasMore/nextCursor, filter diteruskan apa adanya, cursor rusak → error, pemetaan hasil
+* [x] Integration Test (relevansi + filter + cursor) — `jobs-search-db.test.ts` (19 test, PostgreSQL nyata): FTS id, trigram typo (`<%`), containment akomodasi ⊇, filter kota/provinsi/workMode, status/expiresAt, cursor stabil (termasuk baris baru lahir di tengah & publishedAt identik)
+* [x] E2E Test (via PR-058) — ditunda sesuai rencana dokumen ini; PR-056 murni backend
+* [x] Accessibility Test (N/A) — tidak ada permukaan FE di PR ini
+* [x] Manual Verification (query aneh/injeksi) — parameterized penuh (`Prisma.sql`/tagged template, tanpa interpolasi string); cursor rusak & query tanpa hasil diuji `jobs-search-db.test.ts`/`jobs-search.test.ts`
 
 **Deliverables:**
 
@@ -458,11 +458,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Typo ringan tetap menemukan (trigram test).
-* [ ] Filter akomodasi: hasil ⊇ akomodasi diminta (GIN test).
-* [ ] Cursor stabil di data berubah.
-* [ ] EXPLAIN memakai indeks (bukti).
-* [ ] p95 < 200 ms pada 1.000 jobs seed.
+* [x] Typo ringan tetap menemukan (trigram test) — operator `<%` (kemiripan KATA, bukan `%` kemiripan string-penuh — lihat komentar `jobs.repository.ts`); `jobs-search-db.test.ts` ("typo satu huruf pada judul tetap ditemukan").
+* [x] Filter akomodasi: hasil ⊇ akomodasi diminta (GIN test) — containment `jsonb @>` di atas `jobs_accommodations_gin`; tiga test (lebih banyak tetap cocok, sebagian tidak cocok, tanpa akomodasi tidak cocok apa pun).
+* [x] Cursor stabil di data berubah — keyset `(published_at, id)` (format sama `GET /me/notifications`, dipindah ke `core/pagination`); diuji menyusuri tanpa lompat/ulang, baris baru lahir di tengah, dan `publishedAt` identik (id sebagai penengah).
+* [x] EXPLAIN memakai indeks (bukti) — `jobs-search-db.test.ts` describe "EXPLAIN memakai indeks": FTS→`jobs_fts_gin`, trigram→`jobs_title_trgm`, containment→`jobs_accommodations_gin`, daftar tanpa filter→`jobs_status_published_at`. Bukti mentah (`psql EXPLAIN`, dev DB lokal) di log implementasi.
+* [x] p95 < 200 ms pada 1.000 jobs seed — `jobs-search-db.test.ts` seed 1.000 baris, p95 terukur **2.1 ms** (dev DB lokal Docker; jauh di bawah ambang, lihat log implementasi untuk batasan representativitasnya).
 
 #### Dependencies
 

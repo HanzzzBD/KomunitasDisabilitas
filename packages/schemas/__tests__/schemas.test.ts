@@ -28,6 +28,7 @@ import {
   updateJobSchema,
   jobPublishedEventSchema,
   jobCloseReasonSchema,
+  jobSearchQuerySchema,
   type RequestOtp,
   type SafeProfile,
 } from "../src/index.js";
@@ -430,6 +431,66 @@ describe("lowongan (PR-055)", () => {
 
   it("jobCloseReasonSchema membedakan penutupan otomatis dan oleh admin", () => {
     expect(jobCloseReasonSchema.options).toEqual(["expired", "closed_by_admin"]);
+  });
+});
+
+describe("pencarian lowongan — query (PR-056)", () => {
+  it("tanpa parameter apa pun sah — seluruh filter opsional, limit/cursor bawaan paginationQuerySchema", () => {
+    const hasil = jobSearchQuerySchema.parse({});
+    expect(hasil).toMatchObject({ limit: 20 });
+    expect(hasil.query).toBeUndefined();
+    expect(hasil.city).toBeUndefined();
+    expect(hasil.accommodations).toBeUndefined();
+  });
+
+  it("limit di luar 1–100 ditolak (warisan paginationQuerySchema)", () => {
+    expect(jobSearchQuerySchema.safeParse({ limit: "0" }).success).toBe(false);
+    expect(jobSearchQuerySchema.safeParse({ limit: "101" }).success).toBe(false);
+    expect(jobSearchQuerySchema.safeParse({ limit: "100" }).success).toBe(true);
+  });
+
+  it("workMode hanya menerima taksonomi (onsite/hybrid/remote)", () => {
+    expect(jobSearchQuerySchema.safeParse({ workMode: "remote" }).success).toBe(true);
+    expect(jobSearchQuerySchema.safeParse({ workMode: "dari_rumah" }).success).toBe(false);
+  });
+
+  it("accommodations: satu nilai (query berulang di-parse Express jadi array oleh qs)", () => {
+    const hasil = jobSearchQuerySchema.parse({ accommodations: ["akses_kursi_roda"] });
+    expect(hasil.accommodations).toEqual(["akses_kursi_roda"]);
+  });
+
+  it("accommodations: array berisi banyak nilai", () => {
+    const hasil = jobSearchQuerySchema.parse({
+      accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"],
+    });
+    expect(hasil.accommodations).toEqual(["akses_kursi_roda", "juru_bahasa_isyarat"]);
+  });
+
+  it("accommodations: satu string dipisah koma (?accommodations=a,b) disatukan jadi array", () => {
+    const hasil = jobSearchQuerySchema.parse({
+      accommodations: "akses_kursi_roda,juru_bahasa_isyarat",
+    });
+    expect(hasil.accommodations).toEqual(["akses_kursi_roda", "juru_bahasa_isyarat"]);
+  });
+
+  it("accommodations: nilai di luar taksonomi ditolak", () => {
+    expect(jobSearchQuerySchema.safeParse({ accommodations: ["kursi_pijat"] }).success).toBe(
+      false,
+    );
+    expect(
+      jobSearchQuerySchema.safeParse({ accommodations: "akses_kursi_roda,kursi_pijat" }).success,
+    ).toBe(false);
+  });
+
+  it("accommodations: string kosong → dianggap tidak diisi (undefined), bukan array kosong/[\"\"]", () => {
+    expect(jobSearchQuerySchema.parse({ accommodations: "" }).accommodations).toBeUndefined();
+  });
+
+  it("query/city/province: string kosong ditolak (min 1), lebih dari batas panjang ditolak", () => {
+    expect(jobSearchQuerySchema.safeParse({ query: "" }).success).toBe(false);
+    expect(jobSearchQuerySchema.safeParse({ query: "a".repeat(201) }).success).toBe(false);
+    expect(jobSearchQuerySchema.safeParse({ city: "" }).success).toBe(false);
+    expect(jobSearchQuerySchema.safeParse({ province: "a".repeat(101) }).success).toBe(false);
   });
 });
 

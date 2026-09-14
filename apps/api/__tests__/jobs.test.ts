@@ -110,6 +110,12 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
       rows.splice(idx, 1);
       return Promise.resolve("dihapus");
     },
+
+    // Tidak dipakai berkas ini (PR-055, state machine) — `search()` (PR-056,
+    // raw SQL FTS/trigram/GIN) diuji sendiri di `jobs-search.test.ts`.
+    search: () => {
+      throw new Error("fakeRepo.search tidak dipakai di jobs.test.ts");
+    },
   };
 }
 

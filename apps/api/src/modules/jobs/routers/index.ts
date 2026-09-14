@@ -4,12 +4,26 @@
 // membaca detail lowongan sebelum melamar, sering tanpa sesi — pola sama
 // dengan `/companies/:id` (PR-051). Lima route `/admin/jobs*` berperan admin.
 import type { Router } from "express";
-import { createJobSchema, jobIdParamsSchema, updateJobSchema } from "@nawasena/schemas";
+import {
+  createJobSchema,
+  jobIdParamsSchema,
+  jobSearchQuerySchema,
+  updateJobSchema,
+} from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { JobsController } from "../controllers/jobs.controller.js";
 
 export function createJobsRouter(controller: JobsController, routes: RouteRegistrar): Router {
+  // Terdaftar SEBELUM `/jobs/:id` (daftar sebelum detail) — segmen path
+  // keduanya berbeda jumlah, jadi urutan pendaftaran tidak memengaruhi Express.
+  routes.get(
+    "/jobs",
+    access.public("Pencarian lowongan dilihat kandidat sebelum melamar, sering tanpa sesi"),
+    validate({ query: jobSearchQuerySchema }),
+    asyncHandler(controller.search),
+  );
+
   routes.get(
     "/jobs/:id",
     access.public("Detail lowongan dilihat kandidat sebelum melamar, sering tanpa sesi"),

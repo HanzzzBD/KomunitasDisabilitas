@@ -7,8 +7,10 @@
 // dengan `companies.controller.ts`.
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import type { CreateJob, JobIdParams, UpdateJob } from "@nawasena/schemas";
+import type { CreateJob, JobIdParams, JobSearchQuery, UpdateJob } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
+import { appError } from "../../../core/http/index.js";
+import { KursorTidakValidError } from "../../../core/pagination/index.js";
 import type { JobsActor, JobsService } from "../services/jobs.service.js";
 
 function aktorAdmin(req: Request): JobsActor {
@@ -20,6 +22,21 @@ function aktorAdmin(req: Request): JobsActor {
 
 export function createJobsController(service: JobsService) {
   return {
+    /** GET /api/v1/jobs → 200 halaman hasil pencarian. */
+    async search(req: Request, res: Response): Promise<void> {
+      const query = req.query as unknown as JobSearchQuery;
+      try {
+        res.status(200).json(await service.search(query));
+      } catch (err) {
+        // Cursor rusak adalah kesalahan INPUT — pola sama
+        // `notifications.controller.ts` (`core/pagination` yang sama).
+        if (err instanceof KursorTidakValidError) {
+          throw appError("VALIDATION_ERROR", { hint: "Muat ulang pencarian dari awal" });
+        }
+        throw err;
+      }
+    },
+
     /** GET /api/v1/jobs/:id → 200 profil publik. */
     async getPublic(req: Request, res: Response): Promise<void> {
       const { id } = req.params as unknown as JobIdParams;

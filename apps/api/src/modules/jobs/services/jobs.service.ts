@@ -14,13 +14,22 @@ import {
   type JobAdmin,
   type JobPublic,
   type JobPublicSummary,
+  type JobSearchQuery,
+  type JobSearchResponse,
+  type JobSearchResult,
   type UpdateJob,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import type { EventBus } from "../../../core/events/index.js";
 import { appError } from "../../../core/http/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
-import type { JobRow, JobUpdatePatch, JobsRepository } from "../repositories/jobs.repository.js";
+import { decodeKursor, encodeKursor } from "../../../core/pagination/index.js";
+import type {
+  JobRow,
+  JobSearchRow,
+  JobUpdatePatch,
+  JobsRepository,
+} from "../repositories/jobs.repository.js";
 
 /** Entitas audit modul ini. */
 export const AUDIT_ENTITY = "jobs.job";
@@ -103,6 +112,21 @@ function keProfilAdmin(row: JobRow): JobAdmin {
     expiresAt: keTimestamp(row.expiresAt),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function keHasilPencarian(row: JobSearchRow): JobSearchResult {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    companyName: row.companyName,
+    title: row.title,
+    employmentType: row.employmentType,
+    workMode: row.workMode,
+    city: row.city,
+    province: row.province,
+    accommodations: row.accommodations,
+    publishedAt: row.publishedAt.toISOString(),
   };
 }
 
@@ -252,6 +276,45 @@ export function createJobsService(deps: JobsServiceDeps) {
       if (hasil === "berlamaran") throw appError("LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS");
 
       catatPerubahan(actor, id, "delete");
+    },
+
+    /**
+     * GET /api/v1/jobs — pencarian publik (PR-056, ADR-018).
+     *
+     * Cursor didekode DI SINI (bukan controller) supaya `KursorTidakValidError`
+     * mengikuti pola yang sama dengan `notifications.service.ts`: kesalahan
+     * INPUT yang controller petakan ke 400, bukan lolos ke repository sebagai
+     * `undefined` yang diam-diam berarti "halaman pertama". Mengambil
+     * `limit + 1` baris lalu membuang yang terakhir — pola sama
+     * `notifications.service.ts` — adalah cara mengetahui ada-tidaknya halaman
+     * berikutnya tanpa query hitung kedua.
+     */
+    async search(input: JobSearchQuery): Promise<JobSearchResponse> {
+      const cursor = input.cursor === undefined ? undefined : decodeKursor(input.cursor);
+
+      const rows = await jobsRepository.search({
+        query: input.query,
+        city: input.city,
+        province: input.province,
+        workMode: input.workMode,
+        accommodations: input.accommodations,
+        limit: input.limit + 1,
+        cursor,
+      });
+
+      const adaLagi = rows.length > input.limit;
+      const halaman = adaLagi ? rows.slice(0, input.limit) : rows;
+      const terakhir = halaman.at(-1);
+
+      return {
+        data: halaman.map(keHasilPencarian),
+        meta: {
+          nextCursor:
+            adaLagi && terakhir !== undefined
+              ? encodeKursor({ sortAt: terakhir.publishedAt, id: terakhir.id })
+              : null,
+        },
+      };
     },
   };
 }

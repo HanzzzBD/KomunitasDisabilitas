@@ -16,13 +16,19 @@ import {
   type NotificationType,
 } from "@nawasena/schemas";
 import { uuidV5 } from "../../../core/ids/index.js";
+import { decodeKursor, encodeKursor, type PosisiKursor } from "../../../core/pagination/index.js";
 import type {
+  KursorHalaman,
   NotificationRepository,
   NotificationRow,
   PayloadNotifikasi,
 } from "../repositories/notifications.repository.js";
-import { decodeKursor, encodeKursor } from "./kursor.js";
 import { renderNotifikasi } from "./template.service.js";
+
+/** `PosisiKursor` (generik, field `sortAt`) ↔ `KursorHalaman` (kolom domain modul ini, `createdAt`). */
+function keKursorHalaman(posisi: PosisiKursor): KursorHalaman {
+  return { createdAt: posisi.sortAt, id: posisi.id };
+}
 
 /** Konteks pemanggil — bentuknya sama dengan `AccessibilityActor` (PR-034). */
 export interface NotificationsActor {
@@ -153,7 +159,7 @@ export function createNotificationsService(deps: NotificationsServiceDeps) {
         userId: actor.userId,
         limit: opsi.limit + 1,
         unreadOnly: opsi.unreadOnly,
-        setelah: opsi.cursor === undefined ? undefined : decodeKursor(opsi.cursor),
+        setelah: opsi.cursor === undefined ? undefined : keKursorHalaman(decodeKursor(opsi.cursor)),
       });
 
       const adaLagi = rows.length > opsi.limit;
@@ -165,7 +171,7 @@ export function createNotificationsService(deps: NotificationsServiceDeps) {
         meta: {
           nextCursor:
             adaLagi && terakhir !== undefined
-              ? encodeKursor({ createdAt: terakhir.createdAt, id: terakhir.id })
+              ? encodeKursor({ sortAt: terakhir.createdAt, id: terakhir.id })
               : null,
           // Dihitung SETELAH daftar diambil dan selalu atas seluruh baris —
           // bukan atas halaman ini. Lencana yang berubah angka saat pengguna

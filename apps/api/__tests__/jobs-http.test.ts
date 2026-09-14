@@ -630,13 +630,14 @@ describe("GET /api/v1/admin/jobs — daftar admin", () => {
 });
 
 describe("deklarasi akses route (PR-019)", () => {
-  it("jobs: satu route publik, lima route admin", async () => {
+  it("jobs: dua route publik, lima route admin", async () => {
     const { registry } = await boot();
     const daftar = registry.list();
 
     expect(daftar.map((e) => `${e.method} ${e.path}`).sort()).toEqual([
       "DELETE /api/v1/admin/jobs/:id",
       "GET /api/v1/admin/jobs",
+      "GET /api/v1/jobs",
       "GET /api/v1/jobs/:id",
       "POST /api/v1/admin/jobs",
       "POST /api/v1/admin/jobs/:id/close",
@@ -644,9 +645,11 @@ describe("deklarasi akses route (PR-019)", () => {
       "PUT /api/v1/admin/jobs/:id",
     ]);
 
-    const publik = daftar.find((e) => e.path === "/api/v1/jobs/:id");
-    expect(publik?.access.kind).toBe("public");
-    for (const entri of daftar.filter((e) => e.path !== "/api/v1/jobs/:id")) {
+    const publik = ["/api/v1/jobs", "/api/v1/jobs/:id"];
+    for (const path of publik) {
+      expect(daftar.find((e) => e.path === path)?.access.kind).toBe("public");
+    }
+    for (const entri of daftar.filter((e) => !publik.includes(e.path))) {
       expect(entri.access).toMatchObject({ kind: "role", roles: ["admin"] });
     }
   });
