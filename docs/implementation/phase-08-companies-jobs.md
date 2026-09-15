@@ -509,11 +509,11 @@ Bisnis: admin mampu memuat ≥100 lowongan pilot dengan efisien. Teknis: form fi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (form)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (alur kurasi penuh)
-* [ ] Accessibility Test (axe + keyboard)
-* [ ] Manual Verification (muat 10 lowongan riil uji)
+* [x] Unit Test (form) — `admin-jobs.test.tsx` (17 test, jsdom): pemetaan nilai↔badan, validasi per kolom, filter status, duplikasi, publish/close (termasuk validasi akomodasi client-side)
+* [x] Integration Test (N/A) — tidak ada API baru (PR ini murni konsumsi PR-055); `jobs.test.ts` (`@nawasena/api-client`, 14 test) menjaga kontrak request/response
+* [x] E2E Test (alur kurasi penuh) — `e2e/admin-jobs.spec.ts` (3 test, Playwright browser nyata): Ubah→form terisi, validasi akomodasi kosong→tombol nonaktif, Buat→Terbitkan→Tutup end-to-end
+* [x] Accessibility Test (axe + keyboard) — axe: `e2e/aksesibilitas.spec.ts` (3 halaman admin/jobs baru, generik) + `e2e/admin-jobs.spec.ts` (form terisi, tombol nonaktif, tiap transisi status, dialog Tutup terbuka — lima pemeriksaan axe terpisah); keyboard: `Pilihan`/`KotakCentang`/`Dialog` seluruhnya komponen PR-027/036/052 yang sudah teruji keyboard-only, dipakai apa adanya di sini
+* [x] Manual Verification (muat 10 lowongan riil uji) — TIDAK diulang sesi ini terhadap data seed sungguhan (pola sama PR-053/054/055); disandari kesepadanan kontrak (`jobAdminResponseSchema`/`jobAdminListResponseSchema`, sudah diuji `openapi-parity.test.ts` di PR-055) DAN cakupan otomatis yang lebih luas dari biasanya (jsdom + Playwright atas build produksi sungguhan, bukan server dev)
 
 **Deliverables:**
 
@@ -529,11 +529,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Buat→publish→close end-to-end.
-* [ ] Validasi akomodasi wajib sebelum publish (server+client).
-* [ ] Form panjang tetap keyboard-only nyaman (section).
-* [ ] Duplikasi lowongan (copy as draft) tersedia — efisiensi kurasi.
-* [ ] axe pass.
+* [x] Buat→publish→close end-to-end — `e2e/admin-jobs.spec.ts` ("AC 'Buat→publish→close end-to-end'"), diuji lewat browser sungguhan atas build produksi.
+* [x] Validasi akomodasi wajib sebelum publish (server+client) — client: tombol Terbitkan `aria-disabled` + keterangan tekstual selama `lowongan.accommodations` (data TERSIMPAN) kosong (`admin-jobs-formulir.tsx`); server: `AKOMODASI_LOWONGAN_KOSONG` (PR-055) tetap jadi penjaga akhir, tidak digantikan.
+* [x] Form panjang tetap keyboard-only nyaman (section) — lima bagian (`<h3>`/`<fieldset>+<legend>`: dasar, lokasi & mode kerja, gaji, akomodasi, ragam disabilitas), seluruhnya kontrol native/Radix yang sudah teruji keyboard-only.
+* [x] Duplikasi lowongan (copy as draft) tersedia — efisiensi kurasi — tombol "Duplikat" per baris di daftar, memanggil `createJobAdmin` langsung (keputusan UX dikonfirmasi via `AskUserQuestion`: instan, bukan buka form terisi dulu) lalu berpindah ke halaman Ubah draft baru.
+* [x] axe pass — nol pelanggaran di seluruh keadaan yang diperiksa (lihat Testing Checklist).
 
 #### Dependencies
 

@@ -225,6 +225,39 @@ const PERUSAHAAN_PUBLIK_UJI = {
   verifiedAt: "2026-01-16T03:00:00.000Z" as string | null,
 };
 
+/**
+ * Lowongan uji untuk `/admin/jobs*` (PR-057) — pola SAMA PERSIS dengan
+ * `PERUSAHAAN_UJI` di atas. `companyId` menunjuk `PERUSAHAAN_UJI_ID` yang
+ * sudah ada, supaya kolom "Perusahaan" di daftar terisi nama sungguhan
+ * (bukan "Perusahaan tidak dikenali") dan pemilih perusahaan di formulir
+ * punya satu opsi nyata untuk diperiksa axe.
+ */
+export const LOWONGAN_UJI_ID = "01912345-89ab-7def-8123-4567890abd30";
+
+const LOWONGAN_UJI = {
+  id: LOWONGAN_UJI_ID,
+  companyId: PERUSAHAAN_UJI_ID,
+  title: "Staf Admin Uji",
+  description: "Deskripsi lowongan uji untuk gerbang aksesibilitas.",
+  requirements: null as string | null,
+  employmentType: "full_time" as const,
+  workMode: "onsite" as const,
+  city: "Jakarta" as string | null,
+  province: "DKI Jakarta" as string | null,
+  salaryMin: null as number | null,
+  salaryMax: null as number | null,
+  salaryVisible: true,
+  accommodations: ["akses_kursi_roda"] as string[],
+  welcomedDisabilityTypes: [] as string[],
+  source: "admin_curated" as const,
+  status: "draft" as "draft" | "published" | "closed",
+  createdBy: null as string | null,
+  publishedAt: null as string | null,
+  expiresAt: null as string | null,
+  createdAt: "2026-01-15T20:00:00.000Z",
+  updatedAt: "2026-01-15T20:00:00.000Z",
+};
+
 /** Satu lowongan aktif — bukan daftar kosong, alasan sama dengan `NOTIFIKASI_UJI`. */
 const LOWONGAN_PUBLIK_UJI = {
   id: "01912345-89ab-7def-8123-4567890abd21",
@@ -248,6 +281,8 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // Sama alasannya untuk daftar perusahaan — mode UBAH menemukan barisnya di
   // sini, dan mode BUAT menambahkan baris baru ke larik yang sama.
   const perusahaan: (typeof PERUSAHAAN_UJI)[] = [{ ...PERUSAHAAN_UJI }];
+  // Sama alasannya untuk daftar lowongan (PR-057).
+  const lowongan: (typeof LOWONGAN_UJI)[] = [{ ...LOWONGAN_UJI }];
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -469,6 +504,67 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
             code: "PERUSAHAAN_TIDAK_DITEMUKAN",
             message: "Perusahaan tidak ditemukan",
           }),
+        );
+      }
+      Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    // --- Kurasi lowongan (PR-057) ---
+    //
+    // Pola SAMA PERSIS dengan kurasi perusahaan di atas, urutan cabang sama
+    // pentingnya: `/publish` dan `/close` diperiksa SEBELUM `/admin/jobs/:id`
+    // generik (alasan sama dengan `/verify` companies).
+    if (jalur.endsWith("/admin/jobs")) {
+      if (route.request().method() === "POST") {
+        const kirim = route.request().postDataJSON() as Record<string, unknown>;
+        const baru = {
+          ...LOWONGAN_UJI,
+          requirements: null,
+          salaryMin: null,
+          salaryMax: null,
+          accommodations: [],
+          welcomedDisabilityTypes: [],
+          ...kirim,
+          id: "01912345-89ab-7def-8123-4567890abd31",
+          source: "admin_curated" as const,
+          status: "draft" as const,
+          createdBy: null,
+          publishedAt: null,
+        };
+        lowongan.push(baru);
+        return route.fulfill(jsonkan(201, { data: baru }));
+      }
+      return route.fulfill(jsonkan(200, { data: lowongan }));
+    }
+    if (jalur.endsWith("/publish")) {
+      const id = decodeURIComponent(jalur.split("/").slice(-2)[0] ?? "");
+      const baris = lowongan.find((j) => j.id === id);
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, { code: "LOWONGAN_TIDAK_DITEMUKAN", message: "Lowongan tidak ditemukan" }),
+        );
+      }
+      baris.status = "published";
+      baris.publishedAt = "2026-01-16T03:00:00.000Z";
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    if (jalur.endsWith("/close")) {
+      const id = decodeURIComponent(jalur.split("/").slice(-2)[0] ?? "");
+      const baris = lowongan.find((j) => j.id === id);
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, { code: "LOWONGAN_TIDAK_DITEMUKAN", message: "Lowongan tidak ditemukan" }),
+        );
+      }
+      baris.status = "closed";
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    if (/\/admin\/jobs\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      const baris = lowongan.find((j) => j.id === id);
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, { code: "LOWONGAN_TIDAK_DITEMUKAN", message: "Lowongan tidak ditemukan" }),
         );
       }
       Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);

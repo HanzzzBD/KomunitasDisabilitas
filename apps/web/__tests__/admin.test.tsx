@@ -172,12 +172,24 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("navigasi punya DUA entri: Ringkasan dan Perusahaan", async () => {
+  it("panel ringkasan menautkan ke bagian Lowongan (PR-057)", async () => {
+    renderAdmin();
+
+    expect(
+      await screen.findByRole("heading", { level: 3, name: "Lowongan" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Buka daftar lowongan" })).toHaveAttribute(
+      "href",
+      "/admin/jobs",
+    );
+  });
+
+  it("navigasi punya TIGA entri: Ringkasan, Perusahaan, dan Lowongan", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
     const nav = screen.getByRole("navigation", { name: "Bagian admin" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(2);
+    expect(within(nav).getAllByRole("link")).toHaveLength(3);
   });
 });
 

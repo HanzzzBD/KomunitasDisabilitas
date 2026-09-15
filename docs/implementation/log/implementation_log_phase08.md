@@ -1064,3 +1064,207 @@ ruang toleransi besar terhadap perbedaan spek mesin.
   klik dari hasil PR-058.
 
 ---
+
+## PR-057 — Admin Jobs FE
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-057---admin-jobs-fe)
+> **Tanggal:** 2026-09-15
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`/admin/jobs` (daftar + filter status + duplikasi), `/admin/jobs/baru`, dan
+`/admin/jobs/:id` (form + Terbitkan + Tutup) — UI kurasi lowongan penuh,
+konsumen PERTAMA endpoint `/admin/jobs*` (PR-055). Pola strukturalnya SAMA
+PERSIS dengan kurasi perusahaan (PR-053): halaman daftar terpisah dari
+halaman form (bukan state lokal), form Buat/Ubah satu komponen, aksi status
+(Terbitkan/Tutup) terpisah dari "Simpan" — perbedaannya hanya di detail
+domain (lebih banyak field, dua aksi status alih-alih satu "verify", dan satu
+aksi baru yang tidak dipunyai companies: duplikasi).
+
+Tiga keputusan yang membentuk seluruh sisanya:
+
+**1. Duplikasi LANGSUNG memanggil API dari daftar, TANPA jeda konfirmasi
+maupun form terisi dulu — dikonfirmasi via `AskUserQuestion` sebelum
+implementasi.** Dua pilihan yang diajukan: (a) klik "Duplikat" langsung
+membuat draft baru lalu membuka halaman Ubah-nya, atau (b) membuka halaman
+Tambah dengan field sudah terisi salinan, menunggu admin menekan Simpan.
+Dipilih (a) — AC sendiri menyebut alasannya "efisiensi kurasi", dan opsi (b)
+menambah satu langkah tanpa AC yang memintanya. Biaya kesalahan rendah:
+hasilnya draft baru yang belum terbit dan belum terlihat siapa pun, jadi
+tidak butuh dialog konfirmasi seperti "Tutup" (yang berdampak pelamar
+sungguhan).
+
+**2. Validasi akomodasi wajib sebelum publish diperiksa atas DATA TERSIMPAN
+(`lowongan.accommodations` dari `listJobsAdmin`), BUKAN isian form yang
+belum disimpan.** Tombol Terbitkan operasinya tanpa badan (`POST .../publish`
+tidak mengirim apa pun, PR-055) — yang benar-benar diterbitkan server adalah
+baris yang SUDAH tersimpan, bukan apa yang sedang diketik admin. Memeriksa
+`nilai.accommodations` (state form) akan membuat tombol tampak siap padahal
+perubahannya belum ditekan Simpan — cacat "yang terlihat siap bukan yang
+sungguh siap" yang sama jenisnya dengan yang dihindari `companies-formulir.tsx`
+soal status verifikasi.
+
+**3. Pemilih Perusahaan SELALU dirender (kedua mode), NONAKTIF di mode
+UBAH — bukan disembunyikan.** `updateJobSchema` menolak `companyId` sama
+sekali (lowongan tidak berpindah pemilik, PR-055), tetapi menyembunyikan
+field itu total di mode ubah akan membuat admin kehilangan konteks
+"lowongan ini milik perusahaan mana" saat menyunting. Pemilih yang sama,
+dinonaktifkan + kalimat penjelas ("Perusahaan tidak bisa diubah setelah
+lowongan dibuat"), memberi konteks tanpa membuka jalur ubah yang tidak ada
+di server.
+
+Utang teknis DUA hal ditemukan dan diselesaikan LANGSUNG dalam sesi ini,
+dicatat di sini karena keduanya berpotensi menjebak pekerjaan berikutnya yang
+memakai `Pilihan` (Radix Select, @nawasena/ui) dalam test jsdom:
+
+* **jsdom tidak mengimplementasikan Pointer Events API** (`hasPointerCapture`
+  dkk.) yang dipakai Radix Select untuk membuka/menutup listbox-nya. Tanpa
+  stub, `userEvent.click` pada pemicu `Pilihan` melempar `TypeError` SEBELUM
+  listbox-nya sempat terbuka — dan itulah kenapa test yang sudah ada
+  (`profil.test.tsx`) sengaja hanya mem-fokus kombobox-nya, tidak pernah
+  membukanya lewat klik. `admin-jobs.test.tsx` adalah test PERTAMA yang
+  benar-benar membuka `Pilihan` lewat klik (AC "buat→publish→close" menuntut
+  `companyId` benar-benar terpilih sebelum submit diuji) — stub `hasPointerCapture`/
+  `setPointerCapture`/`releasePointerCapture`/`scrollIntoView` ditambahkan
+  LOKAL di berkas itu (bukan `__tests__/setup.ts` global), supaya jejaknya
+  jelas bagi siapa pun yang membaca berkas ini kelak butuh pola yang sama.
+* **Gerbang a11y (Playwright) menyajikan `dist/` HASIL BUILD, bukan server
+  dev** ([[gerbang-a11y-butuh-build]], sudah tercatat di memori lintas-sesi
+  sebelum PR ini, dikonfirmasi ulang di sini) — `pnpm build` WAJIB dijalankan
+  sebelum `playwright test` setiap kali route/komponen baru ditambahkan,
+  kalau tidak seluruh halaman baru gagal "waitForSelector" karena `dist/`
+  lama tidak mengenal rute itu sama sekali.
+
+Gate hijau: `pnpm typecheck`/`pnpm lint` bersih di `@nawasena/web`,
+`@nawasena/api-client`, `@nawasena/schemas` (tidak disentuh isinya, hanya
+dikonsumsi). `@nawasena/web` **50 berkas / 651 test lulus** (vitest) + **83
+test Playwright lulus** (a11y generik + `admin-jobs.spec.ts` + regresi
+`admin-companies.spec.ts`). `@nawasena/api-client` **10 berkas / 100 test
+lulus**. `cek:budget`: chunk `admin-jobs`/`admin-jobs-formulir` lazy
+terpisah, budget JS awal 111,3 KB/200 KB (tidak berubah — seeker tidak
+mengunduh apa pun dari PR ini).
+
+### Scope selesai
+
+**`packages/api-client`**
+
+* **`endpoints/jobs.ts`** (baru) — `listJobsAdmin`, `createJobAdmin`,
+  `updateJobAdmin`, `publishJobAdmin`, `closeJobAdmin`, `jobsKeys.adminList()`.
+  TIDAK ADA `getJobAdmin` (server tidak menyediakan GET satu lowongan admin,
+  pola sama `companies.ts`) dan TIDAK ADA `deleteJobAdmin` (server punya
+  `DELETE /admin/jobs/:id`, PR-055, tetapi PR-057 tidak punya AC yang
+  memintanya di UI — "Tutup" adalah satu-satunya jalur resmi menyingkirkan
+  lowongan dari sini).
+* **`__tests__/jobs.test.ts`** (baru, 14 test) — amplop `{ data }`, validasi
+  client SEBELUM berangkat (judul kosong, `companyId` bukan UUID, taksonomi
+  liar, `salaryMin > salaryMax`, `status`/`companyId` ditolak di
+  `updateJobAdmin`), `publish`/`close` tanpa badan.
+
+**`apps/web/src/features/admin/`**
+
+* **`jobs-badan.ts`** (baru) — `NilaiLowongan` (`salaryMin`/`salaryMax`
+  sebagai STRING, pola sama field teks lain), `keNilai`/`keBadanBuat`/
+  `keBadanUbah` (`keBadanUbah` MEMBUANG `companyId` — TIDAK sama dengan
+  `keBadanBuat` seperti pola companies, karena `companyId` memang hilang dari
+  kontrak update), `keBadanDuplikat` (keputusan #1).
+* **`jobs-formulir.tsx`** (baru) — `FormulirLowongan`: lima bagian
+  (`<h3>`/`fieldset+legend`), pemilih Perusahaan (keputusan #3), taksonomi
+  akomodasi (`KUNCI_AKOMODASI`, disalin dari `companies-formulir.tsx` — pola
+  duplikasi mapping-kecil yang sudah mapan di modul ini) dan ragam disabilitas
+  (`RAGAM` DIPINJAM dari `features/onboarding/langkah-ragam-disabilitas.tsx`,
+  `KUNCI_RAGAM` dirakit persis seperti `bagian-sensitif.tsx`).
+* **`jobs-status-badge.tsx`**, **`jobs-pesan-galat.ts`** (baru) — pola sama
+  persis `companies-status-badge.tsx`/`companies-pesan-galat.ts`.
+* **`jobs-daftar.tsx`** (baru) — `DaftarLowongan`: JOIN client-side dengan
+  `listCompaniesAdmin` untuk kolom "Perusahaan" (`JobAdmin` hanya menyimpan
+  `companyId`), filter status (`Pilihan` dibungkus `KolomForm` — bukan
+  komponen `Tab`, sebab `Tab` Radix MELEPAS panel tak-aktif dari DOM, cocok
+  untuk konten berbeda per tab, bukan untuk memfilter SATU tabel bersama),
+  aksi Duplikat (keputusan #1).
+* **`index.ts`** — diperluas, ekspor jobs di-alias (`NILAI_LOWONGAN_KOSONG`,
+  dst.) supaya tidak bentrok nama dengan ekspor companies yang sudah ada di
+  barrel yang sama.
+
+**`apps/web/src/routes/`**
+
+* **`admin-jobs.tsx`** (baru) — delegasi murni ke `DaftarLowongan`, pola sama
+  `admin-companies.tsx`.
+* **`admin-jobs-formulir.tsx`** (baru) — `AdminJobsFormulir`: mode buat/ubah
+  satu komponen, `perbaruiBaris` (cache TanStack), tiga `useMutation`
+  (simpan/terbitkan/tutup), validasi akomodasi client (keputusan #2), dialog
+  Tutup (Security Considerations "Konfirmasi close, berdampak pelamar") —
+  Terbitkan SENGAJA tanpa dialog (dokumen phase hanya minta konfirmasi untuk
+  close).
+* **`admin.tsx`** — `SEKSI` +1 entri ("Lowongan"), `AdminRingkasan` +1 kartu.
+* **`app/routes.ts`** — tiga route baru di bawah `admin` (`jobs`,
+  `jobs/baru`, `jobs/:id`), `muatKatalog("admin")` untuk daftar,
+  `muatKatalog("admin", "profil", "onboarding")` untuk form (label akomodasi
+  + ragam disabilitas dipinjam dari kedua katalog itu).
+
+**`apps/web/src/shared/i18n/katalog/admin.ts`**
+
+* ~70 kunci baru di bawah `admin.jobs.*` + `admin.nav.jobs` +
+  `admin.ringkasan.jobs.*`. `id-simple` ditulis genuine untuk kalimat
+  bermakna (pesan hasil aksi, keterangan validasi); label pendek yang
+  memang sudah sehari-hari (nama kolom, "Simpan"/"Batal", dst.) didaftarkan
+  di `SAMA_DENGAN_SENGAJA` (`katalog-kelengkapan.test.ts`) mengikuti pola
+  persis yang sudah ada untuk `admin.companies.*`.
+
+**Test (3 berkas baru)**
+
+* `admin-jobs.test.tsx` (17 test, jsdom) — daftar (baris+badge+nama
+  perusahaan, kosong, filter status, aria-label Ubah, duplikasi), form buat
+  (validasi judul/companyId, submit sukses+redirect), form ubah (terisi,
+  tidak-ditemukan, pemilih perusahaan nonaktif, PUT tanpa companyId),
+  terbitkan (tombol nonaktif+keterangan saat akomodasi kosong, sukses),
+  tutup (dialog wajib, konfirmasi, batal). Butuh stub Pointer Events API
+  (utang #1 di atas).
+* `e2e/admin-jobs.spec.ts` (3 test, Playwright) — Ubah→form terisi+axe,
+  validasi akomodasi kosong (tombol nonaktif, browser nyata), AC penuh
+  Buat→Terbitkan→Tutup dengan axe di SETIAP keadaan (terbit, dialog tutup).
+* `e2e/palsukan-api.ts` — `LOWONGAN_UJI`/`LOWONGAN_UJI_ID` + rute
+  `/admin/jobs*` (list/create/publish/close/update), pola sama persis blok
+  `PERUSAHAAN_UJI`.
+* `e2e/halaman.ts` — tiga entri baru (daftar, tambah, ubah-tidak-ditemukan),
+  pola sama persis blok companies.
+* `admin.test.tsx` — assertion jumlah entri nav diperbarui (2→3) + satu test
+  baru untuk kartu ringkasan Lowongan.
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Duplikasi langsung panggil API, tanpa form/dialog | AC sendiri menyebut "efisiensi kurasi"; biaya kesalahan rendah (hasilnya draft, belum terlihat siapa pun) | Buka form Tambah terisi salinan, tunggu admin menyimpan — ditanyakan ke user via `AskUserQuestion`, dijawab eksplisit: langsung |
+| Validasi publish atas data TERSIMPAN, bukan state form | Yang benar-benar diterbitkan server adalah baris tersimpan (`POST .../publish` tanpa badan) — memeriksa state form berisiko tombol tampak siap padahal belum disimpan | Memeriksa `nilai.accommodations` (state form) — ditolak; false positive saat admin sedang mengetik tapi belum menyimpan |
+| Pemilih Perusahaan selalu tampil, nonaktif di mode ubah | Admin butuh konteks kepemilikan lowongan saat menyunting, meski tidak bisa diubah | Sembunyikan field sepenuhnya di mode ubah (pola sama status verifikasi companies) — ditolak; companyId BEDA dari status verifikasi: yang satu identitas kepemilikan (perlu selalu terlihat), yang lain state kurasi (memang seharusnya tersembunyi dari form biasa) |
+| Filter status pakai `Pilihan` dibungkus `KolomForm`, bukan `Tab` | `Tab` Radix melepas panel tak-aktif dari DOM — cocok konten BERBEDA per tab, bukan memfilter SATU tabel yang sama | Komponen `Tab` (PR-028) untuk filter status — ditolak; salah abstraksi, akan melepas-pasang tabel yang sama setiap ganti filter |
+
+### Risiko & batas yang diketahui
+
+* **Stub Pointer Events API lokal, bukan `__tests__/setup.ts` global** —
+  hanya `admin-jobs.test.tsx` yang membutuhkannya hari ini. Bila test
+  berikutnya perlu membuka `Pilihan` lewat klik, pertimbangkan memindahkan
+  stub ini ke `setup.ts` supaya tidak diduplikasi berkas demi berkas —
+  belum dilakukan sesi ini karena baru SATU pemakai.
+* **Manual verification (10 lowongan riil) TIDAK diulang sesi ini** — pola
+  sama PR-053/054/055; disandari kesepadanan kontrak + cakupan otomatis
+  lebih luas dari biasanya (jsdom DAN Playwright atas build produksi).
+* **Tidak ada bulk import CSV** — di luar scope PRD/SDD (dicatat dokumen
+  phase sebagai usulan, bukan utang).
+* **Peringatan React "duplicate key" muncul di satu test jsdom** (aksi
+  duplikasi) akibat fake client test meniru array by-reference sekaligus
+  `setQueryData` manual di komponen — pola yang SAMA dengan
+  `admin-companies-formulir.tsx` (`perbaruiBaris` tanpa dedup check), bukan
+  regresi baru; tidak mempengaruhi hasil test (React warning, bukan error).
+
+### Next steps
+
+* **PR-058** — Web Jobs Browse — TIDAK bergantung pada PR-057 (mengonsumsi
+  `GET /jobs` publik dari PR-056, bukan `/admin/jobs*`).
+* **PR-077/081/083/085** — Fitur admin berikutnya (disebut komentar
+  `admin.tsx` sejak PR-052) akan menambah entri `SEKSI` + kartu ringkasan,
+  pola yang sama persis dengan yang PR-053 dan PR-057 sudah tunjukkan dua
+  kali berturut-turut.
+
+---

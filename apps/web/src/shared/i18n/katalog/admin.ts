@@ -28,6 +28,11 @@ export const katalogAdmin = {
     id: "Perusahaan",
     "id-simple": "Perusahaan",
   },
+  "admin.nav.jobs": {
+    // Harus SAMA dengan `admin.jobs.judul` — alasan sama dengan `admin.nav.companies`.
+    id: "Lowongan",
+    "id-simple": "Lowongan",
+  },
   "admin.memuat": {
     id: "Memeriksa hak akses Anda…",
     "id-simple": "Sebentar, kami cek dulu hak akses Anda…",
@@ -59,6 +64,18 @@ export const katalogAdmin = {
   "admin.ringkasan.companies.tautan": {
     id: "Buka daftar perusahaan",
     "id-simple": "Buka daftar perusahaan",
+  },
+  "admin.ringkasan.jobs.judul": {
+    id: "Lowongan",
+    "id-simple": "Lowongan",
+  },
+  "admin.ringkasan.jobs.penjelasan": {
+    id: "Tambah, ubah, terbitkan, dan tutup lowongan kerja.",
+    "id-simple": "Buat lowongan baru. Anda juga bisa mengubah, menerbitkan, atau menutupnya.",
+  },
+  "admin.ringkasan.jobs.tautan": {
+    id: "Buka daftar lowongan",
+    "id-simple": "Buka daftar lowongan",
   },
 
   // --- Kurasi perusahaan (PR-053) ---
@@ -188,7 +205,8 @@ export const katalogAdmin = {
     // Menjelaskan KENAPA pilihannya cuma dua, bukan tiga — admin yang berharap
     // bisa memilih "Terverifikasi" di sini perlu tahu jalan yang benar.
     id: "Untuk menandai perusahaan sebagai terverifikasi, gunakan tombol Verifikasi di bawah, bukan pilihan ini.",
-    "id-simple": "Mau menandai 'Terverifikasi'? Pakai tombol Verifikasi di bawah, bukan pilihan ini.",
+    "id-simple":
+      "Mau menandai 'Terverifikasi'? Pakai tombol Verifikasi di bawah, bukan pilihan ini.",
   },
   "admin.companies.form.simpan": {
     id: "Simpan",
@@ -252,5 +270,323 @@ export const katalogAdmin = {
   "admin.companies.verifikasi.berhasil": {
     id: "{nama} sudah terverifikasi.",
     "id-simple": "{nama} sudah ditandai selesai diperiksa.",
+  },
+
+  // --- Kurasi lowongan (PR-057) ---
+  "admin.jobs.judul": {
+    id: "Lowongan",
+    "id-simple": "Lowongan",
+  },
+  "admin.jobs.penjelasan": {
+    id: "Kelola lowongan kerja: buat, ubah, terbitkan, dan tutup.",
+    "id-simple": "Atur lowongan kerja. Anda bisa membuat, mengubah, menerbitkan, atau menutupnya.",
+  },
+  "admin.jobs.tambah": {
+    id: "Tambah lowongan",
+    "id-simple": "Tambah lowongan",
+  },
+  "admin.jobs.tabelJudul": {
+    id: "Daftar lowongan",
+    "id-simple": "Daftar lowongan",
+  },
+  "admin.jobs.kolom.judul": {
+    id: "Judul",
+    "id-simple": "Judul",
+  },
+  "admin.jobs.kolom.perusahaan": {
+    id: "Perusahaan",
+    "id-simple": "Perusahaan",
+  },
+  "admin.jobs.kolom.perusahaanTakDikenal": {
+    // Keadaan pagar: `companyId` menunjuk baris yang belum/tidak ada di
+    // daftar perusahaan yang sedang di-cache (mis. baru dibuat di tab lain).
+    // Kolom tidak boleh kosong tanpa keterangan — sel kosong terbaca screen
+    // reader sebagai "tidak ada apa-apa", bukan "namanya belum diketahui".
+    id: "Perusahaan tidak dikenali",
+    "id-simple": "Nama perusahaan belum diketahui",
+  },
+  "admin.jobs.kolom.status": {
+    id: "Status",
+    "id-simple": "Status",
+  },
+  "admin.jobs.kolom.aksi": {
+    id: "Aksi",
+    "id-simple": "Aksi",
+  },
+  "admin.jobs.ubah": {
+    id: "Ubah",
+    "id-simple": "Ubah",
+  },
+  "admin.jobs.ubahLabel": {
+    id: "Ubah {judul}",
+    "id-simple": "Ubah {judul}",
+  },
+  "admin.jobs.duplikat": {
+    id: "Duplikat",
+    "id-simple": "Buat salinan",
+  },
+  "admin.jobs.duplikatLabel": {
+    id: "Duplikat {judul}",
+    "id-simple": "Buat salinan {judul}",
+  },
+  "admin.jobs.memuat": {
+    id: "Memuat daftar lowongan…",
+    "id-simple": "Sebentar, daftar lowongan sedang dibuka…",
+  },
+  "admin.jobs.gagalMuat": {
+    id: "Daftar lowongan belum bisa ditampilkan.",
+    "id-simple": "Daftar lowongan gagal dibuka.",
+  },
+  "admin.jobs.cobaLagi": {
+    id: "Coba lagi",
+    "id-simple": "Coba lagi",
+  },
+  "admin.jobs.kosong.judul": {
+    id: "Belum ada lowongan",
+    "id-simple": "Belum ada lowongan",
+  },
+  "admin.jobs.kosong.penjelasan": {
+    id: "Tambahkan lowongan pertama untuk mulai menerima lamaran.",
+    "id-simple": "Tambah lowongan pertama Anda di sini.",
+  },
+
+  "admin.jobs.filterStatus.label": {
+    id: "Saring berdasarkan status",
+    "id-simple": "Tampilkan lowongan dengan status",
+  },
+  "admin.jobs.filterStatus.semua": {
+    id: "Semua status",
+    "id-simple": "Semua",
+  },
+  "admin.jobs.filterStatus.draft": {
+    id: "Draf",
+    "id-simple": "Belum selesai (draf)",
+  },
+  "admin.jobs.filterStatus.published": {
+    id: "Diterbitkan",
+    "id-simple": "Sudah terbit",
+  },
+  "admin.jobs.filterStatus.closed": {
+    id: "Ditutup",
+    "id-simple": "Sudah ditutup",
+  },
+
+  "admin.jobs.status.draft": {
+    id: "Draf",
+    "id-simple": "Belum selesai (draf)",
+  },
+  "admin.jobs.status.published": {
+    id: "Diterbitkan",
+    "id-simple": "Sudah terbit",
+  },
+  "admin.jobs.status.closed": {
+    id: "Ditutup",
+    "id-simple": "Sudah ditutup",
+  },
+
+  "admin.jobs.form.judulBuat": {
+    id: "Tambah lowongan",
+    "id-simple": "Tambah lowongan",
+  },
+  "admin.jobs.form.judulUbah": {
+    id: "Ubah {judul}",
+    "id-simple": "Ubah {judul}",
+  },
+  "admin.jobs.form.tidakDitemukan": {
+    id: "Lowongan itu tidak ditemukan.",
+    "id-simple": "Lowongan itu tidak ada.",
+  },
+  "admin.jobs.form.kembaliKeDaftar": {
+    id: "Kembali ke daftar lowongan",
+    "id-simple": "Kembali ke daftar lowongan",
+  },
+  "admin.jobs.form.bagianDasar": {
+    id: "Informasi dasar",
+    "id-simple": "Informasi dasar",
+  },
+  "admin.jobs.form.perusahaan": {
+    id: "Perusahaan",
+    "id-simple": "Perusahaan",
+  },
+  "admin.jobs.form.perusahaanPlaceholder": {
+    id: "Pilih perusahaan",
+    "id-simple": "Pilih perusahaan",
+  },
+  "admin.jobs.form.perusahaanTakBisaDiubah": {
+    id: "Perusahaan tidak bisa diubah setelah lowongan dibuat.",
+    "id-simple": "Anda tidak bisa mengganti perusahaan lowongan yang sudah dibuat.",
+  },
+  "admin.jobs.form.judul": {
+    id: "Judul lowongan",
+    "id-simple": "Judul lowongan",
+  },
+  "admin.jobs.form.deskripsi": {
+    id: "Deskripsi",
+    "id-simple": "Cerita tentang pekerjaan ini",
+  },
+  "admin.jobs.form.persyaratan": {
+    id: "Persyaratan",
+    "id-simple": "Syarat yang dicari",
+  },
+  "admin.jobs.form.persyaratanBantuan": {
+    id: "Opsional — tuliskan kualifikasi atau pengalaman yang dicari.",
+    "id-simple": "Boleh dikosongkan. Tulis di sini kalau ada syarat khusus.",
+  },
+  "admin.jobs.form.jenisPekerjaanLabel": {
+    id: "Jenis pekerjaan",
+    "id-simple": "Jenis pekerjaan",
+  },
+  "admin.jobs.form.jenisPekerjaan.fullTime": {
+    id: "Penuh waktu",
+    "id-simple": "Kerja penuh waktu",
+  },
+  "admin.jobs.form.jenisPekerjaan.partTime": {
+    id: "Paruh waktu",
+    "id-simple": "Kerja paruh waktu",
+  },
+  "admin.jobs.form.jenisPekerjaan.contract": {
+    id: "Kontrak",
+    "id-simple": "Kerja kontrak",
+  },
+  "admin.jobs.form.jenisPekerjaan.internship": {
+    id: "Magang",
+    "id-simple": "Magang",
+  },
+  "admin.jobs.form.jenisPekerjaan.freelance": {
+    id: "Lepas (freelance)",
+    "id-simple": "Kerja lepas, tidak terikat kantor",
+  },
+  "admin.jobs.form.bagianLokasi": {
+    id: "Lokasi dan mode kerja",
+    "id-simple": "Lokasi dan cara kerja",
+  },
+  "admin.jobs.form.modeKerjaLabel": {
+    id: "Mode kerja",
+    "id-simple": "Cara kerja",
+  },
+  "admin.jobs.form.modeKerja.onsite": {
+    id: "Di kantor (on-site)",
+    "id-simple": "Kerja di kantor",
+  },
+  "admin.jobs.form.modeKerja.hybrid": {
+    id: "Campuran (hybrid)",
+    "id-simple": "Kadang di kantor, kadang di rumah",
+  },
+  "admin.jobs.form.modeKerja.remote": {
+    id: "Jarak jauh (remote)",
+    "id-simple": "Kerja dari rumah",
+  },
+  "admin.jobs.form.kota": {
+    id: "Kota",
+    "id-simple": "Kota",
+  },
+  "admin.jobs.form.provinsi": {
+    id: "Provinsi",
+    "id-simple": "Provinsi",
+  },
+  "admin.jobs.form.bagianGaji": {
+    id: "Gaji",
+    "id-simple": "Gaji",
+  },
+  "admin.jobs.form.gajiMin": {
+    id: "Gaji minimum (Rp/bulan)",
+    "id-simple": "Gaji paling rendah, per bulan (Rupiah)",
+  },
+  "admin.jobs.form.gajiMax": {
+    id: "Gaji maksimum (Rp/bulan)",
+    "id-simple": "Gaji paling tinggi, per bulan (Rupiah)",
+  },
+  "admin.jobs.form.gajiTampil": {
+    id: "Tampilkan gaji ke publik",
+    "id-simple": "Tunjukkan gaji ke semua orang",
+  },
+  "admin.jobs.form.gajiTampilBantuan": {
+    id: "Bila dimatikan, gaji tersimpan tetapi tidak tampil di halaman lowongan.",
+    "id-simple": "Kalau ini dimatikan, gaji tetap tersimpan. Hanya saja tidak ditampilkan.",
+  },
+  "admin.jobs.form.akomodasiLegenda": {
+    id: "Akomodasi untuk posisi ini",
+    "id-simple": "Bantuan yang tersedia untuk posisi ini",
+  },
+  "admin.jobs.form.ragamLegenda": {
+    id: "Ragam disabilitas yang disambut",
+    "id-simple": "Disabilitas yang boleh melamar posisi ini",
+  },
+  "admin.jobs.form.simpan": {
+    id: "Simpan",
+    "id-simple": "Simpan",
+  },
+  "admin.jobs.form.menyimpan": {
+    id: "Menyimpan…",
+    "id-simple": "Sebentar, sedang disimpan…",
+  },
+  "admin.jobs.form.batal": {
+    id: "Batal",
+    "id-simple": "Batal",
+  },
+  "admin.jobs.form.diubah": {
+    id: "Perubahan pada {judul} sudah tersimpan.",
+    "id-simple": "Perubahan pada {judul} sudah disimpan.",
+  },
+  "admin.jobs.galat.periksaKolom": {
+    id: "Periksa kembali kolom yang ditandai di bawah.",
+    "id-simple": "Cek lagi kolom yang ditandai merah.",
+  },
+  "admin.jobs.galat.tidakDitemukan": {
+    id: "Lowongan ini sudah tidak ada — mungkin dihapus dari tempat lain.",
+    "id-simple": "Lowongan ini sudah tidak ada.",
+  },
+
+  "admin.jobs.terbitkan.tombol": {
+    id: "Terbitkan lowongan ini",
+    "id-simple": "Terbitkan, supaya orang bisa melamar",
+  },
+  "admin.jobs.terbitkan.sedang": {
+    id: "Menerbitkan…",
+    "id-simple": "Sebentar, sedang diterbitkan…",
+  },
+  "admin.jobs.terbitkan.akomodasiWajib": {
+    // AC PR-057 "Validasi akomodasi wajib sebelum publish (server+client)" —
+    // kalimat inilah yang menjelaskan KENAPA tombolnya nonaktif, bukan
+    // sekadar membiarkannya abu-abu tanpa keterangan.
+    id: "Tambahkan minimal satu akomodasi sebelum bisa menerbitkan lowongan ini.",
+    "id-simple": "Anda perlu memilih paling sedikit satu akomodasi dulu, baru bisa terbit.",
+  },
+  "admin.jobs.terbitkan.berhasil": {
+    id: "{judul} sudah diterbitkan.",
+    "id-simple": "{judul} sudah terbit.",
+  },
+
+  "admin.jobs.tutup.tombol": {
+    id: "Tutup lowongan ini",
+    "id-simple": "Tutup lowongan ini",
+  },
+  "admin.jobs.tutup.sedang": {
+    id: "Menutup…",
+    "id-simple": "Sebentar, sedang ditutup…",
+  },
+  "admin.jobs.tutup.dialogJudul": {
+    id: "Tutup {judul}?",
+    "id-simple": "Tutup lowongan {judul}?",
+  },
+  "admin.jobs.tutup.dialogDeskripsi": {
+    // Security Considerations PR-057: "Konfirmasi close (berdampak
+    // pelamar)" — kalimat ini yang menyebut dampaknya, pola sama
+    // `admin.companies.verifikasi.dialogDeskripsi`.
+    id: "Lowongan ini akan hilang dari pencarian publik. Pelamar yang sudah melamar tetap bisa Anda lihat riwayatnya.",
+    "id-simple":
+      "Orang lain tidak akan melihat lowongan ini lagi. Lamaran yang sudah masuk tetap aman dan bisa Anda buka.",
+  },
+  "admin.jobs.tutup.dialogYa": {
+    id: "Ya, tutup",
+    "id-simple": "Ya, tutup",
+  },
+  "admin.jobs.tutup.dialogBatal": {
+    id: "Batal",
+    "id-simple": "Batal",
+  },
+  "admin.jobs.tutup.berhasil": {
+    id: "{judul} sudah ditutup.",
+    "id-simple": "{judul} sudah ditutup. Orang tidak bisa melamar lagi ke lowongan ini.",
   },
 } as const satisfies KatalogFitur;

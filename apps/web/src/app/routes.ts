@@ -279,6 +279,45 @@ export const ruteApp: RouteObject[] = [
               return { Component: AdminCompaniesFormulir };
             },
           },
+          {
+            // Kurasi lowongan (PR-057). Pola SAMA PERSIS dengan "companies"
+            // di atas — daftar dan form adalah halaman PENUH bersaudara,
+            // bukan anak-beranak.
+            path: "jobs",
+            lazy: async () => {
+              const [{ AdminJobsDaftar }] = await Promise.all([
+                import("../routes/admin-jobs.js"),
+                // `profil`/`onboarding` TIDAK dimuat di sini: daftar hanya
+                // menampilkan judul/perusahaan/status, tidak menyentuh
+                // taksonomi akomodasi maupun ragam disabilitas.
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminJobsDaftar };
+            },
+          },
+          {
+            path: "jobs/baru",
+            lazy: async () => {
+              const [{ AdminJobsFormulir }] = await Promise.all([
+                import("../routes/admin-jobs-formulir.js"),
+                // `profil` ikut: label taksonomi akomodasi. `onboarding`
+                // ikut: label ragam disabilitas (`RAGAM`, dipinjam sama
+                // seperti `bagian-sensitif.tsx`).
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminJobsFormulir };
+            },
+          },
+          {
+            path: "jobs/:id",
+            lazy: async () => {
+              const [{ AdminJobsFormulir }] = await Promise.all([
+                import("../routes/admin-jobs-formulir.js"),
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminJobsFormulir };
+            },
+          },
         ],
       },
       {
