@@ -8,6 +8,7 @@ import {
   createApiClient,
   closeJobAdmin,
   createJobAdmin,
+  getJobPublic,
   jobsKeys,
   listJobsAdmin,
   publishJobAdmin,
@@ -248,6 +249,11 @@ describe("jobsKeys", () => {
     ]);
   });
 
+  it("detail(id) melingkupi id — satu entri cache per lowongan", () => {
+    expect(jobsKeys.detail("abc")).not.toEqual(jobsKeys.detail("def"));
+    expect(jobsKeys.detail("abc")).toEqual(jobsKeys.detail("abc"));
+  });
+
   it("search(): urutan accommodations tidak memengaruhi kunci", () => {
     const a = jobsKeys.search({ accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"] });
     const b = jobsKeys.search({ accommodations: ["juru_bahasa_isyarat", "akses_kursi_roda"] });
@@ -270,9 +276,9 @@ const HASIL_LOWONGAN = {
 
 describe("searchJobs", () => {
   it("memanggil GET /jobs TANPA query string bila tidak ada filter", async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      jsonResponse(200, { data: [HASIL_LOWONGAN], meta: { nextCursor: null } }),
-    );
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { data: [HASIL_LOWONGAN], meta: { nextCursor: null } }));
 
     const hasil = await searchJobs(klien(fetch));
 
@@ -282,7 +288,9 @@ describe("searchJobs", () => {
   });
 
   it("menyertakan query/city/province/workMode/cursor/limit sebagai parameter", async () => {
-    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
 
     await searchJobs(klien(fetch), {
       query: "kasir",
@@ -306,7 +314,9 @@ describe("searchJobs", () => {
   });
 
   it("accommodations dikirim sebagai parameter BERULANG, bukan digabung koma", async () => {
-    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
 
     await searchJobs(klien(fetch), {
       accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"],
@@ -320,7 +330,9 @@ describe("searchJobs", () => {
   });
 
   it("string kosong TIDAK dikirim sebagai parameter (bukan filter kosong yang berarti)", async () => {
-    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
 
     await searchJobs(klien(fetch), { query: "", city: "" });
 
@@ -331,6 +343,66 @@ describe("searchJobs", () => {
     const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [{ title: 42 }] }));
 
     await expect(searchJobs(klien(fetch))).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
+  });
+});
+
+const DETAIL_LOWONGAN = {
+  id: "01912345-89ab-7def-8123-4567890abd50",
+  companyId: "01912345-89ab-7def-8123-4567890abd01",
+  title: "Staf Layanan Pelanggan",
+  description: "Menjawab pertanyaan pelanggan.",
+  requirements: null,
+  employmentType: "full_time",
+  workMode: "onsite",
+  city: "Jakarta",
+  province: "DKI Jakarta",
+  salaryMin: 5_000_000,
+  salaryMax: null,
+  accommodations: ["akses_kursi_roda"],
+  welcomedDisabilityTypes: ["tuli"],
+  publishedAt: "2026-08-10T00:00:00.000Z",
+  expiresAt: null,
+};
+
+describe("getJobPublic", () => {
+  it("memanggil GET /jobs/:id dan membuka amplop `{ data }`", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: DETAIL_LOWONGAN }));
+
+    await expect(getJobPublic(klien(fetch), DETAIL_LOWONGAN.id)).resolves.toEqual(DETAIL_LOWONGAN);
+    expect(fetch.mock.calls[0]?.[0]).toBe(`https://x/api/v1/jobs/${DETAIL_LOWONGAN.id}`);
+    expect((fetch.mock.calls[0]?.[1] as RequestInit).method ?? "GET").toBe("GET");
+  });
+
+  it("id disisipkan aman lewat encodeURIComponent", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: DETAIL_LOWONGAN }));
+
+    await getJobPublic(klien(fetch), "../admin/jobs");
+
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://x/api/v1/jobs/..%2Fadmin%2Fjobs");
+  });
+
+  it("404 diteruskan sebagai ApiError berkode LOWONGAN_TIDAK_DITEMUKAN", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(404, {
+          code: "LOWONGAN_TIDAK_DITEMUKAN",
+          message: "Lowongan tidak ditemukan",
+        }),
+      );
+
+    await expect(getJobPublic(klien(fetch), DETAIL_LOWONGAN.id)).rejects.toMatchObject({
+      code: "LOWONGAN_TIDAK_DITEMUKAN",
+      status: 404,
+    });
+  });
+
+  it("jawaban yang menyimpang dari kontrak ditolak, bukan diteruskan", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: { title: 42 } }));
+
+    await expect(getJobPublic(klien(fetch), DETAIL_LOWONGAN.id)).rejects.toMatchObject({
       code: "RESPONS_TIDAK_DIKENAL",
     });
   });

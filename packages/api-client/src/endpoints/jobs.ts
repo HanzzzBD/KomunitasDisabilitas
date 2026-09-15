@@ -17,10 +17,12 @@ import {
   createJobSchema,
   jobAdminListResponseSchema,
   jobAdminResponseSchema,
+  jobPublicResponseSchema,
   jobSearchResponseSchema,
   updateJobSchema,
   type AccommodationNeed,
   type JobAdmin,
+  type JobPublic,
   type JobSearchResponse,
   type WorkMode,
 } from "@nawasena/schemas";
@@ -59,6 +61,8 @@ export const jobsKeys = {
           ? undefined
           : [...filter.accommodations].sort().join(","),
     }),
+  /** Detail publik satu lowongan (PR-059) — dilingkupi `id`. */
+  detail: (id: string) => queryKey("job-public", { id }),
 };
 
 /** Bentuk MASUKAN skema (`z.input`), bukan keluarannya — lihat alasan sama di `companies.ts`. */
@@ -169,4 +173,17 @@ export async function searchJobs(
   return client.request(`/jobs${akhiran}`, {
     responseSchema: jobSearchResponseSchema,
   });
+}
+
+/**
+ * GET /api/v1/jobs/:id — detail publik (PR-059), TANPA sesi. Server menjawab
+ * 404 `LOWONGAN_TIDAK_DITEMUKAN` untuk draft, closed, DAN yang sudah lewat
+ * `expiresAt` tanpa membedakan sebabnya (PR-055). `salaryMin`/`salaryMax`
+ * sudah `null` dari server bila perusahaan menyembunyikan gajinya.
+ */
+export async function getJobPublic(client: ApiClient, id: string): Promise<JobPublic> {
+  const res = await client.request(`/jobs/${encodeURIComponent(id)}`, {
+    responseSchema: jobPublicResponseSchema,
+  });
+  return res.data;
 }
