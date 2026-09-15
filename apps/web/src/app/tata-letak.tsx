@@ -4,7 +4,14 @@
 // yang harus diingat setiap halaman adalah banner yang suatu saat akan
 // terlupakan di salah satunya. Alasan yang sama kini berlaku untuk DUA hal baru
 // (PR-032a): landmark `<main>` dan tautan lompat ke konten.
-import { Link, Navigate, Outlet, useLocation, useNavigation } from "react-router";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  ScrollRestoration,
+  useLocation,
+  useNavigation,
+} from "react-router";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { LencanaNotifikasi } from "./lencana-notifikasi.js";
@@ -216,6 +223,18 @@ export function TataLetak() {
         ) : null}
         <Outlet />
       </main>
+
+      {/*
+        SCROLL RESTORATION (PR-059) — dipasang di kerangka, SEKALI, dengan
+        alasan yang sama seperti `<main>`: satu-satunya komponen yang dilewati
+        setiap halaman. Navigasi BARU mulai dari atas (tanpa ini, membuka detail
+        lowongan dari daftar yang sudah digulir mendaratkan pengguna di tengah
+        halaman detail, melewati `<h1>`-nya); tombol KEMBALI memulihkan posisi
+        gulir entri riwayat itu (AC PR-059 "kembali ke list → posisi scroll
+        pulih"). Tautan lompat `#konten-utama` tetap bekerja: alamat dengan
+        hash diarahkan ke elemennya, bukan ke atas.
+      */}
+      <ScrollRestoration />
     </>
   );
 }

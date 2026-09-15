@@ -134,8 +134,10 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     siapkan: async (page) => {
       // `:text-is` = cocok PERSIS. `:has-text` akan ikut menangkap kalimat
       // bantuan di bawah kotaknya, yang memuat kata yang sama.
-      await page.click('text=Saya mengizinkan Nawasena menyimpan data disabilitas saya');
-      await page.waitForSelector('legend:text-is("Ragam disabilitas Anda (boleh lebih dari satu)")');
+      await page.click("text=Saya mengizinkan Nawasena menyimpan data disabilitas saya");
+      await page.waitForSelector(
+        'legend:text-is("Ragam disabilitas Anda (boleh lebih dari satu)")',
+      );
     },
   },
 
@@ -188,7 +190,12 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   { nama: "admin — ringkasan", jalur: "/admin", butuhSesi: true, butuhAdmin: true },
 
   // Kurasi perusahaan (PR-053).
-  { nama: "admin — daftar perusahaan", jalur: "/admin/companies", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — daftar perusahaan",
+    jalur: "/admin/companies",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
   {
     nama: "admin — tambah perusahaan",
     jalur: "/admin/companies/baru",
@@ -249,6 +256,14 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     // muncul di daftar tanpa filter).
     nama: "lowongan — cari (tanpa filter)",
     jalur: "/lowongan",
+  },
+  {
+    // Detail lowongan (PR-059). Jalur LITERAL `:id` — alasan sama dengan
+    // "companies — profil publik (tidak ditemukan)": keadaan yang dijangkau
+    // registry generik ini adalah "lowongan tidak ditemukan". Keadaan TERISI
+    // (dan alur browse→detail→kembali) diuji di `lowongan-detail.spec.ts`.
+    nama: "lowongan — detail (tidak ditemukan)",
+    jalur: "/lowongan/:id",
   },
 
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },

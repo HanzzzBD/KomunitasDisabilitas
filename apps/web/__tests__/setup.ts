@@ -69,6 +69,21 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     }) as unknown as MediaQueryList;
 }
 
+/**
+ * `window.scrollTo` dan `Element.scrollIntoView` juga TIDAK diimplementasikan
+ * jsdom. Sejak PR-059 keduanya dipanggil di jalur yang dilewati hampir SETIAP
+ * test router: `<ScrollRestoration />` di `TataLetak` memanggil `scrollTo`
+ * pada tiap perpindahan lokasi, dan pemulihan fokus daftar lowongan memanggil
+ * `scrollIntoView`. Tanpa stub, jsdom menulis galat "Not implemented" ke
+ * konsol di ratusan test — derau yang menenggelamkan galat sungguhan.
+ */
+if (typeof window !== "undefined") {
+  window.scrollTo = (() => {}) as typeof window.scrollTo;
+  if (typeof Element.prototype.scrollIntoView !== "function") {
+    Element.prototype.scrollIntoView = () => {};
+  }
+}
+
 // KATALOG i18n LENGKAP UNTUK TEST.
 //
 // Sejak katalog dimuat malas per rute (shell eager, fitur menyusul lewat

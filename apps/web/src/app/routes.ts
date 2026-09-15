@@ -354,6 +354,22 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Detail lowongan (PR-059, FR-4.4) — SAUDARA `lowongan`, bukan
+        // anaknya: halaman PENUH, tidak berbagi kerangka dengan daftar
+        // (pola sama `admin/companies` dan `companies/baru`).
+        path: "lowongan/:id",
+        lazy: async () => {
+          const [{ LowonganDetail }] = await Promise.all([
+            import("../routes/lowongan-detail.js"),
+            // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
+            // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
+            // label ragam disabilitas yang disambut (`RAGAM`).
+            muatKatalog("lowongan", "companies", "profil", "onboarding"),
+          ]);
+          return { Component: LowonganDetail };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

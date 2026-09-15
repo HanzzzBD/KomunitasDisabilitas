@@ -67,6 +67,7 @@ export {
   publishJobAdmin,
   closeJobAdmin,
   searchJobs,
+  getJobPublic,
   jobsKeys,
   type BuatLowongan,
   type UbahLowongan,

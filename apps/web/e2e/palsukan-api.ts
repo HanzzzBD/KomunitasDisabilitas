@@ -258,6 +258,47 @@ const LOWONGAN_UJI = {
   updatedAt: "2026-01-15T20:00:00.000Z",
 };
 
+/**
+ * Detail lowongan publik (PR-059, `JobPublic`) — DITURUNKAN dari
+ * `LOWONGAN_PENCARIAN_UJI`, bukan fixture terpisah: judul/perusahaan di
+ * halaman detail harus sama dengan kartu yang diklik di daftar.
+ *
+ * Fixture PERTAMA sengaja "berat": deskripsi berparagraf panjang dengan satu
+ * kata tanpa spasi yang sangat panjang (AC "konten panjang tidak merusak
+ * layout" di 320px), gaji rentang, dan ragam disabilitas. Fixture KEDUA:
+ * gaji disembunyikan server (`null`) — baris Gaji tidak boleh muncul.
+ */
+function detailLowonganUji(id: string) {
+  const dasar = LOWONGAN_PENCARIAN_UJI.find((l) => l.id === id);
+  if (dasar === undefined) return null;
+  const pertama = id === LOWONGAN_PENCARIAN_UJI[0]?.id;
+  return {
+    id: dasar.id,
+    companyId: dasar.companyId,
+    title: dasar.title,
+    description: pertama
+      ? [
+          "Anda akan menjawab pertanyaan pelanggan lewat surel dan obrolan teks, mencatat keluhan, dan meneruskannya ke tim terkait. ".repeat(
+            4,
+          ),
+          "Tim kami terbiasa bekerja dengan juru bahasa isyarat dan pembaca layar.",
+          "Rujukan-internal:" + "SOPLAYANANPELANGGANVERSITERBARU".repeat(4),
+        ].join("\n\n")
+      : "Menulis artikel dan naskah media sosial dari rumah.",
+    requirements: pertama ? "Terbiasa mengetik.\nSabar menghadapi pelanggan." : null,
+    employmentType: dasar.employmentType,
+    workMode: dasar.workMode,
+    city: dasar.city,
+    province: dasar.province,
+    salaryMin: pertama ? 5_000_000 : null,
+    salaryMax: pertama ? 8_000_000 : null,
+    accommodations: dasar.accommodations,
+    welcomedDisabilityTypes: pertama ? ["tuli", "netra"] : [],
+    publishedAt: dasar.publishedAt,
+    expiresAt: pertama ? "2026-12-31T16:59:59.000Z" : null,
+  };
+}
+
 /** Satu lowongan aktif — bukan daftar kosong, alasan sama dengan `NOTIFIKASI_UJI`. */
 const LOWONGAN_PUBLIK_UJI = {
   id: "01912345-89ab-7def-8123-4567890abd21",
@@ -380,9 +421,7 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       // pemuatan ulang mengembalikan tandanya — dan test alur "terima → baca"
       // akan gagal atas kesalahan di PALSU-nya, bukan di aplikasinya.
       notifikasi.readAt = DIBACA_PADA;
-      return route.fulfill(
-        jsonkan(200, { data: { ...notifikasi }, meta: { unreadCount: 0 } }),
-      );
+      return route.fulfill(jsonkan(200, { data: { ...notifikasi }, meta: { unreadCount: 0 } }));
     }
     if (jalur.endsWith("/me/notifications")) {
       // SATU notifikasi BELUM DIBACA, bukan daftar kosong: gerbang a11y
@@ -455,7 +494,9 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
             ...PROFIL_KARIER_UJI,
             ...aman,
             consentSensitiveAt:
-              consentSensitive === true ? "2026-02-01T03:00:00.000Z" : PROFIL_KARIER_UJI.consentSensitiveAt,
+              consentSensitive === true
+                ? "2026-02-01T03:00:00.000Z"
+                : PROFIL_KARIER_UJI.consentSensitiveAt,
             sensitive: adaSensitif
               ? {
                   disabilityTypes: disabilityTypes ?? [],
@@ -663,6 +704,23 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
         }),
       );
     }
+    // --- Detail lowongan publik (PR-059, `GET /jobs/:id`) ---
+    //
+    // ANCHORED (`^/api/v1/jobs/[^/]+$`) — alasan sama dengan blok profil
+    // publik perusahaan di bawah: `/admin/jobs/:id` di atas juga diakhiri
+    // "jobs/<sesuatu>". Hanya id dari `LOWONGAN_PENCARIAN_UJI` yang dikenali,
+    // supaya alur daftar→detail memakai data yang SAMA dengan kartunya; id lain
+    // (termasuk literal `:id` registry `HALAMAN`) → 404 "tidak ditemukan".
+    if (/^\/api\/v1\/jobs\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      const detail = detailLowonganUji(id);
+      if (detail === null) {
+        return route.fulfill(
+          jsonkan(404, { code: "LOWONGAN_TIDAK_DITEMUKAN", message: "Lowongan tidak ditemukan" }),
+        );
+      }
+      return route.fulfill(jsonkan(200, { data: detail }));
+    }
     // --- Profil publik perusahaan (PR-054, Gap G5) ---
     //
     // ANCHORED DI AWAL (`^/api/v1/companies/`), BUKAN `endsWith` seperti
@@ -678,9 +736,32 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     }
     if (/^\/api\/v1\/companies\/[^/]+$/.test(jalur)) {
       const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      // `PERUSAHAAN_UJI_ID` ikut dijawab (PR-059): lowongan di
+      // `LOWONGAN_PENCARIAN_UJI` milik perusahaan itu, dan halaman detail
+      // lowongan memuat blok "Tentang perusahaan" dari endpoint publik ini.
+      // Bentuknya `CompanyPublic` — TANPA kolom admin (`verifiedBy`, stempel).
+      if (id === PERUSAHAAN_UJI_ID) {
+        return route.fulfill(
+          jsonkan(200, {
+            data: {
+              id: PERUSAHAAN_UJI.id,
+              name: PERUSAHAAN_UJI.name,
+              description: PERUSAHAAN_UJI.description,
+              website: PERUSAHAAN_UJI.website,
+              city: PERUSAHAAN_UJI.city,
+              inclusivityStatus: PERUSAHAAN_UJI.inclusivityStatus,
+              accommodationsAvailable: PERUSAHAAN_UJI.accommodationsAvailable,
+              verifiedAt: PERUSAHAAN_UJI.verifiedAt,
+            },
+          }),
+        );
+      }
       if (id !== PERUSAHAAN_PUBLIK_UJI_ID) {
         return route.fulfill(
-          jsonkan(404, { code: "PERUSAHAAN_TIDAK_DITEMUKAN", message: "Perusahaan tidak ditemukan" }),
+          jsonkan(404, {
+            code: "PERUSAHAAN_TIDAK_DITEMUKAN",
+            message: "Perusahaan tidak ditemukan",
+          }),
         );
       }
       return route.fulfill(jsonkan(200, { data: PERUSAHAAN_PUBLIK_UJI }));

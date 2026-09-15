@@ -1419,6 +1419,8 @@ h1 → filter → h2 tersembunyi "Hasil" (`sr-only`, murni untuk
   Bukan diabaikan tanpa sadar: tidak ada AC yang memintanya, dan menambahnya
   berarti sinkronisasi dua arah (state ↔ URL) yang tidak dibeli scope PR ini.
   Dicatat di sini sebagai kandidat *nice-to-have*, bukan utang wajib.
+  **→ Diselesaikan PR-059** (AC "kembali ke list → posisi scroll & fokus
+  pulih" menuntutnya — lihat entri PR-059 di bawah).
 * **Server tidak mengirim TOTAL hasil**, hanya `nextCursor` (PR-056, desain
   cursor pagination) — pengumuman `aria-live` karena itu menyebut jumlah
   HALAMAN PERTAMA ("N lowongan ditemukan"), bukan total sesungguhnya bila
@@ -1438,5 +1440,151 @@ h1 → filter → h2 tersembunyi "Hasil" (`sr-only`, murni untuk
   tujuan tautan "Lihat detail" yang sudah terpasang di sini
   (`/lowongan/:id`, sejauh ini 404 lewat catch-all `routes.ts`, sama seperti
   tautan company-public ke `/lowongan/:id` sejak PR-054).
+
+---
+
+## PR-059 — Job Detail Page
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-059---job-detail-page)
+> **Tanggal:** 2026-09-15
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`/lowongan/:id` — halaman publik detail lowongan (FR-4.4): h1 jabatan,
+ringkasan terstruktur (jenis, mode kerja, lokasi, gaji bila dikirim server,
+tanggal terbit/batas), deskripsi, persyaratan, akomodasi posisi, ragam
+disabilitas yang disambut, blok "Tentang perusahaan" (badge verifikasi,
+akomodasi perusahaan, tautan ke `/companies/:id`), dan slot "Cara melamar".
+Konsumen PERTAMA `GET /jobs/:id` (PR-055) — tidak ada perubahan backend.
+Tautan `/lowongan/:id` dari profil perusahaan (PR-054) dan kartu hasil
+pencarian (PR-058), yang sampai kemarin berujung 404, kini punya tujuan.
+
+Tiga keputusan (dikonfirmasi lewat `AskUserQuestion`):
+
+**1. Filter pencarian pindah ke query string URL.** AC "kembali ke list →
+posisi scroll & fokus pulih" MUSTAHIL dipenuhi selama filter hidup di state
+lokal `DaftarBrowseLowongan` (PR-058): state itu lenyap begitu halaman daftar
+dilepas. `filter-url.ts` memetakan nilai form ↔ `URLSearchParams` dengan
+nama parameter SAMA PERSIS dengan `GET /jobs`; route menulisnya dengan
+`replace: true, preventScrollReset: true` (menerapkan filter bukan entri
+riwayat baru). Pembacaan dari URL membuang nilai liar (mode kerja/akomodasi
+tak dikenal) alih-alih meneruskannya ke server untuk ditolak 400. Keputusan
+"filter berlaku hanya saat submit" (PR-058 #1) tetap utuh: `rancangan` masih
+state lokal, hanya filter yang diterapkan yang pindah ke URL.
+
+**2. `<ScrollRestoration />` global di `TataLetak`**, bukan per halaman.
+Navigasi maju mulai dari atas, navigasi mundur memulihkan posisi — perilaku
+peramban yang diharapkan di SELURUH aplikasi, bukan hanya di lowongan.
+Fokus dipulihkan terpisah: saat kartu diklik, route mencatat `{ kunci:
+location.key, id }` di `sessionStorage`; kembali ke entri riwayat yang SAMA
+(key-nya tetap pada navigasi mundur) mengembalikan fokus ke tautan "Lihat
+detail" kartu itu dengan `focus({ preventScroll: true })` — posisi gulir
+hasil `ScrollRestoration` tidak ditimpa. Tautan "Kembali ke daftar lowongan"
+di halaman detail memakai `navigate(-1)` HANYA bila datang dari daftar
+(`state.dariDaftar` dibawa `KartuLowongan`); dibuka langsung/dari tempat lain
+ia tautan biasa ke `/lowongan`.
+
+**3. Slot CTA = blok info tanpa tombol.** Tombol "Lamar" yang tidak berbuat
+apa-apa adalah kontrol palsu bagi pengguna screen reader; bagian "Cara
+melamar" menjelaskan bahwa melamar lewat Nawasena segera tersedia (tombol
+sungguhan PR-078).
+
+Gate hijau: `pnpm typecheck`/`pnpm lint` bersih di `@nawasena/web` dan
+`@nawasena/api-client`. `@nawasena/web` **55 berkas / 689 test vitest lulus**
++ **100 test Playwright lulus** (atas build produksi). `@nawasena/api-client`
+**10 berkas / 112 test lulus**. `cek:budget`: JS awal 112,4 KB / 200 KB (naik
+0,9 KB — `ScrollRestoration` masuk kerangka awal); `lowongan-detail` chunk
+lazy terpisah.
+
+### Scope selesai
+
+**`packages/api-client`**
+
+* **`endpoints/jobs.ts`** — `getJobPublic(client, id)`: `GET /jobs/:id`, id
+  lewat `encodeURIComponent`, respons divalidasi `jobPublicResponseSchema`.
+  `jobsKeys.detail(id)` baru.
+* **`__tests__/jobs.test.ts`** (+5) — jalur & amplop, encoding id, 404
+  `LOWONGAN_TIDAK_DITEMUKAN` diteruskan, kontrak menyimpang ditolak, kunci
+  detail per id.
+
+**`apps/web/src/features/job-feed/`**
+
+* **`detail-lowongan.tsx`** (baru) — `DetailLowongan`: dua query (lowongan,
+  lalu perusahaan `enabled` setelah `companyId` diketahui). "Tidak ditemukan"
+  tidak di-retry (pola `company-public.tsx`). Deskripsi/persyaratan dirender
+  sebagai TEKS dengan `whitespace-pre-line` — tanpa `dangerouslySetInnerHTML`
+  (Security Considerations). Perusahaan gagal dimuat tidak menjatuhkan
+  halaman — hanya bloknya yang menjelaskan.
+* **`gaji.ts`** (baru) — `kalimatGaji`: rentang / mulai / hingga, format
+  `Intl.NumberFormat("id-ID", IDR)`; keduanya `null` → tidak ada baris "Gaji"
+  sama sekali (bukan "Rp0").
+* **`filter-url.ts`** (baru) — keputusan #1.
+* **`browse-daftar.tsx`** — `filter` + `onTerapkan` dari luar (URL);
+  `rancangan` diselaraskan bila filter berubah dari luar (Back/Maju, tautan
+  dibagikan); pemulihan fokus via `fokusLowonganId`.
+* **`kartu-lowongan.tsx`** — `refTautan`, `onBuka`, `state.dariDaftar`;
+  `KUNCI_TIPE`/`KUNCI_MODE` diekspor untuk halaman detail (satu taksonomi).
+
+**`apps/web/src/routes/`** — `lowongan-detail.tsx` (baru), `lowongan-browse.tsx`
+(URL + `sessionStorage` fokus, keduanya dibungkus try/catch).
+
+**`apps/web/src/app/`** — `routes.ts`: `lowongan/:id` SAUDARA `lowongan`,
+`muatKatalog("lowongan", "companies", "profil", "onboarding")`.
+`tata-letak.tsx`: `<ScrollRestoration />`.
+
+**i18n** — `katalog/lowongan.ts` +~27 kunci `lowongan.detail.*` +
+`lowongan.kembaliKeDaftar`; 4 entri identik didaftarkan `SAMA_DENGAN_SENGAJA`.
+Label jenis/mode kerja, akomodasi, ragam, dan badge DIPINJAM dari katalog
+`companies`/`profil`/`onboarding`.
+
+**Test**
+
+* `filter-url.test.ts` (7), `gaji.test.ts` (4), `lowongan-detail.test.tsx`
+  (13, jsdom lewat router penuh): struktur heading h1→h2→h3→h4, persyaratan
+  opsional, tanggal WIB, gaji tampil/tersembunyi, markup di deskripsi TIDAK
+  menjadi elemen, akomodasi berlabel, ragam, blok perusahaan + tautan,
+  perusahaan gagal, tanpa tombol "Lamar" palsu, tautan kembali, tidak ditemukan.
+* `e2e/lowongan-detail.spec.ts` (6): browse → muat lebih → detail (mulai dari
+  atas) → kembali (gulir DAN fokus pulih); filter bertahan lewat Back
+  peramban; detail terisi + axe; gaji tersembunyi + tautan kembali saat dibuka
+  langsung; 320px tanpa gulir horizontal dengan konten panjang; mode
+  sederhana + kontras tinggi + axe.
+* `e2e/palsukan-api.ts` — `GET /api/v1/jobs/:id` (anchored; diturunkan dari
+  `LOWONGAN_PENCARIAN_UJI`, fixture pertama sengaja berat: paragraf panjang +
+  kata tanpa spasi sangat panjang + gaji + ragam) dan profil publik
+  `PERUSAHAAN_UJI_ID`.
+* `e2e/halaman.ts` — "lowongan — detail (tidak ditemukan)".
+* `__tests__/setup.ts` — stub `window.scrollTo`/`scrollIntoView` (jsdom tidak
+  punya; `ScrollRestoration` memanggilnya di setiap test yang me-render router).
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Filter diterapkan disimpan di query string URL | Satu-satunya cara Back mengembalikan pencarian yang sama; bonus: pencarian bisa dibagikan | Cache state di store global/`sessionStorage` — ditolak; dua sumber kebenaran untuk satu pencarian, dan tidak bisa dibagikan |
+| `ScrollRestoration` global di `TataLetak` | Pemulihan gulir adalah perilaku peramban yang diharapkan di semua halaman | Per halaman lowongan saja — ditolak; halaman lain tetap mewarisi posisi gulir halaman sebelumnya |
+| Fokus dipulihkan via `sessionStorage` bertanda `location.key` | Key entri riwayat tetap sama pada navigasi mundur, jadi pemulihan hanya terjadi saat kembali ke entri yang SAMA | `location.state` di entri daftar — ditolak; mengubah state entri lama berarti `navigate(replace)` tambahan tepat sebelum pindah halaman |
+| "Kembali ke daftar" = `navigate(-1)` hanya bila `state.dariDaftar` | Datang dari profil perusahaan/tautan luar, entri sebelumnya bukan daftar lowongan | Selalu `navigate(-1)` — ditolak; bisa membawa pengguna keluar situs |
+| Slot CTA tanpa tombol | Tombol yang tidak berbuat apa-apa menyesatkan pengguna SR | Tombol nonaktif "Segera hadir" — ditolak (pilihan user) |
+| Blok perusahaan dari `GET /companies/:id` terpisah | `JobPublic` hanya membawa `companyId`; endpoint publik perusahaan sudah ada (PR-054) | Menambah field perusahaan ke `JobPublic` — ditolak; perubahan backend di PR yang di-scope "konsumsi saja" |
+
+### Risiko & batas yang diketahui
+
+* **NVDA manual tidak ditempuh sesi ini** — sama dengan seluruh PR FE phase ini.
+* **Kunci `location.key` entri awal adalah `"default"`** — membuka `/lowongan`
+  langsung, membuka detail, lalu (tanpa kembali) memuat ulang `/lowongan`
+  di tab yang sama bisa memulihkan fokus ke kartu itu bila ia masih ada di
+  hasil. Dampaknya hanya fokus berpindah ke tautan yang sah; tidak dianggap
+  layak ditambal dengan mekanisme tambahan.
+* **Pengumuman jumlah hasil diam saat kembali dari detail** — disengaja
+  (pemuatan awal selalu diam, keputusan PR-058 #2); pengguna SR mendengar
+  tautan yang difokuskan, bukan jumlah hasil yang sudah ia dengar.
+
+### Next steps
+
+* **Exit Criteria Phase 08** — seluruh PR-051..PR-059 sudah merged ke
+  `phase-08-companies-jobs`; `phase-08 → main` menunggu perintah eksplisit owner.
+* **PR-078** — tombol lamar fungsional mengisi slot "Cara melamar".
 
 ---

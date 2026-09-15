@@ -654,11 +654,11 @@ Bisnis: FR-4.4 — keputusan melamar berdasar informasi akomodasi lengkap. Tekni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (browse→detail→kembali)
-* [ ] Accessibility Test (axe + NVDA)
-* [ ] Manual Verification (konten panjang)
+* [x] Unit Test (N/A) — tetap ditulis untuk logika murni: `filter-url.test.ts` (7), `gaji.test.ts` (4), `lowongan-detail.test.tsx` (13, jsdom), `api-client jobs.test.ts` (+5: `getJobPublic`, `jobsKeys.detail`)
+* [x] Integration Test (N/A) — tidak ada perubahan backend; kontrak `GET /jobs/:id` sudah diuji PR-055
+* [x] E2E Test (browse→detail→kembali) — `e2e/lowongan-detail.spec.ts`: gulir + fokus pulih setelah "Muat lebih banyak", filter di URL bertahan lewat Back peramban, tautan kembali saat dibuka langsung
+* [x] Accessibility Test (axe + NVDA) — axe: `lowongan-detail.spec.ts` (terisi, mode sederhana + kontras tinggi) + registry `HALAMAN` (tidak ditemukan); NVDA manual tidak ditempuh sesi ini (dicatat sebagai keterbatasan)
+* [x] Manual Verification (konten panjang) — dijalankan sebagai test Playwright: deskripsi berparagraf + kata tanpa spasi sangat panjang, lebar 320px, tanpa gulir horizontal
 
 **Deliverables:**
 
@@ -674,11 +674,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua field terstruktur tampil (akomodasi, work_mode, gaji bila visible).
-* [ ] Kembali ke list → posisi scroll & fokus pulih.
-* [ ] Link ke company profile bekerja.
-* [ ] Struktur heading logis (H1 jabatan…).
-* [ ] axe pass + tersedia id-simple.
+* [x] Semua field terstruktur tampil (akomodasi, work_mode, gaji bila visible) — baris "Gaji" hanya dirender bila server mengirim `salaryMin`/`salaryMax`.
+* [x] Kembali ke list → posisi scroll & fokus pulih — filter di query string URL, `<ScrollRestoration />` global di `TataLetak`, fokus kembali ke tautan kartu yang dibuka.
+* [x] Link ke company profile bekerja — blok "Tentang perusahaan" menaut `/companies/:id`.
+* [x] Struktur heading logis (H1 jabatan…) — h1 jabatan → h2 per bagian → h3 nama perusahaan → h4 akomodasi perusahaan.
+* [x] axe pass + tersedia id-simple.
 
 #### Dependencies
 
