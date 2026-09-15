@@ -582,11 +582,11 @@ Bisnis: menemukan lowongan tanpa AI pun mudah (US-08). Teknis: list + filter key
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (cari→filter→hasil)
-* [ ] Accessibility Test (axe + NVDA feed)
-* [ ] Manual Verification (mode teks sederhana + kontras tinggi)
+* [x] Unit Test (kartu) — `kartu-lowongan.test.tsx` (8 test): judul, nama perusahaan, lokasi (termasuk kosong), akomodasi berlabel (termasuk kosong), tautan "Lihat detail", taksonomi jenis/mode kerja diterjemahkan. `filter-panel.test.tsx` (6 test) melengkapi: filter HANYA terapkan saat submit, reset, nama aksesibel form
+* [x] Integration Test (N/A) — tidak ada API baru (murni konsumsi `GET /jobs`, PR-056); `jobs.test.ts` (`@nawasena/api-client`, +7 test `searchJobs`) menjaga kontrak
+* [x] E2E Test (cari→filter→hasil) — `e2e/lowongan-browse.spec.ts` (7 test, Playwright browser nyata): tanpa filter, "muat lebih banyak", kata kunci, kota, empty state + reset, keyboard-only, mode teks sederhana+kontras tinggi
+* [x] Accessibility Test (axe + NVDA feed) — axe: `e2e/aksesibilitas.spec.ts` (halaman awal tanpa filter) + lima pemeriksaan axe terpisah di `lowongan-browse.spec.ts` (tiap keadaan hasil/kosong/mode); NVDA manual TIDAK ditempuh sesi ini (pola sama PR-052/054, dicatat sebagai keterbatasan)
+* [x] Manual Verification (mode teks sederhana + kontras tinggi) — DIJALANKAN sebagai test otomatis sungguhan (`tanamPreferensiLokal`, browser nyata), bukan hanya diklaim: `data-contrast="high"` diverifikasi, label kolom berganti ke varian `id-simple`, axe tetap nol pelanggaran
 
 **Deliverables:**
 
@@ -602,11 +602,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Cari + filter end-to-end.
-* [ ] Jumlah hasil diumumkan `aria-live` saat filter berubah.
-* [ ] Kartu = satu kesatuan bagi SR (nama, perusahaan, akomodasi, lokasi).
-* [ ] Filter keyboard-only + tidak ada jebakan fokus.
-* [ ] Empty state ramah + saran.
+* [x] Cari + filter end-to-end — `e2e/lowongan-browse.spec.ts`, browser sungguhan atas build produksi.
+* [x] Jumlah hasil diumumkan `aria-live` saat filter berubah — `role="status"` khusus (`PengumumanHasil`), diumumkan hanya sekali per perubahan KUNCI filter (bukan per "muat lebih banyak"), dan bukan lagi saat kosong (`KeadaanKosong` sudah `role="status"` sendiri — tidak diumumkan dua kali).
+* [x] Kartu = satu kesatuan bagi SR (nama, perusahaan, akomodasi, lokasi) — satu `<Kartu>` per lowongan, tanpa elemen fokusable di antara keempat bagian selain tautan "Lihat detail" di akhir.
+* [x] Filter keyboard-only + tidak ada jebakan fokus — seluruh kontrol native/Radix yang sudah teruji keyboard-only (PR-027/036); tidak ada modal/popover custom.
+* [x] Empty state ramah + saran — `KeadaanKosong` dengan penjelasan berbeda untuk "belum ada filter" vs "filter tidak menemukan apa pun", plus tombol "Hapus semua filter" saat filter aktif.
 
 #### Dependencies
 

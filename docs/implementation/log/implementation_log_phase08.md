@@ -1268,3 +1268,175 @@ mengunduh apa pun dari PR ini).
   kali berturut-turut.
 
 ---
+
+## PR-058 — Web Jobs Browse
+
+> **Phase:** [08 - Companies & Jobs](../phase-08-companies-jobs.md#pr-058---web-jobs-browse)
+> **Tanggal:** 2026-09-15
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`/lowongan` — halaman publik pencarian lowongan: kata kunci + kota + provinsi
++ mode kerja + akomodasi, kartu hasil aksesibel, cursor pagination ("Muat
+lebih banyak"), dan pengumuman jumlah hasil lewat live region. Konsumen
+PERTAMA `GET /jobs` (PR-056) — tidak ada perubahan backend sama sekali,
+persis seperti direncanakan PR-056 saat merancang `JobSearchResult`.
+
+Tiga keputusan yang membentuk seluruh sisanya:
+
+**1. Filter DITERAPKAN HANYA SAAT SUBMIT ("Cari"), bukan sambil mengetik/
+mencentang.** State `rancangan` (isian form) dipisah dari `diterapkan`
+(filter yang benar-benar dipakai query) — pola BARU di modul ini, beda dari
+`admin/jobs-daftar.tsx` (PR-057) yang memfilter client-side atas data yang
+SUDAH ADA di memori. Di sini setiap perubahan filter berarti permintaan
+jaringan baru, dan hasil yang berubah sendiri di belakang pengguna yang masih
+menjelajahi kotak centang adalah perubahan konteks tak terduga (WCAG 3.2.2).
+Alasannya aksesibilitas dulu, efisiensi jaringan kedua.
+
+**2. Pengumuman jumlah hasil (`aria-live`) dipicu oleh KUNCI FILTER yang
+berubah, bukan oleh jumlah item yang tampil.** `useInfiniteQuery` menyimpan
+tiap halaman dalam `pages[]`; "Muat lebih banyak" menambah `pages[1]`,
+`pages[2]`, dst., tetapi `pages[0]` (halaman pertama) TIDAK PERNAH berubah
+nilainya setelah filter yang sama. Karena itu jumlah yang diumumkan diambil
+dari `pages[0].data.length` — nilai yang secara alami TIDAK bereaksi
+terhadap "muat lebih banyak", hanya terhadap filter baru yang memulai
+`pages[]` dari nol lagi. Pola pembandingnya `PengumumanNotifikasiBaru`
+(`app/lencana-notifikasi.tsx`, PR-050): `useRef` menyimpan kunci TERAKHIR
+yang sudah diumumkan, diinisialisasi ke kunci AWAL supaya pemuatan pertama
+tetap diam.
+
+**3. Keadaan KOSONG karena filter TIDAK diumumkan dua kali.** `KeadaanKosong`
+(`@nawasena/ui`, PR-032) sudah `role="status"` sendiri dan mengumumkan
+dirinya saat dipasang secara dinamis (dicatat eksplisit di komentar
+komponennya sejak lahir: "keadaan kosong yang muncul karena pencarian tidak
+menemukan apa pun terdengar"). `PengumumanHasil` (live region baru PR ini)
+sengaja TIDAK mengumumkan kasus jumlah=0, supaya SR tidak mendengar
+pengumuman yang sama persis dua kali untuk satu peristiwa.
+
+Taksonomi jenis/mode kerja **dipinjam dari katalog `companies`**
+(`companies.lowongan.tipe.*`/`mode.*`, lahir PR-054), BUKAN diulang di
+katalog `lowongan` baru — kandidat melihat kartu lowongan di DUA tempat
+(di sini dan di profil publik perusahaan) dan harus membaca istilah yang
+SAMA PERSIS. Begitu pula label akomodasi: `KartuLowongan` memakai ULANG
+`DaftarAkomodasi` (`features/companies-publik/akomodasi-daftar.tsx`) APA
+ADANYA, lintas-fitur — pola yang sama dengan `admin/jobs-formulir.tsx`
+(PR-057) meminjam `RAGAM` dari `features/onboarding`.
+
+Gate hijau: `pnpm typecheck`/`pnpm lint` bersih di `@nawasena/web` dan
+`@nawasena/api-client`. `@nawasena/web` **52 berkas / 665 test vitest lulus**
++ **92 test Playwright lulus** (a11y generik + `lowongan-browse.spec.ts` +
+regresi seluruh spec lain, atas build produksi sungguhan).
+`@nawasena/api-client` **10 berkas / 107 test lulus**. `cek:budget`: chunk
+`lowongan`/`lowongan-browse` lazy terpisah, budget JS awal 111,5 KB/200 KB
+(naik 0,2 KB dari PR-057 — bukan dari fitur ini, seeker masih tidak
+mengunduh apa pun darinya).
+
+### Scope selesai
+
+**`packages/api-client`**
+
+* **`endpoints/jobs.ts`** — `searchJobs` (baru): `GET /jobs`, `accommodations`
+  dikirim sebagai parameter BERULANG (bukan digabung koma — `qs` server
+  mem-parse-nya langsung jadi array, lihat `jobSearchAccommodationsSchema`).
+  `jobsKeys.search(filter)` (baru): melingkupi filter TANPA `cursor` (pola
+  sama `notificationsKeys.daftar`), `accommodations` DIURUTKAN sebelum masuk
+  kunci supaya urutan centang tidak dianggap pencarian berbeda oleh cache.
+* **`__tests__/jobs.test.ts`** (+7 test) — GET tanpa query string bila tanpa
+  filter, parameter benar (termasuk `accommodations` berulang), string kosong
+  TIDAK dikirim, `jobsKeys.search` mengabaikan urutan `accommodations`.
+
+**`apps/web/src/features/job-feed/`** (baru)
+
+* **`filter-panel.tsx`** — `FilterPanel`: SATU `<form>`, filter hanya
+  berlaku saat submit (keputusan #1). `MODE_KERJA_SEMUA = "semua"` sebagai
+  sentinel (Radix `Select.Item` MENOLAK nilai `""`).
+* **`kartu-lowongan.tsx`** — `KartuLowongan`: judul (h3) → metadata ringkas
+  (`perusahaan • jenis • mode • lokasi`, satu `<p>`) → `DaftarAkomodasi`
+  (dipinjam) → tautan "Lihat detail" — satu kesatuan tanpa elemen fokusable
+  di antaranya (AC).
+* **`browse-daftar.tsx`** — `DaftarBrowseLowongan`: orkestrasi
+  `useInfiniteQuery` + `PengumumanHasil` (keputusan #2, #3) + empty/error
+  states + "Muat lebih banyak" (pola sama `notifikasi/daftar.tsx`, PR-050).
+* **`pesan-galat.ts`**, **`index.ts`** — pola sama fitur publik lain.
+
+**`apps/web/src/routes/lowongan-browse.tsx`** (baru) — `LowonganBrowse`:
+h1 → filter → h2 tersembunyi "Hasil" (`sr-only`, murni untuk
+`aria-labelledby`) → kartu. PUBLIK, tanpa `<Terlindungi>`.
+
+**`apps/web/src/app/routes.ts`** — route `lowongan` baru, SAUDARA
+`companies/:id` (bukan anak `admin`). `muatKatalog("lowongan", "companies",
+"profil")` — dua terakhir untuk taksonomi/label yang dipinjam.
+
+**`apps/web/src/shared/i18n/`**
+
+* **`katalog/lowongan.ts`** (baru) — katalog FITUR baru (bukan sub-key
+  `companies`/`admin`): halaman `/lowongan` berdiri sendiri, dan memuat
+  katalog `admin`/`companies` PENUH untuknya akan mengunduh teks yang tidak
+  pernah ia lihat. ~25 kunci baru; beberapa (label kolom pendek, tombol)
+  identik `id`/`id-simple` dan didaftarkan `SAMA_DENGAN_SENGAJA`.
+* **`registri.ts`**, **`katalog/index.ts`**, **`katalog/semua.ts`** —
+  `lowongan` didaftarkan sebagai fitur malas kedelapan.
+* **`__tests__/setup.ts`** — seed test ikut menambahkan `katalogLowongan`
+  (tanpa ini, SETIAP test yang me-render `PenyediaI18n` gagal typecheck —
+  `seedKatalogUntukTest` menuntut kelengkapan `NamaFitur`).
+
+**Test (4 berkas baru)**
+
+* `kartu-lowongan.test.tsx` (8 test, jsdom, TERISOLASI — bukan lewat router
+  penuh, hanya `PenyediaI18n`+`MemoryRouter` minimal karena `KartuLowongan`
+  murni presentasional) — AC "Unit Test (kartu)".
+* `filter-panel.test.tsx` (6 test, jsdom) — filter TIDAK terapkan saat
+  mengetik/mencentang, HANYA saat submit (Enter atau klik "Cari"); reset
+  mengosongkan tanpa memicu pencarian; nama aksesibel form.
+* `e2e/lowongan-browse.spec.ts` (7 test, Playwright) — tanpa filter + "muat
+  lebih banyak", kata kunci menyaring + pengumuman hasil + axe, empty state +
+  reset + axe, filter kota, keyboard-only, DAN mode teks sederhana+kontras
+  tinggi (AC "Manual Verification" — dijalankan sebagai test browser nyata,
+  bukan hanya diklaim, lihat keputusan uji di bawah).
+* `e2e/palsukan-api.ts` — `LOWONGAN_PENCARIAN_UJI` (tiga fixture, form
+  `JobSearchResult`) + rute `GET /api/v1/jobs` yang BENAR-BENAR menerapkan
+  filter (kata kunci/kota/mode kerja/akomodasi) dan cursor (ukuran halaman
+  palsu 2, sengaja beda dari `limit` klien) — bukan jawaban tetap, supaya
+  `lowongan-browse.spec.ts` bisa menguji perilaku filter sungguhan.
+* `e2e/halaman.ts` — satu entri baru ("lowongan — cari, tanpa filter"),
+  ikut tersapu `aksesibilitas.spec.ts` dan `lompat-ke-konten.spec.ts`.
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Filter berlaku HANYA saat submit, bukan langsung saat diubah | Hasil yang berubah sendiri saat pengguna masih menjelajahi kotak centang adalah perubahan konteks tak terduga (WCAG 3.2.2); form yang jelas kapan "berlaku" juga lebih mudah dipahami | Terapkan langsung per perubahan (mis. debounce per ketikan) — ditolak; UX yang lazim di web umum tetapi bermasalah bagi navigasi linear screen reader |
+| Pengumuman hasil dipicu KUNCI FILTER (via `pages[0].length`), bukan `items.length` total | `items.length` naik setiap "muat lebih banyak" — memakainya sebagai trigger akan membuat live region berbunyi pada aksi yang bukan "filter berubah" | Memicu dari `items.length` — ditolak; AC eksplisit menyebut "saat filter berubah", bukan "saat daftar berubah" |
+| Keadaan kosong TIDAK diumumkan `PengumumanHasil` (dibiarkan milik `KeadaanKosong`) | `KeadaanKosong` sudah `role="status"` sejak lahir (PR-032) dan sudah menjawab kasus ini secara eksplisit di komentarnya sendiri | Mengumumkan jumlah=0 juga di `PengumumanHasil` — ditolak; pengguna SR mendengar pengumuman yang sama dua kali |
+| Taksonomi jenis/mode kerja dipinjam dari katalog `companies`, bukan diulang | Kandidat melihat kartu lowongan yang SAMA di dua halaman (di sini dan profil perusahaan) dan harus membaca istilah identik | Kunci baru di katalog `lowongan` — ditolak; dua salinan teks untuk satu taksonomi cepat atau lambat berbeda bunyinya |
+| Manual Verification (mode sederhana+kontras) ditulis sebagai test Playwright sungguhan | Checklist phase document meminta verifikasi manual — menjalankannya sebagai test otomatis (bukan klaim tanpa bukti) memberi bukti yang bisa diperiksa ulang, dan mencegahnya membusuk diam-diam saat kode berubah | Mencatat "sudah diverifikasi manual" tanpa artefak — ditolak; pola yang SUDAH ditinggalkan sejak `admin-companies.spec.ts` (PR-053) mendemonstrasikan cara yang lebih baik |
+
+### Risiko & batas yang diketahui
+
+* **Filter TIDAK disinkronkan ke URL (`useSearchParams`)** — pencarian tidak
+  bisa dibagikan lewat tautan atau dipulihkan lewat tombol kembali peramban.
+  Bukan diabaikan tanpa sadar: tidak ada AC yang memintanya, dan menambahnya
+  berarti sinkronisasi dua arah (state ↔ URL) yang tidak dibeli scope PR ini.
+  Dicatat di sini sebagai kandidat *nice-to-have*, bukan utang wajib.
+* **Server tidak mengirim TOTAL hasil**, hanya `nextCursor` (PR-056, desain
+  cursor pagination) — pengumuman `aria-live` karena itu menyebut jumlah
+  HALAMAN PERTAMA ("N lowongan ditemukan"), bukan total sesungguhnya bila
+  hasilnya lebih dari satu halaman. Tidak ada AC yang menuntut "menampilkan
+  X dari Y total", jadi ini keputusan desain yang disengaja, bukan
+  kekurangan yang terlewat.
+* **NVDA manual tidak ditempuh sesi ini** — pola sama seluruh PR FE
+  sebelumnya di phase ini (lingkungan tidak punya screen reader sungguhan).
+* **Pemalsuan ukuran halaman (`UKURAN_HALAMAN = 2` di `palsukan-api.ts`)
+  SENGAJA beda dari `limit` yang dikirim klien (20)** — cukup untuk memicu
+  "Muat lebih banyak" dengan tiga fixture tanpa perlu puluhan baris palsu;
+  dicatat eksplisit di komentarnya supaya tidak disangka bug pemalsuan.
+
+### Next steps
+
+* **PR-059** — Job Detail Page — konsumen `GET /jobs/:id` (PR-055) DAN
+  tujuan tautan "Lihat detail" yang sudah terpasang di sini
+  (`/lowongan/:id`, sejauh ini 404 lewat catch-all `routes.ts`, sama seperti
+  tautan company-public ke `/lowongan/:id` sejak PR-054).
+
+---

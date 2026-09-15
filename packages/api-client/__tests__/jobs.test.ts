@@ -11,6 +11,7 @@ import {
   jobsKeys,
   listJobsAdmin,
   publishJobAdmin,
+  searchJobs,
   updateJobAdmin,
 } from "../src/index.js";
 
@@ -238,5 +239,99 @@ describe("closeJobAdmin", () => {
 describe("jobsKeys", () => {
   it("adminList() tanpa params — daftar sama untuk semua admin", () => {
     expect(jobsKeys.adminList()).toEqual(["admin-jobs"]);
+  });
+
+  it("search() melingkupi filter, TANPA cursor", () => {
+    expect(jobsKeys.search({ query: "kasir", city: "Jakarta" })).toEqual([
+      "jobs-search",
+      { city: "Jakarta", query: "kasir" },
+    ]);
+  });
+
+  it("search(): urutan accommodations tidak memengaruhi kunci", () => {
+    const a = jobsKeys.search({ accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"] });
+    const b = jobsKeys.search({ accommodations: ["juru_bahasa_isyarat", "akses_kursi_roda"] });
+    expect(a).toEqual(b);
+  });
+});
+
+const HASIL_LOWONGAN = {
+  id: "01912345-89ab-7def-8123-4567890abd50",
+  companyId: "01912345-89ab-7def-8123-4567890abd01",
+  companyName: "PT Contoh",
+  title: "Staf Layanan Pelanggan",
+  employmentType: "full_time",
+  workMode: "onsite",
+  city: "Jakarta",
+  province: "DKI Jakarta",
+  accommodations: ["akses_kursi_roda"],
+  publishedAt: "2026-08-10T00:00:00.000Z",
+};
+
+describe("searchJobs", () => {
+  it("memanggil GET /jobs TANPA query string bila tidak ada filter", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      jsonResponse(200, { data: [HASIL_LOWONGAN], meta: { nextCursor: null } }),
+    );
+
+    const hasil = await searchJobs(klien(fetch));
+
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://x/api/v1/jobs");
+    expect(hasil.data).toEqual([HASIL_LOWONGAN]);
+    expect(hasil.meta.nextCursor).toBeNull();
+  });
+
+  it("menyertakan query/city/province/workMode/cursor/limit sebagai parameter", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+
+    await searchJobs(klien(fetch), {
+      query: "kasir",
+      city: "Jakarta",
+      province: "DKI Jakarta",
+      workMode: "remote",
+      cursor: "abc123",
+      limit: 10,
+    });
+
+    const url = new URL(fetch.mock.calls[0]?.[0] as string);
+    expect(url.pathname).toBe("/api/v1/jobs");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      query: "kasir",
+      city: "Jakarta",
+      province: "DKI Jakarta",
+      workMode: "remote",
+      cursor: "abc123",
+      limit: "10",
+    });
+  });
+
+  it("accommodations dikirim sebagai parameter BERULANG, bukan digabung koma", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+
+    await searchJobs(klien(fetch), {
+      accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"],
+    });
+
+    const url = new URL(fetch.mock.calls[0]?.[0] as string);
+    expect(url.searchParams.getAll("accommodations")).toEqual([
+      "akses_kursi_roda",
+      "juru_bahasa_isyarat",
+    ]);
+  });
+
+  it("string kosong TIDAK dikirim sebagai parameter (bukan filter kosong yang berarti)", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [], meta: { nextCursor: null } }));
+
+    await searchJobs(klien(fetch), { query: "", city: "" });
+
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://x/api/v1/jobs");
+  });
+
+  it("jawaban yang menyimpang dari kontrak ditolak, bukan diteruskan", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: [{ title: 42 }] }));
+
+    await expect(searchJobs(klien(fetch))).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
   });
 });

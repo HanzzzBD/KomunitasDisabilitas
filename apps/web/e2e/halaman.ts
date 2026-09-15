@@ -240,5 +240,16 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     jalur: "/companies/:id",
   },
 
+  {
+    // Cari lowongan (PR-058). Keadaan terisi (hasil, filter, "muat lebih
+    // banyak") diuji lewat alur sungguhan di `lowongan-browse.spec.ts`,
+    // bukan lewat registry generik ini — entri ini hanya menjangkau keadaan
+    // yang benar-benar dilihat setiap pengunjung: halaman kosong tanpa
+    // pencarian apa pun (LOWONGAN_UJI di `palsukan-api.ts` diseting agar
+    // muncul di daftar tanpa filter).
+    nama: "lowongan — cari (tanpa filter)",
+    jalur: "/lowongan",
+  },
+
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

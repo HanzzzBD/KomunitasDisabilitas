@@ -66,8 +66,10 @@ export {
   updateJobAdmin,
   publishJobAdmin,
   closeJobAdmin,
+  searchJobs,
   jobsKeys,
   type BuatLowongan,
   type UbahLowongan,
+  type OpsiPencarianLowongan,
 } from "./endpoints/jobs.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

@@ -337,6 +337,15 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "admin.jobs.tutup.dialogBatal":
     "Label tombol satu kata sehari-hari, sama dengan `admin.companies.verifikasi.dialogBatal`.",
 
+  // --- Cari Lowongan (PR-058) ---
+  "lowongan.judul": "Nama halaman, dua kata sehari-hari — tidak ada bentuk yang lebih sederhana.",
+  "lowongan.filter.queryBantuan": "Contoh kata kunci, sudah harfiah dan sesederhana mungkin.",
+  "lowongan.filter.kota": "Label kolom satu kata, sama dengan `admin.jobs.form.kota`.",
+  "lowongan.filter.provinsi": "Label kolom satu kata, sama dengan `admin.jobs.form.provinsi`.",
+  "lowongan.filter.cari": "Label tombol satu kata sehari-hari.",
+  "lowongan.filter.reset": "Label tombol tiga kata sehari-hari, sudah menyebut aksinya secara harfiah.",
+  "lowongan.hasil.kosong.judul": "Kalimat lima kata, sudah sesederhana mungkin.",
+
   // --- Profil publik perusahaan (PR-054) ---
   "companies.cobaLagi": "Label tombol dua kata sehari-hari, sama dengan `pengaturan.akun.cobaLagi`.",
   "companies.kembaliBeranda": "Label tautan tiga kata sehari-hari, sudah menyebut tujuannya.",
