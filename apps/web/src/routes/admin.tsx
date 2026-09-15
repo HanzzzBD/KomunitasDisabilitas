@@ -24,6 +24,7 @@ import { PenjagaAdmin } from "../shared/rute/penjaga-admin.js";
 const SEKSI = [
   { ke: "/admin", kunci: "admin.nav.ringkasan", tepat: true },
   { ke: "/admin/companies", kunci: "admin.nav.companies", tepat: false },
+  { ke: "/admin/jobs", kunci: "admin.nav.jobs", tepat: false },
 ] as const;
 
 /**
@@ -56,6 +57,22 @@ export function AdminRingkasan() {
             }
           >
             <p className="text-base text-gray-900">{t("admin.ringkasan.companies.penjelasan")}</p>
+          </Kartu>
+        </li>
+        <li>
+          <Kartu
+            judul={t("admin.ringkasan.jobs.judul")}
+            tingkatJudul={3}
+            aksi={
+              <Link
+                to="/admin/jobs"
+                className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
+              >
+                {t("admin.ringkasan.jobs.tautan")}
+              </Link>
+            }
+          >
+            <p className="text-base text-gray-900">{t("admin.ringkasan.jobs.penjelasan")}</p>
           </Kartu>
         </li>
       </ul>

@@ -209,6 +209,25 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     butuhAdmin: true,
   },
 
+  // Kurasi lowongan (PR-057) — pola SAMA PERSIS dengan kurasi perusahaan di atas.
+  { nama: "admin — daftar lowongan", jalur: "/admin/jobs", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — tambah lowongan",
+    jalur: "/admin/jobs/baru",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    // Jalur LITERAL `:id` — alasan SAMA PERSIS dengan "admin — ubah
+    // perusahaan (tidak ditemukan)" di atas. Keadaan form terisi + tombol
+    // Terbitkan/Tutup diuji lewat alur sungguhan (klik "Ubah" dari daftar)
+    // di `admin-jobs.spec.ts`, bukan lewat registry generik ini.
+    nama: "admin — ubah lowongan (tidak ditemukan)",
+    jalur: "/admin/jobs/:id",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+
   {
     // Profil publik perusahaan (PR-054, Gap G5). Jalur LITERAL `:id`, alasan
     // yang sama dengan "admin — ubah perusahaan" di atas: navigasi langsung

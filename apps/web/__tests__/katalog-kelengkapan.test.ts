@@ -294,6 +294,49 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
   "admin.companies.form.batal": "Label tombol satu kata sehari-hari, sama dengan `pengaturan.hapus.batal`.",
   "admin.companies.verifikasi.dialogBatal": "Label tombol satu kata sehari-hari.",
 
+  // --- admin/jobs (PR-057) ---
+  // Pola yang sama dengan admin/companies di atas: label kolom tabel, judul
+  // halaman, dan label tombol pendek yang sudah memakai kata sehari-hari.
+  "admin.nav.jobs":
+    "Satu kata sehari-hari. Harus SAMA dengan `admin.jobs.judul` — pengguna mencocokkan " +
+    "kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  "admin.ringkasan.jobs.judul": "Satu kata sehari-hari; nama bagian tidak punya bentuk lebih sederhana.",
+  "admin.ringkasan.jobs.tautan": "Label tautan tiga kata sehari-hari.",
+  "admin.jobs.judul": "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana.",
+  "admin.jobs.tambah": "Label tombol dua kata sehari-hari.",
+  "admin.jobs.tabelJudul": "Caption tabel dua kata sehari-hari — nama tabelnya sendiri.",
+  "admin.jobs.kolom.judul": "Judul kolom satu kata.",
+  "admin.jobs.kolom.perusahaan": "Judul kolom satu kata, sama dengan `admin.jobs.form.perusahaan`.",
+  "admin.jobs.kolom.status": "Judul kolom satu kata, istilah yang sudah dipakai sehari-hari.",
+  "admin.jobs.kolom.aksi":
+    "Judul kolom satu kata; kolom ini hanya berisi tautan Ubah dan tombol Duplikat, judulnya " +
+    "tidak tampil visual tetapi tetap wajib bagi scope=col.",
+  "admin.jobs.ubah": "Label tautan satu kata sehari-hari.",
+  "admin.jobs.ubahLabel": "Label tautan dua kata + judul lowongan — sudah menyebut aksinya secara harfiah.",
+  "admin.jobs.cobaLagi": "Label tombol dua kata sehari-hari, sama dengan `admin.companies.cobaLagi`.",
+  "admin.jobs.kosong.judul": "Kalimat tiga kata, sudah sesederhana mungkin.",
+  "admin.jobs.form.judulBuat": "Label tombol/judul dua kata sehari-hari.",
+  "admin.jobs.form.judulUbah": "Pola judul 'Ubah {judul}' — sudah harfiah.",
+  "admin.jobs.form.kembaliKeDaftar": "Label tautan empat kata sehari-hari, sudah menyebut tujuannya.",
+  "admin.jobs.form.bagianDasar": "Judul bagian dua kata sehari-hari, tidak ada istilah teknis.",
+  "admin.jobs.form.perusahaan": "Label kolom satu kata.",
+  "admin.jobs.form.perusahaanPlaceholder": "Instruksi dua kata sehari-hari, sudah sesederhana mungkin.",
+  "admin.jobs.form.judul": "Label kolom dua kata sehari-hari.",
+  "admin.jobs.form.jenisPekerjaanLabel": "Label kolom dua kata sehari-hari, tidak ada bentuk lebih sederhana.",
+  "admin.jobs.form.jenisPekerjaan.internship":
+    "Satu kata sehari-hari; tidak ada bentuk yang lebih sederhana, sama dengan `companies.lowongan.tipe.internship`.",
+  "admin.jobs.form.kota": "Label kolom satu kata, sama dengan `admin.companies.form.kota`.",
+  "admin.jobs.form.provinsi": "Label kolom satu kata, istilah yang sudah dipakai sehari-hari.",
+  "admin.jobs.form.bagianGaji": "Judul bagian satu kata sehari-hari.",
+  "admin.jobs.form.simpan": "Label tombol satu kata sehari-hari, sama dengan `admin.companies.form.simpan`.",
+  "admin.jobs.form.batal": "Label tombol satu kata sehari-hari, sama dengan `admin.companies.form.batal`.",
+  "admin.jobs.tutup.tombol":
+    "Tiga kata sehari-hari — beda dengan 'Verifikasi perusahaan ini' (companies), 'tutup' sudah " +
+    "kata umum sehingga tidak butuh kata ganti yang lebih sederhana lagi.",
+  "admin.jobs.tutup.dialogYa": "Label tombol dua kata sehari-hari, 'tutup' tidak butuh kata ganti.",
+  "admin.jobs.tutup.dialogBatal":
+    "Label tombol satu kata sehari-hari, sama dengan `admin.companies.verifikasi.dialogBatal`.",
+
   // --- Profil publik perusahaan (PR-054) ---
   "companies.cobaLagi": "Label tombol dua kata sehari-hari, sama dengan `pengaturan.akun.cobaLagi`.",
   "companies.kembaliBeranda": "Label tautan tiga kata sehari-hari, sudah menyebut tujuannya.",
