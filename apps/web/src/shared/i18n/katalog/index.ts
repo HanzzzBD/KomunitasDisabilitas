@@ -15,6 +15,9 @@ import type { katalogPengaturan } from "./pengaturan.js";
 import type { katalogOnboarding } from "./onboarding.js";
 import type { katalogProfil } from "./profil.js";
 import type { katalogNotifikasi } from "./notifikasi.js";
+import type { katalogAdmin } from "./admin.js";
+import type { katalogCompanies } from "./companies.js";
+import type { katalogLowongan } from "./lowongan.js";
 
 type SemuaKatalog = typeof katalogShell &
   typeof katalogAuth &
@@ -22,7 +25,10 @@ type SemuaKatalog = typeof katalogShell &
   typeof katalogPengaturan &
   typeof katalogOnboarding &
   typeof katalogProfil &
-  typeof katalogNotifikasi;
+  typeof katalogNotifikasi &
+  typeof katalogAdmin &
+  typeof katalogCompanies &
+  typeof katalogLowongan;
 
 /** Seluruh kunci yang sah, diturunkan dari katalog — bukan ditulis ulang. */
 export type KunciTeks = keyof SemuaKatalog;

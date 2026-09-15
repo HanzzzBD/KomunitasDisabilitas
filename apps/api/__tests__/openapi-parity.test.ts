@@ -30,6 +30,8 @@ import { createNotificationsModule } from "../src/modules/notifications/index.js
 import { createProfilesModule } from "../src/modules/profiles/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
 import { createInternalModule } from "../src/modules/internal/index.js";
+import { createCompaniesModule } from "../src/modules/companies/index.js";
+import { createJobsModule } from "../src/modules/jobs/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
 
@@ -112,6 +114,19 @@ function routeNyata(): { method: string; path: string }[] {
     fieldKeys: parseFieldKeys({ FIELD_KEY_V1: Buffer.alloc(32, 7).toString("base64") }),
     auditLog: auditLog as never,
     events,
+  });
+  const jobs = createJobsModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: auditLog as never,
+    events,
+  });
+  createCompaniesModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: auditLog as never,
+    events,
+    jobsService: jobs.service,
   });
 
   // Permukaan operasional — ikut dirakit supaya test terakhir benar-benar

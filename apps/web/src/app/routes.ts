@@ -214,6 +214,162 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Admin shell (PR-052) — SAUDARA `pengaturan`, bukan anaknya: ia
+        // ruang kerja admin, bukan setelan akun. `role("admin")` ditegakkan
+        // di dalam komponen `Admin` (`Terlindungi` + `PenjagaAdmin`), alasan
+        // yang sama seperti `Pengaturan`: berkas ini `.ts` murni data.
+        path: "admin",
+        lazy: async () => {
+          const [{ Admin }] = await Promise.all([
+            import("../routes/admin.js"),
+            muatKatalog("admin"),
+          ]);
+          return { Component: Admin };
+        },
+        children: [
+          {
+            // Panel indeks: "/admin" langsung menampilkan Ringkasan, dengan
+            // alasan yang sama seperti indeks `/pengaturan` — alamat indeks
+            // lebih baik BERISI daripada menunjuk.
+            index: true,
+            lazy: async () => {
+              const [{ AdminRingkasan }] = await Promise.all([
+                import("../routes/admin.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminRingkasan };
+            },
+          },
+          {
+            // Kurasi perusahaan (PR-053). "companies/baru" dan "companies/:id"
+            // SAUDARA, bukan anak "companies" — keduanya halaman PENUH (form),
+            // tidak berbagi kerangka navigasi tambahan seperti panel
+            // `/pengaturan`, jadi tidak ada gunanya route induk ber-`<Outlet/>`
+            // di antaranya.
+            path: "companies",
+            lazy: async () => {
+              const [{ AdminCompaniesDaftar }] = await Promise.all([
+                import("../routes/admin-companies.js"),
+                // `profil` TIDAK dimuat di sini: daftar hanya menampilkan
+                // nama/kota/status, tidak menyebut taksonomi akomodasi.
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminCompaniesDaftar };
+            },
+          },
+          {
+            path: "companies/baru",
+            lazy: async () => {
+              const [{ AdminCompaniesFormulir }] = await Promise.all([
+                import("../routes/admin-companies-formulir.js"),
+                // `profil` ikut: label taksonomi akomodasi dipinjam dari
+                // katalognya (lihat `companies-formulir.tsx`).
+                muatKatalog("admin", "profil"),
+              ]);
+              return { Component: AdminCompaniesFormulir };
+            },
+          },
+          {
+            path: "companies/:id",
+            lazy: async () => {
+              const [{ AdminCompaniesFormulir }] = await Promise.all([
+                import("../routes/admin-companies-formulir.js"),
+                muatKatalog("admin", "profil"),
+              ]);
+              return { Component: AdminCompaniesFormulir };
+            },
+          },
+          {
+            // Kurasi lowongan (PR-057). Pola SAMA PERSIS dengan "companies"
+            // di atas — daftar dan form adalah halaman PENUH bersaudara,
+            // bukan anak-beranak.
+            path: "jobs",
+            lazy: async () => {
+              const [{ AdminJobsDaftar }] = await Promise.all([
+                import("../routes/admin-jobs.js"),
+                // `profil`/`onboarding` TIDAK dimuat di sini: daftar hanya
+                // menampilkan judul/perusahaan/status, tidak menyentuh
+                // taksonomi akomodasi maupun ragam disabilitas.
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminJobsDaftar };
+            },
+          },
+          {
+            path: "jobs/baru",
+            lazy: async () => {
+              const [{ AdminJobsFormulir }] = await Promise.all([
+                import("../routes/admin-jobs-formulir.js"),
+                // `profil` ikut: label taksonomi akomodasi. `onboarding`
+                // ikut: label ragam disabilitas (`RAGAM`, dipinjam sama
+                // seperti `bagian-sensitif.tsx`).
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminJobsFormulir };
+            },
+          },
+          {
+            path: "jobs/:id",
+            lazy: async () => {
+              const [{ AdminJobsFormulir }] = await Promise.all([
+                import("../routes/admin-jobs-formulir.js"),
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminJobsFormulir };
+            },
+          },
+        ],
+      },
+      {
+        // Profil publik perusahaan (PR-054, Gap G5, US-09) — SAUDARA `admin`,
+        // bukan anaknya: ini halaman yang dilihat KANDIDAT, seringkali tanpa
+        // sesi, bukan ruang kerja admin. Penjagaannya tidak ada sama sekali,
+        // dan itu benar: `GET /companies/:id` sendiri publik di server.
+        path: "companies/:id",
+        lazy: async () => {
+          const [{ ProfilPerusahaanPublik }] = await Promise.all([
+            import("../routes/company-public.js"),
+            // `profil` ikut: label akomodasi dipinjam dari katalognya (lihat
+            // `features/companies-publik/akomodasi-daftar.tsx`).
+            muatKatalog("companies", "profil"),
+          ]);
+          return { Component: ProfilPerusahaanPublik };
+        },
+      },
+      {
+        // Cari lowongan (PR-058, US-08) — SAUDARA `companies/:id`, alasan
+        // yang sama: halaman publik, sering tanpa sesi, tanpa penjagaan sama
+        // sekali (`GET /jobs` publik di server, PR-056).
+        path: "lowongan",
+        lazy: async () => {
+          const [{ LowonganBrowse }] = await Promise.all([
+            import("../routes/lowongan-browse.js"),
+            // `companies` ikut: taksonomi jenis/mode kerja dipinjam dari
+            // katalognya (`companies.lowongan.tipe.*`/`mode.*`, lihat
+            // `features/job-feed/kartu-lowongan.tsx`). `profil` ikut: label
+            // akomodasi, dipinjam LEWAT `DaftarAkomodasi` yang sudah ada.
+            muatKatalog("lowongan", "companies", "profil"),
+          ]);
+          return { Component: LowonganBrowse };
+        },
+      },
+      {
+        // Detail lowongan (PR-059, FR-4.4) — SAUDARA `lowongan`, bukan
+        // anaknya: halaman PENUH, tidak berbagi kerangka dengan daftar
+        // (pola sama `admin/companies` dan `companies/baru`).
+        path: "lowongan/:id",
+        lazy: async () => {
+          const [{ LowonganDetail }] = await Promise.all([
+            import("../routes/lowongan-detail.js"),
+            // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
+            // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
+            // label ragam disabilitas yang disambut (`RAGAM`).
+            muatKatalog("lowongan", "companies", "profil", "onboarding"),
+          ]);
+          return { Component: LowonganDetail };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

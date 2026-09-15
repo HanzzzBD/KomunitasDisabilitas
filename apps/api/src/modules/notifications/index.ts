@@ -291,7 +291,6 @@ export {
   type TeksNotifikasi,
   type TemplateNotifikasi,
 } from "./services/template.service.js";
-export { decodeKursor, encodeKursor, KursorTidakValidError } from "./services/kursor.js";
 export {
   createNotificationsController,
   type NotificationsController,

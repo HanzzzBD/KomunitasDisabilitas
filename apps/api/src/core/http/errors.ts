@@ -179,6 +179,42 @@ export const ERROR_CATALOG = {
     message: "Jatah bantuan AI Anda hari ini sudah habis",
     hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
   },
+  // --- Perusahaan (PR-051) ---
+  PERUSAHAAN_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Perusahaan tidak ditemukan",
+    hint: "Periksa kembali tautan atau ID perusahaan",
+  },
+  // --- Lowongan (PR-055) ---
+  LOWONGAN_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Lowongan tidak ditemukan",
+    hint: "Periksa kembali tautan atau ID lowongan",
+  },
+  // 409, bukan 400: bentuk permintaannya sah — yang bentrok adalah KEADAAN
+  // lowongan saat ini (mis. publish lowongan yang sudah closed, close
+  // lowongan yang masih draft). State machine draft→published→closed hanya
+  // mengizinkan dua transisi maju, tidak ada jalan mundur.
+  TRANSISI_STATUS_TIDAK_VALID: {
+    status: 409,
+    message: "Lowongan tidak bisa berpindah ke status itu dari status saat ini",
+    hint: "Periksa kembali status lowongan ini sebelum mencoba lagi",
+  },
+  // 422: bentuk permintaannya sah (publish tanpa badan sama sekali) tetapi
+  // lowongannya belum lengkap untuk diterbitkan — AC PR-055 eksplisit.
+  AKOMODASI_LOWONGAN_KOSONG: {
+    status: 422,
+    message: "Lowongan ini belum mencantumkan akomodasi apa pun",
+    hint: "Tambahkan minimal satu akomodasi lewat PUT sebelum menerbitkan lowongan",
+  },
+  // 409: DB (FK Restrict, SDD §6.1) sudah menolak penghapusannya — pesan ini
+  // menerjemahkan constraint itu, bukan mengarang aturan baru. "close" adalah
+  // jalur resmi menyingkirkan lowongan yang sudah berlamaran.
+  LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS: {
+    status: 409,
+    message: "Lowongan ini sudah punya pelamar dan tidak bisa dihapus",
+    hint: "Tutup lowongan (status closed) sebagai gantinya",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

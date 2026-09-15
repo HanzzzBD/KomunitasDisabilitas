@@ -4,7 +4,14 @@
 // yang harus diingat setiap halaman adalah banner yang suatu saat akan
 // terlupakan di salah satunya. Alasan yang sama kini berlaku untuk DUA hal baru
 // (PR-032a): landmark `<main>` dan tautan lompat ke konten.
-import { Link, Navigate, Outlet, useLocation, useNavigation } from "react-router";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  ScrollRestoration,
+  useLocation,
+  useNavigation,
+} from "react-router";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { LencanaNotifikasi } from "./lencana-notifikasi.js";
@@ -43,6 +50,30 @@ export const ID_KONTEN_UTAMA = "konten-utama";
  * alamat yang sama persis.
  */
 const JALUR_DIKECUALIKAN: readonly string[] = ["/onboarding", "/masuk", "/masuk/google"];
+
+/**
+ * Pesan flash dari `PenjagaAdmin` (PR-052) — dibaca lewat `location.state`,
+ * bukan lewat query string. Query string bertahan setelah refresh dan
+ * disalin ke tautan; state React Router hanya menempel pada SATU entri
+ * riwayat, sehingga pesan "Anda ditolak" tidak ikut terbawa saat halaman ini
+ * dibagikan atau dimuat ulang.
+ */
+function PesanAksesDitolak() {
+  const lokasi = useLocation();
+  const state = lokasi.state as { pesanAkses?: string } | null;
+  const pesan = state?.pesanAkses;
+
+  // Dirender bersyarat, bukan disembunyikan CSS: alasan yang sama dengan
+  // `BannerLuring` — elemen yang selalu ada lalu di-`display:none` tidak
+  // pernah memicu pengumuman `role="alert"`.
+  if (pesan === undefined) return null;
+
+  return (
+    <div role="alert" className="p-2">
+      <p className="text-base font-semibold text-gray-900">{pesan}</p>
+    </div>
+  );
+}
 
 export function TataLetak() {
   const t = useTeks();
@@ -106,6 +137,14 @@ export function TataLetak() {
       >
         {t("shell.lompatKeKonten")}
       </a>
+
+      {/*
+        Pesan flash pasca-pengalihan (PR-052) — lihat `PesanAksesDitolak` di
+        atas. DI BAWAH tautan lompat: alasan yang sama seperti pintasan
+        preferensi di bawah — tautan lompat harus tetap elemen fokusabel
+        PERTAMA.
+      */}
+      <PesanAksesDitolak />
 
       {/*
         PINTASAN KE PANEL PREFERENSI (PR-036, AC-5: "panel terjangkau dalam ≤ 2
@@ -184,6 +223,18 @@ export function TataLetak() {
         ) : null}
         <Outlet />
       </main>
+
+      {/*
+        SCROLL RESTORATION (PR-059) — dipasang di kerangka, SEKALI, dengan
+        alasan yang sama seperti `<main>`: satu-satunya komponen yang dilewati
+        setiap halaman. Navigasi BARU mulai dari atas (tanpa ini, membuka detail
+        lowongan dari daftar yang sudah digulir mendaratkan pengguna di tengah
+        halaman detail, melewati `<h1>`-nya); tombol KEMBALI memulihkan posisi
+        gulir entri riwayat itu (AC PR-059 "kembali ke list → posisi scroll
+        pulih"). Tautan lompat `#konten-utama` tetap bekerja: alamat dengan
+        hash diarahkan ke elemennya, bukan ke atas.
+      */}
+      <ScrollRestoration />
     </>
   );
 }

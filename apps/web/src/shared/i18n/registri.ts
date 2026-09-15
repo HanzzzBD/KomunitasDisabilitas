@@ -29,6 +29,9 @@ export const FITUR_MALAS = [
   "onboarding",
   "profil",
   "notifikasi",
+  "admin",
+  "companies",
+  "lowongan",
 ] as const;
 
 export type FiturMalas = (typeof FITUR_MALAS)[number];
@@ -48,6 +51,9 @@ const PEMUAT: Readonly<Record<FiturMalas, () => Promise<KatalogFitur>>> = {
   onboarding: async () => (await import("./katalog/onboarding.js")).katalogOnboarding,
   profil: async () => (await import("./katalog/profil.js")).katalogProfil,
   notifikasi: async () => (await import("./katalog/notifikasi.js")).katalogNotifikasi,
+  admin: async () => (await import("./katalog/admin.js")).katalogAdmin,
+  companies: async () => (await import("./katalog/companies.js")).katalogCompanies,
+  lowongan: async () => (await import("./katalog/lowongan.js")).katalogLowongan,
 };
 
 const dimuat = new Map<NamaFitur, KatalogFitur>([["shell", katalogShell]]);

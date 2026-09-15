@@ -24,7 +24,9 @@
 import type {
   ApplicationStatusChangedEvent,
   ApplicationSubmittedEvent,
+  CompanyVerifiedEvent,
   JobClosedEvent,
+  JobPublishedEvent,
   ProfileUpdatedEvent,
   UserRegisteredEvent,
 } from "@nawasena/schemas";
@@ -80,6 +82,27 @@ export interface DomainEvents {
    * yang dipicu event ini — bukan dari handler-nya.
    */
   "application.status_changed": ApplicationStatusChangedEvent;
+  /**
+   * Perusahaan diverifikasi admin (PR-051, PRD FR-6.1). Penerbitnya modul
+   * `companies`, DI PROSES API — endpoint verify berjalan lewat HTTP. Belum
+   * ada pelanggan: kandidat pengonsumsinya adalah cache/feed perusahaan
+   * terverifikasi, bila kelak dibutuhkan (belum ada di backlog MVP).
+   *
+   * TIDAK memuat isi profil perusahaan — sama seperti `job.closed`, pelanggan
+   * yang membutuhkannya membaca dari modul `companies`.
+   */
+  "company.verified": CompanyVerifiedEvent;
+  /**
+   * Lowongan diterbitkan admin, draft → published (PR-055, AC eksplisit
+   * "Publish → event job.published (assert)"). Penerbitnya modul `jobs`, DI
+   * PROSES API — endpoint publish berjalan lewat HTTP. Belum ada pelanggan:
+   * kandidat pengonsumsinya adalah notifikasi "lowongan baru cocok"
+   * (matching, Phase 10) dan cache/feed pencarian (PR-056), keduanya belum
+   * ada di backlog yang sudah dieksekusi.
+   *
+   * TIDAK memuat isi lowongan — pola yang sama dengan `job.closed` di atas.
+   */
+  "job.published": JobPublishedEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;

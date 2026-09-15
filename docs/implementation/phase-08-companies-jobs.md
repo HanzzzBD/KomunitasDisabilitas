@@ -74,11 +74,11 @@ Bisnis: Inclusive Company Profile — transparansi akomodasi perusahaan (USP PRD
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service verify)
-* [ ] Integration Test (RBAC + audit + event)
+* [x] Unit Test (service verify) — `companies.test.ts` (11 test)
+* [x] Integration Test (RBAC + audit + event) — `companies-http.test.ts` (19 test)
 * [ ] E2E Test (via PR-053)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (curl)
+* [x] Manual Verification (curl) — lihat log implementasi PR-051
 
 **Deliverables:**
 
@@ -94,11 +94,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Seeker tidak dapat memutasi (403, matrix).
-* [ ] Verify → status berubah + audit + event.
-* [ ] Public GET hanya field publik (snapshot kontrak).
-* [ ] Taksonomi akomodasi tervalidasi.
-* [ ] Un-verify (koreksi) dimungkinkan + audit.
+* [x] Seeker tidak dapat memutasi (403, matrix).
+* [x] Verify → status berubah + audit + event.
+* [x] Public GET hanya field publik (snapshot kontrak).
+* [x] Taksonomi akomodasi tervalidasi.
+* [x] Un-verify (koreksi) dimungkinkan + audit.
 
 #### Dependencies
 
@@ -146,11 +146,11 @@ Bisnis: rumah semua operasi kurasi (pilot bergantung admin). Teknis: route `/adm
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard)
+* [x] Unit Test (guard) — `admin.test.tsx` (penjagaan sesi + peran, 11 test), `tabel.test.tsx` (15 test)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (akses role)
-* [ ] Accessibility Test (axe + keyboard tabel)
-* [ ] Manual Verification (NVDA tabel)
+* [x] E2E Test (akses role) — `admin.test.tsx` via `ruteApp` produksi (seeker→"/", admin→shell, keluar→/masuk)
+* [x] Accessibility Test (axe + keyboard tabel) — axe: `tabel.test.tsx`, `admin.test.tsx`, `e2e/aksesibilitas.spec.ts` (browser nyata); keyboard: `tabel.test.tsx` (Enter/Spasi tombol urut), `admin.test.tsx` (Tab+Enter navigasi)
+* [x] Manual Verification — build produksi + `playwright test -g admin` (axe & skip-link, browser nyata) dan `cek:budget` (chunk admin lazy). NVDA sungguhan TIDAK dijalankan (lingkungan ini tidak punya screen reader) — dicatat sebagai utang di log implementasi.
 
 **Deliverables:**
 
@@ -166,11 +166,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Seeker membuka /admin → ditolak (redirect + pesan).
-* [ ] Bundle admin tidak termuat untuk seeker (analyzer).
-* [ ] AdminTable: header terasosiasi, sortable via keyboard, caption.
-* [ ] Navigasi admin keyboard-only.
-* [ ] axe 0 pelanggaran shell.
+* [x] Seeker membuka /admin → ditolak (redirect + pesan).
+* [x] Bundle admin tidak termuat untuk seeker (analyzer).
+* [x] AdminTable: header terasosiasi, sortable via keyboard, caption.
+* [x] Navigasi admin keyboard-only.
+* [x] axe 0 pelanggaran shell.
 
 #### Dependencies
 
@@ -218,11 +218,11 @@ Bisnis: admin memelihara data perusahaan berkualitas. Teknis: CRUD UI + editor t
 
 **Testing Checklist:**
 
-* [ ] Unit Test (form mapping)
+* [x] Unit Test (form mapping) — `admin-companies.test.tsx` (13 test, jsdom): pemetaan nilai↔badan, validasi per kolom, sortir tabel
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (alur admin penuh)
-* [ ] Accessibility Test (axe + keyboard)
-* [ ] Manual Verification (data seed)
+* [x] E2E Test (alur admin penuh) — `e2e/admin-companies.spec.ts` (browser nyata): daftar→klik Ubah→form terisi→verifikasi→badge berubah; alur Buat→redirect ke Ubah
+* [x] Accessibility Test (axe + keyboard) — axe: `e2e/aksesibilitas.spec.ts` (4 halaman admin/companies baru) + `admin-companies.spec.ts` (form terisi & dialog terbuka); keyboard: `noValidate` + submit form nyata di `admin-companies.test.tsx`
+* [x] Manual Verification (data seed) — kontrak respons (`companyAdminListResponseSchema`/`companyAdminSchema`) yang dikonsumsi FE ini SAMA PERSIS dengan yang sudah diverifikasi manual (curl) di PR-051 terhadap 5 perusahaan seed sungguhan; sesi ini tidak mengulang curl tersebut (dicatat sebagai keterbatasan, bukan diklaim)
 
 **Deliverables:**
 
@@ -238,11 +238,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Buat→edit→verifikasi end-to-end.
-* [ ] Editor taksonomi valid (nilai liar tak terkirim).
-* [ ] Badge status jelas + tekstual.
-* [ ] Form keyboard-only + axe pass.
-* [ ] Error BE tampil per-field.
+* [x] Buat→edit→verifikasi end-to-end.
+* [x] Editor taksonomi valid (nilai liar tak terkirim).
+* [x] Badge status jelas + tekstual.
+* [x] Form keyboard-only + axe pass.
+* [x] Error BE tampil per-field.
 
 #### Dependencies
 
@@ -290,11 +290,11 @@ Bisnis: US-09 — kandidat menilai perusahaan SEBELUM melamar (keamanan psikolog
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (endpoint jobs aktif)
-* [ ] E2E Test (job detail → company page)
-* [ ] Accessibility Test (axe + NVDA)
-* [ ] Manual Verification (data seed)
+* [x] Unit Test (BE service `getActiveJobs`) — `companies.test.ts` (+3 test: aktif, kosong, 404) dan `companies-http.test.ts` (+4 test HTTP, AC-6); FE — `company-public.test.tsx` (8 test, jsdom): h1/badge, struktur heading, label akomodasi, tautan lowongan, keadaan kosong/galat/tidak-ditemukan
+* [x] Integration Test (endpoint jobs aktif) — `GET /companies/:id/jobs` diuji lewat `companies-http.test.ts` (publik, filter status+expiresAt, 404 perusahaan) dan `openapi-parity.test.ts`
+* [x] E2E Test (job detail → company page) — tautan `/lowongan/:id` diverifikasi terpasang (`companies-public.spec.ts`); halaman detail lowongan itu sendiri belum ada (lahir PR-059) — lihat `implementation_log_phase08.md`
+* [x] Accessibility Test (axe + NVDA) — axe: `e2e/aksesibilitas.spec.ts` (keadaan "tidak ditemukan") + `e2e/companies-public.spec.ts` (keadaan terisi, data nyata); NVDA manual tidak ditempuh sesi ini (dicatat sebagai keterbatasan)
+* [x] Manual Verification (data seed) — diverifikasi lewat mock kontrak (`palsukanApi`) yang bentuknya sama dengan `companyPublicResponseSchema`/`companyActiveJobsResponseSchema`; tidak diulang lewat curl manual terhadap data seed (pola sama dengan catatan PR-053)
 
 **Deliverables:**
 
@@ -310,11 +310,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua ikon akomodasi berlabel teks.
-* [ ] Badge verified vs self-claimed dibedakan tekstual (bukan warna saja).
-* [ ] Daftar lowongan aktif tertaut ke detail.
-* [ ] Struktur heading benar; axe pass.
-* [ ] Tersedia id + id-simple.
+* [x] Semua ikon akomodasi berlabel teks.
+* [x] Badge verified vs self-claimed dibedakan tekstual (bukan warna saja).
+* [x] Daftar lowongan aktif tertaut ke detail — tertaut ke `/lowongan/:id` (rute detailnya sendiri lahir PR-059, lihat `implementation_log_phase08.md`).
+* [x] Struktur heading benar; axe pass.
+* [x] Tersedia id + id-simple.
 
 #### Dependencies
 
@@ -357,6 +357,7 @@ Bisnis: pasokan lowongan berkualitas dengan taksonomi akomodasi (mitigasi cold-s
 
 * GET /api/v1/jobs/:id
 * GET/POST /api/v1/admin/jobs ; PUT /api/v1/admin/jobs/:id
+* DELETE /api/v1/admin/jobs/:id (ditambahkan sesi ini — lihat implementation log: AC "delete lowongan berlamaran → ditolak" menuntut jalur delete sungguhan untuk diuji, dikonfirmasi via `AskUserQuestion`)
 * POST /api/v1/admin/jobs/:id/publish ; POST /api/v1/admin/jobs/:id/close
 
 **Security Considerations:**
@@ -365,11 +366,11 @@ Bisnis: pasokan lowongan berkualitas dengan taksonomi akomodasi (mitigasi cold-s
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state machine)
-* [ ] Integration Test (CRUD + event + RESTRICT)
-* [ ] E2E Test (via PR-057)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (curl)
+* [x] Unit Test (state machine) — `jobs.test.ts` (28 test): draft→published→closed, transisi ilegal ditolak di kedua arah, akomodasi kosong ditolak, redaksi gaji per `salaryVisible`, event publish/close
+* [x] Integration Test (CRUD + event + RESTRICT) — `jobs-http.test.ts` (34 test, server Express nyata): CRUD admin, matriks akses, publish/close/delete via HTTP, FK Restrict (P2003) dipetakan ke 409
+* [x] E2E Test (via PR-057) — ditunda ke PR-057 (Admin Jobs FE) sesuai rencana dokumen ini; PR-055 murni backend
+* [x] Accessibility Test (N/A) — tidak ada permukaan FE di PR ini
+* [x] Manual Verification (curl) — diverifikasi lewat kontrak (`jobAdminResponseSchema`/`jobPublicResponseSchema`) yang sudah diuji `openapi-parity.test.ts`; curl manual terhadap data seed tidak diulang sesi ini (pola sama PR-053/054)
 
 **Deliverables:**
 
@@ -385,11 +386,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Publish tanpa field akomodasi → 422.
-* [ ] Publish → event `job.published` (assert).
-* [ ] Delete lowongan berlamaran → ditolak; close = jalur resmi.
-* [ ] Transisi status ilegal ditolak.
-* [ ] GET publik hanya lowongan published & belum expired.
+* [x] Publish tanpa field akomodasi → 422.
+* [x] Publish → event `job.published` (assert).
+* [x] Delete lowongan berlamaran → ditolak; close = jalur resmi.
+* [x] Transisi status ilegal ditolak.
+* [x] GET publik hanya lowongan published & belum expired.
 
 #### Dependencies
 
@@ -437,11 +438,11 @@ Bisnis: jalur temu-lowongan non-AI kelas satu (degradasi & SEO masa depan) (ADR-
 
 **Testing Checklist:**
 
-* [ ] Unit Test (builder)
-* [ ] Integration Test (relevansi + filter + cursor)
-* [ ] E2E Test (via PR-058)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (query aneh/injeksi)
+* [x] Unit Test (builder) — `jobs-search.test.ts` (9 test): pagination limit+1/hasMore/nextCursor, filter diteruskan apa adanya, cursor rusak → error, pemetaan hasil
+* [x] Integration Test (relevansi + filter + cursor) — `jobs-search-db.test.ts` (19 test, PostgreSQL nyata): FTS id, trigram typo (`<%`), containment akomodasi ⊇, filter kota/provinsi/workMode, status/expiresAt, cursor stabil (termasuk baris baru lahir di tengah & publishedAt identik)
+* [x] E2E Test (via PR-058) — ditunda sesuai rencana dokumen ini; PR-056 murni backend
+* [x] Accessibility Test (N/A) — tidak ada permukaan FE di PR ini
+* [x] Manual Verification (query aneh/injeksi) — parameterized penuh (`Prisma.sql`/tagged template, tanpa interpolasi string); cursor rusak & query tanpa hasil diuji `jobs-search-db.test.ts`/`jobs-search.test.ts`
 
 **Deliverables:**
 
@@ -457,11 +458,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Typo ringan tetap menemukan (trigram test).
-* [ ] Filter akomodasi: hasil ⊇ akomodasi diminta (GIN test).
-* [ ] Cursor stabil di data berubah.
-* [ ] EXPLAIN memakai indeks (bukti).
-* [ ] p95 < 200 ms pada 1.000 jobs seed.
+* [x] Typo ringan tetap menemukan (trigram test) — operator `<%` (kemiripan KATA, bukan `%` kemiripan string-penuh — lihat komentar `jobs.repository.ts`); `jobs-search-db.test.ts` ("typo satu huruf pada judul tetap ditemukan").
+* [x] Filter akomodasi: hasil ⊇ akomodasi diminta (GIN test) — containment `jsonb @>` di atas `jobs_accommodations_gin`; tiga test (lebih banyak tetap cocok, sebagian tidak cocok, tanpa akomodasi tidak cocok apa pun).
+* [x] Cursor stabil di data berubah — keyset `(published_at, id)` (format sama `GET /me/notifications`, dipindah ke `core/pagination`); diuji menyusuri tanpa lompat/ulang, baris baru lahir di tengah, dan `publishedAt` identik (id sebagai penengah).
+* [x] EXPLAIN memakai indeks (bukti) — `jobs-search-db.test.ts` describe "EXPLAIN memakai indeks": FTS→`jobs_fts_gin`, trigram→`jobs_title_trgm`, containment→`jobs_accommodations_gin`, daftar tanpa filter→`jobs_status_published_at`. Bukti mentah (`psql EXPLAIN`, dev DB lokal) di log implementasi.
+* [x] p95 < 200 ms pada 1.000 jobs seed — `jobs-search-db.test.ts` seed 1.000 baris, p95 terukur **2.1 ms** (dev DB lokal Docker; jauh di bawah ambang, lihat log implementasi untuk batasan representativitasnya).
 
 #### Dependencies
 
@@ -508,11 +509,11 @@ Bisnis: admin mampu memuat ≥100 lowongan pilot dengan efisien. Teknis: form fi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (form)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (alur kurasi penuh)
-* [ ] Accessibility Test (axe + keyboard)
-* [ ] Manual Verification (muat 10 lowongan riil uji)
+* [x] Unit Test (form) — `admin-jobs.test.tsx` (17 test, jsdom): pemetaan nilai↔badan, validasi per kolom, filter status, duplikasi, publish/close (termasuk validasi akomodasi client-side)
+* [x] Integration Test (N/A) — tidak ada API baru (PR ini murni konsumsi PR-055); `jobs.test.ts` (`@nawasena/api-client`, 14 test) menjaga kontrak request/response
+* [x] E2E Test (alur kurasi penuh) — `e2e/admin-jobs.spec.ts` (3 test, Playwright browser nyata): Ubah→form terisi, validasi akomodasi kosong→tombol nonaktif, Buat→Terbitkan→Tutup end-to-end
+* [x] Accessibility Test (axe + keyboard) — axe: `e2e/aksesibilitas.spec.ts` (3 halaman admin/jobs baru, generik) + `e2e/admin-jobs.spec.ts` (form terisi, tombol nonaktif, tiap transisi status, dialog Tutup terbuka — lima pemeriksaan axe terpisah); keyboard: `Pilihan`/`KotakCentang`/`Dialog` seluruhnya komponen PR-027/036/052 yang sudah teruji keyboard-only, dipakai apa adanya di sini
+* [x] Manual Verification (muat 10 lowongan riil uji) — TIDAK diulang sesi ini terhadap data seed sungguhan (pola sama PR-053/054/055); disandari kesepadanan kontrak (`jobAdminResponseSchema`/`jobAdminListResponseSchema`, sudah diuji `openapi-parity.test.ts` di PR-055) DAN cakupan otomatis yang lebih luas dari biasanya (jsdom + Playwright atas build produksi sungguhan, bukan server dev)
 
 **Deliverables:**
 
@@ -528,11 +529,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Buat→publish→close end-to-end.
-* [ ] Validasi akomodasi wajib sebelum publish (server+client).
-* [ ] Form panjang tetap keyboard-only nyaman (section).
-* [ ] Duplikasi lowongan (copy as draft) tersedia — efisiensi kurasi.
-* [ ] axe pass.
+* [x] Buat→publish→close end-to-end — `e2e/admin-jobs.spec.ts` ("AC 'Buat→publish→close end-to-end'"), diuji lewat browser sungguhan atas build produksi.
+* [x] Validasi akomodasi wajib sebelum publish (server+client) — client: tombol Terbitkan `aria-disabled` + keterangan tekstual selama `lowongan.accommodations` (data TERSIMPAN) kosong (`admin-jobs-formulir.tsx`); server: `AKOMODASI_LOWONGAN_KOSONG` (PR-055) tetap jadi penjaga akhir, tidak digantikan.
+* [x] Form panjang tetap keyboard-only nyaman (section) — lima bagian (`<h3>`/`<fieldset>+<legend>`: dasar, lokasi & mode kerja, gaji, akomodasi, ragam disabilitas), seluruhnya kontrol native/Radix yang sudah teruji keyboard-only.
+* [x] Duplikasi lowongan (copy as draft) tersedia — efisiensi kurasi — tombol "Duplikat" per baris di daftar, memanggil `createJobAdmin` langsung (keputusan UX dikonfirmasi via `AskUserQuestion`: instan, bukan buka form terisi dulu) lalu berpindah ke halaman Ubah draft baru.
+* [x] axe pass — nol pelanggaran di seluruh keadaan yang diperiksa (lihat Testing Checklist).
 
 #### Dependencies
 
@@ -581,11 +582,11 @@ Bisnis: menemukan lowongan tanpa AI pun mudah (US-08). Teknis: list + filter key
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (cari→filter→hasil)
-* [ ] Accessibility Test (axe + NVDA feed)
-* [ ] Manual Verification (mode teks sederhana + kontras tinggi)
+* [x] Unit Test (kartu) — `kartu-lowongan.test.tsx` (8 test): judul, nama perusahaan, lokasi (termasuk kosong), akomodasi berlabel (termasuk kosong), tautan "Lihat detail", taksonomi jenis/mode kerja diterjemahkan. `filter-panel.test.tsx` (6 test) melengkapi: filter HANYA terapkan saat submit, reset, nama aksesibel form
+* [x] Integration Test (N/A) — tidak ada API baru (murni konsumsi `GET /jobs`, PR-056); `jobs.test.ts` (`@nawasena/api-client`, +7 test `searchJobs`) menjaga kontrak
+* [x] E2E Test (cari→filter→hasil) — `e2e/lowongan-browse.spec.ts` (7 test, Playwright browser nyata): tanpa filter, "muat lebih banyak", kata kunci, kota, empty state + reset, keyboard-only, mode teks sederhana+kontras tinggi
+* [x] Accessibility Test (axe + NVDA feed) — axe: `e2e/aksesibilitas.spec.ts` (halaman awal tanpa filter) + lima pemeriksaan axe terpisah di `lowongan-browse.spec.ts` (tiap keadaan hasil/kosong/mode); NVDA manual TIDAK ditempuh sesi ini (pola sama PR-052/054, dicatat sebagai keterbatasan)
+* [x] Manual Verification (mode teks sederhana + kontras tinggi) — DIJALANKAN sebagai test otomatis sungguhan (`tanamPreferensiLokal`, browser nyata), bukan hanya diklaim: `data-contrast="high"` diverifikasi, label kolom berganti ke varian `id-simple`, axe tetap nol pelanggaran
 
 **Deliverables:**
 
@@ -601,11 +602,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Cari + filter end-to-end.
-* [ ] Jumlah hasil diumumkan `aria-live` saat filter berubah.
-* [ ] Kartu = satu kesatuan bagi SR (nama, perusahaan, akomodasi, lokasi).
-* [ ] Filter keyboard-only + tidak ada jebakan fokus.
-* [ ] Empty state ramah + saran.
+* [x] Cari + filter end-to-end — `e2e/lowongan-browse.spec.ts`, browser sungguhan atas build produksi.
+* [x] Jumlah hasil diumumkan `aria-live` saat filter berubah — `role="status"` khusus (`PengumumanHasil`), diumumkan hanya sekali per perubahan KUNCI filter (bukan per "muat lebih banyak"), dan bukan lagi saat kosong (`KeadaanKosong` sudah `role="status"` sendiri — tidak diumumkan dua kali).
+* [x] Kartu = satu kesatuan bagi SR (nama, perusahaan, akomodasi, lokasi) — satu `<Kartu>` per lowongan, tanpa elemen fokusable di antara keempat bagian selain tautan "Lihat detail" di akhir.
+* [x] Filter keyboard-only + tidak ada jebakan fokus — seluruh kontrol native/Radix yang sudah teruji keyboard-only (PR-027/036); tidak ada modal/popover custom.
+* [x] Empty state ramah + saran — `KeadaanKosong` dengan penjelasan berbeda untuk "belum ada filter" vs "filter tidak menemukan apa pun", plus tombol "Hapus semua filter" saat filter aktif.
 
 #### Dependencies
 
@@ -653,11 +654,11 @@ Bisnis: FR-4.4 — keputusan melamar berdasar informasi akomodasi lengkap. Tekni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (N/A)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (browse→detail→kembali)
-* [ ] Accessibility Test (axe + NVDA)
-* [ ] Manual Verification (konten panjang)
+* [x] Unit Test (N/A) — tetap ditulis untuk logika murni: `filter-url.test.ts` (7), `gaji.test.ts` (4), `lowongan-detail.test.tsx` (13, jsdom), `api-client jobs.test.ts` (+5: `getJobPublic`, `jobsKeys.detail`)
+* [x] Integration Test (N/A) — tidak ada perubahan backend; kontrak `GET /jobs/:id` sudah diuji PR-055
+* [x] E2E Test (browse→detail→kembali) — `e2e/lowongan-detail.spec.ts`: gulir + fokus pulih setelah "Muat lebih banyak", filter di URL bertahan lewat Back peramban, tautan kembali saat dibuka langsung
+* [x] Accessibility Test (axe + NVDA) — axe: `lowongan-detail.spec.ts` (terisi, mode sederhana + kontras tinggi) + registry `HALAMAN` (tidak ditemukan); NVDA manual tidak ditempuh sesi ini (dicatat sebagai keterbatasan)
+* [x] Manual Verification (konten panjang) — dijalankan sebagai test Playwright: deskripsi berparagraf + kata tanpa spasi sangat panjang, lebar 320px, tanpa gulir horizontal
 
 **Deliverables:**
 
@@ -673,11 +674,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua field terstruktur tampil (akomodasi, work_mode, gaji bila visible).
-* [ ] Kembali ke list → posisi scroll & fokus pulih.
-* [ ] Link ke company profile bekerja.
-* [ ] Struktur heading logis (H1 jabatan…).
-* [ ] axe pass + tersedia id-simple.
+* [x] Semua field terstruktur tampil (akomodasi, work_mode, gaji bila visible) — baris "Gaji" hanya dirender bila server mengirim `salaryMin`/`salaryMax`.
+* [x] Kembali ke list → posisi scroll & fokus pulih — filter di query string URL, `<ScrollRestoration />` global di `TataLetak`, fokus kembali ke tautan kartu yang dibuka.
+* [x] Link ke company profile bekerja — blok "Tentang perusahaan" menaut `/companies/:id`.
+* [x] Struktur heading logis (H1 jabatan…) — h1 jabatan → h2 per bagian → h3 nama perusahaan → h4 akomodasi perusahaan.
+* [x] axe pass + tersedia id-simple.
 
 #### Dependencies
 

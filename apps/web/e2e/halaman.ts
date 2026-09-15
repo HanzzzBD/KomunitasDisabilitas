@@ -48,6 +48,15 @@ export interface HalamanDijaga {
    * setelah halaman dimuat.
    */
   butuhSesi?: true;
+  /**
+   * Halaman ini hanya bisa dicapai pengguna berperan admin (PR-052).
+   *
+   * Menyiratkan `butuhSesi` — tidak perlu menulis keduanya. Tanpa penanda ini,
+   * `PenjagaAdmin` akan melihat peran "seeker" (bawaan `palsukanApi`) dan
+   * mengalihkan ke "/", sehingga gerbangnya memeriksa halaman beranda sambil
+   * mengira sedang memeriksa halaman admin.
+   */
+  butuhAdmin?: true;
 }
 
 export const HALAMAN: readonly HalamanDijaga[] = [
@@ -125,8 +134,10 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     siapkan: async (page) => {
       // `:text-is` = cocok PERSIS. `:has-text` akan ikut menangkap kalimat
       // bantuan di bawah kotaknya, yang memuat kata yang sama.
-      await page.click('text=Saya mengizinkan Nawasena menyimpan data disabilitas saya');
-      await page.waitForSelector('legend:text-is("Ragam disabilitas Anda (boleh lebih dari satu)")');
+      await page.click("text=Saya mengizinkan Nawasena menyimpan data disabilitas saya");
+      await page.waitForSelector(
+        'legend:text-is("Ragam disabilitas Anda (boleh lebih dari satu)")',
+      );
     },
   },
 
@@ -173,6 +184,86 @@ export const HALAMAN: readonly HalamanDijaga[] = [
       await page.click('button:text-is("Lanjut")');
       await page.waitForSelector('h2:text-is("Ringkasan")');
     },
+  },
+
+  // Admin shell (PR-052).
+  { nama: "admin — ringkasan", jalur: "/admin", butuhSesi: true, butuhAdmin: true },
+
+  // Kurasi perusahaan (PR-053).
+  {
+    nama: "admin — daftar perusahaan",
+    jalur: "/admin/companies",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    nama: "admin — tambah perusahaan",
+    jalur: "/admin/companies/baru",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    // Jalur LITERAL `:id` — Playwright membuka alamat ini APA ADANYA, jadi
+    // `useParams().id` selalu literal `":id"`, yang tidak pernah cocok dengan
+    // id UUID sungguhan mana pun. Keadaan yang teruji di sini karena itu
+    // memang "perusahaan tidak ditemukan" — lihat komentar `PERUSAHAAN_UJI_ID`
+    // di `palsukan-api.ts`. Keadaan form terisi + dialog verifikasi diuji
+    // lewat alur sungguhan (klik "Ubah" dari daftar) di
+    // `admin-companies.spec.ts`, bukan lewat registry generik ini.
+    nama: "admin — ubah perusahaan (tidak ditemukan)",
+    jalur: "/admin/companies/:id",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+
+  // Kurasi lowongan (PR-057) — pola SAMA PERSIS dengan kurasi perusahaan di atas.
+  { nama: "admin — daftar lowongan", jalur: "/admin/jobs", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — tambah lowongan",
+    jalur: "/admin/jobs/baru",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    // Jalur LITERAL `:id` — alasan SAMA PERSIS dengan "admin — ubah
+    // perusahaan (tidak ditemukan)" di atas. Keadaan form terisi + tombol
+    // Terbitkan/Tutup diuji lewat alur sungguhan (klik "Ubah" dari daftar)
+    // di `admin-jobs.spec.ts`, bukan lewat registry generik ini.
+    nama: "admin — ubah lowongan (tidak ditemukan)",
+    jalur: "/admin/jobs/:id",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+
+  {
+    // Profil publik perusahaan (PR-054, Gap G5). Jalur LITERAL `:id`, alasan
+    // yang sama dengan "admin — ubah perusahaan" di atas: navigasi langsung
+    // ke sini lewat Playwright membuat `useParams().id` bernilai literal
+    // `":id"`, yang tidak pernah cocok dengan id UUID sungguhan mana pun —
+    // jadi keadaan yang teruji di sini memang "perusahaan tidak ditemukan".
+    // Keadaan TERISI (profil + lowongan aktif) diuji lewat navigasi langsung
+    // ke id sungguhan di `companies-public.spec.ts`, bukan lewat registry ini.
+    nama: "companies — profil publik (tidak ditemukan)",
+    jalur: "/companies/:id",
+  },
+
+  {
+    // Cari lowongan (PR-058). Keadaan terisi (hasil, filter, "muat lebih
+    // banyak") diuji lewat alur sungguhan di `lowongan-browse.spec.ts`,
+    // bukan lewat registry generik ini — entri ini hanya menjangkau keadaan
+    // yang benar-benar dilihat setiap pengunjung: halaman kosong tanpa
+    // pencarian apa pun (LOWONGAN_UJI di `palsukan-api.ts` diseting agar
+    // muncul di daftar tanpa filter).
+    nama: "lowongan — cari (tanpa filter)",
+    jalur: "/lowongan",
+  },
+  {
+    // Detail lowongan (PR-059). Jalur LITERAL `:id` — alasan sama dengan
+    // "companies — profil publik (tidak ditemukan)": keadaan yang dijangkau
+    // registry generik ini adalah "lowongan tidak ditemukan". Keadaan TERISI
+    // (dan alur browse→detail→kembali) diuji di `lowongan-detail.spec.ts`.
+    nama: "lowongan — detail (tidak ditemukan)",
+    jalur: "/lowongan/:id",
   },
 
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
