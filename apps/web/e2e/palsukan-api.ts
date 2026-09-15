@@ -269,6 +269,55 @@ const LOWONGAN_PUBLIK_UJI = {
   publishedAt: "2026-01-10T00:00:00.000Z",
 };
 
+/**
+ * Hasil pencarian lowongan publik untuk "/lowongan" (PR-058, `GET /jobs`).
+ *
+ * TIGA baris, bukan satu — cukup untuk `lowongan-browse.spec.ts` menguji
+ * filter (kota/mode kerja/kata kunci berbeda per baris) tanpa satu pun baris
+ * saling menyamarkan yang lain. Bentuknya `JobSearchResult`
+ * (`@nawasena/schemas`) — beda dari `LOWONGAN_PUBLIK_UJI` di atas
+ * (`JobPublicSummary`, dipakai `GET /companies/:id/jobs`): yang ini punya
+ * `companyName`+`accommodations`, yang itu tidak.
+ */
+const LOWONGAN_PENCARIAN_UJI = [
+  {
+    id: "01912345-89ab-7def-8123-4567890abe01",
+    companyId: PERUSAHAAN_UJI_ID,
+    companyName: "PT Uji Fiktif",
+    title: "Staf Layanan Pelanggan",
+    employmentType: "full_time",
+    workMode: "onsite",
+    city: "Jakarta",
+    province: "DKI Jakarta",
+    accommodations: ["akses_kursi_roda", "ramah_screen_reader"],
+    publishedAt: "2026-01-12T00:00:00.000Z",
+  },
+  {
+    id: "01912345-89ab-7def-8123-4567890abe02",
+    companyId: PERUSAHAAN_UJI_ID,
+    companyName: "PT Uji Fiktif",
+    title: "Penulis Konten Jarak Jauh",
+    employmentType: "freelance",
+    workMode: "remote",
+    city: null as string | null,
+    province: null as string | null,
+    accommodations: ["jam_kerja_fleksibel"],
+    publishedAt: "2026-01-11T00:00:00.000Z",
+  },
+  {
+    id: "01912345-89ab-7def-8123-4567890abe03",
+    companyId: PERUSAHAAN_UJI_ID,
+    companyName: "PT Uji Fiktif",
+    title: "Analis Data Bandung",
+    employmentType: "full_time",
+    workMode: "hybrid",
+    city: "Bandung" as string | null,
+    province: "Jawa Barat" as string | null,
+    accommodations: [] as string[],
+    publishedAt: "2026-01-10T00:00:00.000Z",
+  },
+];
+
 function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
@@ -569,6 +618,50 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       }
       Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
       return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    // --- Cari lowongan publik (PR-058, GET /jobs) ---
+    //
+    // KESAMAAN PERSIS (`===`), BUKAN `endsWith` — `/api/v1/admin/jobs` JUGA
+    // diakhiri "jobs", dan `endsWith("/jobs")` akan menelannya kalau cabang
+    // ini diperiksa lebih dulu. Aman di sini karena cabang admin di ATAS
+    // sudah menjawab dan `return` duluan; kesamaan persis ditulis eksplisit
+    // supaya urutan pemeriksaan tidak pernah jadi syarat diam-diam.
+    //
+    // Filter DITERAPKAN SUNGGUHAN (bukan diabaikan) — `lowongan-browse.spec.ts`
+    // menguji kata kunci, kota, mode kerja, DAN akomodasi sungguhan lewat
+    // pemalsuan ini, bukan hanya membuka halaman kosong.
+    if (jalur === "/api/v1/jobs") {
+      const cari = new URL(route.request().url()).searchParams;
+      const query = cari.get("query")?.toLowerCase() ?? null;
+      const city = cari.get("city");
+      const workMode = cari.get("workMode");
+      const akomodasiDiminta = cari.getAll("accommodations");
+
+      const cocok = LOWONGAN_PENCARIAN_UJI.filter((l) => {
+        if (query !== null && !l.title.toLowerCase().includes(query)) return false;
+        if (city !== null && l.city !== city) return false;
+        if (workMode !== null && l.workMode !== workMode) return false;
+        if (akomodasiDiminta.some((a) => !l.accommodations.includes(a))) return false;
+        return true;
+      });
+
+      // Ukuran halaman KECIL SENGAJA (2, bukan `limit` yang dikirim klien):
+      // tiga baris fixture cukup untuk memunculkan "Muat lebih banyak" tanpa
+      // perlu puluhan baris fixture — pemalsuan ini tidak wajib menghormati
+      // `limit` klien persis seperti server sungguhan, hanya perlu
+      // menghasilkan `nextCursor` yang masuk akal.
+      const UKURAN_HALAMAN = 2;
+      const cursor = cari.get("cursor");
+      const mulai = cursor === null ? 0 : Number(cursor);
+      const halaman = cocok.slice(mulai, mulai + UKURAN_HALAMAN);
+      const adaLagi = mulai + UKURAN_HALAMAN < cocok.length;
+
+      return route.fulfill(
+        jsonkan(200, {
+          data: halaman,
+          meta: { nextCursor: adaLagi ? String(mulai + UKURAN_HALAMAN) : null },
+        }),
+      );
     }
     // --- Profil publik perusahaan (PR-054, Gap G5) ---
     //

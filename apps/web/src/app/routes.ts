@@ -337,6 +337,23 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Cari lowongan (PR-058, US-08) — SAUDARA `companies/:id`, alasan
+        // yang sama: halaman publik, sering tanpa sesi, tanpa penjagaan sama
+        // sekali (`GET /jobs` publik di server, PR-056).
+        path: "lowongan",
+        lazy: async () => {
+          const [{ LowonganBrowse }] = await Promise.all([
+            import("../routes/lowongan-browse.js"),
+            // `companies` ikut: taksonomi jenis/mode kerja dipinjam dari
+            // katalognya (`companies.lowongan.tipe.*`/`mode.*`, lihat
+            // `features/job-feed/kartu-lowongan.tsx`). `profil` ikut: label
+            // akomodasi, dipinjam LEWAT `DaftarAkomodasi` yang sudah ada.
+            muatKatalog("lowongan", "companies", "profil"),
+          ]);
+          return { Component: LowonganBrowse };
+        },
+      },
+      {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar
         // bawaan React Router alih-alih pesan kita.
         //

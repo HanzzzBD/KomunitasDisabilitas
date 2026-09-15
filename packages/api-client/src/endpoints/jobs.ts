@@ -17,8 +17,12 @@ import {
   createJobSchema,
   jobAdminListResponseSchema,
   jobAdminResponseSchema,
+  jobSearchResponseSchema,
   updateJobSchema,
+  type AccommodationNeed,
   type JobAdmin,
+  type JobSearchResponse,
+  type WorkMode,
 } from "@nawasena/schemas";
 import type { z } from "zod";
 import type { ApiClient } from "../client.js";
@@ -27,6 +31,34 @@ import { queryKey } from "../query-keys.js";
 /** Key cache TanStack untuk daftar admin — TANPA params, sama alasannya dengan `companiesKeys.adminList`. */
 export const jobsKeys = {
   adminList: () => queryKey("admin-jobs"),
+  /**
+   * Pencarian publik (PR-058) — DILINGKUPI FILTER, TANPA `cursor`. `cursor`
+   * sengaja tidak ikut kunci: ia bukan identitas PENCARIAN, melainkan posisi
+   * halaman di dalamnya (pola sama `notificationsKeys.daftar`, yang juga
+   * tidak melingkupi cursor-nya sendiri) — `useInfiniteQuery` memegang
+   * halaman lewat `pageParam`, bukan lewat kunci cache.
+   *
+   * `accommodations` DIURUTKAN sebelum masuk kunci: dua pilihan checkbox yang
+   * sama tetapi dicentang dalam urutan berbeda tidak boleh dianggap dua
+   * pencarian berbeda oleh cache TanStack.
+   */
+  search: (filter: {
+    query?: string;
+    city?: string;
+    province?: string;
+    workMode?: WorkMode;
+    accommodations?: readonly AccommodationNeed[];
+  }) =>
+    queryKey("jobs-search", {
+      query: filter.query,
+      city: filter.city,
+      province: filter.province,
+      workMode: filter.workMode,
+      accommodations:
+        filter.accommodations === undefined
+          ? undefined
+          : [...filter.accommodations].sort().join(","),
+    }),
 };
 
 /** Bentuk MASUKAN skema (`z.input`), bukan keluarannya — lihat alasan sama di `companies.ts`. */
@@ -91,4 +123,50 @@ export async function closeJobAdmin(client: ApiClient, id: string): Promise<JobA
     responseSchema: jobAdminResponseSchema,
   });
   return res.data;
+}
+
+// ============================================================================
+// PR-058 — Pencarian publik (konsumen `GET /jobs`, PR-056)
+// ============================================================================
+
+export interface OpsiPencarianLowongan {
+  query?: string;
+  city?: string;
+  province?: string;
+  workMode?: WorkMode;
+  /** Filter ⊇ — lowongan harus punya SEMUA nilai ini (containment, lihat server). */
+  accommodations?: readonly AccommodationNeed[];
+  cursor?: string;
+  limit?: number;
+}
+
+/**
+ * GET /api/v1/jobs — satu halaman hasil pencarian, PUBLIK (tanpa sesi).
+ *
+ * `accommodations` dikirim sebagai PARAMETER BERULANG
+ * (`?accommodations=a&accommodations=b`), bukan digabung koma — `qs` di sisi
+ * server mem-parse bentuk ini langsung jadi array (lihat
+ * `jobSearchAccommodationsSchema`, `@nawasena/schemas/jobs.ts`), sehingga
+ * tidak perlu format khusus di sisi klien.
+ *
+ * Mengembalikan AMPLOP UTUH (`{ data, meta }`), pola sama `listNotifications`:
+ * `meta.nextCursor` dipakai `useInfiniteQuery` di pemanggil.
+ */
+export async function searchJobs(
+  client: ApiClient,
+  opsi: OpsiPencarianLowongan = {},
+): Promise<JobSearchResponse> {
+  const query = new URLSearchParams();
+  if (opsi.query !== undefined && opsi.query !== "") query.set("query", opsi.query);
+  if (opsi.city !== undefined && opsi.city !== "") query.set("city", opsi.city);
+  if (opsi.province !== undefined && opsi.province !== "") query.set("province", opsi.province);
+  if (opsi.workMode !== undefined) query.set("workMode", opsi.workMode);
+  for (const akomodasi of opsi.accommodations ?? []) query.append("accommodations", akomodasi);
+  if (opsi.cursor !== undefined) query.set("cursor", opsi.cursor);
+  if (opsi.limit !== undefined) query.set("limit", String(opsi.limit));
+
+  const akhiran = query.size === 0 ? "" : `?${query.toString()}`;
+  return client.request(`/jobs${akhiran}`, {
+    responseSchema: jobSearchResponseSchema,
+  });
 }
