@@ -492,6 +492,33 @@ PR-033c-2). Jalur dengan bukti terlemah didahulukan.
 
 ---
 
+### U-22 — Ukuran dokumen CV dibatasi per-larik, bukan per-dokumen
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Batas sumber daya |
+| **Ditemukan** | PR-060 (2026-09-16) |
+| **Pemilik** | **PR-063** (render PDF) |
+| **Pemicu** | Saat processor Puppeteer pertama membaca `resumes.content` ke memori |
+
+`resumeContentSchema` membatasi **jumlah elemen** tiap larik (30 riwayat kerja, 20
+pendidikan, 60 keahlian, 30 sertifikasi, 20 organisasi) dan **panjang teks** tiap field.
+Hasil kalinya membuat batas atas ukuran dokumen terhingga — kira-kira beberapa ratus
+kilobyte pada isian ekstrem — tetapi **tidak ada satu pun pemeriksaan atas byte total**
+dokumen `jsonb`-nya.
+
+Kenapa belum dibayar di PR-060: angka yang benar untuk batas itu hanya bisa ditentukan oleh
+pihak yang tahu berapa RAM yang dipakai satu render — dan itu PR-063, yang berjalan dengan
+`concurrency 1` dan batas RAM kontainer (risiko T4, SDD §16). Menebak angkanya sekarang
+berarti menaruh batas yang tidak punya dasar, lalu mewarisi kewajiban membelanya.
+
+Kenapa tidak berbahaya hari ini: tidak ada satu pun pembaca `content` selain endpoint
+pemiliknya sendiri. Yang pertama membacanya dalam proses yang bisa kehabisan memori adalah
+processor PDF — yang belum ada.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

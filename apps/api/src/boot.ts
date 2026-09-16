@@ -34,6 +34,7 @@ import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
+import { createResumesModule } from "./modules/resumes/index.js";
 import { createAiModule } from "./modules/ai/index.js";
 import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
 import {
@@ -266,6 +267,18 @@ export async function startApi(options: BootOptions): Promise<void> {
         }),
       );
       app.use(profiles.router);
+      // CV jalur manual (PR-060). TIDAK bergantung pada gateway AI sama sekali,
+      // dan itu justru intinya: graceful degradation adalah kewajiban produk
+      // (PRD), jadi jalur ini harus tetap hidup utuh saat kuota habis atau
+      // kedua penyedia LLM tumbang. `service`-nya dikembalikan untuk PR-066
+      // (CV dari percakapan) dan PR-063/064 (render PDF) — belum ada pemanggil.
+      app.use(
+        createResumesModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          maksPerPengguna: env.RESUME_MAX_PER_USER,
+        }).router,
+      );
       // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk
       // `GET /companies/:id/jobs` (PR-054/055, komunikasi antar-modul lewat
       // lapisan service — CLAUDE.md §3.2). Penerbit `job.published` +

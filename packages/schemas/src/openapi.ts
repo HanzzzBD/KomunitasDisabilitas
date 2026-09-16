@@ -72,6 +72,13 @@ import {
   updateSeekerProfileSchema,
   updateSkillSchema,
 } from "./profiles.js";
+import {
+  createResumeSchema,
+  resumeIdParamsSchema,
+  resumeListResponseSchema,
+  resumeResponseSchema,
+  updateResumeSchema,
+} from "./resumes.js";
 import type { ZodTypeAny } from "zod";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
@@ -942,6 +949,100 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "404": errorResponse("Tidak ditemukan"),
             "409": errorResponse("Lowongan tidak dalam status `published`"),
             ...responsAdmin,
+          },
+        },
+      },
+
+      // --- CV terstruktur (PR-060) ---
+      //
+      // DITARUH DI AKHIR DENGAN SENGAJA, bukan dikelompokkan dekat `/me/*` yang
+      // lain. Urutan path di dokumen mengikuti urutan deklarasi di berkas ini
+      // (lihat kepala berkas: "deterministik by design"), jadi menyisipkan blok
+      // baru di tengah menggeser posisi SETIAP kunci sesudahnya di
+      // `openapi.json` — dan `git diff` menampilkannya sebagai ribuan baris
+      // berubah untuk lima endpoint yang ditambahkan. Diff sebesar itu bukan
+      // sekadar berisik: ia membuat review terhadap perubahan kontrak API
+      // menjadi tidak mungkin dilakukan dengan mata. Endpoint berikutnya
+      // menyusul di bawah ini, dengan alasan yang sama.
+      // CV terstruktur jalur manual (PR-060, PRD US-05). Seluruhnya milik
+      // pemanggil sendiri; CV orang lain berperilaku seperti CV yang tidak ada.
+      "/me/resumes": {
+        get: {
+          operationId: "listMyResumes",
+          tags: ["resumes"],
+          summary: "Daftar CV sendiri",
+          description:
+            "Mengembalikan RINGKASAN seluruh CV milik pengguna yang sedang masuk — tanpa " +
+            "isinya. Daftar dipakai untuk memilih, bukan untuk membaca; isi satu CV diambil " +
+            "lewat GET /me/resumes/{id}. Tanpa pagination dengan sengaja: jumlahnya dibatasi " +
+            "RESUME_MAX_PER_USER (bawaan 5).",
+          responses: {
+            "200": jsonOk("Ringkasan CV milik sendiri", resumeListResponseSchema),
+            ...responsSesi,
+          },
+        },
+        post: {
+          operationId: "createResume",
+          tags: ["resumes"],
+          summary: "Buat CV baru",
+          description:
+            "CV yang lahir dari endpoint ini SELALU `created_via: manual` — nilainya " +
+            "ditentukan jalur yang dipakai, bukan diakui klien. `content` boleh dikosongkan; " +
+            "CV lahir kosong lalu diisi bagian demi bagian.",
+          requestBody: jsonBody(createResumeSchema),
+          responses: {
+            "201": jsonOk("CV yang baru dibuat", resumeResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            "409": errorResponse("Jumlah CV sudah mencapai batas"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/resumes/{id}": {
+        get: {
+          operationId: "getResume",
+          tags: ["resumes"],
+          summary: "Ambil satu CV beserta isinya",
+          requestParams: { path: resumeIdParamsSchema },
+          responses: {
+            "200": jsonOk("CV beserta isinya", resumeResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+        put: {
+          operationId: "updateResume",
+          tags: ["resumes"],
+          summary: "Perbarui satu CV",
+          description:
+            "Field yang tidak dikirim berarti tidak diubah. `content` DIGANTI UTUH bila " +
+            "disebut, tidak digabung per bagian — lihat alasannya di updateResumeSchema. " +
+            "CV milik pengguna lain berperilaku seperti CV yang tidak ada: 404, bukan 403.",
+          requestParams: { path: resumeIdParamsSchema },
+          requestBody: jsonBody(updateResumeSchema),
+          responses: {
+            "200": jsonOk("CV setelah diperbarui", resumeResponseSchema),
+            "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+        delete: {
+          operationId: "deleteResume",
+          tags: ["resumes"],
+          summary: "Hapus satu CV",
+          description:
+            "CV yang sedang menjadi lampiran sebuah lamaran TIDAK bisa dihapus (409) — " +
+            "penolakannya datang dari foreign key di database, bukan dari aturan yang " +
+            "dikarang lapisan aplikasi.",
+          requestParams: { path: resumeIdParamsSchema },
+          responses: {
+            "204": { description: "Terhapus — tanpa badan jawaban" },
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("CV masih dipakai sebuah lamaran"),
+            ...responsSesi,
           },
         },
       },

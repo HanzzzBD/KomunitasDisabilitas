@@ -8,7 +8,8 @@
 //   Kebutuhan akomodasi persona terwakili di preferensi UI + akomodasi jobs.
 // - ID fixture stabil: prisma/fixtures.ts + dokumentasi prisma/FIXTURES.md.
 import type { PrismaClient } from "@prisma/client";
-import type { AccommodationNeed, DisabilityType } from "@nawasena/schemas";
+import type { AccommodationNeed, DisabilityType, ResumeContent } from "@nawasena/schemas";
+import { resumeContentInputSchema } from "@nawasena/schemas";
 import { uuidV7 } from "../src/core/ids/index.js";
 import { FIXTURE, FIXTURE_PHONES } from "./fixtures.js";
 
@@ -439,16 +440,45 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
         update: { name: nama },
       });
     }
+    // Isi CV DIPARSE lewat `resumeContentInputSchema` (PR-060), bukan disusun
+    // apa adanya. Skema TULIS, bukan skema baca: yang kedua menuntut kesembilan
+    // bagian hadir, dan persona ini hanya mengisi sebagian. Sampai PR-060 blok ini menulis bentuk karangannya sendiri
+    // (`{ headline, ringkasan, keahlian }`) — sah sebagai jsonb, tetapi tidak
+    // bisa dibuka editor CV maupun dirender PDF, sehingga keempat CV persona
+    // adalah data yang tidak bisa dipakai satu pun fitur yang akan memakainya.
+    //
+    // `.parse()`, bukan sekadar anotasi tipe: seed yang menyimpang dari kontrak
+    // membuat `pnpm db:seed` GAGAL saat itu juga, bukan melahirkan empat baris
+    // rusak yang baru ketahuan di phase berikutnya.
+    const isiCv: ResumeContent = resumeContentInputSchema.parse({
+      headline: p.profil.headline,
+      summary: p.profil.summary,
+      contact: { city: p.profil.city, province: p.profil.province },
+      experiences:
+        p.pengalaman === undefined
+          ? []
+          : [{ title: p.pengalaman.title, company: p.pengalaman.company }],
+      educations: [p.pendidikan],
+      skills: p.keahlian.map((nama) => ({ name: nama })),
+    });
     await prisma.resume.upsert({
       where: { id: p.resumeId },
       create: {
         id: p.resumeId,
         userId: p.id,
         title: `CV ${p.fullName.split(" ")[0]}`,
-        content: { headline: p.profil.headline, ringkasan: p.profil.summary, keahlian: p.keahlian },
+        content: isiCv,
         createdVia: "manual",
       },
-      update: {},
+      // MENIMPA isinya, bukan `update: {}` seperti sebelumnya — dan itu justru
+      // inti perubahan PR-060 di berkas ini. Baris fixture ini sudah ada di
+      // setiap database dev yang pernah di-seed, membawa bentuk karangan lama;
+      // `update: {}` berarti menjalankan seed baru TIDAK memperbaikinya, dan
+      // penyelarasan ke kontrak hanya berlaku bagi orang yang kebetulan memulai
+      // dari database kosong. Sama seperti pendidikan dan keahlian di atas yang
+      // memang sudah selalu ditimpa: ini fixture ber-ID tetap, bukan data milik
+      // siapa pun.
+      update: { title: `CV ${p.fullName.split(" ")[0]}`, content: isiCv },
     });
   }
 
