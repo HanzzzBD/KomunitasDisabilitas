@@ -32,6 +32,7 @@ import { createHealthModule } from "../src/modules/health/index.js";
 import { createInternalModule } from "../src/modules/internal/index.js";
 import { createCompaniesModule } from "../src/modules/companies/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
+import { createResumesModule } from "../src/modules/resumes/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
 
@@ -120,6 +121,11 @@ function routeNyata(): { method: string; path: string }[] {
     routes: registry.forModule(PREFIX),
     auditLog: auditLog as never,
     events,
+  });
+  createResumesModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    maksPerPengguna: 5,
   });
   createCompaniesModule({
     prisma: stub(),

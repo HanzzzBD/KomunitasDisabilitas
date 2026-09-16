@@ -215,6 +215,31 @@ export const ERROR_CATALOG = {
     message: "Lowongan ini sudah punya pelamar dan tidak bisa dihapus",
     hint: "Tutup lowongan (status closed) sebagai gantinya",
   },
+  // --- CV / resumes (PR-060) ---
+  CV_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "CV tidak ditemukan",
+    hint: "Mungkin sudah dihapus. Muat ulang daftar CV Anda, lalu coba lagi",
+  },
+  // 409, bukan 400: bentuk permintaannya sah — yang bentrok adalah KEADAAN akun
+  // saat ini (sudah punya CV sebanyak batasnya). Pesannya menyebutkan jalan
+  // keluar yang benar-benar ada, sebab pengguna yang hanya diberi tahu "batas
+  // tercapai" tidak punya langkah berikutnya.
+  BATAS_CV_TERCAPAI: {
+    status: 409,
+    message: "Jumlah CV Anda sudah mencapai batas",
+    hint: "Hapus salah satu CV lama sebelum membuat yang baru",
+  },
+  // 409: database (FK `applications.resume_id`, onDelete NoAction — SDD §6.1)
+  // sudah menolak penghapusannya. Pesan ini menerjemahkan penolakan itu, bukan
+  // mengarang aturan baru. Menghapus akun tetap membersihkan semuanya lewat
+  // cascade dari `users`; yang ditolak hanya penghapusan satu CV yang sedang
+  // menjadi lampiran lamaran yang sudah terkirim.
+  CV_DIPAKAI_LAMARAN: {
+    status: 409,
+    message: "CV ini sedang dipakai pada lamaran yang sudah Anda kirim",
+    hint: "Buat CV baru bila ingin mengubah isinya, atau ubah CV ini tanpa menghapusnya",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

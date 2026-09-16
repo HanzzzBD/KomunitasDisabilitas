@@ -267,6 +267,26 @@ const envSchema = z.object({
     .min(1_000)
     .max(30_000)
     .default(10_000),
+
+  // --- CV / resumes (PR-060, AC "limit 5 CV ditegakkan (config)") ---
+  //
+  // Punya DEFAULT, jadi `.env` lama tetap valid dan batasnya tetap berjalan
+  // tanpa satu pun variabel di-set — pola yang sama dengan blok RETENTION_*.
+  // Yang bisa di-override hanya ANGKANYA; bahwa batasnya ada tidak bisa
+  // dimatikan lewat env (min 1), sebab batas yang bisa dimatikan diam-diam
+  // bukan batas.
+  //
+  // Angka 5 datang dari dokumen phase. Alasannya bukan biaya penyimpanan —
+  // `jsonb` beberapa kilobyte tidak membebani apa pun — melainkan RENDER PDF:
+  // setiap CV adalah calon job Puppeteer pada worker yang berjalan dengan
+  // concurrency 1 dan batas RAM kontainer (risiko T4, SDD §16). Batas atasnya
+  // 50, bukan tak terhingga, dengan alasan yang sama.
+  RESUME_MAX_PER_USER: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 — nilai 0 membuat CV tidak bisa dibuat sama sekali" })
+    .max(50, { message: "maksimal 50" })
+    .default(5),
 });
 
 /**
