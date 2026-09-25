@@ -22,6 +22,7 @@ const PARAMS = {
   applicationId: "01912345-89ab-7def-8123-4567890abe01",
   jobId: "01912345-89ab-7def-8123-4567890abf01",
   status: "interview",
+  resumeId: "01912345-89ab-7def-8123-4567890abf02",
 };
 
 describe("tujuan notifikasi", () => {
@@ -50,6 +51,12 @@ describe("tujuan notifikasi", () => {
     expect(
       tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH, params: PARAMS }),
     ).toBeNull();
+  });
+
+  it("notifikasi PDF membuka editor CV yang menghasilkan berkasnya", () => {
+    expect(
+      tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_PDF_SIAP, params: PARAMS }),
+    ).toBe(`/cv/${PARAMS.resumeId}`);
   });
 
   it("tidak satu pun tipe menjanjikan alamat yang belum ada di router", () => {

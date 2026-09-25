@@ -125,6 +125,9 @@ jobs:
         run: pnpm test
         env:
           STORAGE_INTEGRATION_ENDPOINT: http://127.0.0.1:9000
+          # Google Chrome sudah tersedia di image ubuntu-latest. Integration
+          # PR-063 memakai executable sistem, bukan mengunduh browser saat test.
+          PDF_INTEGRATION_CHROME: /usr/bin/google-chrome
 
       # Diagnostik kegagalan test — HANYA berjalan saat langkah di atas merah.
       #

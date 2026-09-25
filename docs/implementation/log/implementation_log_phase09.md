@@ -302,3 +302,53 @@ sebelum jaringan disentuh, serta TTL URL dibatasi kebijakan global.
 * Pembuatan bucket dan lifecycle rule dilakukan provisioning, bukan aplikasi. Lifecycle backup tetap
   milik PR-104.
 * PR-063 memakai `resumePdfKey()` dan port ini untuk menyimpan hasil render PDF.
+
+---
+
+## PR-063 — PDF Render Processor (Puppeteer)
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-063---pdf-render-processor-puppeteer)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai (verifikasi reader manual menunggu review)
+
+### Ringkasan hasil
+
+Worker `pdf-render` membaca snapshot CV terbaru melalui `ResumesService`, menolak job stale berdasarkan
+SHA-256, merender template HTML semantik dengan Chromium, mengunggah PDF privat ke storage immutable,
+lalu memasang object key ke `pdf_url` secara optimistik. Konten CV tidak pernah disalin ke Redis.
+
+### Scope selesai
+
+* Template A4 satu kolom yang ATS-friendly, `lang=id`, heading berjenjang, urutan DOM/visual sama,
+  seluruh teks/atribut pengguna di-escape, dan font Noto untuk non-Latin/emoji.
+* Payload queue strict berisi `userId`, `resumeId`, dan hash saja; job id serta object key deterministik.
+* Idempotensi dua lapis: job/content hash yang sama dan pemeriksaan `pdf_url` sebelum menyalakan browser.
+* Optimistic write berdasarkan `updatedAt`; hasil lama tidak dapat menimpa CV yang diedit selama render.
+* Edit judul/isi menginvalidasi `pdf_url`; PDF lama tetap immutable dan tidak ditampilkan sebagai versi baru.
+* Chromium per-job selalu ditutup, error diteruskan ke retry/DLQ, timeout tahap internal tetap di bawah
+  timeout queue 90 detik.
+* Image worker Debian khusus Chromium + font Noto, concurrency 1, limit RAM 768 MiB, reservation 512 MiB,
+  dan shared memory 256 MiB. Image API tidak membawa binary Chromium.
+* Notifikasi in-app `resume.pdf_siap` diterbitkan worker setelah render sukses, dengan kunci peristiwa
+  per versi isi (retry job tidak menggandakan notifikasi).
+* Unit test template/hash/stale/race/crash/ukuran dan integration test processor → Chromium → MinIO.
+* [Checklist urutan baca PDF](./pr-063-pdf-reading-order-checklist.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Payload antrean hanya referensi + hash | Isi CV/PII tidak bermalam di Redis AOF; worker selalu membaca sumber terbaru lewat service. |
+| `pdf_url` menyimpan object key, bukan presigned URL | URL bertanggal kedaluwarsa bukan state database; PR-064 membuat URL baru saat unduh. |
+| Key memuat hash isi | Retry aman dan versi lama tidak ditimpa; lifecycle penghapusan objek lama dapat dilakukan terpisah. |
+| Conditional update memakai `updatedAt` | Menutup race edit/hapus selama Chromium bekerja tanpa transaksi panjang di sekitar proses eksternal. |
+| Satu browser per job | Crash/kebocoran tidak terakumulasi lintas job; biaya startup diterima karena concurrency memang 1. |
+| Batas input 1 MiB sebelum DOM | Batas skema normal jauh di bawahnya; baris DB rusak ditolak sebelum amplifikasi memori Chromium. |
+| `puppeteer-core` 24.43.1 | Seri 25 memerlukan Node 22, sedangkan runtime monorepo dipin Node 20. |
+| Notifikasi diterbitkan worker, bukan API | Pemicu sebenarnya adalah selesainya render asinkron, bukan permintaan HTTP; API belum tahu kapan job selesai. |
+
+### Risiko dan next steps
+
+* Verifikasi Adobe Reader + NVDA tetap manual; checklist belum ditandatangani dan tidak diklaim lulus.
+* Bucket `nawasena-development` tetap dibuat oleh provisioning/console MinIO, bukan runtime aplikasi.
+* PR-064 menjadi produser job, endpoint status, dan pembuat presigned URL unduh.

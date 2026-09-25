@@ -129,12 +129,12 @@ services:
       retries: 10
       start_period: 60s
 
-  # Konsumen BullMQ (PR-015b). Image sama dengan api, entry berbeda (ADR-004:
-  # beban AI/PDF tidak boleh menyentuh latensi request API).
+  # Konsumen BullMQ (PR-015b). Image sistemnya terpisah dari API karena hanya
+  # worker yang membutuhkan Chromium + font Noto (ADR-004).
   worker:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/worker/Dockerfile
       target: dev
     # `start` (tsx biasa), BUKAN `dev` (tsx watch) — disengaja.
     # `tsx watch` membunuh paksa proses anaknya 5 detik setelah SIGTERM
@@ -152,6 +152,16 @@ services:
       REDIS_URL: redis://redis-cache:6379
       REDIS_QUEUE_URL: redis://redis-queue:6379
       FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      PDF_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      PDF_RENDER_MAX_INPUT_BYTES: 1048576
+      PDF_RENDER_MAX_BYTES: 20971520
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+      STORAGE_FORCE_PATH_STYLE: "true"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "800"
     depends_on:
@@ -159,10 +169,12 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
+      minio:
+        condition: service_started
     volumes:
       # Lihat catatan node_modules pada service api — berlaku sama di sini.
       - .:/workspace
-      - api_node_modules:/workspace/node_modules
+      - worker_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules
       - worker_app_node_modules:/workspace/apps/worker/node_modules
       - schemas_node_modules:/workspace/packages/schemas/node_modules
@@ -170,12 +182,19 @@ services:
     # SIGTERM → drain job aktif. Beri waktu lebih dari default 10s karena
     # job terpanjang (maintenance-backup) berdurasi menit.
     stop_grace_period: 60s
+    # Satu job Chromium per proses (queue config concurrency 1) dengan batas
+    # keras container: kebocoran/crash tidak boleh memakan seluruh host.
+    init: true
+    mem_limit: 768m
+    mem_reservation: 512m
+    shm_size: 256mb
 
 volumes:
   pgdata:
   redisqueue:
   miniodata:
   api_node_modules:
+  worker_node_modules:
   api_app_node_modules:
   worker_app_node_modules:
   schemas_node_modules:

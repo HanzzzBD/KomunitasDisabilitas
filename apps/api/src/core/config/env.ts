@@ -306,6 +306,27 @@ const envSchema = z.object({
     .min(1, { message: "minimal 1 detik" })
     .max(900, { message: "maksimal 900 detik (15 menit)" })
     .default(300),
+  // --- PDF renderer Chromium (PR-063) ---
+  // Path opsional: tanpa Chromium, worker lain tetap hidup dan hanya processor
+  // pdf-render yang tidak didaftarkan. Container worker mengisinya eksplisit.
+  PDF_CHROMIUM_EXECUTABLE_PATH: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .optional(),
+  /** Batas snapshot JSON sebelum dibentuk menjadi DOM Chromium (default 1 MiB). */
+  PDF_RENDER_MAX_INPUT_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(65_536, { message: "minimal 64 KiB" })
+    .max(10_485_760, { message: "maksimal 10 MiB" })
+    .default(1_048_576),
+  /** Batas hasil satu render sebelum masuk object storage (default 20 MiB). */
+  PDF_RENDER_MAX_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1_048_576, { message: "minimal 1 MiB" })
+    .max(104_857_600, { message: "maksimal 100 MiB" })
+    .default(20_971_520),
 
   // --- CV / resumes (PR-060, AC "limit 5 CV ditegakkan (config)") ---
   //

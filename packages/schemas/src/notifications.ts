@@ -66,6 +66,8 @@ export const NOTIFICATION_TYPE = {
   LAMARAN_TERKIRIM: "lamaran.terkirim",
   /** Status lamaran berpindah tahap. */
   LAMARAN_STATUS_BERUBAH: "lamaran.status_berubah",
+  /** PDF untuk satu versi CV selesai dibuat. */
+  RESUME_PDF_SIAP: "resume.pdf_siap",
 } as const;
 
 export const notificationTypeSchema = z
@@ -73,6 +75,7 @@ export const notificationTypeSchema = z
     NOTIFICATION_TYPE.AUTH_SELAMAT_DATANG,
     NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
     NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
+    NOTIFICATION_TYPE.RESUME_PDF_SIAP,
   ])
   .openapi({ ref: "NotificationType", description: "Tipe notifikasi terdaftar" });
 
@@ -105,6 +108,7 @@ export const NOTIFICATION_PARAM_SCHEMAS = {
       status: applicationStatusSchema,
     })
     .strict(),
+  "resume.pdf_siap": z.object({ resumeId: idSchema }).strict(),
 } as const satisfies Record<NotificationType, z.ZodTypeAny>;
 
 /** Parameter satu tipe, tertipe sempit — `NotificationParams<"lamaran.terkirim">`. */

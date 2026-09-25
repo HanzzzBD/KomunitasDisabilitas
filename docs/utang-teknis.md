@@ -496,7 +496,7 @@ PR-033c-2). Jalur dengan bukti terlemah didahulukan.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | LUNAS — PR-063 (2026-09-25) |
 | **Jenis** | Batas sumber daya |
 | **Ditemukan** | PR-060 (2026-09-16) |
 | **Pemilik** | **PR-063** (render PDF) |
@@ -516,6 +516,12 @@ berarti menaruh batas yang tidak punya dasar, lalu mewarisi kewajiban membelanya
 Kenapa tidak berbahaya hari ini: tidak ada satu pun pembaca `content` selain endpoint
 pemiliknya sendiri. Yang pertama membacanya dalam proses yang bisa kehabisan memori adalah
 processor PDF — yang belum ada.
+
+**Penyelesaian PR-063.** Service render menghitung ukuran UTF-8 snapshot `title + content` dan
+menolak nilai di atas `PDF_RENDER_MAX_INPUT_BYTES` (bawaan 1 MiB) sebelum membentuk HTML/DOM.
+Batas normal skema berada jauh di bawahnya; guard ini menutup data lama/rusak atau penulisan langsung
+ke database. Amplifikasi tersisa dibatasi lagi oleh concurrency queue 1 dan limit container worker
+768 MiB. Keluaran PDF memiliki batas terpisah 20 MiB sebelum upload.
 
 ---
 

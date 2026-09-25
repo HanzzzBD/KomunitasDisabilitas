@@ -99,6 +99,17 @@ export const TEMPLATE = {
       "id-simple": `${LABEL_STATUS[params.status]["id-simple"]}. Buka lamaran Anda untuk tahu langkah berikutnya.`,
     }),
   },
+
+  "resume.pdf_siap": {
+    title: () => ({
+      id: "PDF CV Anda siap",
+      "id-simple": "PDF CV Anda sudah siap",
+    }),
+    body: () => ({
+      id: "Buka CV Anda untuk mengunduh versi PDF terbaru.",
+      "id-simple": "Buka CV Anda. PDF terbaru bisa diunduh sekarang.",
+    }),
+  },
 } as const satisfies { [T in NotificationType]: TemplateNotifikasi<T> };
 
 /** Hasil render satu notifikasi — kedua varian, judul dan isi. */

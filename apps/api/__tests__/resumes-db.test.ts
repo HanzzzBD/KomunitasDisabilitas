@@ -153,9 +153,7 @@ describe("jsonb bolak-balik utuh", () => {
         province: "DKI Jakarta",
         links: [{ label: "Portofolio", url: "https://contoh.test/rina" }],
       },
-      experiences: [
-        { title: "Desainer Lepas", company: "Studio Fiktif", startDate: "2021-01-01" },
-      ],
+      experiences: [{ title: "Desainer Lepas", company: "Studio Fiktif", startDate: "2021-01-01" }],
       educations: [{ institution: "SMK Negeri 1 Jakarta", degree: "SMK", year: 2020 }],
       skills: [{ name: "Adobe Photoshop", level: "mahir" }],
       certifications: [{ name: "Pelatihan Desain BLK", issuer: "BLK Jakarta", year: 2021 }],
@@ -198,6 +196,31 @@ describe("jsonb bolak-balik utuh", () => {
 
     const dibaca = await service().get(aktor, dibuat.id);
     expect(dibaca.content.experiences.map((e) => e.title)).toEqual(urutanAsli);
+  });
+});
+
+describe("pointer PDF optimistik", () => {
+  it("hanya memasang hasil untuk versi yang dibaca dan edit berikutnya menginvalidasi PDF", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const aktor = await buatAktor();
+    const svc = service();
+    const dibuat = await svc.create(aktor, { title: "CV untuk PDF", content: isi() });
+    const key = `resumes/${aktor.userId}/${dibuat.id}/${"a".repeat(64)}.pdf`;
+
+    await expect(svc.setPdfReadyIfUnchanged(aktor, dibuat.id, dibuat.updatedAt, key)).resolves.toBe(
+      true,
+    );
+    const denganPdf = await svc.get(aktor, dibuat.id);
+    expect(denganPdf.pdfUrl).toBe(key);
+    expect(denganPdf.updatedAt).toBe(dibuat.updatedAt);
+
+    const sebelumEdit = await svc.get(aktor, dibuat.id);
+    const disunting = await svc.update(aktor, dibuat.id, { title: "CV untuk PDF — revisi" });
+    expect(disunting.pdfUrl).toBeNull();
+    await expect(
+      svc.setPdfReadyIfUnchanged(aktor, dibuat.id, sebelumEdit.updatedAt, key),
+    ).resolves.toBe(false);
+    expect((await svc.get(aktor, dibuat.id)).pdfUrl).toBeNull();
   });
 });
 

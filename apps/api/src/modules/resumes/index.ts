@@ -72,3 +72,4 @@ export {
   type ResumesController,
 } from "./controllers/resumes.controller.js";
 export { createResumesRouter } from "./routers/index.js";
+export * from "./pdf/index.js";
