@@ -10,7 +10,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HALAMAN } from "../e2e/halaman.js";
 import { ruteApp } from "../src/app/routes.js";
-import type { RouteObject } from "react-router";
+import { matchPath, type RouteObject } from "react-router";
 
 describe("bentuk registry", () => {
   it("tidak kosong", () => {
@@ -74,6 +74,10 @@ describe("registry mengikuti route yang benar-benar ada", () => {
     return hasil;
   }
 
+  function cocokDenganRute(jalur: string, polaRute: string): boolean {
+    return matchPath({ path: polaRute, end: true }, jalur) !== null;
+  }
+
   it("penelusuran route menemukan halaman BERSARANG, bukan hanya tingkat pertama", () => {
     // Penjaga atas penjaganya sendiri. Bila `jalurRute` kembali dangkal, kedua
     // test di bawah tetap hijau — mereka hanya berhenti memeriksa sebagian
@@ -96,7 +100,7 @@ describe("registry mengikuti route yang benar-benar ada", () => {
       if (catchAll.includes(h.jalur)) continue;
       const jalurTanpaQuery = h.jalur.split("?")[0] ?? h.jalur;
       expect(
-        rute.has(jalurTanpaQuery),
+        [...rute].some((polaRute) => cocokDenganRute(jalurTanpaQuery, polaRute)),
         `"${h.nama}" (${jalurTanpaQuery}) bukan route mana pun`,
       ).toBe(true);
     }
@@ -106,10 +110,13 @@ describe("registry mengikuti route yang benar-benar ada", () => {
     // Arah sebaliknya, dan inilah yang menahan erosi: halaman baru yang lahir
     // tanpa entri registry lolos dari gerbang lapis ketiga tanpa satu pun
     // gejala. Menambah route KINI memaksa menambah entri.
-    const terdaftar = new Set(HALAMAN.map((h) => h.jalur.split("?")[0] ?? h.jalur));
+    const terdaftar = HALAMAN.map((h) => h.jalur.split("?")[0] ?? h.jalur);
 
     for (const jalur of jalurRute()) {
-      expect(terdaftar.has(jalur), `route ${jalur} belum ada di e2e/halaman.ts`).toBe(true);
+      expect(
+        terdaftar.some((jalurTerdaftar) => cocokDenganRute(jalurTerdaftar, jalur)),
+        `route ${jalur} belum ada di e2e/halaman.ts`,
+      ).toBe(true);
     }
   });
 });
