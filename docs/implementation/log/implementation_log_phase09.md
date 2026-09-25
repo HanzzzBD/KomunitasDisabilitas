@@ -259,3 +259,46 @@ bagian mempertahankan draf dan tidak menghanguskan bagian lain.
 
 * Checklist NVDA masih perlu ditandatangani secara manual pada lingkungan Windows + NVDA saat review.
 * Unduh PDF tetap di luar scope dan dilanjutkan PR-064.
+
+---
+
+## PR-062 — core/storage — Cloudflare R2
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-062---corestorage--cloudflare-r2)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`core/storage` menyediakan port object storage kecil (`upload` + `presignDownload`) dengan adapter
+AWS S3 API yang kompatibel Cloudflare R2 dan MinIO. Bucket tetap privat, ukuran payload diperiksa
+sebelum jaringan disentuh, serta TTL URL dibatasi kebijakan global.
+
+### Scope selesai
+
+* Konfigurasi R2/S3 sebagai grup kredensial fail-fast, endpoint HTTPS wajib di production.
+* Bucket diturunkan dari `<prefix>-<STORAGE_BUCKET_ENV>` sehingga development, test, staging, dan
+  production terpisah secara konstruksi meski staging menjalankan `NODE_ENV=production`.
+* Path builder tervalidasi dengan domain tertutup dan helper deterministik PDF CV berbasis SHA-256.
+* Upload byte dengan batas global/per-domain dan presigned download dengan expiry eksplisit.
+* MinIO di compose dev dan CI; integration test membuktikan upload/download, akses unsigned 403,
+  serta URL yang benar-benar kedaluwarsa.
+* [Konvensi storage dan panduan MinIO](../../../apps/api/src/core/storage/README.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Bucket name diturunkan dari prefix + environment deployment | Staging dan production tetap terpisah meski keduanya menjalankan Node dalam mode production. |
+| Port tidak mengekspos list/create bucket | Runtime hanya membutuhkan akses objek; provisioning bucket adalah hak infrastruktur. |
+| Hasil upload hanya `key` dan `size` | ETag dan bentuk respons provider bukan kontrak stabil lintas R2/MinIO. |
+| Key hanya menerima segmen aman dan domain terdaftar | Mencegah traversal, string bebas, dan PII menjadi struktur storage permanen. |
+| Batas pemanggil hanya dapat memperketat batas global | Satu fitur tidak dapat menaikkan batas biaya/memori yang ditetapkan operator. |
+
+### Risiko dan next steps
+
+* Verifikasi R2 nyata tetap dilakukan di staging karena CI memakai MinIO; kredensial R2 tidak boleh
+  masuk repository maupun GitHub Actions.
+* Pembuatan bucket dan lifecycle rule dilakukan provisioning, bukan aplikasi. Lifecycle backup tetap
+  milik PR-104.
+* PR-063 memakai `resumePdfKey()` dan port ini untuk menyimpan hasil render PDF.

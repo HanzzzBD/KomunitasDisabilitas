@@ -51,6 +51,26 @@ services:
       timeout: 3s
       retries: 10
 
+  # S3-compatible object storage untuk roundtrip lokal PR-062. Build Alpine
+  # dipin ke tag + digest dari source MinIO rilis terakhir dan HANYA untuk
+  # dev/test; production memakai R2.
+  # Bucket dibuat oleh provisioning/test, bukan aplikasi (core/storage sengaja
+  # tidak memiliki izin create/list bucket).
+  minio:
+    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
+    # Named volume baru dimiliki root. Root hanya berlaku di container dev
+    # terisolasi ini agar /data bisa diinisialisasi; production memakai R2.
+    user: "0:0"
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: nawasena-minio
+      MINIO_ROOT_PASSWORD: nawasena-minio-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
   api:
     build:
       context: .
@@ -65,6 +85,13 @@ services:
       # Kunci enkripsi field sensitif (PR-013, ADR-007). DEV-ONLY dummy — jangan
       # dipakai di staging/prod (kunci prod via env vars, bukan compose).
       FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+      STORAGE_FORCE_PATH_STYLE: "true"
       # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
       # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
       CHOKIDAR_USEPOLLING: "true"
@@ -78,6 +105,8 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
+      minio:
+        condition: service_started
     volumes:
       # Hot-reload: source di-mount; node_modules milik container (binary Linux).
       #
@@ -145,6 +174,7 @@ services:
 volumes:
   pgdata:
   redisqueue:
+  miniodata:
   api_node_modules:
   api_app_node_modules:
   worker_app_node_modules:

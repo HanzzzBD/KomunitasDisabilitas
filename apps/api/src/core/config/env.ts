@@ -261,12 +261,51 @@ const envSchema = z.object({
     .string()
     .url({ message: "harus URL absolut" })
     .default("https://api.resend.com"),
-  EMAIL_SEND_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(1_000)
-    .max(30_000)
-    .default(10_000),
+  EMAIL_SEND_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+
+  // --- Object storage S3-compatible / Cloudflare R2 (PR-062) ---
+  //
+  // Lima nilai koneksi opsional SEBAGAI GRUP: dev yang belum membutuhkan
+  // objek tetap bisa boot, tetapi konfigurasi setengah jadi ditolak. Bucket
+  // efektif selalu `<prefix>-<STORAGE_BUCKET_ENV>` dan dibentuk core/storage.
+  // Suffix terpisah dari NODE_ENV karena staging tetap menjalankan Node dalam
+  // mode `production`, tetapi wajib memakai bucket yang berbeda dari prod.
+  STORAGE_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
+  STORAGE_ACCESS_KEY_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  STORAGE_SECRET_ACCESS_KEY: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .optional(),
+  STORAGE_BUCKET_PREFIX: z
+    .string()
+    .min(3, { message: "minimal 3 karakter" })
+    .max(50, { message: "maksimal 50 karakter agar suffix environment tetap muat" })
+    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, {
+      message: "hanya huruf kecil, angka, dan tanda hubung; harus diawali/diakhiri alfanumerik",
+    })
+    .optional(),
+  STORAGE_BUCKET_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
+  /** R2 memakai `auto`; MinIO integration test menimpanya dengan `us-east-1`. */
+  STORAGE_REGION: z.string().min(1, { message: "tidak boleh kosong" }).default("auto"),
+  /** MinIO perlu path-style; R2 memakai virtual-host style secara default. */
+  STORAGE_FORCE_PATH_STYLE: z
+    .enum(["true", "false"], { errorMap: () => ({ message: "harus 'true' atau 'false'" }) })
+    .default("false")
+    .transform((nilai) => nilai === "true"),
+  /** Batas keras semua upload. Pemanggil boleh meminta batas yang lebih kecil. */
+  STORAGE_MAX_UPLOAD_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 byte" })
+    .max(1_073_741_824, { message: "maksimal 1 GiB" })
+    .default(104_857_600),
+  /** URL unduh privat berumur paling lama 15 menit. */
+  STORAGE_PRESIGN_TTL_SECONDS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 detik" })
+    .max(900, { message: "maksimal 900 detik (15 menit)" })
+    .default(300),
 
   // --- CV / resumes (PR-060, AC "limit 5 CV ditegakkan (config)") ---
   //
@@ -324,6 +363,16 @@ const GRUP_KREDENSIAL = [
     label: "kredensial email Resend",
     vars: ["RESEND_API_KEY", "EMAIL_FROM"],
   },
+  {
+    label: "kredensial object storage S3/R2",
+    vars: [
+      "STORAGE_ENDPOINT",
+      "STORAGE_ACCESS_KEY_ID",
+      "STORAGE_SECRET_ACCESS_KEY",
+      "STORAGE_BUCKET_PREFIX",
+      "STORAGE_BUCKET_ENV",
+    ],
+  },
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
 const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
@@ -339,6 +388,31 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
         message: `wajib diisi bila ${terisi.join(" / ")} di-set (${label} harus lengkap)`,
       });
     }
+  }
+
+  if (
+    env.NODE_ENV === "production" &&
+    env.STORAGE_ENDPOINT !== undefined &&
+    new URL(env.STORAGE_ENDPOINT).protocol !== "https:"
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_ENDPOINT"],
+      message: "wajib memakai HTTPS pada production",
+    });
+  }
+
+  if (
+    env.STORAGE_BUCKET_ENV !== undefined &&
+    ((env.NODE_ENV === "production" &&
+      !["staging", "production"].includes(env.STORAGE_BUCKET_ENV)) ||
+      (env.NODE_ENV !== "production" && env.STORAGE_BUCKET_ENV !== env.NODE_ENV))
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_BUCKET_ENV"],
+      message: `tidak cocok dengan NODE_ENV=${env.NODE_ENV}`,
+    });
   }
 });
 
