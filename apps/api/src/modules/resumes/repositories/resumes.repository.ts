@@ -73,10 +73,12 @@ const KOLOM_PENUH = { ...KOLOM_RINGKAS, content: true } as const;
 const URUT = [{ updatedAt: "desc" }, { id: "desc" }] as const;
 
 /** Kolom `content` bertipe `JsonValue`; isinya sudah lolos zod di sisi tulis. */
-function keRow(baris: Omit<ResumeRow, "content" | "createdVia"> & {
-  content: unknown;
-  createdVia: string;
-}): ResumeRow {
+function keRow(
+  baris: Omit<ResumeRow, "content" | "createdVia"> & {
+    content: unknown;
+    createdVia: string;
+  },
+): ResumeRow {
   return {
     ...baris,
     createdVia: baris.createdVia as ResumeCreatedVia,
@@ -84,7 +86,9 @@ function keRow(baris: Omit<ResumeRow, "content" | "createdVia"> & {
   };
 }
 
-function keRingkas(baris: Omit<ResumeSummaryRow, "createdVia"> & { createdVia: string }): ResumeSummaryRow {
+function keRingkas(
+  baris: Omit<ResumeSummaryRow, "createdVia"> & { createdVia: string },
+): ResumeSummaryRow {
   return { ...baris, createdVia: baris.createdVia as ResumeCreatedVia };
 }
 
@@ -149,6 +153,13 @@ export interface ResumesRepository {
   ): Promise<ResumeRow | null>;
   /** null bila tidak ada/bukan miliknya — tanpa menyentuh baris siapa pun. */
   updateOwned(userId: string, id: string, patch: ResumeUpdatePatch): Promise<ResumeRow | null>;
+  /** Pasang key PDF hanya bila CV belum berubah sejak renderer membacanya. */
+  setPdfUrlIfUnchanged(
+    userId: string,
+    id: string,
+    expectedUpdatedAt: Date,
+    pdfUrl: string,
+  ): Promise<boolean>;
   /**
    * false bila tidak ada/bukan miliknya. Melempar `CvDipakaiLamaranError` bila
    * baris ada tetapi masih dirujuk lamaran.
@@ -231,6 +242,9 @@ export function createResumesRepository(prisma: AppPrisma): ResumesRepository {
       const data: Prisma.ResumeUpdateManyMutationInput = {};
       if (patch.title !== undefined) data.title = patch.title;
       if (patch.content !== undefined) data.content = keJson(patch.content);
+      // PDF adalah turunan title+content. Begitu salah satunya berubah, key
+      // lama tidak boleh tetap terlihat sebagai hasil dokumen terbaru.
+      if (patch.title !== undefined || patch.content !== undefined) data.pdfUrl = null;
 
       const { count } = await prisma.resume.updateMany({ where: { id, userId }, data });
       if (count === 0) return null;
@@ -240,6 +254,16 @@ export function createResumesRepository(prisma: AppPrisma): ResumesRepository {
       // 404 pada kasus itu justru yang benar.
       const baris = await prisma.resume.findFirst({ where: { id, userId }, select: KOLOM_PENUH });
       return baris === null ? null : keRow(baris);
+    },
+
+    async setPdfUrlIfUnchanged(userId, id, expectedUpdatedAt, pdfUrl) {
+      const { count } = await prisma.resume.updateMany({
+        where: { id, userId, updatedAt: expectedUpdatedAt },
+        // PDF adalah artefak turunan, bukan penyuntingan isi CV. Pertahankan
+        // versi edit agar penyelesaian worker tidak mengubah urutan daftar CV.
+        data: { pdfUrl, updatedAt: expectedUpdatedAt },
+      });
+      return count > 0;
     },
 
     async deleteOwned(userId, id) {

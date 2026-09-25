@@ -84,6 +84,13 @@ export interface ResumesService {
    */
   create(actor: ResumesActor, input: CreateResume, createdVia?: ResumeCreatedVia): Promise<Resume>;
   update(actor: ResumesActor, id: string, input: UpdateResume): Promise<Resume>;
+  /** Internal worker: false bila CV berubah/hilang selama proses render. */
+  setPdfReadyIfUnchanged(
+    actor: ResumesActor,
+    id: string,
+    expectedUpdatedAt: string,
+    pdfKey: string,
+  ): Promise<boolean>;
   remove(actor: ResumesActor, id: string): Promise<void>;
 }
 
@@ -132,6 +139,10 @@ export function createResumesService(deps: ResumesServiceDeps): ResumesService {
       });
       if (row === null) throw tidakDitemukan();
       return keResume(row);
+    },
+
+    setPdfReadyIfUnchanged(actor, id, expectedUpdatedAt, pdfKey) {
+      return repo.setPdfUrlIfUnchanged(actor.userId, id, new Date(expectedUpdatedAt), pdfKey);
     },
 
     async remove(actor, id) {

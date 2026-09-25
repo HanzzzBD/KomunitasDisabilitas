@@ -4749,7 +4749,8 @@
         "enum": [
           "auth.selamat_datang",
           "lamaran.terkirim",
-          "lamaran.status_berubah"
+          "lamaran.status_berubah",
+          "resume.pdf_siap"
         ],
         "description": "Tipe notifikasi terdaftar"
       },

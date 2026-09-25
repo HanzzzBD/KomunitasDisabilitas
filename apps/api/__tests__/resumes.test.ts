@@ -58,7 +58,12 @@ function repoPalsu(awal: ResumeRow[] = []): ResumesRepository & { isi: ResumeRow
     findOwned: (_userId, id) => Promise.resolve(isi.find((r) => r.id === id) ?? null),
     createIfUnderLimit: (_userId, id, data, maks) => {
       if (isi.length >= maks) return Promise.resolve(null);
-      const row = baris({ id, title: data.title, content: data.content, createdVia: data.createdVia });
+      const row = baris({
+        id,
+        title: data.title,
+        content: data.content,
+        createdVia: data.createdVia,
+      });
       isi.push(row);
       return Promise.resolve(row);
     },
@@ -67,7 +72,16 @@ function repoPalsu(awal: ResumeRow[] = []): ResumesRepository & { isi: ResumeRow
       if (row === undefined) return Promise.resolve(null);
       if (patch.title !== undefined) row.title = patch.title;
       if (patch.content !== undefined) row.content = patch.content;
+      if (patch.title !== undefined || patch.content !== undefined) row.pdfUrl = null;
       return Promise.resolve(row);
+    },
+    setPdfUrlIfUnchanged: (_userId, id, expectedUpdatedAt, pdfUrl) => {
+      const row = isi.find(
+        (r) => r.id === id && r.updatedAt.getTime() === expectedUpdatedAt.getTime(),
+      );
+      if (row === undefined) return Promise.resolve(false);
+      row.pdfUrl = pdfUrl;
+      return Promise.resolve(true);
     },
     deleteOwned: (_userId, id) => {
       const i = isi.findIndex((r) => r.id === id);
@@ -94,7 +108,9 @@ async function galat(fn: () => Promise<unknown>): Promise<AppError> {
 describe("batas CV per pengguna (AC-3)", () => {
   it("menolak pembuatan ke-6 saat batasnya 5", async () => {
     const repo = repoPalsu(Array.from({ length: 5 }, (_, i) => baris({ id: `id-${String(i)}` })));
-    const err = await galat(() => service(repo).create(AKTOR, { title: "CV Keenam", content: ISI_KOSONG }));
+    const err = await galat(() =>
+      service(repo).create(AKTOR, { title: "CV Keenam", content: ISI_KOSONG }),
+    );
     expect(err.code).toBe("BATAS_CV_TERCAPAI");
     expect(err.status).toBe(409);
   });
@@ -103,7 +119,9 @@ describe("batas CV per pengguna (AC-3)", () => {
     // "Sudah mencapai batas" tanpa menyebut batasnya memaksa pengguna menghitung
     // sendiri berapa yang harus ia hapus.
     const repo = repoPalsu([baris(), baris({ id: "b" })]);
-    const err = await galat(() => service(repo, 2).create(AKTOR, { title: "CV", content: ISI_KOSONG }));
+    const err = await galat(() =>
+      service(repo, 2).create(AKTOR, { title: "CV", content: ISI_KOSONG }),
+    );
     expect(err.message).toContain("2");
   });
 
@@ -146,7 +164,11 @@ describe("createdVia ditentukan jalur, bukan klien (AC-5)", () => {
     // Inilah yang membuat PR-066 tidak perlu service kedua — dan karena itu
     // tidak bisa punya batas CV, kontrak isi, atau pemetaan baris yang berbeda.
     const repo = repoPalsu();
-    const hasil = await service(repo).create(AKTOR, { title: "CV AI", content: ISI_KOSONG }, "ai_chat");
+    const hasil = await service(repo).create(
+      AKTOR,
+      { title: "CV AI", content: ISI_KOSONG },
+      "ai_chat",
+    );
     expect(hasil.createdVia).toBe("ai_chat");
   });
 });
@@ -211,6 +233,15 @@ describe("pemetaan baris → kontrak API", () => {
       "title",
       "updatedAt",
     ]);
+  });
+});
+
+describe("invalidasi PDF turunan", () => {
+  it("mengosongkan pdfUrl saat judul atau isi CV disunting", async () => {
+    const repo = repoPalsu([baris({ pdfUrl: "resumes/user/resume/hash.pdf" })]);
+    const hasil = await service(repo).update(AKTOR, baris().id, { title: "CV Revisi" });
+
+    expect(hasil.pdfUrl).toBeNull();
   });
 });
 
