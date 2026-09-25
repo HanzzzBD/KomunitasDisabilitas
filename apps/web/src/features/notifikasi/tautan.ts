@@ -46,6 +46,8 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // Menunggu `/lamaran/:id` (Phase 12). Bentuk yang akan dipakai:
       //   return `/lamaran/${String(notifikasi.params.applicationId)}`;
       return null;
+    case NOTIFICATION_TYPE.RESUME_PDF_SIAP:
+      return `/cv/${String(notifikasi.params.resumeId)}`;
     default: {
       const takTerduga: never = notifikasi.type;
       throw new Error(`Tipe notifikasi tidak dikenal: ${String(takTerduga)}`);
