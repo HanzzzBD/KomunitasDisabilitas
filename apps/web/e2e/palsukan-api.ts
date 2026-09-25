@@ -128,6 +128,35 @@ const PROFIL_KARIER_UJI = {
   sensitive: null,
 } as const;
 
+export const CV_UJI_ID = "01912345-89ab-7def-8123-4567890abf01";
+const ISI_CV_UJI = {
+  schemaVersion: 1,
+  headline: "Analis data",
+  summary: null as string | null,
+  contact: {
+    email: PROFIL_UJI.email,
+    phone: PROFIL_UJI.phone,
+    city: PROFIL_KARIER_UJI.city,
+    province: PROFIL_KARIER_UJI.province,
+    links: [] as { label: string; url: string }[],
+  },
+  experiences: [] as Record<string, unknown>[],
+  educations: [] as Record<string, unknown>[],
+  skills: [] as Record<string, unknown>[],
+  certifications: [] as Record<string, unknown>[],
+  organizations: [] as Record<string, unknown>[],
+};
+
+const CV_UJI = {
+  id: CV_UJI_ID,
+  title: "CV Utama",
+  content: ISI_CV_UJI,
+  pdfUrl: null,
+  createdVia: "manual" as const,
+  createdAt: "2026-09-25T00:00:00.000Z",
+  updatedAt: "2026-09-25T00:00:00.000Z",
+};
+
 /**
  * Preferensi uji untuk `GET/PUT /me/accessibility` (PR-034; dipakai PR-035).
  *
@@ -373,6 +402,7 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   const perusahaan: (typeof PERUSAHAAN_UJI)[] = [{ ...PERUSAHAAN_UJI }];
   // Sama alasannya untuk daftar lowongan (PR-057).
   const lowongan: (typeof LOWONGAN_UJI)[] = [{ ...LOWONGAN_UJI }];
+  const cv = [{ ...CV_UJI, content: { ...CV_UJI.content } }];
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -539,6 +569,45 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
           },
         }),
       );
+    }
+    // --- Editor CV manual (PR-061) ---
+    if (jalur.endsWith("/me/resumes")) {
+      if (route.request().method() === "POST") {
+        const kirim = route.request().postDataJSON() as {
+          title: string;
+          content: typeof ISI_CV_UJI;
+        };
+        const baru = { ...CV_UJI, ...kirim, title: kirim.title };
+        cv.push(baru);
+        return route.fulfill(jsonkan(201, { data: baru }));
+      }
+      return route.fulfill(
+        jsonkan(200, {
+          data: cv.map(({ content: _content, ...ringkas }) => ringkas),
+        }),
+      );
+    }
+    if (/\/me\/resumes\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      const indeks = cv.findIndex((item) => item.id === id);
+      if (indeks < 0) {
+        return route.fulfill(
+          jsonkan(404, { code: "CV_TIDAK_DITEMUKAN", message: "CV tidak ditemukan" }),
+        );
+      }
+      if (route.request().method() === "DELETE") {
+        cv.splice(indeks, 1);
+        return route.fulfill({ status: 204, body: "" });
+      }
+      if (route.request().method() === "PUT") {
+        const sekarang = cv[indeks]!;
+        cv[indeks] = {
+          ...sekarang,
+          ...(route.request().postDataJSON() as Partial<typeof CV_UJI>),
+          updatedAt: "2026-09-25T01:00:00.000Z",
+        };
+      }
+      return route.fulfill(jsonkan(200, { data: cv[indeks] }));
     }
     // --- Kurasi perusahaan (PR-053) ---
     //

@@ -189,6 +189,12 @@ export function TataLetak() {
             {t("shell.pintas.profil")}
           </Link>
           <Link
+            to="/cv"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.cv")}
+          </Link>
+          <Link
             to="/pengaturan/aksesibilitas"
             className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
           >

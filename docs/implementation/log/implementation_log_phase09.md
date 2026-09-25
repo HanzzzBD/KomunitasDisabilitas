@@ -215,3 +215,47 @@ diverifikasi manual terhadap database yang sama.
   `null`.
 * **PR-066/067** — CV dari percakapan AI: memanggil `resumes.service.create(..., "ai_chat")`
   dan mengekstraksi ke `resumeContentSchema` yang sama.
+
+---
+
+## PR-061 — Resume Editor FE
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-061---resume-editor-fe)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Editor CV manual tersedia di `/cv` dan `/cv/:id`. Pengguna dapat membuat CV dari salinan profil,
+mengubah semua bagian `resumeContentSchema`, menambah/menghapus entri berulang, serta mengatur urutan
+dengan tombol atas/bawah. Setiap bagian memakai formulir dan penyimpanan terpisah; kegagalan satu
+bagian mempertahankan draf dan tidak menghanguskan bagian lain.
+
+### Scope selesai
+
+* Typed API client untuk list/detail/create/update/delete CV beserta query key yang dilindungi `sub`.
+* Mapper prefill paralel dari akun, profil aman, pengalaman, pendidikan, dan keahlian. Mapper tidak
+  membaca atau menyalin data disabilitas/akomodasi.
+* Daftar CV, pembuatan manual dari profil, penghapusan, dan editor section-based yang responsif.
+* Seluruh bagian kontrak: judul, headline/ringkasan, kontak+tautan, pengalaman, pendidikan,
+  keahlian, sertifikasi/pelatihan, dan organisasi/kerelawanan.
+* Reorder tanpa drag, nama aksi spesifik per item, dan pengumuman posisi baru lewat `role=status`.
+* Validasi zod per kolom sebelum request, pesan API sederhana, status loading/error/empty, serta
+  katalog `id` dan `id-simple` yang dimuat malas bersama route.
+* Unit/API/component test, axe, fixture Playwright, E2E keyboard reorder dan overflow 320 px, serta
+  [checklist NVDA](./pr-061-nvda-checklist.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Draf dan snapshot tersimpan dipisah | PUT mengganti dokumen utuh. Saat satu bagian disimpan, payload dibangun dari snapshot server dengan hanya bagian itu diganti, sehingga perubahan belum disimpan di bagian lain tidak ikut terkirim. |
+| Satu mutasi isi berjalan pada satu waktu | Mencegah dua PUT dokumen utuh saling menimpa; tombol simpan lain dinonaktifkan sampai jawaban diterima. |
+| `<details>/<summary>` untuk bagian kolaps | Perilaku keyboard dan semantik buka/tutup tersedia secara natif tanpa state/ARIA kustom. |
+| Tombol reorder, bukan drag | Bisa dipakai keyboard-only dan screen reader; urutan array tetap menjadi urutan render/PDF. |
+| Prefill membuat salinan | Perubahan CV tidak mengubah profil dan perubahan profil berikutnya tidak mengubah CV yang sudah dibuat. |
+
+### Risiko dan next steps
+
+* Checklist NVDA masih perlu ditandatangani secara manual pada lingkungan Windows + NVDA saat review.
+* Unduh PDF tetap di luar scope dan dilanjutkan PR-064.
