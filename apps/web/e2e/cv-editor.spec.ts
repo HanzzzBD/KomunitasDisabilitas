@@ -51,3 +51,22 @@ test("teks panjang tidak menimbulkan gulir mendatar pada layar 320 piksel", asyn
   );
   expect(meluber).toBe(false);
 });
+
+test("meminta PDF, mengumumkan progres, lalu mengunduh dari URL baru", async ({ page }) => {
+  await page.route("**/berkas/cv.pdf**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/pdf",
+      headers: { "content-disposition": 'attachment; filename="cv.pdf"' },
+      body: "%PDF-1.7 hasil uji",
+    });
+  });
+
+  await page.getByRole("button", { name: "Siapkan PDF" }).click();
+  await expect(page.getByText("PDF masuk antrean.")).toBeAttached();
+  await expect(page.getByText("PDF siap diunduh.")).toBeAttached({ timeout: 8_000 });
+
+  const unduhan = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Unduh PDF" }).click();
+  await expect(unduhan).resolves.toBeDefined();
+});

@@ -565,3 +565,30 @@ export const resumeResponseSchema = z
 export const resumeListResponseSchema = z
   .object({ data: z.array(resumeSummarySchema) })
   .openapi({ ref: "ResumeListResponse" });
+
+/**
+ * Keadaan artefak PDF untuk versi CV SAAT INI.
+ *
+ * Union eksplisit mencegah klien menebak arti kombinasi nullable seperti
+ * `{ ready: false, url: null, error: null }`. URL hanya mungkin hadir pada
+ * keadaan `ready`, dan selalu berupa presigned URL berumur pendek.
+ */
+export const resumePdfStatusSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("idle") }),
+  z.object({ status: z.literal("queued") }),
+  z.object({ status: z.literal("processing") }),
+  z.object({ status: z.literal("failed") }),
+  z.object({
+    status: z.literal("ready"),
+    downloadUrl: z.string().url(),
+    expiresAt: timestampSchema,
+  }),
+]);
+
+export type ResumePdfStatus = z.infer<typeof resumePdfStatusSchema>;
+
+export const resumePdfResponseSchema = z
+  .object({ data: resumePdfStatusSchema })
+  .openapi({ ref: "ResumePdfResponse" });
+
+export type ResumePdfResponse = z.infer<typeof resumePdfResponseSchema>;

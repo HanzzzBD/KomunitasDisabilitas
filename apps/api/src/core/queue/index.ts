@@ -22,9 +22,16 @@ export * from "./worker.js";
  */
 export interface QueueLike {
   add(jobName: string, payload: unknown, options: JobsOptions): Promise<{ id?: string | null }>;
+  /** Ambil satu job tanpa membocorkan kelas BullMQ ke modul fitur. */
+  getJob(jobId: string): Promise<QueueJobLike | undefined>;
   /** Cacah job per state — dibaca GET /internal/queues (PR-015b). */
   getJobCounts(): Promise<Record<string, number>>;
   close(): Promise<void>;
+}
+
+export interface QueueJobLike {
+  getState(): Promise<string>;
+  remove(): Promise<void>;
 }
 
 export type QueueFactory = (name: QueueName, config: QueueConfig) => QueueLike;

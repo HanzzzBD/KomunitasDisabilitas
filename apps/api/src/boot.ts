@@ -34,7 +34,12 @@ import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
-import { createResumesModule } from "./modules/resumes/index.js";
+import { createResumePdfJobs, createResumesModule } from "./modules/resumes/index.js";
+import {
+  StorageNotConfiguredError,
+  createObjectStorage,
+  storageConfigFromEnv,
+} from "./core/storage/index.js";
 import { createAiModule } from "./modules/ai/index.js";
 import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
 import {
@@ -94,6 +99,28 @@ export async function startApi(options: BootOptions): Promise<void> {
     connection: { url: env.REDIS_QUEUE_URL },
   });
   const dlqQueues = createRawQueuePool({ url: env.REDIS_QUEUE_URL });
+
+  // API membuat presigned URL dan memproduksi job; binary Chromium tetap hanya
+  // ada di worker. Storage opsional pada boot, tetapi endpoint tetap terdaftar
+  // dan menjawab 503 bila grup konfigurasinya belum tersedia.
+  let resumePdf:
+    | {
+        jobs: ReturnType<typeof createResumePdfJobs>;
+        storage: ReturnType<typeof createObjectStorage>;
+      }
+    | undefined;
+  try {
+    resumePdf = {
+      jobs: createResumePdfJobs(queues),
+      storage: createObjectStorage(storageConfigFromEnv(env)),
+    };
+  } catch (err) {
+    if (err instanceof StorageNotConfiguredError) {
+      logger.warn({}, "Object storage belum diatur — endpoint PDF menjawab 503");
+    } else {
+      throw err;
+    }
+  }
 
   // Kuota AI (PR-043) di atas klien `redis.queue`, BUKAN `redis.cache`.
   // Instans cache berjalan `allkeys-lru` (ADR-004): kunci yang terusir di sana
@@ -277,6 +304,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           prisma,
           routes: routeRegistry.forModule("/api/v1"),
           maksPerPengguna: env.RESUME_MAX_PER_USER,
+          pdf: resumePdf,
         }).router,
       );
       // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk

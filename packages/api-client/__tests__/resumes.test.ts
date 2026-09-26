@@ -5,6 +5,8 @@ import {
   deleteResume,
   getResume,
   listResumes,
+  getResumePdfStatus,
+  requestResumePdf,
   resumesKeys,
   updateResume,
 } from "../src/index.js";
@@ -82,5 +84,26 @@ describe("endpoint resumes", () => {
   it("cache detail dilindungi pemilik dan id", () => {
     expect(resumesKeys.detail("a", ID)).not.toEqual(resumesKeys.detail("b", ID));
     expect(resumesKeys.detail("a", ID)).not.toEqual(resumesKeys.detail("a", "lain"));
+    expect(resumesKeys.pdf("a", ID)).not.toEqual(resumesKeys.pdf("b", ID));
+  });
+
+  it("meminta render dan membaca URL unduh lewat kontrak status yang sama", async () => {
+    const siap = {
+      data: {
+        status: "ready",
+        downloadUrl: "https://storage.test/signed",
+        expiresAt: "2026-09-25T12:05:00.000Z",
+      },
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(202, { data: { status: "queued" } }))
+      .mockResolvedValueOnce(jsonResponse(200, siap));
+    const client = klien(fetch);
+
+    await expect(requestResumePdf(client, ID)).resolves.toEqual({ status: "queued" });
+    await expect(getResumePdfStatus(client, ID)).resolves.toEqual(siap.data);
+    expect((fetch.mock.calls[0]?.[1] as RequestInit).method).toBe("POST");
+    expect(fetch.mock.calls[1]?.[0]).toContain(`/me/resumes/${ID}/pdf`);
   });
 });

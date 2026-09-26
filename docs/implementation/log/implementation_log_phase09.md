@@ -352,3 +352,58 @@ lalu memasang object key ke `pdf_url` secara optimistik. Konten CV tidak pernah 
 * Verifikasi Adobe Reader + NVDA tetap manual; checklist belum ditandatangani dan tidak diklaim lulus.
 * Bucket `nawasena-development` tetap dibuat oleh provisioning/console MinIO, bukan runtime aplikasi.
 * PR-064 menjadi produser job, endpoint status, dan pembuat presigned URL unduh.
+
+---
+
+## PR-064 — PDF API + FE Download
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-064---pdf-api--fe-download)
+> **Tanggal:** 2026-09-26
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Alur PDF kini tersambung utuh dari editor/daftar CV ke API, antrean `pdf-render`, worker,
+object storage privat, dan unduhan presigned. API menghitung hash versi CV terkini sendiri
+sehingga klien tidak dapat memilih object key atau mengantrekan render milik pengguna lain.
+UI memantau state `queued`/`processing`, mengumumkan setiap perubahan lewat live region, dan
+meminta URL baru tepat saat pengguna menekan unduh. Pemetaan notifikasi `resume.pdf_siap` ke
+`/cv/:id` sudah lebih dulu mendarat di PR-063 (dipaksa exhaustiveness checker begitu tipe
+notifikasi terdaftar), sehingga PR ini murni endpoint + kontrol unduh.
+
+### Scope selesai
+
+* `POST /api/v1/me/resumes/:id/pdf` mengantrekan render dan menjawab 202; `GET` mengembalikan
+  discriminated status `idle | queued | processing | failed | ready`.
+* Pemeriksaan kepemilikan tetap melalui `ResumesService`; CV milik pengguna lain konsisten 404.
+* Job ID diturunkan dari resume ID + SHA-256 isi (`buildResumePdfTask`), sehingga klik berulang
+  untuk versi yang sama tidak membuat job kedua. Job gagal dapat dihapus dan diminta ulang
+  dengan jatah retry baru.
+* Status `ready` hanya sah bila `pdf_url` sama dengan key immutable untuk isi terkini. Presigned
+  URL dan waktu kedaluwarsanya tidak pernah disimpan di database.
+* Kontrol PDF reusable (`KontrolPdf`) tampil di daftar dan editor. Polling hanya aktif saat
+  antre/proses, request ganda dinonaktifkan, gagal render maupun gagal jaringan memiliki aksi
+  coba lagi yang benar.
+* Saat tombol unduh ditekan, UI melakukan GET status baru sebelum membuka URL sehingga URL yang
+  sudah kedaluwarsa diganti mulus tanpa meminta render ulang.
+* Kontrak zod (`resumePdfStatusSchema`), API client, OpenAPI, dan katalog `id`/`id-simple`
+  diperbarui.
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Status PDF berupa discriminated union | Kombinasi nullable tidak dapat menghasilkan state mustahil seperti URL pada status gagal. |
+| Query status menjadi sumber state UI tunggal | Respons POST `queued` tidak boleh menutupi hasil polling `ready` yang datang kemudian. |
+| URL di-refresh saat klik unduh | Pengguna dapat lama menyunting/menunggu; URL lama di cache UI bisa kedaluwarsa sebelum dipakai. |
+| `completed` tanpa pointer dipetakan ke `failed` | State tidak konsisten harus menawarkan retry, bukan berhenti pada spinner tanpa akhir. |
+| Endpoint tetap terdaftar saat storage belum dikonfigurasi | Kontrak tidak berubah antarlingkungan; fitur menjawab 503 yang eksplisit dan teramati. |
+
+### Penutupan Phase 09
+
+Implementasi kode PR-060 sampai PR-064 sudah lengkap dan terhubung, dengan seluruh 5 PR
+di-merge satu per satu ke `phase-09-resume-builder-pdf` (bukan sekaligus) sehingga CI hijau
+diverifikasi pada setiap tahap. Exit gate yang bergantung pada proses release tetap harus
+dilakukan di luar implementasi lokal: merge `phase-09-resume-builder-pdf` ke `main`, verifikasi
+Cloudflare R2 staging, serta penandatanganan checklist manual NVDA/Adobe Reader. Status tersebut
+tidak diklaim lulus oleh test otomatis.

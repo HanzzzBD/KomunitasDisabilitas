@@ -15,7 +15,7 @@ import {
 } from "@nawasena/api-client";
 import { KeadaanKosong, Kartu, Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useKlienApi } from "../app/klien-api.js";
-import { buatPrefillResume, pesanGalatResume } from "../features/resume/index.js";
+import { buatPrefillResume, KontrolPdf, pesanGalatResume } from "../features/resume/index.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
@@ -169,6 +169,7 @@ function IsiDaftarCv() {
                       ),
                     })}
                   </p>
+                  <KontrolPdf klien={klien} resumeId={resume.id} sub={sub} />
                 </Kartu>
               </li>
             ))}
