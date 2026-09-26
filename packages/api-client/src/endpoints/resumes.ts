@@ -1,11 +1,13 @@
 import {
   createResumeSchema,
   resumeListResponseSchema,
+  resumePdfResponseSchema,
   resumeResponseSchema,
   updateResumeSchema,
   type CreateResume,
   type Resume,
   type ResumeSummary,
+  type ResumePdfStatus,
   type UpdateResume,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
@@ -14,6 +16,8 @@ import { queryKey } from "../query-keys.js";
 export const resumesKeys = {
   list: (sub: string | null) => queryKey("resumes", { sub: sub ?? "anonim" }),
   detail: (sub: string | null, id: string) => queryKey("resume", { id, sub: sub ?? "anonim" }),
+  pdf: (sub: string | null, id: string) =>
+    queryKey("resume-pdf", { id, sub: sub ?? "anonim" }),
 };
 
 export async function listResumes(client: ApiClient): Promise<ResumeSummary[]> {
@@ -54,4 +58,19 @@ export async function updateResume(
 
 export async function deleteResume(client: ApiClient, id: string): Promise<void> {
   await client.request(`/me/resumes/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function getResumePdfStatus(client: ApiClient, id: string): Promise<ResumePdfStatus> {
+  const response = await client.request(`/me/resumes/${encodeURIComponent(id)}/pdf`, {
+    responseSchema: resumePdfResponseSchema,
+  });
+  return response.data;
+}
+
+export async function requestResumePdf(client: ApiClient, id: string): Promise<ResumePdfStatus> {
+  const response = await client.request(`/me/resumes/${encodeURIComponent(id)}/pdf`, {
+    method: "POST",
+    responseSchema: resumePdfResponseSchema,
+  });
+  return response.data;
 }

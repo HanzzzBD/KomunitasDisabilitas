@@ -8,10 +8,17 @@
 import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
+import { appError } from "../../core/http/index.js";
+import type { ObjectStorage } from "../../core/storage/index.js";
 import { createResumesRepository } from "./repositories/resumes.repository.js";
 import { createResumesService } from "./services/resumes.service.js";
 import { createResumesController } from "./controllers/resumes.controller.js";
 import { createResumesRouter } from "./routers/index.js";
+import {
+  createResumePdfApiService,
+  type ResumePdfApiService,
+  type ResumePdfJobs,
+} from "./pdf/index.js";
 
 export interface ResumesModuleDeps {
   prisma: AppPrisma;
@@ -19,6 +26,11 @@ export interface ResumesModuleDeps {
   routes: RouteRegistrar;
   /** `env.RESUME_MAX_PER_USER` (bawaan 5, AC PR-060). */
   maksPerPengguna: number;
+  /** Tanpa konfigurasi storage/queue, endpoint PDF tetap ada dan menjawab 503. */
+  pdf?: {
+    jobs: ResumePdfJobs;
+    storage: Pick<ObjectStorage, "presignDownload">;
+  };
 }
 
 export interface ResumesModule {
@@ -44,9 +56,16 @@ export function createResumesModule(deps: ResumesModuleDeps): ResumesModule {
     repo: createResumesRepository(deps.prisma),
     maksPerPengguna: deps.maksPerPengguna,
   });
+  const pdf: ResumePdfApiService =
+    deps.pdf === undefined
+      ? {
+          request: () => Promise.reject(appError("BELUM_SIAP")),
+          status: () => Promise.reject(appError("BELUM_SIAP")),
+        }
+      : createResumePdfApiService({ resumes: service, ...deps.pdf });
 
   return {
-    router: createResumesRouter(createResumesController(service), deps.routes),
+    router: createResumesRouter(createResumesController(service, pdf), deps.routes),
     service,
   };
 }

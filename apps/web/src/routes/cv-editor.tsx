@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router";
 import { getResume, resumesKeys } from "@nawasena/api-client";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useKlienApi } from "../app/klien-api.js";
-import { EditorResume, pesanGalatResume } from "../features/resume/index.js";
+import { EditorResume, KontrolPdf, pesanGalatResume } from "../features/resume/index.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
@@ -62,12 +62,22 @@ function IsiCvEditor() {
         ) : null}
         {resume.data !== undefined ? (
           <div className="flex flex-col gap-5">
+            <section
+              aria-label={t("resume.pdf.bagian")}
+              className="rounded-md border border-gray-400 p-4"
+            >
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">
+                {t("resume.pdf.bagian")}
+              </h2>
+              <KontrolPdf klien={klien} resumeId={resume.data.id} sub={sub} />
+            </section>
             <EditorResume
               resume={resume.data}
               klien={klien}
               onDiperbarui={(hasil) => {
                 queryClient.setQueryData(resumesKeys.detail(sub, id), hasil);
                 void queryClient.invalidateQueries({ queryKey: resumesKeys.list(sub) });
+                void queryClient.invalidateQueries({ queryKey: resumesKeys.pdf(sub, id) });
               }}
             />
           </div>

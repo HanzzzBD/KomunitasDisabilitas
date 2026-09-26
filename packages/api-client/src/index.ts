@@ -79,6 +79,8 @@ export {
   createResume,
   updateResume,
   deleteResume,
+  getResumePdfStatus,
+  requestResumePdf,
   resumesKeys,
 } from "./endpoints/resumes.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

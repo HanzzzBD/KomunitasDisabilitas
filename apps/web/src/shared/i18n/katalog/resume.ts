@@ -32,6 +32,38 @@ export const katalogResume = {
       "Ubah dan simpan satu bagian setiap kali. Bagian lain tetap aman bila ada masalah.",
   },
   "resume.editor.kembali": { id: "Kembali ke daftar CV", "id-simple": "Kembali ke semua CV" },
+  "resume.pdf.status.memeriksa": { id: "Memeriksa PDF...", "id-simple": "Sedang memeriksa PDF..." },
+  "resume.pdf.bagian": { id: "PDF CV", "id-simple": "Unduh CV sebagai PDF" },
+  "resume.pdf.status.idle": { id: "PDF belum dibuat.", "id-simple": "PDF belum siap." },
+  "resume.pdf.status.queued": {
+    id: "PDF masuk antrean.",
+    "id-simple": "PDF sedang menunggu dibuat.",
+  },
+  "resume.pdf.status.processing": {
+    id: "PDF sedang dibuat.",
+    "id-simple": "Sistem sedang membuat PDF.",
+  },
+  "resume.pdf.status.ready": {
+    id: "PDF siap diunduh.",
+    "id-simple": "PDF sudah siap diunduh.",
+  },
+  "resume.pdf.status.failed": {
+    id: "PDF belum berhasil dibuat. Anda dapat mencoba lagi.",
+    "id-simple": "PDF gagal dibuat. Coba lagi.",
+  },
+  "resume.pdf.status.gagalJaringan": {
+    id: "Status PDF belum dapat diperiksa. Periksa internet Anda, lalu coba lagi.",
+    "id-simple": "Internet bermasalah. Status PDF belum diketahui. Coba lagi.",
+  },
+  "resume.pdf.aksi.siapkan": { id: "Siapkan PDF", "id-simple": "Buat PDF" },
+  "resume.pdf.aksi.meminta": { id: "Meminta PDF...", "id-simple": "PDF sedang diminta..." },
+  "resume.pdf.aksi.menunggu": { id: "Menunggu PDF", "id-simple": "PDF sedang dibuat" },
+  "resume.pdf.aksi.unduh": { id: "Unduh PDF", "id-simple": "Unduh PDF sekarang" },
+  "resume.pdf.aksi.menyiapkanUnduh": {
+    id: "Menyiapkan unduhan...",
+    "id-simple": "Menyiapkan PDF...",
+  },
+  "resume.pdf.aksi.cobaRenderLagi": { id: "Coba buat PDF lagi", "id-simple": "Coba lagi" },
   "resume.editor.memuat": { id: "Memuat isi CVâ€¦", "id-simple": "Isi CV sedang dibukaâ€¦" },
 
   "resume.bagian.judul": { id: "Nama CV", "id-simple": "Nama dokumen CV" },

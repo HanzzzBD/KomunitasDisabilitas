@@ -76,6 +76,7 @@ import {
   createResumeSchema,
   resumeIdParamsSchema,
   resumeListResponseSchema,
+  resumePdfResponseSchema,
   resumeResponseSchema,
   updateResumeSchema,
 } from "./resumes.js";
@@ -1043,6 +1044,42 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "404": errorResponse("Tidak ditemukan"),
             "409": errorResponse("CV masih dipakai sebuah lamaran"),
             ...responsSesi,
+          },
+        },
+      },
+      "/me/resumes/{id}/pdf": {
+        get: {
+          operationId: "getResumePdfStatus",
+          tags: ["resumes"],
+          summary: "Ambil status PDF CV",
+          description:
+            "Mengembalikan status render terbaru. Saat `ready`, URL unduhan bertanda tangan " +
+            "diberikan dengan masa berlaku singkat; klien harus meminta status lagi tepat " +
+            "sebelum mengunduh agar URL kedaluwarsa diperbarui tanpa interaksi tambahan.",
+          requestParams: { path: resumeIdParamsSchema },
+          responses: {
+            "200": jsonOk("Status render PDF CV", resumePdfResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+            "503": errorResponse("Sesi atau layanan PDF belum dikonfigurasi"),
+          },
+        },
+        post: {
+          operationId: "requestResumePdf",
+          tags: ["resumes"],
+          summary: "Siapkan PDF CV",
+          description:
+            "Menjadwalkan render PDF dari revisi CV terkini. Operasi idempoten: permintaan " +
+            "berulang untuk konten yang sama memakai job deterministik yang sama. Status gagal " +
+            "boleh diminta ulang untuk mencoba render kembali.",
+          requestParams: { path: resumeIdParamsSchema },
+          responses: {
+            "202": jsonOk("Permintaan diterima dan status render terkini", resumePdfResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+            "503": errorResponse("Sesi atau layanan PDF belum dikonfigurasi"),
           },
         },
       },

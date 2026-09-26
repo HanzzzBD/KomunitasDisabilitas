@@ -25,7 +25,10 @@ import { resumeSchema, resumeSummarySchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
-import { createResumesModule } from "../src/modules/resumes/index.js";
+import {
+  createResumesModule,
+  type ResumesModuleDeps,
+} from "../src/modules/resumes/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -118,6 +121,7 @@ afterEach(async () => {
 interface BootOpsi {
   baris?: Baris[];
   maksPerPengguna?: number;
+  pdf?: ResumesModuleDeps["pdf"];
 }
 
 async function boot(
@@ -146,6 +150,7 @@ async function boot(
           prisma: fakePrisma(rows),
           routes: registry.forModule("/api/v1"),
           maksPerPengguna: opsi.maksPerPengguna ?? 5,
+          pdf: opsi.pdf,
         }).router,
       );
     },
@@ -200,6 +205,8 @@ describe("akses (PR-019) — seluruh route CV menuntut sesi", () => {
       ["GET", `/me/resumes/${HANTU}`, undefined],
       ["PUT", `/me/resumes/${HANTU}`, { title: "CV Baru" }],
       ["DELETE", `/me/resumes/${HANTU}`, undefined],
+      ["GET", `/me/resumes/${HANTU}/pdf`, undefined],
+      ["POST", `/me/resumes/${HANTU}/pdf`, undefined],
     ] as const) {
       const res = await panggil(base, method, path, undefined, body);
       expect(res.status, `${method} ${path}`).toBe(401);
@@ -445,8 +452,56 @@ describe("validasi struktur (AC-2) — pesan per field, Bahasa Indonesia sederha
   });
 });
 
+describe("PDF API (PR-064)", () => {
+  it("POST 202 mengantre dan GET memetakan status job", async () => {
+    let state: "missing" | "queued" = "missing";
+    const pdf: NonNullable<ResumesModuleDeps["pdf"]> = {
+      jobs: {
+        state: () => Promise.resolve(state),
+        ensure: () => {
+          state = "queued";
+          return Promise.resolve("queued");
+        },
+      },
+      storage: { presignDownload: () => Promise.reject(new Error("belum siap")) },
+    };
+    const { base } = await boot({ pdf });
+    const token = await tokenUntuk(A);
+    const dibuat = await panggil(base, "POST", "/me/resumes", token, { title: "CV PDF" });
+    const id = ((await badan(dibuat)).data as { id: string }).id;
+
+    const minta = await panggil(base, "POST", `/me/resumes/${id}/pdf`, token);
+    expect(minta.status).toBe(202);
+    expect(minta.headers.get("cache-control")).toBe("private, no-store");
+    expect(await badan(minta)).toEqual({ data: { status: "queued" } });
+
+    const status = await panggil(base, "GET", `/me/resumes/${id}/pdf`, token);
+    expect(status.status).toBe(200);
+    expect(status.headers.get("cache-control")).toBe("private, no-store");
+    expect(await badan(status)).toEqual({ data: { status: "queued" } });
+  });
+
+  it("tanpa konfigurasi storage menjawab 503; CV milik orang lain tetap 404", async () => {
+    const tanpa = await boot();
+    const token = await tokenUntuk(A);
+    expect((await panggil(tanpa.base, "GET", `/me/resumes/${HANTU}/pdf`, token)).status).toBe(503);
+    await active?.stop();
+    active = null;
+
+    const pdf: NonNullable<ResumesModuleDeps["pdf"]> = {
+      jobs: { state: () => Promise.resolve("missing"), ensure: () => Promise.resolve("queued") },
+      storage: {
+        presignDownload: () =>
+          Promise.resolve({ url: "https://storage.test/file", expiresAt: new Date() }),
+      },
+    };
+    const dengan = await boot({ baris: [barisCv()], pdf });
+    expect((await panggil(dengan.base, "GET", `/me/resumes/${HANTU}/pdf`, token)).status).toBe(404);
+  });
+});
+
 describe("deklarasi akses route (PR-019)", () => {
-  it("lima route CV, seluruhnya menuntut sesi", async () => {
+  it("tujuh route CV, seluruhnya menuntut sesi", async () => {
     const { registry } = await boot();
     const daftar = registry.list();
 
@@ -454,7 +509,9 @@ describe("deklarasi akses route (PR-019)", () => {
       "DELETE /api/v1/me/resumes/:id",
       "GET /api/v1/me/resumes",
       "GET /api/v1/me/resumes/:id",
+      "GET /api/v1/me/resumes/:id/pdf",
       "POST /api/v1/me/resumes",
+      "POST /api/v1/me/resumes/:id/pdf",
       "PUT /api/v1/me/resumes/:id",
     ]);
 

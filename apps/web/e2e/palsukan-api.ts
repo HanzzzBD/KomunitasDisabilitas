@@ -403,6 +403,8 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // Sama alasannya untuk daftar lowongan (PR-057).
   const lowongan: (typeof LOWONGAN_UJI)[] = [{ ...LOWONGAN_UJI }];
   const cv = [{ ...CV_UJI, content: { ...CV_UJI.content } }];
+  let pdfDiminta = false;
+  let pembacaanPdf = 0;
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -571,6 +573,27 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       );
     }
     // --- Editor CV manual (PR-061) ---
+    if (/\/me\/resumes\/[^/]+\/pdf$/.test(jalur)) {
+      if (route.request().method() === "POST") {
+        pdfDiminta = true;
+        pembacaanPdf = 0;
+        return route.fulfill(jsonkan(202, { data: { status: "queued" } }));
+      }
+      if (!pdfDiminta) return route.fulfill(jsonkan(200, { data: { status: "idle" } }));
+      pembacaanPdf += 1;
+      if (pembacaanPdf === 1) {
+        return route.fulfill(jsonkan(200, { data: { status: "processing" } }));
+      }
+      return route.fulfill(
+        jsonkan(200, {
+          data: {
+            status: "ready",
+            downloadUrl: "http://127.0.0.1:3000/berkas/cv.pdf?signature=baru",
+            expiresAt: "2026-09-25T12:05:00.000Z",
+          },
+        }),
+      );
+    }
     if (jalur.endsWith("/me/resumes")) {
       if (route.request().method() === "POST") {
         const kirim = route.request().postDataJSON() as {

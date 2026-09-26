@@ -8,13 +8,14 @@ import type { Request, Response } from "express";
 import type { CreateResume, ResumeIdParams, UpdateResume } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import type { ResumesActor, ResumesService } from "../services/resumes.service.js";
+import type { ResumePdfApiService } from "../pdf/api.service.js";
 
 /** Satu-satunya cara controller ini menyusun identitas pemanggil. */
 function actorOf(req: Request): ResumesActor {
   return { userId: authOf(req).userId };
 }
 
-export function createResumesController(service: ResumesService) {
+export function createResumesController(service: ResumesService, pdf: ResumePdfApiService) {
   return {
     /** GET /me/resumes → 200 `{ data: [...] }` (ringkasan, tanpa isi CV). */
     async list(req: Request, res: Response): Promise<void> {
@@ -25,6 +26,22 @@ export function createResumesController(service: ResumesService) {
     async get(req: Request, res: Response): Promise<void> {
       const { id } = req.params as unknown as ResumeIdParams;
       res.status(200).json({ data: await service.get(actorOf(req), id) });
+    },
+
+    /** POST /me/resumes/:id/pdf → 202; idempoten untuk versi isi yang sama. */
+    async requestPdf(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as ResumeIdParams;
+      res.set("Cache-Control", "private, no-store");
+      res.status(202).json({ data: await pdf.request(actorOf(req), id) });
+    },
+
+    /** GET /me/resumes/:id/pdf → status dan URL pendek bila sudah siap. */
+    async pdfStatus(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as ResumeIdParams;
+      // Respons ready membawa bearer URL sementara; jangan izinkan browser,
+      // service worker, atau proxy menyimpannya sebagai respons API reusable.
+      res.set("Cache-Control", "private, no-store");
+      res.status(200).json({ data: await pdf.status(actorOf(req), id) });
     },
 
     /**
