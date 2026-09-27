@@ -237,3 +237,68 @@ describe("ObjectStorage policy", () => {
     expect(driver.presignGet).not.toHaveBeenCalled();
   });
 });
+
+// U-23 (PR-064b): di jaringan compose, API mengunggah ke `minio:9000` tetapi
+// browser hanya bisa membuka `127.0.0.1:9000`. Driver asli dipakai di sini —
+// presign SigV4 berjalan offline, jadi tidak ada koneksi yang dibuka.
+describe("URL presigned untuk browser", () => {
+  const MINIO: StorageConfig = {
+    ...CONFIG,
+    endpoint: "http://minio:9000",
+    region: "us-east-1",
+    forcePathStyle: true,
+  };
+  const KEY = "resumes/user-1/resume-1/cv.pdf";
+
+  it("tanpa endpoint publik, URL memakai endpoint internal (perilaku R2/produksi)", async () => {
+    const { url } = await createObjectStorage(MINIO).presignDownload({ key: KEY });
+    expect(new URL(url).host).toBe("minio:9000");
+  });
+
+  it("endpoint publik menandatangani URL untuk host yang dapat dibuka browser", async () => {
+    const { url } = await createObjectStorage({
+      ...MINIO,
+      publicEndpoint: "http://127.0.0.1:9000",
+    }).presignDownload({ key: KEY });
+
+    const parsed = new URL(url);
+    expect(parsed.host).toBe("127.0.0.1:9000");
+    expect(parsed.pathname).toBe(`/nawasena-test/${KEY}`);
+    // Host adalah bagian dari tanda tangan, bukan hasil ganti-string pasca-sign.
+    expect(parsed.searchParams.get("X-Amz-SignedHeaders")).toBe("host");
+    expect(parsed.searchParams.get("X-Amz-Signature")).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("STORAGE_PUBLIC_ENDPOINT masuk ke config dan ditolak tanpa STORAGE_ENDPOINT", () => {
+    const lengkap = {
+      ...VALID_ENV,
+      NODE_ENV: "test",
+      STORAGE_ENDPOINT: "http://minio:9000",
+      STORAGE_PUBLIC_ENDPOINT: "http://127.0.0.1:9000",
+      STORAGE_ACCESS_KEY_ID: "minio",
+      STORAGE_SECRET_ACCESS_KEY: "minio-rahasia",
+      STORAGE_BUCKET_PREFIX: "nawasena",
+      STORAGE_BUCKET_ENV: "test",
+    };
+    expect(storageConfigFromEnv(loadEnv(lengkap)).publicEndpoint).toBe("http://127.0.0.1:9000");
+
+    expect(() =>
+      loadEnv({ ...VALID_ENV, STORAGE_PUBLIC_ENDPOINT: "http://127.0.0.1:9000" }),
+    ).toThrow(/STORAGE_PUBLIC_ENDPOINT/);
+  });
+
+  it("endpoint publik production wajib HTTPS", () => {
+    expect(() =>
+      loadEnv({
+        ...VALID_ENV,
+        NODE_ENV: "production",
+        STORAGE_ENDPOINT: "https://akun.r2.cloudflarestorage.com",
+        STORAGE_PUBLIC_ENDPOINT: "http://cdn.nawasena.id",
+        STORAGE_ACCESS_KEY_ID: "access",
+        STORAGE_SECRET_ACCESS_KEY: "secret",
+        STORAGE_BUCKET_PREFIX: "nawasena",
+        STORAGE_BUCKET_ENV: "production",
+      }),
+    ).toThrow(/STORAGE_PUBLIC_ENDPOINT/);
+  });
+});

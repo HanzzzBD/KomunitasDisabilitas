@@ -446,3 +446,44 @@ diperbaiki di PR ini semuanya pengalaman pengembang dan a11y:
   `docs/utang-teknis.md`.
 * Exit Criteria yang tersisa tidak berubah: checklist manual NVDA (PR-061) dan Adobe Reader + NVDA
   (PR-063), verifikasi R2 staging, dan merge `phase-09 → main` atas perintah owner.
+
+---
+
+## PR-064b — STORAGE_PUBLIC_ENDPOINT (lunasi U-23) + verifikasi compose
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-27
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Melunasi [U-23](../../utang-teknis.md): URL presigned di stack compose penuh kini dapat dibuka
+browser. Env opsional `STORAGE_PUBLIC_ENDPOINT` membuat driver S3 menandatangani URL unduh untuk
+host publik, sementara upload tetap lewat endpoint internal. Sekaligus menuntaskan verifikasi
+`minio-init` yang tertunda di PR-064a.
+
+### Scope selesai
+
+* `core/config/env.ts`: `STORAGE_PUBLIC_ENDPOINT` (URL, opsional; butuh `STORAGE_ENDPOINT`; HTTPS
+  di production). `core/storage/config.ts` meneruskannya sebagai `publicEndpoint`.
+* `core/storage/storage.ts`: client presign terpisah bila `publicEndpoint` ada. Client kedua tidak
+  membuka koneksi — SigV4 presign dihitung offline.
+* Compose: API mendapat `STORAGE_PUBLIC_ENDPOINT=http://127.0.0.1:9000`; `.env.example` dan README
+  storage diperbarui.
+* Test: host URL tanpa/dengan endpoint publik memakai driver AWS asli (offline), tanda tangan
+  mencakup `host`, validasi env (tanpa endpoint internal, HTTP di production).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Sign dengan host publik, bukan ganti string host setelah sign | Host termasuk `X-Amz-SignedHeaders`; URL hasil ganti-string ditolak `SignatureDoesNotMatch`. |
+| Opsional, default = `STORAGE_ENDPOINT` | R2/produksi memakai satu endpoint publik; tidak ada perubahan perilaku di sana. |
+
+### Temuan saat verifikasi compose
+
+* `minio-init` pertama kali gagal `ERR_MODULE_NOT_FOUND: @aws-sdk/client-s3`. Penyebabnya bukan
+  skrip, melainkan **volume `node_modules` basi**: Docker mengisi named volume dari image hanya saat
+  volume dibuat, dan volume di mesin pengembang lahir 2026-08-01 — sebelum PR-062 menambah SDK S3.
+  Jebakan yang sama mematahkan container `api` compose. Cara pulihnya kini tertulis di komentar
+  `docker-compose.dev.yml` (hapus volume `*_node_modules`, bukan `pgdata`/`miniodata`).
