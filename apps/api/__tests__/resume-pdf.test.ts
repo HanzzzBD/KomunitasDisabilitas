@@ -225,9 +225,7 @@ describe("service render PDF", () => {
       maxPdfBytes: 20_971_520,
     });
 
-    await expect(service.render(jobFor(row))).rejects.toBeInstanceOf(
-      ResumePdfInputTooLargeError,
-    );
+    await expect(service.render(jobFor(row))).rejects.toBeInstanceOf(ResumePdfInputTooLargeError);
     expect(renderer.render).not.toHaveBeenCalled();
   });
 

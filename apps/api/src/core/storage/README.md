@@ -54,8 +54,10 @@ segmen traversal, nama pengguna, email, dan PII lain tidak boleh dipakai.
 
 ## MinIO lokal
 
-Jalankan `docker compose -f docker-compose.dev.yml up minio`, buat bucket yang
-sesuai environment melalui provisioning/console MinIO, lalu gunakan:
+Jalankan `docker compose -f docker-compose.dev.yml up minio`, isi nilai di bawah ke
+`apps/api/.env` (worker `pnpm dev` ikut membacanya), lalu buat bucket sekali dengan
+`pnpm --filter @nawasena/api storage:siapkan-bucket`. Skrip itu idempoten dan menolak
+staging/production. Di stack compose penuh, service `minio-init` menjalankannya otomatis.
 
 ```dotenv
 STORAGE_ENDPOINT=http://127.0.0.1:9000

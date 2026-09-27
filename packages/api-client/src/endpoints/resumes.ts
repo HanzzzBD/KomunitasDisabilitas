@@ -16,8 +16,7 @@ import { queryKey } from "../query-keys.js";
 export const resumesKeys = {
   list: (sub: string | null) => queryKey("resumes", { sub: sub ?? "anonim" }),
   detail: (sub: string | null, id: string) => queryKey("resume", { id, sub: sub ?? "anonim" }),
-  pdf: (sub: string | null, id: string) =>
-    queryKey("resume-pdf", { id, sub: sub ?? "anonim" }),
+  pdf: (sub: string | null, id: string) => queryKey("resume-pdf", { id, sub: sub ?? "anonim" }),
 };
 
 export async function listResumes(client: ApiClient): Promise<ResumeSummary[]> {

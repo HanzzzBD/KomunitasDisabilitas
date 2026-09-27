@@ -70,18 +70,12 @@ const envSchema = z.object({
   // menjawab 503 (deny-by-default). Kredensial yang setengah terisi ditolak
   // saat boot — lihat superRefine di bawah.
   FONNTE_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
-  FONNTE_BASE_URL: z
-    .string()
-    .url({ message: "harus URL valid" })
-    .default("https://api.fonnte.com"),
+  FONNTE_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.fonnte.com"),
   TWILIO_ACCOUNT_SID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   /** Nomor/sender ID pengirim SMS terdaftar di Twilio. */
   TWILIO_FROM: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
-  TWILIO_BASE_URL: z
-    .string()
-    .url({ message: "harus URL valid" })
-    .default("https://api.twilio.com"),
+  TWILIO_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.twilio.com"),
   /** Batas tunggu satu panggilan provider; habis waktu = coba provider berikutnya. */
   OTP_SEND_TIMEOUT_MS: z.coerce
     .number({ invalid_type_error: "harus angka" })

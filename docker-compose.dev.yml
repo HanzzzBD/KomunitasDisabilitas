@@ -54,7 +54,7 @@ services:
   # S3-compatible object storage untuk roundtrip lokal PR-062. Build Alpine
   # dipin ke tag + digest dari source MinIO rilis terakhir dan HANYA untuk
   # dev/test; production memakai R2.
-  # Bucket dibuat oleh provisioning/test, bukan aplikasi (core/storage sengaja
+  # Bucket dibuat oleh `minio-init`, bukan aplikasi (core/storage sengaja
   # tidak memiliki izin create/list bucket).
   minio:
     image: alpine/minio:RELEASE.2025-10-15T17-29-55Z@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
@@ -70,6 +70,34 @@ services:
       - "9001:9001"
     volumes:
       - miniodata:/data
+
+  # One-shot: membuat bucket `nawasena-development` lalu keluar (PR-064a).
+  # Image `minio/mc` sudah tidak dipublikasikan, jadi memakai image API yang
+  # sudah membawa SDK S3. Idempoten — aman di setiap `up`.
+  minio-init:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    command: ["pnpm", "--filter", "@nawasena/api", "storage:siapkan-bucket"]
+    environment:
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      # Sama dengan service api — lihat catatan node_modules di sana.
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
 
   api:
     build:
@@ -105,8 +133,8 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       # Hot-reload: source di-mount; node_modules milik container (binary Linux).
       #
@@ -169,8 +197,8 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       # Lihat catatan node_modules pada service api — berlaku sama di sini.
       - .:/workspace

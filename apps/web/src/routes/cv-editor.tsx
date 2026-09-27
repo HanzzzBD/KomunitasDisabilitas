@@ -66,9 +66,7 @@ function IsiCvEditor() {
               aria-label={t("resume.pdf.bagian")}
               className="rounded-md border border-gray-400 p-4"
             >
-              <h2 className="mb-2 text-lg font-semibold text-gray-900">
-                {t("resume.pdf.bagian")}
-              </h2>
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">{t("resume.pdf.bagian")}</h2>
               <KontrolPdf klien={klien} resumeId={resume.data.id} sub={sub} />
             </section>
             <EditorResume

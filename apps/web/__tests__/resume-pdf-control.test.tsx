@@ -48,6 +48,13 @@ describe("KontrolPdf", () => {
     await harusLolosAksesibilitas(container);
   });
 
+  it("status awal tidak diumumkan otomatis — daftar /cv memuat satu kontrol per CV", async () => {
+    renderKontrol([{ data: { status: "idle" } }]);
+
+    const status = await screen.findByText("PDF belum dibuat.");
+    expect(status).toHaveAttribute("aria-live", "off");
+  });
+
   it("mengambil URL presigned baru tepat sebelum unduh", async () => {
     const onDownload = vi.fn();
     renderKontrol(
@@ -76,10 +83,7 @@ describe("KontrolPdf", () => {
   });
 
   it("render gagal memberi pesan sederhana dan tombol coba lagi", async () => {
-    renderKontrol([
-      { data: { status: "failed" } },
-      { data: { status: "queued" } },
-    ]);
+    renderKontrol([{ data: { status: "failed" } }, { data: { status: "queued" } }]);
 
     expect(await screen.findByText(/belum berhasil dibuat/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Coba buat PDF lagi" }));

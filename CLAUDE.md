@@ -358,7 +358,7 @@ NODE_ENV="development"
 
 **Siapa yang memuat `.env` (eksplisit — bukan efek samping):**
 - Prisma CLI (`prisma migrate`, `prisma studio`) — otomatis.
-- Script `dev`: `tsx watch --env-file-if-exists=.env src/index.ts`.
+- Script `dev`: `tsx watch --env-file-if-exists=.env src/index.ts`. Worker (`apps/worker`) memuat berkas yang **sama** (`../api/.env`) — satu `.env` untuk kedua proses lokal.
 - Script `start` (produksi/kontainer): **tidak** memuat `.env`; env var datang dari compose/CI.
 - Env var yang sudah ada **selalu menang** atas isi `.env` (file hanya mengisi yang kosong).
 - Gerbang fail-fast (`loadEnv` → `parseFieldKeys` → `loadQueueConfigs`) berjalan **setelah** pemuatan itu, jadi `.env` yang kurang `FIELD_KEY_V1` tetap membuat boot gagal.

@@ -396,7 +396,9 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "403": errorResponse("Akun Google yang dipakai berbeda dengan akun ini"),
             "410": errorResponse("Kode OTP hangus atau kedaluwarsa — minta kode baru"),
             "429": errorResponse("Percobaan terkunci sementara — lihat header Retry-After"),
-            "503": errorResponse("Identitas belum bisa dipastikan (kredensial server tidak lengkap)"),
+            "503": errorResponse(
+              "Identitas belum bisa dipastikan (kredensial server tidak lengkap)",
+            ),
           },
         },
       },

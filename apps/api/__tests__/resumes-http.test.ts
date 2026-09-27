@@ -25,10 +25,7 @@ import { resumeSchema, resumeSummarySchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
-import {
-  createResumesModule,
-  type ResumesModuleDeps,
-} from "../src/modules/resumes/index.js";
+import { createResumesModule, type ResumesModuleDeps } from "../src/modules/resumes/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -237,8 +234,10 @@ describe("CRUD lengkap (AC-1)", () => {
     expect(satu.status).toBe(200);
     expect((await badan(satu)).data).toMatchObject({ id, title: "CV Utama" });
 
-    const daftar = (await badan(await panggil(base, "GET", "/me/resumes", token)))
-      .data as Record<string, unknown>[];
+    const daftar = (await badan(await panggil(base, "GET", "/me/resumes", token))).data as Record<
+      string,
+      unknown
+    >[];
     expect(daftar).toHaveLength(1);
     // Daftar TIDAK membawa isi CV — dipakai untuk memilih, bukan untuk membaca.
     expect(daftar[0]).not.toHaveProperty("content");
@@ -408,7 +407,9 @@ describe("validasi struktur (AC-2) — pesan per field, Bahasa Indonesia sederha
     const { base, rows } = await boot();
     const res = await panggil(base, "POST", "/me/resumes", await tokenUntuk(A), {
       title: "CV Utama",
-      content: { experiences: [{ title: "Analis", startDate: "2022-05-01", endDate: "2021-01-01" }] },
+      content: {
+        experiences: [{ title: "Analis", startDate: "2022-05-01", endDate: "2021-01-01" }],
+      },
     });
 
     expect(res.status).toBe(400);

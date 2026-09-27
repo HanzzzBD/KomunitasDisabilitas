@@ -20,10 +20,7 @@ import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { ResumesController } from "../controllers/resumes.controller.js";
 
-export function createResumesRouter(
-  controller: ResumesController,
-  routes: RouteRegistrar,
-): Router {
+export function createResumesRouter(controller: ResumesController, routes: RouteRegistrar): Router {
   routes.get("/me/resumes", access.authenticated(), asyncHandler(controller.list));
   routes.post(
     "/me/resumes",

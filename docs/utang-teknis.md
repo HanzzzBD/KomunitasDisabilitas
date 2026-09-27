@@ -525,6 +525,24 @@ ke database. Amplifikasi tersisa dibatasi lagi oleh concurrency queue 1 dan limi
 
 ---
 
+### U-23 — Presigned URL stack compose menunjuk host `minio:9000`
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Pengalaman pengembang |
+| **Ditemukan** | PR-064a (2026-09-27) |
+| **Pemilik** | Phase 16 (overlay compose staging/produksi) |
+| **Pemicu** | Saat unduh PDF diuji end-to-end dari browser terhadap stack `docker compose` penuh, atau saat core/storage butuh endpoint publik yang berbeda dari endpoint internal (mis. CDN R2) |
+
+Di `docker-compose.dev.yml`, API dan worker memakai `STORAGE_ENDPOINT=http://minio:9000`.
+`presignDownload` menandatangani URL untuk host itu, yang hanya dapat di-resolve di dalam
+jaringan compose — browser di host mendapat URL yang tidak bisa dibuka. Tidak mengenai alur
+`pnpm dev` (endpoint `127.0.0.1:9000`) dan tidak mengenai produksi (endpoint R2 publik).
+Perbaikan yang wajar: variabel opsional `STORAGE_PUBLIC_ENDPOINT` khusus untuk presign.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

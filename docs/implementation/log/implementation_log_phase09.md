@@ -407,3 +407,42 @@ diverifikasi pada setiap tahap. Exit gate yang bergantung pada proses release te
 dilakukan di luar implementasi lokal: merge `phase-09-resume-builder-pdf` ke `main`, verifikasi
 Cloudflare R2 staging, serta penandatanganan checklist manual NVDA/Adobe Reader. Status tersebut
 tidak diklaim lulus oleh test otomatis.
+
+---
+
+## PR-064a — Pembersihan penutupan Phase 09
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-27
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Audit ulang PR-061..PR-064 sebelum phase ditutup. Keempatnya dikerjakan agen lain (Codex), jadi
+kode dibaca terhadap Acceptance Criteria dan seluruh gerbang dijalankan ulang di lokal. Hasilnya:
+lint, typecheck, unit (±3.000 test), dan build hijau. Gerbang a11y: 104/107 lulus pada run paralel;
+3 kegagalan (`profil` 0 ms, `CV - editor terisi`, `admin — tambah perusahaan`) lulus semua saat
+diulang serial, jadi itu beban mesin, bukan regresi. CI keempat PR (#150–#153) hijau. Tidak ada
+cacat logika yang ditemukan di jalur PDF (hash idempoten, optimistic write `updatedAt`
+Timestamptz(6) aman karena Prisma menulis presisi milidetik, 503 saat storage kosong). Temuan yang
+diperbaiki di PR ini semuanya pengalaman pengembang dan a11y:
+
+| Temuan | Perbaikan |
+|---|---|
+| Bucket `nawasena-development` tidak dibuat siapa pun; upload PDF pertama di stack dev gagal `NoSuchBucket`. | Skrip idempoten `pnpm --filter @nawasena/api storage:siapkan-bucket` (`apps/api/scripts/siapkan-bucket-dev.ts`) + service one-shot `minio-init` di compose; `api`/`worker` menunggu `service_completed_successfully`. Skrip menolak staging/production. Image `minio/mc` tidak lagi dipublikasikan di Docker Hub, jadi memakai SDK S3 yang sudah ada. |
+| `pnpm dev` worker tidak memuat `.env` apa pun, sehingga STORAGE_*/Chromium tidak bisa diisi dan processor `pdf-render` tidak pernah terdaftar di lokal. | Script `dev` worker memuat `../api/.env` (`--env-file-if-exists`). Satu `.env` untuk API dan worker; didokumentasikan di CLAUDE.md §5.6, `.env.example`, dan README storage. |
+| Daftar `/cv` memuat satu `KontrolPdf` per CV, masing-masing live region `polite`; NVDA membacakan status semua kartu setiap halaman dibuka. | Live region `aria-live="off"` sampai pengguna menekan tombol di kontrol itu. Status tetap terlihat/terbaca virtual cursor; selesainya render di luar sesi dikabarkan notifikasi `resume.pdf_siap`. Test baru di `resume-pdf-control.test.tsx`. |
+| 11 berkas phase 09 tidak lolos Prettier. | Diformat; tanpa perubahan perilaku. |
+
+### Catatan & risiko
+
+* `pnpm dev` yang "gagal" di mesin pengembang ternyata bentrok port: 5173 dipakai Vite proyek lain.
+  `strictPort: true` di `vite.config.ts` disengaja (origin CORS/e2e dikunci ke 5173), jadi tidak
+  diubah — hentikan proses lain yang memakai port itu.
+* Verifikasi `docker compose up minio-init` tertunda: Docker Desktop mati saat build image di mesin
+  lokal. Skripnya sendiri sudah diuji langsung terhadap MinIO (buat → sudah ada → tolak production).
+* Presigned URL di stack compose penuh ditandatangani untuk host `minio:9000` yang tidak dapat
+  dijangkau browser di host. Tidak mengenai `pnpm dev` (endpoint `127.0.0.1:9000`). Dicatat di
+  `docs/utang-teknis.md`.
+* Exit Criteria yang tersisa tidak berubah: checklist manual NVDA (PR-061) dan Adobe Reader + NVDA
+  (PR-063), verifikasi R2 staging, dan merge `phase-09 → main` atas perintah owner.
