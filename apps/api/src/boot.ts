@@ -48,11 +48,7 @@ import {
   createRouteRegistry,
   createTokenService,
 } from "./core/auth/index.js";
-import {
-  createQueueRegistry,
-  createRawQueuePool,
-  type QueueConfigs,
-} from "./core/queue/index.js";
+import { createQueueRegistry, createRawQueuePool, type QueueConfigs } from "./core/queue/index.js";
 import { createServer, registerShutdownHooks } from "./server.js";
 
 export interface BootOptions {

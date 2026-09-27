@@ -47,16 +47,18 @@ describe("tujuan notifikasi", () => {
     // MERAH begitu `/lamaran/:id` dipasang dan `tautan.ts` diperbarui. Itu
     // memang yang diinginkan: perubahan tujuan navigasi tidak boleh lolos tanpa
     // seseorang meninjau ulang AC-4.
-    expect(tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_TERKIRIM, params: PARAMS })).toBeNull();
+    expect(
+      tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_TERKIRIM, params: PARAMS }),
+    ).toBeNull();
     expect(
       tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH, params: PARAMS }),
     ).toBeNull();
   });
 
   it("notifikasi PDF membuka editor CV yang menghasilkan berkasnya", () => {
-    expect(
-      tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_PDF_SIAP, params: PARAMS }),
-    ).toBe(`/cv/${PARAMS.resumeId}`);
+    expect(tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_PDF_SIAP, params: PARAMS })).toBe(
+      `/cv/${PARAMS.resumeId}`,
+    );
   });
 
   it("tidak satu pun tipe menjanjikan alamat yang belum ada di router", () => {

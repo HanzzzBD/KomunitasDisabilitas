@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getResumePdfStatus,
@@ -32,6 +33,12 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
   const t = useTeks();
   const queryClient = useQueryClient();
   const key = resumesKeys.pdf(sub, resumeId);
+  // Live region baru "hidup" setelah pengguna menekan tombol di kontrol INI.
+  // Daftar `/cv` memuat satu kontrol per CV; tanpa ini pembaca layar membacakan
+  // status PDF setiap kartu tiap kali halaman dibuka (PR-064a). Status tetap
+  // terlihat dan terbaca virtual cursor — hanya pengumuman otomatisnya ditahan.
+  // Selesainya render di luar sesi ini dikabarkan notifikasi `resume.pdf_siap`.
+  const [umumkan, setUmumkan] = useState(false);
 
   const status = useQuery({
     queryKey: key,
@@ -69,6 +76,7 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
   const menunggu = current?.status === "queued" || current?.status === "processing";
 
   const ulangJaringan = () => {
+    setUmumkan(true);
     if (minta.isError) {
       minta.reset();
       minta.mutate();
@@ -92,15 +100,16 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
 
   return (
     <div className="flex min-w-0 flex-col items-start gap-2">
-      <p aria-live="polite" aria-atomic="true" className="text-sm text-gray-700">
+      <p
+        aria-live={umumkan ? "polite" : "off"}
+        aria-atomic="true"
+        className="text-sm text-gray-700"
+      >
         {pesan}
       </p>
 
       {gagalJaringan ? (
-        <Tombol
-          varian="sekunder"
-          onClick={ulangJaringan}
-        >
+        <Tombol varian="sekunder" onClick={ulangJaringan}>
           {t("resume.aksi.cobaLagi")}
         </Tombol>
       ) : current?.status === "ready" ? (
@@ -109,6 +118,7 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
           disabled={unduh.isPending}
           aria-busy={unduh.isPending}
           onClick={() => {
+            setUmumkan(true);
             unduh.mutate();
           }}
         >
@@ -120,6 +130,7 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
           disabled={minta.isPending}
           aria-busy={minta.isPending}
           onClick={() => {
+            setUmumkan(true);
             minta.mutate();
           }}
         >
