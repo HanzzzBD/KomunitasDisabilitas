@@ -11,11 +11,12 @@
 // `/ai/quota/:userId` kelak berarti pindah ke `access.self("userId")`, bukan
 // menambah pemeriksaan di controller.
 import type { Router } from "express";
-import { aiChatSessionParamsSchema } from "@nawasena/schemas";
+import { aiChatSessionParamsSchema, aiCvChatRequestSchema } from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { AiController } from "../controllers/ai.controller.js";
 import type { AiChatSessionsController } from "../controllers/chat-sessions.controller.js";
+import type { CvChatController } from "../controllers/cv-chat.controller.js";
 
 /**
  * Bernama `createAiQuotaRouter`, bukan `createAiRouter` seperti pola modul lain:
@@ -47,6 +48,33 @@ export function createAiChatSessionsRouter(
     access.authenticated(),
     validate({ params: aiChatSessionParamsSchema }),
     asyncHandler(controller.get),
+  );
+  return routes.router;
+}
+
+/**
+ * Percakapan AI CV Builder (PR-066). Ketiganya `authenticated`, alasan yang sama
+ * dengan `/ai/cv-chat/:session`: identitas dari token, kepemilikan sesi dijamin
+ * repository dan registry aliran.
+ *
+ * `POST /ai/cv-chat/sessions` adalah satu-satunya tulis TANPA AI: ia hanya
+ * membuat (atau mengembalikan) satu sesi aktif beserta salam statis — tidak bisa
+ * dipakai menumbuhkan transkrip, sebab paling banyak ada satu sesi aktif dan
+ * salam hanya ditulis saat sesi lahir.
+ */
+export function createAiCvChatRouter(controller: CvChatController, routes: RouteRegistrar): Router {
+  routes.post("/ai/cv-chat/sessions", access.authenticated(), asyncHandler(controller.mulai));
+  routes.post(
+    "/ai/cv-chat",
+    access.authenticated(),
+    validate({ body: aiCvChatRequestSchema }),
+    asyncHandler(controller.kirim),
+  );
+  routes.get(
+    "/ai/cv-chat/:session/stream",
+    access.authenticated(),
+    validate({ params: aiChatSessionParamsSchema }),
+    asyncHandler(controller.sambung),
   );
   return routes.router;
 }

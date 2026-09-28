@@ -73,6 +73,14 @@ export const SSE_EVENT_SELESAI = "selesai";
  */
 export interface SseResponseLike {
   writeHead(status: number, headers: Record<string, string>): void;
+  /**
+   * Kirim header SEKARANG (PR-066). `writeHead` milik Node menahan header
+   * sampai tulisan pertama — sambung ulang yang tidak punya event untuk
+   * diputar akan membuat klien menunggu header sampai token BERIKUTNYA datang,
+   * dan klien yang menunggu header tidak bisa membedakan "server lambat" dari
+   * "koneksi mati". Opsional supaya respons palsu di test tidak dipaksa.
+   */
+  flushHeaders?(): void;
   /** `false` = buffer soket penuh; JANGAN menulis lagi sampai `drain`. */
   write(chunk: string): boolean;
   end(): void;
@@ -166,6 +174,41 @@ export const penjadwalNyata: PenjadwalSse = {
 export const SSE_LOMPATAN_TIDAK_TERTUTUP = "SSE_LOMPATAN_TIDAK_TERTUTUP";
 export const SSE_SESI_TIDAK_SINKRON = "SSE_SESI_TIDAK_SINKRON";
 
+/** Kalimat galat sambung-ulang — satu tempat, dipakai sesi hidup DAN yang sudah tutup. */
+const GALAT_SAMBUNG = {
+  [SSE_SESI_TIDAK_SINKRON]: {
+    message: "Sambungan tidak cocok dengan sesi di server",
+    hint: "Muat ulang untuk memulai percakapan baru",
+  },
+  [SSE_LOMPATAN_TIDAK_TERTUTUP]: {
+    message: "Sebagian jawaban terlewat saat sambungan terputus",
+    hint: "Kirim ulang pertanyaan Anda untuk jawaban yang utuh",
+  },
+} as const;
+
+/**
+ * Galat sambung-ulang untuk `lastEventId` terhadap keadaan cincin; `undefined`
+ * = bisa diputar ulang utuh.
+ *
+ * - `lastEventId > idTerakhir`: klien mengaku sudah menerima lebih banyak
+ *   daripada yang pernah kami terbitkan — sesi tertukar atau id basi.
+ * - Lompatan tak tertutup: INILAH kasus yang membuat berkas ini ada. Bagian
+ *   yang hilang sudah ter-evict dari cincin, jadi melanjutkan akan menyajikan
+ *   aliran mulus yang BOLONG di tengah. Lebih baik gagal terbaca.
+ */
+function periksaSambung(
+  lastEventId: number,
+  idTerakhir: number,
+  cincin: readonly SseEvent[],
+): keyof typeof GALAT_SAMBUNG | undefined {
+  if (lastEventId > idTerakhir) return SSE_SESI_TIDAK_SINKRON;
+  const tertua = cincin[0]?.id;
+  if (lastEventId < idTerakhir && (tertua === undefined || tertua > lastEventId + 1)) {
+    return SSE_LOMPATAN_TIDAK_TERTUTUP;
+  }
+  return undefined;
+}
+
 export interface SseSesiOpsi {
   penjadwal?: PenjadwalSse;
   clock?: () => Date;
@@ -185,8 +228,17 @@ export interface SseSesi {
   lampirkan(res: SseResponseLike, lastEventId?: number): Promise<void>;
   /** Terbitkan satu event bernomor. Menunggu bila klien lambat (AC-3). */
   kirim(data: string, event?: string): Promise<void>;
-  /** Kirim galat terstruktur lalu tutup (AC-4). */
-  galat(kode: string, pesan: string, petunjuk?: string): Promise<void>;
+  /**
+   * Kirim galat terstruktur lalu tutup (AC-4). `tambahan` ikut di muatan
+   * sesudah amplop baku — mis. `{ degraded: true, retryAfterSeconds }` untuk
+   * kuota habis (PR-066); tidak bisa menimpa `code`/`message`/`hint`.
+   */
+  galat(
+    kode: string,
+    pesan: string,
+    petunjuk?: string,
+    tambahan?: Readonly<Record<string, unknown>>,
+  ): Promise<void>;
   /** Tutup normal. */
   selesai(): Promise<void>;
 }
@@ -261,16 +313,49 @@ export function createSseSesi(opsi: SseSesiOpsi = {}): SseSesi {
    * gagal justru di jalur pelaporan galat, yaitu jalur yang paling jarang
    * dijalankan manusia dan paling mahal bila diam.
    */
-  async function galat(kode: string, pesan: string, petunjuk?: string): Promise<void> {
-    if (tertutup) return;
+  /**
+   * Simpan event ke cincin TERBATAS: inilah yang membuat sesi menganggur tidak
+   * tumbuh tanpa batas — dan sekaligus yang menciptakan "lompatan" yang
+   * dideteksi `periksaSambung`.
+   */
+  function simpan(e: SseEvent): void {
+    cincin.push(e);
+    if (cincin.length > kapasitas) cincin.shift();
+  }
+
+  /**
+   * Event PENUTUP (`error`/`selesai`) ikut disimpan di cincin (PR-066). Tanpa
+   * itu klien yang putus tepat sebelum akhir aliran tersambung kembali ke sesi
+   * yang sudah tutup dan tidak pernah tahu jawabannya sudah lengkap — atau
+   * bahwa ia gagal.
+   */
+  async function tutupDengan(event: string, data: string): Promise<void> {
     tertutup = true;
-    // Amplop yang sama dengan error HTTP repo ini ({code,message,hint}),
-    // supaya klien tidak perlu dua cara membaca kegagalan.
-    const muatan = JSON.stringify({ code: kode, message: pesan, hint: petunjuk ?? "" });
     idTerakhir += 1;
-    await tulis(bingkaiEvent({ id: idTerakhir, event: SSE_EVENT_ERROR, data: muatan }));
+    const e: SseEvent = { id: idTerakhir, event, data };
+    simpan(e);
+    await tulis(bingkaiEvent(e));
     res?.end();
     lepas();
+  }
+
+  async function galat(
+    kode: string,
+    pesan: string,
+    petunjuk?: string,
+    tambahan?: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
+    if (tertutup) return;
+    // Amplop yang sama dengan error HTTP repo ini ({code,message,hint}),
+    // supaya klien tidak perlu dua cara membaca kegagalan. `tambahan` lebih
+    // dulu supaya ketiga field baku tidak pernah bisa ditimpanya.
+    const muatan = JSON.stringify({
+      ...(tambahan ?? {}),
+      code: kode,
+      message: pesan,
+      hint: petunjuk ?? "",
+    });
+    await tutupDengan(SSE_EVENT_ERROR, muatan);
   }
 
   return {
@@ -283,8 +368,26 @@ export function createSseSesi(opsi: SseSesiOpsi = {}): SseSesi {
     },
 
     async lampirkan(baru, lastEventId) {
+      if (tertutup) {
+        // Sesi SUDAH TUTUP (PR-066): putar ulang yang tersisa, termasuk event
+        // penutupnya, lalu akhiri — tanpa detak, tanpa memasang `res`.
+        baru.writeHead(200, { ...SSE_HEADERS });
+        baru.flushHeaders?.();
+        const dari = lastEventId ?? 0;
+        const masalah = periksaSambung(dari, idTerakhir, cincin);
+        if (masalah !== undefined) {
+          const muatan = JSON.stringify({ code: masalah, ...GALAT_SAMBUNG[masalah] });
+          baru.write(bingkaiEvent({ event: SSE_EVENT_ERROR, data: muatan }));
+        } else {
+          for (const e of cincin) if (e.id > dari) baru.write(bingkaiEvent(e));
+        }
+        baru.end();
+        return;
+      }
+
       res = baru;
       baru.writeHead(200, { ...SSE_HEADERS });
+      baru.flushHeaders?.();
       baru.once("close", () => {
         // Hanya lepaskan bila respons INI yang tertutup; sebuah `close` yang
         // datang terlambat dari sambungan lama tidak boleh mencabut yang baru.
@@ -296,28 +399,9 @@ export function createSseSesi(opsi: SseSesiOpsi = {}): SseSesi {
 
       if (lastEventId === undefined) return;
 
-      if (lastEventId > idTerakhir) {
-        // Klien mengaku sudah menerima lebih banyak daripada yang pernah kami
-        // terbitkan: sesi yang tertukar atau id basi. Melanjutkan berarti
-        // menyembunyikan ketidakcocokan itu.
-        await galat(
-          SSE_SESI_TIDAK_SINKRON,
-          "Sambungan tidak cocok dengan sesi di server",
-          "Muat ulang untuk memulai percakapan baru",
-        );
-        return;
-      }
-
-      const tertua = cincin[0]?.id;
-      if (lastEventId < idTerakhir && (tertua === undefined || tertua > lastEventId + 1)) {
-        // INILAH kasus yang membuat berkas ini ada. Bagian yang hilang sudah
-        // ter-evict dari cincin, jadi melanjutkan akan menyajikan aliran mulus
-        // yang BOLONG di tengah. Lebih baik gagal terbaca daripada benar-terlihat.
-        await galat(
-          SSE_LOMPATAN_TIDAK_TERTUTUP,
-          "Sebagian jawaban terlewat saat sambungan terputus",
-          "Kirim ulang pertanyaan Anda untuk jawaban yang utuh",
-        );
+      const masalah = periksaSambung(lastEventId, idTerakhir, cincin);
+      if (masalah !== undefined) {
+        await galat(masalah, GALAT_SAMBUNG[masalah].message, GALAT_SAMBUNG[masalah].hint);
         return;
       }
 
@@ -331,10 +415,7 @@ export function createSseSesi(opsi: SseSesiOpsi = {}): SseSesi {
       if (tertutup) return;
       idTerakhir += 1;
       const e: SseEvent = { id: idTerakhir, event, data };
-      cincin.push(e);
-      // Cincin TERBATAS: inilah yang membuat sesi menganggur tidak tumbuh tanpa
-      // batas — dan sekaligus yang menciptakan "lompatan" yang dideteksi di atas.
-      if (cincin.length > kapasitas) cincin.shift();
+      simpan(e);
       await tulis(bingkaiEvent(e));
     },
 
@@ -342,11 +423,7 @@ export function createSseSesi(opsi: SseSesiOpsi = {}): SseSesi {
 
     async selesai() {
       if (tertutup) return;
-      tertutup = true;
-      idTerakhir += 1;
-      await tulis(bingkaiEvent({ id: idTerakhir, event: SSE_EVENT_SELESAI, data: "" }));
-      res?.end();
-      lepas();
+      await tutupDengan(SSE_EVENT_SELESAI, "");
     },
   };
 }

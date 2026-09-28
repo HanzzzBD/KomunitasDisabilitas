@@ -134,6 +134,7 @@ describe("kontributor bagian accessibility", () => {
       notificationChannels: { email: null, push: null },
       notifications: [],
       aiChatSessions: [],
+      aiUsage: [],
     });
 
     expect(berkas.accessibility).toEqual(PILIHAN);

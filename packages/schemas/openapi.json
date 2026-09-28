@@ -2017,6 +2017,216 @@
         }
       }
     },
+    "/ai/cv-chat/sessions": {
+      "post": {
+        "operationId": "startMyAiCvChat",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Mulai atau lanjutkan sesi AI CV Builder",
+        "description": "Mengembalikan SATU sesi aktif milik pemanggil. Sesi baru (201) sudah berisi salam pembuka dari pewawancara — tanpa memanggil AI dan tanpa memotong kuota. Sesi aktif yang sudah ada dikembalikan apa adanya (200). 503 bila fitur chat sedang dimatikan: klien beralih ke formulir CV biasa.",
+        "responses": {
+          "200": {
+            "description": "Sesi aktif yang sudah ada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiChatSessionResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Sesi baru beserta salam pembuka",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiChatSessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Fitur chat AI sedang dimatikan, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/cv-chat": {
+      "post": {
+        "operationId": "sendAiCvChatMessage",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Kirim pesan dan terima jawaban pewawancara (SSE)",
+        "description": "Menjawab `text/event-stream`: event `giliran` (pesan pengguna tersimpan), `token` (potongan jawaban), `giliran` (jawaban tersimpan), lalu `selesai`. Kegagalan setelah aliran dibuka dikirim sebagai event `error` (`AiCvChatErrorEvent`); `degraded: true` berarti klien beralih ke formulir. Menghabiskan satu jatah `cv_chat`. Kegagalan sebelum aliran dibuka dijawab JSON biasa.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiCvChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aliran SSE",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sesi tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sesi sudah selesai, atau jawaban sebelumnya masih berjalan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Fitur chat AI dimatikan atau server sedang penuh, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/cv-chat/{session}/stream": {
+      "get": {
+        "operationId": "resumeAiCvChatStream",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Sambung ulang aliran jawaban (SSE)",
+        "description": "Dipakai setelah koneksi putus: kirim header `Last-Event-Id` berisi nomor event terakhir yang diterima; event sesudahnya diputar ulang lalu aliran berlanjut. 404 bila tidak ada aliran untuk sesi ini (sudah lama selesai) — ambil transkripnya lewat `GET /ai/cv-chat/{session}`, jawabannya sudah tersimpan di sana.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aliran SSE",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`session` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ada aliran untuk sesi ini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/cv-chat/{session}": {
       "get": {
         "operationId": "getMyAiChatSession",
@@ -4473,6 +4683,12 @@
             "items": {
               "$ref": "#/components/schemas/AiChatSession"
             }
+          },
+          "aiUsage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportAiUsage"
+            }
           }
         },
         "required": [
@@ -4483,7 +4699,8 @@
           "accessibility",
           "notificationChannels",
           "notifications",
-          "aiChatSessions"
+          "aiChatSessions",
+          "aiUsage"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -5096,6 +5313,56 @@
         ],
         "additionalProperties": false,
         "description": "Satu giliran percakapan CV"
+      },
+      "ExportAiUsage": {
+        "type": "object",
+        "properties": {
+          "feature": {
+            "type": "string",
+            "enum": [
+              "cv_chat",
+              "cv_finalize",
+              "cv_check",
+              "simplify_text",
+              "interview_sim",
+              "rerank",
+              "embed"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "tokensIn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokensOut": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "promptVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "feature",
+          "provider",
+          "tokensIn",
+          "tokensOut",
+          "promptVersion",
+          "createdAt"
+        ],
+        "additionalProperties": false,
+        "description": "Satu catatan pemakaian fitur AI"
       },
       "AccessibilityResponse": {
         "type": "object",
@@ -5903,6 +6170,27 @@
         "required": [
           "data"
         ]
+      },
+      "AiCvChatRequest": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "sessionId",
+          "message"
+        ],
+        "additionalProperties": false
       },
       "CompanyPublic": {
         "type": "object",

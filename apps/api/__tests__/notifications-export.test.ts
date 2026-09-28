@@ -173,6 +173,7 @@ describe("kontributor bagian notifications", () => {
       notificationChannels: { email: null, push: null },
       notifications: await kontributor.kumpulkan(USER_ID),
       aiChatSessions: [],
+      aiUsage: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);

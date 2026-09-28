@@ -213,7 +213,7 @@ sebab yang disimpan sistem ini memang `type` + referensi. Barisnya berpindah `DI
 
 | | |
 |---|---|
-| **Status** | TERBUKA (atribusi dikoreksi 2026-09-05) |
+| **Status** | **LUNAS — PR-066 (2026-09-28)** (atribusi dikoreksi 2026-09-05) |
 | **Jenis** | Kepatuhan (UU PDP §8.7) |
 | **Pemilik** | **PR-066** (bukan Phase 06) |
 | **Pemicu** | Saat endpoint fitur AI pertama menulis baris `ai_usage` |
@@ -228,6 +228,12 @@ Yang salah hanyalah **pemiliknya**: bukan Phase 06 yang melahirkan datanya, mela
 PR-066 — endpoint AI pertama. Dibiarkan menunjuk Phase 06, baris ini akan terlihat seperti
 utang yang sudah jatuh tempo padahal belum, dan setiap rekonsiliasi berikutnya akan
 membuang waktu memeriksanya ulang.
+
+**PEMBAYARANNYA (2026-09-28, PR-066).** Pemicunya menyala di PR yang sama —
+`POST /ai/cv-chat` menulis baris `ai_usage` pertama — dan dibayar di sana (keputusan owner).
+Bagian ekspor `aiUsage` (`exportAiUsageSchema`: fitur, provider, token, versi prompt, waktu —
+tanpa isi, sebab isi memang tidak pernah disimpan) lewat `createAiUsageExportContributor`;
+`ai_usage` pindah `DITUNDA` → `TERDAFTAR` di `export-kelengkapan.test.ts`.
 
 ---
 
@@ -310,8 +316,8 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
-| **Pemilik** | PR-066 |
+| **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
+| **Pemilik** | PR-066 → sisa ke **PR-067** (finalize, pemakai `AiClient.prompt` pertama) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -320,13 +326,20 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 `createAiQuota` + `createAiModule({ quota })`. Seluruh jaminan Phase 06 karena itu hari ini
 hanya sekuat test-nya; belum ada satu pun yang berjalan di produksi.
 
+**PEMBAYARAN PR-066.** `boot.ts` kini merakit `createAiClient` dengan `createAiGateway`,
+`createAiStreamGateway` (baru), recorder `ai_usage`, dan `createAiPromptCache` di atas
+`redis.cache`; jalur SSE hidup lewat `POST /ai/cv-chat`. **Yang belum:** `withDegradation`
+masih tanpa pemanggil — chat menurunkan kegagalan lewat event SSE ber-`degraded`, bukan lewat
+pembungkus itu (aliran tidak punya "nilai pengganti" untuk dikembalikan). Pemakai alaminya
+PR-067 (`finalize` → draft kosong / jalur manual).
+
 ---
 
 ### U-07 — Seam F1: tidak ada penjaga struktural atas `createAiGateway`
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-066 (2026-09-28)** |
 | **Pemilik** | PR-066 (syarat masuk) |
 | **Pemicu** | Modul mana pun yang memanggil `createAiGateway` langsung |
 | **Sumber** | Log Phase 06 (PR-043b F1) |
@@ -339,6 +352,12 @@ jejak biaya **dan** cache. Diverifikasi 2026-09-05: masih tidak ada penjaganya;
 Perlu dicatat bahwa penjaga sejenis **sudah terbukti bisa dibuat** di repo ini —
 `boundaries.test.ts` sudah melarang impor tiga SDK AI (AC-5 PR-041). Yang kurang bukan
 mekanismenya, melainkan aturannya.
+
+**PEMBAYARANNYA (PR-066).** `__tests__/ai-gateway-jangkauan.test.ts` menolak PEMANGGILAN
+delapan pabrik provider (`createAiGateway`, `createAiStreamGateway`, router, adapter
+Gemini/Groq baik chat maupun stream) di mana pun selain `src/core/ai/**` dan `src/boot.ts`,
+termasuk `apps/worker`. Diverifikasi mutasi: menambah satu panggilan `createAiGateway` di
+`modules/ai` membuat build merah. Ekspornya dari barrel tetap ada — composition root butuh.
 
 ---
 
@@ -596,6 +615,55 @@ tanpa satu pun penjaga menyalak — pola yang persis sama dengan U-03/U-04.
 ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor` di atas
 `resumes.service` (bentuk `Resume` yang sama dengan `GET /me/resumes/:id`), pindahkan barisnya
 `DITUNDA` → `TERDAFTAR`.
+
+---
+
+### U-26 — Latensi token pertama Gemini (stream) 7–22 detik
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Kinerja / pengalaman pengguna |
+| **Ditemukan** | Verifikasi manual PR-066 (2026-09-28), provider nyata |
+| **Pemilik** | Belum ditetapkan — keputusan operasional (model/timeout/urutan provider) |
+| **Pemicu** | Keluhan "chat lambat", atau metrik latensi PR-103 |
+
+`streamGenerateContent` untuk `gemini-3.5-flash-lite` baru mengirim header setelah **7–22 detik**
+(terukur tiga kali), lalu seluruh jawaban tiba dalam <0,5 detik — jadi bukan koneksi yang
+menggantung, melainkan waktu sebelum byte pertama. `generateContent` (non-stream) untuk prompt
+kecil menjawab dalam ~1 detik, jadi lambatnya khas jalur stream akun/model ini.
+
+Akibatnya hari ini: giliran yang melewati `GEMINI_TIMEOUT_MS` (15 dtk) jatuh ke Groq SEBELUM token
+pertama — benar menurut desain router stream, tetapi pengguna menunggu 15 detik dulu. Groq
+(`qwen/qwen3.8-27b`) menjawab token pertama dalam ~0,25 detik.
+
+**Pilihan yang ada (belum diputuskan):** timeout khusus stream yang lebih pendek; Groq sebagai
+utama untuk chat (menyimpang dari ADR-005 — perlu catatan ADR); atau model Gemini lain setelah
+diukur. Owner memilih mengganti default model saja di PR-066 (2026-09-28).
+
+---
+
+### U-27 — Model embedding bawaan `text-embedding-004` sudah tidak tersedia
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Konfigurasi / risiko fitur |
+| **Ditemukan** | Verifikasi manual PR-066 (2026-09-28) |
+| **Pemilik** | **PR-069** (embedding profil, Phase 11) — syarat masuk |
+| **Pemicu** | Panggilan `embed` pertama |
+
+Daftar model akun Gemini hari ini hanya memuat `gemini-embedding-001`, `gemini-embedding-2`, dan
+`gemini-embedding-2-preview`; `GEMINI_EMBED_MODEL` bawaan (`text-embedding-004`) tidak ada.
+**Tidak diganti di PR-066**: kolom `vector(768)` dan `AI_EMBED_DIMENSIONS = 768` (ADR-005) terikat
+pada dimensinya, dan model pengganti berdimensi bawaan berbeda (perlu `outputDimensionality`).
+Keputusan itu milik PR yang pertama kali memakai embedding, bukan PR chat.
+
+Temuan sejenis yang SUDAH dibayar di PR-066: `gemini-2.0-flash` dan `llama-3.3-70b-versatile`
+sama-sama 404 — artinya sejak entah kapan SEMUA jalur AI (termasuk non-stream Phase 06) mati di
+lingkungan nyata tanpa satu test pun merah. Default chat diganti ke `gemini-3.5-flash-lite` /
+`qwen/qwen3.8-27b` (keputusan owner). `.env` lokal yang masih menyebut model lama tetap menimpa
+default — baris itu harus dihapus manual.
 
 ---
 

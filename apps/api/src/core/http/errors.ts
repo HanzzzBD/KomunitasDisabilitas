@@ -263,6 +263,36 @@ export const ERROR_CATALOG = {
     message: "Percakapan ini sudah terlalu panjang",
     hint: "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
   },
+  // --- Percakapan AI CV Builder (PR-066) ---
+  // 409: satu sesi hanya boleh punya SATU jawaban yang sedang mengalir. Pesan
+  // kedua yang tiba sebelum jawaban pertama selesai akan membuat dua jawaban
+  // saling menyela di transkrip yang sama.
+  AI_SEDANG_MENJAWAB: {
+    status: 409,
+    message: "Pewawancara masih menjawab pesan sebelumnya",
+    hint: "Tunggu jawabannya selesai, lalu kirim pesan berikutnya",
+  },
+  // 404 untuk sambung ulang yang datang terlambat. Bukan kehilangan: jawabannya
+  // sudah tersimpan di transkrip, dan hint-nya menunjuk ke sana.
+  AI_ALIRAN_TIDAK_ADA: {
+    status: 404,
+    message: "Jawaban ini sudah tidak bisa disambung lagi",
+    hint: "Muat ulang percakapan untuk melihat jawaban yang sudah tersimpan",
+  },
+  // 503 + degradasi: fitur dimatikan operator (rollback PR-066) — klien
+  // beralih ke formulir CV biasa, bukan menampilkan galat.
+  AI_CHAT_DIMATIKAN: {
+    status: 503,
+    message: "Chat AI sedang tidak tersedia",
+    hint: "Anda tetap bisa membuat CV lewat formulir biasa",
+  },
+  // 503 + degradasi: plafon aliran serentak tercapai (penyangga sambung-ulang
+  // hidup di memori proses, jadi jumlahnya harus dibatasi).
+  AI_CHAT_SIBUK: {
+    status: 503,
+    message: "Chat AI sedang ramai",
+    hint: "Coba lagi sebentar lagi, atau lanjutkan lewat formulir CV biasa",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

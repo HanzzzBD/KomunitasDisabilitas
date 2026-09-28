@@ -25,6 +25,26 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "AI_ALIRAN_TIDAK_ADA": {
+          "hint": "Muat ulang percakapan untuk melihat jawaban yang sudah tersimpan",
+          "message": "Jawaban ini sudah tidak bisa disambung lagi",
+          "status": 404,
+        },
+        "AI_CHAT_DIMATIKAN": {
+          "hint": "Anda tetap bisa membuat CV lewat formulir biasa",
+          "message": "Chat AI sedang tidak tersedia",
+          "status": 503,
+        },
+        "AI_CHAT_SIBUK": {
+          "hint": "Coba lagi sebentar lagi, atau lanjutkan lewat formulir CV biasa",
+          "message": "Chat AI sedang ramai",
+          "status": 503,
+        },
+        "AI_SEDANG_MENJAWAB": {
+          "hint": "Tunggu jawabannya selesai, lalu kirim pesan berikutnya",
+          "message": "Pewawancara masih menjawab pesan sebelumnya",
+          "status": 409,
+        },
         "AI_SESI_SUDAH_SELESAI": {
           "hint": "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
           "message": "Percakapan ini sudah selesai",

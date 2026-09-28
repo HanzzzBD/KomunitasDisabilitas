@@ -211,6 +211,8 @@ async function boot() {
             { bagian: "notifications", kumpulkan: async () => [] },
             // PR-065 — wajib sejak tabel transkrip AI lahir.
             { bagian: "aiChatSessions", kumpulkan: async () => [] },
+            // U-05 (PR-066) — wajib sejak `ai_usage` punya penulis.
+            { bagian: "aiUsage", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -345,6 +347,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "notificationChannels",
           "notifications",
           "aiChatSessions",
+          "aiUsage",
         ],
       },
     });

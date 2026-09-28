@@ -21,6 +21,8 @@ import type { AiPromptCache } from "./cache.js";
 import type { PromptTemplate } from "./prompts/index.js";
 import type { AiQuota } from "./quota.js";
 import type { AiQuotaFeature } from "./quota-config.js";
+import type { AiStreamProvider, LaporanStream } from "./stream.js";
+import { AiProviderError } from "./types.js";
 import type {
   AiChatRequest,
   AiChatResponse,
@@ -122,6 +124,25 @@ export interface AiClient {
     template: PromptTemplate<Input, Output>,
     input: Input,
   ): Promise<AiPromptResponse<Output>>;
+  /**
+   * Jalur STREAMING (PR-066) — menutup utang PR-045 "streaming belum memotong
+   * kuota dan belum menulis `ai_usage`".
+   *
+   * Kuota diperiksa SAAT `stream()` DI-AWAIT, sebelum aliran dibuka: jatah
+   * habis melempar `DegradedError` `KUOTA_AI_HABIS` di sini, bukan di tengah
+   * iterasi — pemanggil bisa menjawabnya sebelum satu token pun dikirim.
+   *
+   * Aturan refund mengikuti aturan cadangan router stream: gagal SEBELUM token
+   * pertama → `kembalikanBila` (pengguna tidak menerima apa pun); gagal SESUDAH
+   * token pertama → TIDAK dikembalikan (token sudah terbakar dan sudah
+   * diterima). Jejak biaya ditulis sekali saat aliran berakhir normal, dengan
+   * provider dan usage dari laporan provider yang benar-benar menjawab.
+   *
+   * Pemanggil WAJIB menghabiskan iterasinya. Berhenti di tengah (`break`)
+   * melewatkan pencatatan — aman untuk kuota (sudah terpotong), tetapi jejak
+   * biayanya hilang.
+   */
+  stream(ctx: AiCallContext, request: AiChatRequest): Promise<AsyncIterable<string>>;
 }
 
 export interface AiClientDeps {
@@ -137,6 +158,11 @@ export interface AiClientDeps {
    * supaya cache bisa dimatikan tanpa menyentuh satu baris pun kode fitur.
    */
   cache?: AiPromptCache;
+  /**
+   * Gateway streaming (`createAiStreamGateway`). ABSEN = `stream()` menolak
+   * `AI_NOT_CONFIGURED` tanpa menyentuh kuota.
+   */
+  streamProvider?: AiStreamProvider;
   /** Pembuat UUID baris; disuntik agar test deterministik. Default uuid v7. */
   ids?: () => string;
   /** Pola repo (`core/ai/breaker.ts`): jam disuntik, BUKAN fake timer. */
@@ -301,6 +327,50 @@ export function createAiClient(deps: AiClientDeps): AiClient {
      * membolehkan hit tanpa jatah menjadikan cache sebuah API tak terbatas bagi
      * siapa pun yang bisa menebak masukan yang pernah dipakai.
      */
+    async stream(ctx, request) {
+      const sumberStream = deps.streamProvider;
+      if (sumberStream === undefined) {
+        throw new AiProviderError("AI_NOT_CONFIGURED", "stream");
+      }
+      const reservasi = await quota.periksaDanPakai({
+        userId: ctx.userId,
+        feature: ctx.feature,
+      });
+
+      const namaSumber = sumberStream.name;
+      let laporan: LaporanStream | undefined;
+      const sumber = sumberStream.chatStream(request, {
+        saatSelesai: (l) => {
+          laporan = l;
+        },
+      });
+
+      async function* alir(): AsyncGenerator<string> {
+        let adaToken = false;
+        try {
+          for await (const potongan of sumber) {
+            adaToken = true;
+            yield potongan;
+          }
+        } catch (err) {
+          if (!adaToken) await quota.kembalikanBila(reservasi, err);
+          throw err;
+        }
+        await catatAman({
+          id: ids(),
+          userId: ctx.userId,
+          feature: ctx.feature,
+          provider: laporan?.provider ?? namaSumber,
+          tokensIn: angkaToken(laporan?.usage?.promptTokens),
+          tokensOut: angkaToken(laporan?.usage?.completionTokens),
+          ...(ctx.promptVersion === undefined ? {} : { promptVersion: ctx.promptVersion }),
+          createdAt: clock(),
+        });
+      }
+
+      return alir();
+    },
+
     async prompt(ctx, template, input) {
       // `promptVersion` diisi dari template bila pemanggil tidak menyatakannya.
       // `template.id` MEMANG nilai kolom `ai_usage.prompt_version` (PR-044a),

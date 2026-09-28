@@ -22,7 +22,7 @@ import {
 } from "./profiles.js";
 import { accessibilityProfileSchema } from "./accessibility.js";
 import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
-import { aiChatSessionSchema } from "./ai.js";
+import { aiChatSessionSchema, aiQuotaFeatureSchema } from "./ai.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -100,6 +100,28 @@ export const exportProfileSchema = z
 
 export type ExportProfile = z.infer<typeof exportProfileSchema>;
 
+/**
+ * Satu baris jejak pemakaian AI (utang U-05, dibayar PR-066).
+ *
+ * Hanya METADATA biaya — fitur, provider, cacah token, versi prompt, waktu.
+ * Isi prompt dan jawaban model memang TIDAK PERNAH disimpan di `ai_usage`
+ * (kontrak `AiUsagePeristiwa`), jadi berkas ini tidak menyembunyikan apa pun:
+ * ia menunjukkan semua yang platform catat tentang pemakaian AI orang ini.
+ */
+export const exportAiUsageSchema = z
+  .object({
+    feature: aiQuotaFeatureSchema,
+    provider: z.string(),
+    tokensIn: z.number().int().nonnegative(),
+    tokensOut: z.number().int().nonnegative(),
+    promptVersion: z.string().nullable(),
+    createdAt: timestampSchema,
+  })
+  .strict()
+  .openapi({ ref: "ExportAiUsage", description: "Satu catatan pemakaian fitur AI" });
+
+export type ExportAiUsage = z.infer<typeof exportAiUsageSchema>;
+
 export const dataExportSchema = z
   .object({
     formatVersion: z.literal(EXPORT_FORMAT_VERSION),
@@ -169,6 +191,13 @@ export const dataExportSchema = z
      * sebaliknya.
      */
     aiChatSessions: z.array(aiChatSessionSchema),
+    /**
+     * Jejak pemakaian AI (utang U-05, dibayar PR-066 — endpoint yang menulis
+     * baris `ai_usage` pertama). Hanya baris yang MASIH ADA: rinciannya dihapus
+     * retensi 90 hari (SDD §6.4), dan agregat bulanannya tidak memuat
+     * identitas siapa pun — jadi memang bukan data milik orang ini.
+     */
+    aiUsage: z.array(exportAiUsageSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });

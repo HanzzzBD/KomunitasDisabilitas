@@ -170,6 +170,7 @@ describe("kontributor bagian profile", () => {
       notificationChannels: { email: null, push: null },
       notifications: [],
       aiChatSessions: [],
+      aiUsage: [],
     });
 
     expect(berkas.profile.skills).toEqual([SKILL]);

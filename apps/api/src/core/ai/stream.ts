@@ -10,7 +10,7 @@
 //
 // ADR-012 tetap berlaku utuh: tidak ada SDK provider, hanya `fetch` ber-DI,
 // dan pemanggil di luar `core/ai` tidak pernah melihat nama provider.
-import type { AiChatRequest, FetchLike } from "./types.js";
+import type { AiChatRequest, AiUsage, FetchLike } from "./types.js";
 import { AiProviderError } from "./types.js";
 import type { SseSesi } from "../http/sse.js";
 
@@ -27,8 +27,26 @@ import type { SseSesi } from "../http/sse.js";
  */
 export interface AiStreamProvider {
   readonly name: string;
-  /** Potongan teks berurutan. Melempar `AiProviderError` seperti jalur lain. */
-  chatStream(request: AiChatRequest): AsyncIterable<string>;
+  /**
+   * Potongan teks berurutan. Melempar `AiProviderError` seperti jalur lain.
+   *
+   * `opsi.saatSelesai` (PR-066) dipanggil TEPAT SEKALI saat aliran berakhir
+   * normal, oleh provider yang BENAR-BENAR menjawab — dasar baris `ai_usage`.
+   * Ia sengaja kanal samping, bukan bagian dari yang di-yield: pemanggil yang
+   * hanya butuh teks (termasuk `alirkanKeSse`) tidak perlu tahu ia ada, dan
+   * kontrak "yield teks" PR-045 tetap utuh.
+   */
+  chatStream(request: AiChatRequest, opsi?: OpsiStream): AsyncIterable<string>;
+}
+
+/** Laporan akhir satu aliran. `usage` absen = provider tidak melaporkannya. */
+export interface LaporanStream {
+  provider: string;
+  usage?: AiUsage;
+}
+
+export interface OpsiStream {
+  saatSelesai?(laporan: LaporanStream): void;
 }
 
 export function dukungStream(nilai: unknown): nilai is AiStreamProvider {
@@ -129,18 +147,63 @@ function muatanBingkai(bingkai: string): string | undefined {
 async function* potonganTeks(
   aliran: AliranBiner,
   ambil: (nilai: unknown) => string | undefined,
+  ambilUsage: (nilai: unknown) => AiUsage | undefined,
+  lapor: (usage: AiUsage | undefined) => void,
 ): AsyncGenerator<string> {
+  // Usage dibaca dari bingkai MANA PUN dan yang TERAKHIR menang: Gemini
+  // mengirim `usageMetadata` kumulatif di setiap potongan, Groq hanya di
+  // bingkai penutup. "Terakhir menang" benar untuk keduanya.
+  let usage: AiUsage | undefined;
   for await (const muatan of uraiAliranSse(aliran)) {
-    if (muatan === SELESAI_OPENAI) return;
+    if (muatan === SELESAI_OPENAI) break;
     let nilai: unknown;
     try {
       nilai = JSON.parse(muatan);
     } catch {
       continue;
     }
+    usage = ambilUsage(nilai) ?? usage;
     const teks = ambil(nilai);
     if (teks !== undefined && teks !== "") yield teks;
   }
+  // HANYA pada akhir normal — lemparan di atas melewati baris ini, dan itu
+  // disengaja: aliran yang gagal tidak menghasilkan baris jejak biaya.
+  lapor(usage);
+}
+
+/** Angka token dari objek provider; bukan angka → 0 (pola adapter PR-041). */
+function angka(nilai: unknown): number {
+  return typeof nilai === "number" && Number.isFinite(nilai) ? nilai : 0;
+}
+
+/** `usageMetadata` Gemini → `AiUsage`. */
+function usageGemini(nilai: unknown): AiUsage | undefined {
+  const u = (nilai as { usageMetadata?: Record<string, unknown> })?.usageMetadata;
+  if (typeof u !== "object" || u === null) return undefined;
+  const masuk = angka(u["promptTokenCount"]);
+  const keluar = angka(u["candidatesTokenCount"]);
+  return {
+    promptTokens: masuk,
+    completionTokens: keluar,
+    totalTokens: angka(u["totalTokenCount"]) || masuk + keluar,
+  };
+}
+
+/**
+ * `usage` Groq/OpenAI → `AiUsage`. Groq menaruhnya di `usage` (dengan
+ * `stream_options.include_usage`) ATAU di `x_groq.usage` — keduanya dibaca.
+ */
+function usageGroq(nilai: unknown): AiUsage | undefined {
+  const obj = nilai as { usage?: unknown; x_groq?: { usage?: unknown } };
+  const u = (obj?.usage ?? obj?.x_groq?.usage) as Record<string, unknown> | undefined | null;
+  if (typeof u !== "object" || u === null) return undefined;
+  const masuk = angka(u["prompt_tokens"]);
+  const keluar = angka(u["completion_tokens"]);
+  return {
+    promptTokens: masuk,
+    completionTokens: keluar,
+    totalTokens: angka(u["total_tokens"]) || masuk + keluar,
+  };
 }
 
 /** Buka aliran HTTP ke provider dan petakan kegagalannya ke taksonomi kita. */
@@ -214,7 +277,7 @@ export function createGeminiStream(
   const kirim: FetchLike = fetchImpl ?? ((input, init) => fetch(input, init));
   return {
     name: "gemini",
-    async *chatStream(request) {
+    async *chatStream(request, opsi) {
       const contents = request.messages
         .filter((p) => p.role !== "system")
         .map((p) => ({
@@ -251,7 +314,9 @@ export function createGeminiStream(
         },
         request.timeoutMs ?? config.timeoutMs,
       );
-      yield* potonganTeks(aliran, teksGemini);
+      yield* potonganTeks(aliran, teksGemini, usageGemini, (usage) =>
+        opsi?.saatSelesai?.({ provider: "gemini", ...(usage === undefined ? {} : { usage }) }),
+      );
     },
   };
 }
@@ -270,10 +335,13 @@ export function createGroqStream(
   const kirim: FetchLike = fetchImpl ?? ((input, init) => fetch(input, init));
   return {
     name: "groq",
-    async *chatStream(request) {
+    async *chatStream(request, opsi) {
       const body: Record<string, unknown> = {
         model: config.chatModel,
         stream: true,
+        // Tanpa ini Groq tidak mengirim cacah token sama sekali pada mode
+        // stream, dan baris `ai_usage` jatuh ke 0/0 (PR-066).
+        stream_options: { include_usage: true },
         messages: request.messages.map((p) => ({ role: p.role, content: p.content })),
       };
       if (request.temperature !== undefined) body["temperature"] = request.temperature;
@@ -293,7 +361,9 @@ export function createGroqStream(
         },
         request.timeoutMs ?? config.timeoutMs,
       );
-      yield* potonganTeks(aliran, teksGroq);
+      yield* potonganTeks(aliran, teksGroq, usageGroq, (usage) =>
+        opsi?.saatSelesai?.({ provider: "groq", ...(usage === undefined ? {} : { usage }) }),
+      );
     },
   };
 }
@@ -314,10 +384,10 @@ export function createAiStreamRouter(
 ): AiStreamProvider {
   return {
     name: utama.name,
-    async *chatStream(request) {
+    async *chatStream(request, opsi) {
       let adaToken = false;
       try {
-        for await (const potongan of utama.chatStream(request)) {
+        for await (const potongan of utama.chatStream(request, opsi)) {
           adaToken = true;
           yield potongan;
         }
@@ -325,7 +395,23 @@ export function createAiStreamRouter(
       } catch (err) {
         if (adaToken || cadangan === undefined) throw err;
       }
-      yield* cadangan.chatStream(request);
+      yield* cadangan.chatStream(request, opsi);
+    },
+  };
+}
+
+/**
+ * Provider stream "belum dikonfigurasi" — pola `createBelumDikonfigurasi` di
+ * gateway.ts: namanya tetap nama aslinya, setiap aliran ditolak
+ * `AI_NOT_CONFIGURED` SEBELUM satu byte pun, jadi router boleh jatuh ke
+ * cadangan dan kuota boleh dikembalikan.
+ */
+export function createStreamBelumDikonfigurasi(nama: string): AiStreamProvider {
+  return {
+    name: nama,
+    // eslint-disable-next-line require-yield -- penolak: tidak pernah menghasilkan token
+    async *chatStream() {
+      throw new AiProviderError("AI_NOT_CONFIGURED", nama);
     },
   };
 }
