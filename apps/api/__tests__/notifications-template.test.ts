@@ -67,6 +67,19 @@ describe("template notifikasi — snapshot kedua varian", () => {
     });
   });
 
+  it("resume.pdf_siap", () => {
+    expect(renderNotifikasi("resume.pdf_siap", { resumeId: APPLICATION })).toEqual({
+      title: {
+        id: "PDF CV Anda siap",
+        "id-simple": "PDF CV Anda sudah siap",
+      },
+      body: {
+        id: "Buka CV Anda untuk mengunduh versi PDF terbaru.",
+        "id-simple": "Buka CV Anda. PDF terbaru bisa diunduh sekarang.",
+      },
+    });
+  });
+
   it("lamaran.status_berubah — status disebut sebagai label manusia", () => {
     const hasil = renderNotifikasi("lamaran.status_berubah", {
       applicationId: APPLICATION,
@@ -145,6 +158,10 @@ describe("kelengkapan katalog template", () => {
     });
     periksa("lamaran.terkirim.title", terkirim.title);
     periksa("lamaran.terkirim.body", terkirim.body);
+
+    const pdf = renderNotifikasi("resume.pdf_siap", { resumeId: APPLICATION });
+    periksa("resume.pdf_siap.title", pdf.title);
+    periksa("resume.pdf_siap.body", pdf.body);
 
     expect(
       kembar,

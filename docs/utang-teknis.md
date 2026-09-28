@@ -492,6 +492,90 @@ PR-033c-2). Jalur dengan bukti terlemah didahulukan.
 
 ---
 
+### U-22 — Ukuran dokumen CV dibatasi per-larik, bukan per-dokumen
+
+| | |
+|---|---|
+| **Status** | LUNAS — PR-063 (2026-09-25) |
+| **Jenis** | Batas sumber daya |
+| **Ditemukan** | PR-060 (2026-09-16) |
+| **Pemilik** | **PR-063** (render PDF) |
+| **Pemicu** | Saat processor Puppeteer pertama membaca `resumes.content` ke memori |
+
+`resumeContentSchema` membatasi **jumlah elemen** tiap larik (30 riwayat kerja, 20
+pendidikan, 60 keahlian, 30 sertifikasi, 20 organisasi) dan **panjang teks** tiap field.
+Hasil kalinya membuat batas atas ukuran dokumen terhingga — kira-kira beberapa ratus
+kilobyte pada isian ekstrem — tetapi **tidak ada satu pun pemeriksaan atas byte total**
+dokumen `jsonb`-nya.
+
+Kenapa belum dibayar di PR-060: angka yang benar untuk batas itu hanya bisa ditentukan oleh
+pihak yang tahu berapa RAM yang dipakai satu render — dan itu PR-063, yang berjalan dengan
+`concurrency 1` dan batas RAM kontainer (risiko T4, SDD §16). Menebak angkanya sekarang
+berarti menaruh batas yang tidak punya dasar, lalu mewarisi kewajiban membelanya.
+
+Kenapa tidak berbahaya hari ini: tidak ada satu pun pembaca `content` selain endpoint
+pemiliknya sendiri. Yang pertama membacanya dalam proses yang bisa kehabisan memori adalah
+processor PDF — yang belum ada.
+
+**Penyelesaian PR-063.** Service render menghitung ukuran UTF-8 snapshot `title + content` dan
+menolak nilai di atas `PDF_RENDER_MAX_INPUT_BYTES` (bawaan 1 MiB) sebelum membentuk HTML/DOM.
+Batas normal skema berada jauh di bawahnya; guard ini menutup data lama/rusak atau penulisan langsung
+ke database. Amplifikasi tersisa dibatasi lagi oleh concurrency queue 1 dan limit container worker
+768 MiB. Keluaran PDF memiliki batas terpisah 20 MiB sebelum upload.
+
+---
+
+### U-23 — Presigned URL stack compose menunjuk host `minio:9000`
+
+| | |
+|---|---|
+| **Status** | LUNAS — PR-064b (2026-09-27) |
+| **Jenis** | Pengalaman pengembang |
+| **Ditemukan** | PR-064a (2026-09-27) |
+| **Pemilik** | **PR-064b** |
+| **Pemicu** | Saat unduh PDF diuji end-to-end dari browser terhadap stack `docker compose` penuh, atau saat core/storage butuh endpoint publik yang berbeda dari endpoint internal (mis. CDN R2) |
+
+Di `docker-compose.dev.yml`, API dan worker memakai `STORAGE_ENDPOINT=http://minio:9000`.
+`presignDownload` menandatangani URL untuk host itu, yang hanya dapat di-resolve di dalam
+jaringan compose — browser di host mendapat URL yang tidak bisa dibuka. Tidak mengenai alur
+`pnpm dev` (endpoint `127.0.0.1:9000`) dan tidak mengenai produksi (endpoint R2 publik).
+Perbaikan yang wajar: variabel opsional `STORAGE_PUBLIC_ENDPOINT` khusus untuk presign.
+
+**Penyelesaian PR-064b.** `STORAGE_PUBLIC_ENDPOINT` opsional ditambahkan. Bila diisi, driver S3
+memakai client kedua yang hanya untuk presign — URL **ditandatangani** untuk host publik (host
+adalah bagian dari SigV4, jadi mengganti host setelah sign akan membatalkan tanda tangan);
+upload tetap lewat `STORAGE_ENDPOINT`. Presign berjalan offline, client kedua tidak pernah
+membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bila
+`STORAGE_ENDPOINT` kosong, dan wajib HTTPS pada production. Compose dev mengisi API dengan
+`http://127.0.0.1:9000`.
+
+---
+
+### U-24 — Tiga AC Phase 09 menunggu verifikasi manual/lingkungan nyata
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | Audit AC penutupan Phase 09 (2026-09-28) |
+| **Pemilik** | Belum ditetapkan (butuh perangkat Windows + NVDA + Adobe Reader) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), atau saat ada perangkat NVDA — mana yang lebih dulu |
+
+Phase 09 ditutup ke `main` atas override owner dengan tiga AC terbuka (rincian di blok override
+[Exit Criteria Phase 09](implementation/phase-09-resume-builder-pdf.md#exit-criteria)):
+
+1. **PR-061** — isi [checklist NVDA editor CV](implementation/log/pr-061-nvda-checklist.md).
+2. **PR-063** — isi kotak manual [checklist urutan baca PDF](implementation/log/pr-063-pdf-reading-order-checklist.md)
+   (Adobe Reader + NVDA atas PDF hasil worker nyata).
+3. **PR-064** — tempuh sekali jalur utuh: stack compose penuh, minta PDF dari UI, tunggu notifikasi
+   `resume.pdf_siap`, unduh, buka berkasnya. Sejak PR-064a/b jalur ini dapat ditempuh di lokal
+   (bucket otomatis, URL presigned dapat dibuka browser).
+
+Sama sifatnya dengan U-12 dkk.: bukan kode yang kurang, melainkan bukti yang hanya bisa diambil
+manusia dengan perangkat nyata.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

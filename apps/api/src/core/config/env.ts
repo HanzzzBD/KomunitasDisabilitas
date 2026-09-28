@@ -70,18 +70,12 @@ const envSchema = z.object({
   // menjawab 503 (deny-by-default). Kredensial yang setengah terisi ditolak
   // saat boot — lihat superRefine di bawah.
   FONNTE_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
-  FONNTE_BASE_URL: z
-    .string()
-    .url({ message: "harus URL valid" })
-    .default("https://api.fonnte.com"),
+  FONNTE_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.fonnte.com"),
   TWILIO_ACCOUNT_SID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   /** Nomor/sender ID pengirim SMS terdaftar di Twilio. */
   TWILIO_FROM: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
-  TWILIO_BASE_URL: z
-    .string()
-    .url({ message: "harus URL valid" })
-    .default("https://api.twilio.com"),
+  TWILIO_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.twilio.com"),
   /** Batas tunggu satu panggilan provider; habis waktu = coba provider berikutnya. */
   OTP_SEND_TIMEOUT_MS: z.coerce
     .number({ invalid_type_error: "harus angka" })
@@ -261,12 +255,99 @@ const envSchema = z.object({
     .string()
     .url({ message: "harus URL absolut" })
     .default("https://api.resend.com"),
-  EMAIL_SEND_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(1_000)
-    .max(30_000)
-    .default(10_000),
+  EMAIL_SEND_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+
+  // --- Object storage S3-compatible / Cloudflare R2 (PR-062) ---
+  //
+  // Lima nilai koneksi opsional SEBAGAI GRUP: dev yang belum membutuhkan
+  // objek tetap bisa boot, tetapi konfigurasi setengah jadi ditolak. Bucket
+  // efektif selalu `<prefix>-<STORAGE_BUCKET_ENV>` dan dibentuk core/storage.
+  // Suffix terpisah dari NODE_ENV karena staging tetap menjalankan Node dalam
+  // mode `production`, tetapi wajib memakai bucket yang berbeda dari prod.
+  STORAGE_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
+  /**
+   * Host yang dipakai browser untuk membuka URL presigned (PR-064b, U-23).
+   * Hanya perlu bila endpoint internal tidak dapat dijangkau browser —
+   * mis. `http://minio:9000` di jaringan compose. Kosong = sama dengan
+   * `STORAGE_ENDPOINT` (kasus R2/produksi).
+   */
+  STORAGE_PUBLIC_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
+  STORAGE_ACCESS_KEY_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  STORAGE_SECRET_ACCESS_KEY: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .optional(),
+  STORAGE_BUCKET_PREFIX: z
+    .string()
+    .min(3, { message: "minimal 3 karakter" })
+    .max(50, { message: "maksimal 50 karakter agar suffix environment tetap muat" })
+    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, {
+      message: "hanya huruf kecil, angka, dan tanda hubung; harus diawali/diakhiri alfanumerik",
+    })
+    .optional(),
+  STORAGE_BUCKET_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
+  /** R2 memakai `auto`; MinIO integration test menimpanya dengan `us-east-1`. */
+  STORAGE_REGION: z.string().min(1, { message: "tidak boleh kosong" }).default("auto"),
+  /** MinIO perlu path-style; R2 memakai virtual-host style secara default. */
+  STORAGE_FORCE_PATH_STYLE: z
+    .enum(["true", "false"], { errorMap: () => ({ message: "harus 'true' atau 'false'" }) })
+    .default("false")
+    .transform((nilai) => nilai === "true"),
+  /** Batas keras semua upload. Pemanggil boleh meminta batas yang lebih kecil. */
+  STORAGE_MAX_UPLOAD_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 byte" })
+    .max(1_073_741_824, { message: "maksimal 1 GiB" })
+    .default(104_857_600),
+  /** URL unduh privat berumur paling lama 15 menit. */
+  STORAGE_PRESIGN_TTL_SECONDS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 detik" })
+    .max(900, { message: "maksimal 900 detik (15 menit)" })
+    .default(300),
+  // --- PDF renderer Chromium (PR-063) ---
+  // Path opsional: tanpa Chromium, worker lain tetap hidup dan hanya processor
+  // pdf-render yang tidak didaftarkan. Container worker mengisinya eksplisit.
+  PDF_CHROMIUM_EXECUTABLE_PATH: z
+    .string()
+    .min(1, { message: "tidak boleh kosong bila diisi" })
+    .optional(),
+  /** Batas snapshot JSON sebelum dibentuk menjadi DOM Chromium (default 1 MiB). */
+  PDF_RENDER_MAX_INPUT_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(65_536, { message: "minimal 64 KiB" })
+    .max(10_485_760, { message: "maksimal 10 MiB" })
+    .default(1_048_576),
+  /** Batas hasil satu render sebelum masuk object storage (default 20 MiB). */
+  PDF_RENDER_MAX_BYTES: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1_048_576, { message: "minimal 1 MiB" })
+    .max(104_857_600, { message: "maksimal 100 MiB" })
+    .default(20_971_520),
+
+  // --- CV / resumes (PR-060, AC "limit 5 CV ditegakkan (config)") ---
+  //
+  // Punya DEFAULT, jadi `.env` lama tetap valid dan batasnya tetap berjalan
+  // tanpa satu pun variabel di-set — pola yang sama dengan blok RETENTION_*.
+  // Yang bisa di-override hanya ANGKANYA; bahwa batasnya ada tidak bisa
+  // dimatikan lewat env (min 1), sebab batas yang bisa dimatikan diam-diam
+  // bukan batas.
+  //
+  // Angka 5 datang dari dokumen phase. Alasannya bukan biaya penyimpanan —
+  // `jsonb` beberapa kilobyte tidak membebani apa pun — melainkan RENDER PDF:
+  // setiap CV adalah calon job Puppeteer pada worker yang berjalan dengan
+  // concurrency 1 dan batas RAM kontainer (risiko T4, SDD §16). Batas atasnya
+  // 50, bukan tak terhingga, dengan alasan yang sama.
+  RESUME_MAX_PER_USER: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 — nilai 0 membuat CV tidak bisa dibuat sama sekali" })
+    .max(50, { message: "maksimal 50" })
+    .default(5),
 });
 
 /**
@@ -304,6 +385,16 @@ const GRUP_KREDENSIAL = [
     label: "kredensial email Resend",
     vars: ["RESEND_API_KEY", "EMAIL_FROM"],
   },
+  {
+    label: "kredensial object storage S3/R2",
+    vars: [
+      "STORAGE_ENDPOINT",
+      "STORAGE_ACCESS_KEY_ID",
+      "STORAGE_SECRET_ACCESS_KEY",
+      "STORAGE_BUCKET_PREFIX",
+      "STORAGE_BUCKET_ENV",
+    ],
+  },
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
 const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
@@ -319,6 +410,50 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
         message: `wajib diisi bila ${terisi.join(" / ")} di-set (${label} harus lengkap)`,
       });
     }
+  }
+
+  if (
+    env.NODE_ENV === "production" &&
+    env.STORAGE_ENDPOINT !== undefined &&
+    new URL(env.STORAGE_ENDPOINT).protocol !== "https:"
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_ENDPOINT"],
+      message: "wajib memakai HTTPS pada production",
+    });
+  }
+
+  if (env.STORAGE_PUBLIC_ENDPOINT !== undefined) {
+    if (env.STORAGE_ENDPOINT === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["STORAGE_PUBLIC_ENDPOINT"],
+        message: "hanya berlaku bila STORAGE_ENDPOINT juga di-set",
+      });
+    } else if (
+      env.NODE_ENV === "production" &&
+      new URL(env.STORAGE_PUBLIC_ENDPOINT).protocol !== "https:"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["STORAGE_PUBLIC_ENDPOINT"],
+        message: "wajib memakai HTTPS pada production",
+      });
+    }
+  }
+
+  if (
+    env.STORAGE_BUCKET_ENV !== undefined &&
+    ((env.NODE_ENV === "production" &&
+      !["staging", "production"].includes(env.STORAGE_BUCKET_ENV)) ||
+      (env.NODE_ENV !== "production" && env.STORAGE_BUCKET_ENV !== env.NODE_ENV))
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_BUCKET_ENV"],
+      message: `tidak cocok dengan NODE_ENV=${env.NODE_ENV}`,
+    });
   }
 });
 

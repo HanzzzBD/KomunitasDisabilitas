@@ -8,7 +8,8 @@
 // Jalur TULIS berbeda dan memang harus berbeda: notifikasi lahir dari peristiwa
 // yang menyebut penerimanya (`payload.userId` sebuah event domain), bukan dari
 // permintaan HTTP. Karena itu `terbitkan()` tidak punya endpoint sama sekali —
-// satu-satunya pemanggilnya adalah pelanggan event di `index.ts`.
+// pemanggilnya hanya pelanggan event di `index.ts` dan processor worker tepercaya
+// yang menerbitkan hasil pekerjaan asinkron (mis. PDF CV selesai).
 import {
   NOTIFICATION_PARAM_SCHEMAS,
   type Notification,

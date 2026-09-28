@@ -196,6 +196,28 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Daftar dan editor CV manual (PR-061). Keduanya terlindungi di dalam
+        // komponen, dan katalog resume dimuat bersama route masing-masing.
+        path: "cv",
+        lazy: async () => {
+          const [{ DaftarCv }] = await Promise.all([
+            import("../routes/cv.js"),
+            muatKatalog("resume"),
+          ]);
+          return { Component: DaftarCv };
+        },
+      },
+      {
+        path: "cv/:id",
+        lazy: async () => {
+          const [{ CvEditor }] = await Promise.all([
+            import("../routes/cv-editor.js"),
+            muatKatalog("resume"),
+          ]);
+          return { Component: CvEditor };
+        },
+      },
+      {
         // Onboarding aksesibilitas (PR-035) — SAUDARA `pengaturan`, bukan
         // anaknya: ia alur pertama-kali, bukan panel setelan. Menyarangkannya
         // di bawah `/pengaturan` akan menyeret kerangka navigasi panel ikut

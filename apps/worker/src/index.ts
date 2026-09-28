@@ -14,12 +14,18 @@ import { createAuditLog, createPrismaAuditWriter } from "@nawasena/api/core/audi
 import { createPrismaClient } from "@nawasena/api/core/db";
 import { createEventBus } from "@nawasena/api/core/events";
 import {
+  StorageNotConfiguredError,
+  createObjectStorage,
+  storageConfigFromEnv,
+} from "@nawasena/api/core/storage";
+import {
   createDeviceRepository,
   createDevicesService,
   createEmailSenderFromEnv,
   createEmailService,
   createFcmSenderFromEnv,
   createNotificationRepository,
+  createNotificationsService,
   createPushService,
 } from "@nawasena/api/modules/notifications";
 import { createAuthUserRepository } from "@nawasena/api/modules/auth";
@@ -32,13 +38,21 @@ import {
   createRawQueuePool,
   createWorkerRuntime,
   loadQueueConfigs,
+  type JobProcessor,
   type ProcessorMap,
 } from "@nawasena/api/core/queue";
+import {
+  createResumePdfService,
+  createResumesRepository,
+  createResumesService,
+} from "@nawasena/api/modules/resumes";
 import { createPdpPurgeProcessor } from "./processors/pdp-purge.js";
 import { createRetentionProcessor } from "./processors/retention.js";
 import { createAiUsageProcessor } from "./processors/ai-usage.js";
 import { createPushProcessor } from "./processors/push.js";
 import { createEmailProcessor } from "./processors/email.js";
+import { createPdfRenderProcessor } from "./processors/pdf-render.js";
+import { createPuppeteerPdfRenderer } from "./pdf/puppeteer-renderer.js";
 
 /**
  * Jadwal cron purge PDP — SDD §16: harian 03:17 WIB.
@@ -147,6 +161,41 @@ const emailService = createEmailService({
   logger,
 });
 
+const notificationsService = createNotificationsService({
+  notificationRepository: createNotificationRepository(prisma),
+});
+
+// Jalur PDF (PR-063). Seluruh dependensi eksternal dirakit di composition root:
+// repository CV, R2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
+// menjatuhkan processor lain, tetapi berisik dan queue pdf-render tidak dibaca.
+let pdfProcessor: JobProcessor | undefined;
+if (env.PDF_CHROMIUM_EXECUTABLE_PATH === undefined) {
+  logger.error({}, "Path Chromium belum diatur — processor pdf-render tidak dijalankan");
+} else {
+  try {
+    const resumes = createResumesService({
+      repo: createResumesRepository(prisma),
+      maksPerPengguna: env.RESUME_MAX_PER_USER,
+    });
+    const pdf = createResumePdfService({
+      resumes,
+      storage: createObjectStorage(storageConfigFromEnv(env)),
+      renderer: createPuppeteerPdfRenderer({
+        executablePath: env.PDF_CHROMIUM_EXECUTABLE_PATH,
+      }),
+      maxInputBytes: env.PDF_RENDER_MAX_INPUT_BYTES,
+      maxPdfBytes: env.PDF_RENDER_MAX_BYTES,
+    });
+    pdfProcessor = createPdfRenderProcessor({ pdf, notifications: notificationsService, logger });
+  } catch (err) {
+    if (err instanceof StorageNotConfiguredError) {
+      logger.error({}, "Object storage belum diatur — processor pdf-render tidak dijalankan");
+    } else {
+      throw err;
+    }
+  }
+}
+
 /** Registry processor. Diisi per PR fitur; kosong = worker menganggur. */
 const PROCESSORS: ProcessorMap = {
   [QUEUE_NAME.MAINTENANCE_PDP_PURGE]: createPdpPurgeProcessor({ prisma, auditLog, logger }),
@@ -168,6 +217,7 @@ const PROCESSORS: ProcessorMap = {
   // PR-049a. TIDAK ikut `jadwalkan()` — event-driven, produsernya modul auth di
   // proses API pada setiap penghapusan akun yang pemiliknya tanpa nomor HP.
   [QUEUE_NAME.NOTIFY_EMAIL]: createEmailProcessor({ email: emailService, logger }),
+  ...(pdfProcessor === undefined ? {} : { [QUEUE_NAME.PDF_RENDER]: pdfProcessor }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).

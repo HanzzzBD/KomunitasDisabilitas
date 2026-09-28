@@ -51,6 +51,54 @@ services:
       timeout: 3s
       retries: 10
 
+  # S3-compatible object storage untuk roundtrip lokal PR-062. Build Alpine
+  # dipin ke tag + digest dari source MinIO rilis terakhir dan HANYA untuk
+  # dev/test; production memakai R2.
+  # Bucket dibuat oleh `minio-init`, bukan aplikasi (core/storage sengaja
+  # tidak memiliki izin create/list bucket).
+  minio:
+    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
+    # Named volume baru dimiliki root. Root hanya berlaku di container dev
+    # terisolasi ini agar /data bisa diinisialisasi; production memakai R2.
+    user: "0:0"
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: nawasena-minio
+      MINIO_ROOT_PASSWORD: nawasena-minio-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  # One-shot: membuat bucket `nawasena-development` lalu keluar (PR-064a).
+  # Image `minio/mc` sudah tidak dipublikasikan, jadi memakai image API yang
+  # sudah membawa SDK S3. Idempoten — aman di setiap `up`.
+  minio-init:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    command: ["pnpm", "--filter", "@nawasena/api", "storage:siapkan-bucket"]
+    environment:
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      # Sama dengan service api — lihat catatan node_modules di sana.
+      - .:/workspace
+      - api_node_modules:/workspace/node_modules
+      - api_app_node_modules:/workspace/apps/api/node_modules
+      - schemas_node_modules:/workspace/packages/schemas/node_modules
+      - config_node_modules:/workspace/packages/config/node_modules
+
   api:
     build:
       context: .
@@ -65,6 +113,16 @@ services:
       # Kunci enkripsi field sensitif (PR-013, ADR-007). DEV-ONLY dummy — jangan
       # dipakai di staging/prod (kunci prod via env vars, bukan compose).
       FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      STORAGE_ENDPOINT: http://minio:9000
+      # URL unduh dibuka browser di host, yang tidak mengenal nama `minio`
+      # (U-23, PR-064b). Upload tetap lewat jaringan compose.
+      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+      STORAGE_FORCE_PATH_STYLE: "true"
       # Bind mount NTFS (Docker Desktop/Windows & macOS) tidak meneruskan
       # inotify — tsx watch butuh polling agar hot-reload jalan lintas OS.
       CHOKIDAR_USEPOLLING: "true"
@@ -78,6 +136,8 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       # Hot-reload: source di-mount; node_modules milik container (binary Linux).
       #
@@ -88,6 +148,16 @@ services:
       # Gejalanya menyesatkan: ERR_MODULE_NOT_FOUND untuk paket yang jelas
       # ada di package.json dan lockfile.
       # Menambah workspace baru yang dipakai runtime = tambahkan volumenya.
+      #
+      # JEBAKAN VOLUME BASI: Docker mengisi named volume dari image HANYA saat
+      # volume itu pertama dibuat. Setelah dependensi bertambah (mis.
+      # @aws-sdk/client-s3 di PR-062), `--build` saja tidak cukup — volume lama
+      # tetap memegang node_modules lama dan gejalanya sama: ERR_MODULE_NOT_FOUND.
+      # Hapus volume *_node_modules (cache saja; pgdata/miniodata JANGAN) lalu up:
+      #   docker compose -f docker-compose.dev.yml down
+      #   docker volume rm nawasena-dev_api_node_modules nawasena-dev_api_app_node_modules \
+      #     nawasena-dev_schemas_node_modules nawasena-dev_config_node_modules \
+      #     nawasena-dev_worker_node_modules nawasena-dev_worker_app_node_modules
       - .:/workspace
       - api_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules
@@ -100,12 +170,12 @@ services:
       retries: 10
       start_period: 60s
 
-  # Konsumen BullMQ (PR-015b). Image sama dengan api, entry berbeda (ADR-004:
-  # beban AI/PDF tidak boleh menyentuh latensi request API).
+  # Konsumen BullMQ (PR-015b). Image sistemnya terpisah dari API karena hanya
+  # worker yang membutuhkan Chromium + font Noto (ADR-004).
   worker:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/worker/Dockerfile
       target: dev
     # `start` (tsx biasa), BUKAN `dev` (tsx watch) — disengaja.
     # `tsx watch` membunuh paksa proses anaknya 5 detik setelah SIGTERM
@@ -123,6 +193,16 @@ services:
       REDIS_URL: redis://redis-cache:6379
       REDIS_QUEUE_URL: redis://redis-queue:6379
       FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
+      PDF_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      PDF_RENDER_MAX_INPUT_BYTES: 1048576
+      PDF_RENDER_MAX_BYTES: 20971520
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY_ID: nawasena-minio
+      STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
+      STORAGE_BUCKET_PREFIX: nawasena
+      STORAGE_BUCKET_ENV: development
+      STORAGE_REGION: us-east-1
+      STORAGE_FORCE_PATH_STYLE: "true"
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "800"
     depends_on:
@@ -130,10 +210,12 @@ services:
         condition: service_healthy
       redis-queue:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       # Lihat catatan node_modules pada service api — berlaku sama di sini.
       - .:/workspace
-      - api_node_modules:/workspace/node_modules
+      - worker_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules
       - worker_app_node_modules:/workspace/apps/worker/node_modules
       - schemas_node_modules:/workspace/packages/schemas/node_modules
@@ -141,11 +223,19 @@ services:
     # SIGTERM → drain job aktif. Beri waktu lebih dari default 10s karena
     # job terpanjang (maintenance-backup) berdurasi menit.
     stop_grace_period: 60s
+    # Satu job Chromium per proses (queue config concurrency 1) dengan batas
+    # keras container: kebocoran/crash tidak boleh memakan seluruh host.
+    init: true
+    mem_limit: 768m
+    mem_reservation: 512m
+    shm_size: 256mb
 
 volumes:
   pgdata:
   redisqueue:
+  miniodata:
   api_node_modules:
+  worker_node_modules:
   api_app_node_modules:
   worker_app_node_modules:
   schemas_node_modules:

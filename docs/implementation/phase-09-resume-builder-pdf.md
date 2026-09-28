@@ -71,9 +71,9 @@ Bisnis: jalur non-AI pembuatan CV (graceful degradation wajib). Teknis: `resumeS
 
 **Testing Checklist:**
 
-* [ ] Unit Test (resumeSchema valid/invalid)
-* [ ] Integration Test (CRUD + limit)
-* [ ] E2E Test (via PR-061)
+* [x] Unit Test (resumeSchema valid/invalid) — `packages/schemas/__tests__/resumes.test.ts` (24 test), `resumes.test.ts` (17 test)
+* [x] Integration Test (CRUD + limit) — `resumes-http.test.ts` (18 test), `resumes-db.test.ts` (10 test, DB nyata)
+* [x] E2E Test (via PR-061) — `e2e/cv-editor.spec.ts`
 * [ ] Accessibility Test (N/A)
 * [ ] Manual Verification (curl)
 
@@ -91,11 +91,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] CRUD lengkap + authz.
-* [ ] Struktur invalid ditolak dengan pesan per-field sederhana.
-* [ ] Limit 5 CV ditegakkan (config).
-* [ ] resumeSchema tidak memiliki field disabilitas (review skema).
-* [ ] created_via terisi benar.
+* [x] CRUD lengkap + authz. — `resumes-http.test.ts` — 401 di semua route, CV milik B tak terjangkau A
+* [x] Struktur invalid ditolak dengan pesan per-field sederhana. — `resumes-http.test.ts` — isi berstruktur salah ditolak 400 sebelum DB
+* [x] Limit 5 CV ditegakkan (config). — `RESUME_MAX_PER_USER`; 409 + delapan POST serentak tetap tepat 5 (`resumes-db.test.ts`)
+* [x] resumeSchema tidak memiliki field disabilitas (review skema). — `resumes-http.test.ts` — field disabilitas ditolak (AC-4)
+* [x] created_via terisi benar. — `resumes-http.test.ts` — klien tak bisa mengaku `createdVia`, endpoint selalu `manual`
 
 #### Dependencies
 
@@ -144,11 +144,11 @@ Bisnis: pengguna Daksa/keyboard-only dapat menyusun CV kompetitif tanpa AI. Tekn
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapper prefill)
+* [x] Unit Test (mapper prefill) — `resume-prefill.test.ts`
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (buat CV manual penuh)
+* [x] E2E Test (buat CV manual penuh) — `e2e/cv-editor.spec.ts` — isi, reorder, simpan per bagian
 * [ ] Accessibility Test (axe + reorder NVDA)
-* [ ] Manual Verification (teks panjang/overflow)
+* [x] Manual Verification (teks panjang/overflow) — otomatis: `e2e/cv-editor.spec.ts` (320 px tanpa gulir mendatar)
 
 **Deliverables:**
 
@@ -164,11 +164,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] CV lengkap dibuat tanpa menyentuh fitur AI.
-* [ ] Reorder pengalaman via tombol; perubahan diumumkan SR.
-* [ ] Simpan-per-bagian (gagal parsial tidak menghanguskan).
+* [x] CV lengkap dibuat tanpa menyentuh fitur AI. — `e2e/cv-editor.spec.ts` — tanpa satu pun jalur AI
+* [x] Reorder pengalaman via tombol; perubahan diumumkan SR. — `resume-editor.test.tsx` — tombol + live region (NVDA nyata: lihat butir keyboard/NVDA)
+* [x] Simpan-per-bagian (gagal parsial tidak menghanguskan). — `resume-editor.test.tsx` + e2e — draf bagian lain tidak ikut terkirim
 * [ ] Keyboard-only penuh + NVDA checklist.
-* [ ] Prefill dari profil akurat & dapat diubah.
+* [x] Prefill dari profil akurat & dapat diubah. — `resume-prefill.test.ts` + editor dapat disunting; data disabilitas tak pernah disalin
 
 #### Dependencies
 
@@ -217,8 +217,8 @@ Bisnis: penyimpanan objek murah (PDF CV, video BISINDO). Teknis: util storage de
 
 **Testing Checklist:**
 
-* [ ] Unit Test (path builder)
-* [ ] Integration Test (MinIO roundtrip + expiry)
+* [x] Unit Test (path builder) — `storage.test.ts`
+* [x] Integration Test (MinIO roundtrip + expiry) — `storage-minio.test.ts` — **berjalan di CI sejak PR-064c** (sebelumnya selalu skip)
 * [ ] E2E Test (N/A)
 * [ ] Accessibility Test (N/A)
 * [ ] Manual Verification (R2 nyata staging)
@@ -237,11 +237,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Upload + presign + expiry teruji (MinIO).
-* [ ] Objek tanpa presign → 403.
-* [ ] Bucket per env terpisah (konvensi).
-* [ ] Path konvensi terdokumentasi.
-* [ ] Ukuran maks upload ditegakkan.
+* [x] Upload + presign + expiry teruji (MinIO). — `storage-minio.test.ts` di CI (sejak PR-064c)
+* [x] Objek tanpa presign → 403. — `storage-minio.test.ts` — unsigned → 403
+* [x] Bucket per env terpisah (konvensi). — `buildStorageBucketName` + validasi `STORAGE_BUCKET_ENV` (`storage.test.ts`)
+* [x] Path konvensi terdokumentasi. — `apps/api/src/core/storage/README.md`
+* [x] Ukuran maks upload ditegakkan. — `storage.test.ts` — batas global & per-domain sebelum provider disentuh
 
 #### Dependencies
 
@@ -289,9 +289,9 @@ Bisnis: US-05 — CV PDF rapi ATS-friendly. Teknis: queue `pdf:render`, template
 
 **Testing Checklist:**
 
-* [ ] Unit Test (template snapshot)
-* [ ] Integration Test (job penuh + MinIO)
-* [ ] E2E Test (via PR-064)
+* [x] Unit Test (template snapshot) — `resume-pdf.test.ts` — snapshot heading & urutan baca
+* [x] Integration Test (job penuh + MinIO) — `pdf-render.test.ts` — Chromium + MinIO, **berjalan di CI sejak PR-064c**
+* [x] E2E Test (via PR-064) — `e2e/cv-editor.spec.ts` (API dipalsukan)
 * [ ] Accessibility Test (checklist urutan baca PDF)
 * [ ] Manual Verification (buka PDF di reader)
 
@@ -309,11 +309,11 @@ RB-Std; PDF lama tetap tersedia (immutable by hash).
 
 #### Acceptance Criteria
 
-* [ ] Render < 90 dtk CV wajar; retry saat crash.
-* [ ] Konten sama → satu render (idempoten hash).
+* [x] Render < 90 dtk CV wajar; retry saat crash. — CI: 12 dtk; queue `attempts: 3`; crash renderer diteruskan untuk retry
+* [x] Konten sama → satu render (idempoten hash). — `resume-pdf.test.ts` — isi sama dirender & diunggah sekali
 * [ ] Heading & urutan baca PDF logis (checklist manual dilampirkan).
-* [ ] Worker OOM-safe (limit RAM + concurrency 1 di config).
-* [ ] Karakter non-latin/emoji aman.
+* [x] Worker OOM-safe (limit RAM + concurrency 1 di config). — `definitions.ts` concurrency 1 + timeout 90 dtk; compose `mem_limit: 768m`
+* [x] Karakter non-latin/emoji aman. — `resume-pdf.test.ts` + `resumes-db.test.ts` — UTF-8 non-latin & emoji
 
 #### Dependencies
 
@@ -363,10 +363,10 @@ Bisnis: pengalaman unduh yang jelas bagi semua pengguna. Teknis: endpoint enqueu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (status mapper)
-* [ ] Integration Test (endpoint + idempoten)
-* [ ] E2E Test (unduh dari UI)
-* [ ] Accessibility Test (axe + aria-live)
+* [x] Unit Test (status mapper) — `resume-pdf-api.test.ts`
+* [x] Integration Test (endpoint + idempoten) — `resumes-http.test.ts` — POST 202 + GET status; 503 tanpa storage
+* [x] E2E Test (unduh dari UI) — `e2e/cv-editor.spec.ts` — minta, progres, unduh dari URL baru
+* [x] Accessibility Test (axe + aria-live) — `resume-pdf-control.test.tsx` — axe + `aria-live` (diam sampai ditekan, PR-064a)
 * [ ] Manual Verification (file terbuka benar)
 
 **Deliverables:**
@@ -384,10 +384,10 @@ RB-Std.
 #### Acceptance Criteria
 
 * [ ] Minta→proses→notifikasi→unduh end-to-end.
-* [ ] Status progres diumumkan `aria-live` (antre/proses/siap/gagal).
-* [ ] Gagal render → pesan sederhana + coba lagi.
-* [ ] URL kedaluwarsa → minta ulang mulus.
-* [ ] Idempoten: klik ganda tidak antre ganda.
+* [x] Status progres diumumkan `aria-live` (antre/proses/siap/gagal). — `resume-pdf-control.test.tsx` + e2e
+* [x] Gagal render → pesan sederhana + coba lagi. — `resume-pdf-control.test.tsx` — pesan sederhana + tombol coba lagi
+* [x] URL kedaluwarsa → minta ulang mulus. — `resume-pdf-control.test.tsx` — URL diambil ulang tepat sebelum unduh
+* [x] Idempoten: klik ganda tidak antre ganda. — `resume-pdf-api.test.ts` — klik ganda tidak memanggil enqueue kedua
 
 #### Dependencies
 
@@ -407,6 +407,26 @@ Phase 09 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+> **⚠️ Override owner — Phase 09 ditutup ke `main` pada 2026-09-28 dengan 3 dari 25 AC belum
+> terpenuhi.** CLAUDE.md §5.8 butir 8 menuntut Exit Criteria terpenuhi **dan** perintah eksplisit
+> owner. Yang kedua ada, yang pertama tidak sepenuhnya. Selisihnya ditutup dengan catatan ini, bukan
+> dengan diam (precedent: PR-033j, Phase 03).
+>
+> | AC | Mengapa belum | Yang sudah terbukti |
+> |---|---|---|
+> | PR-061 — Keyboard-only penuh + **NVDA checklist** | Tidak ada screen reader sungguhan di lingkungan pengerjaan; [checklist NVDA](log/pr-061-nvda-checklist.md) belum ditandatangani | Keyboard penuh lewat `e2e/cv-editor.spec.ts`; struktur ARIA + axe |
+> | PR-063 — Heading & urutan baca PDF logis | [Checklist urutan baca](log/pr-063-pdf-reading-order-checklist.md) sudah dilampirkan, tetapi kotak manual Adobe Reader + NVDA belum diisi | Snapshot heading/urutan DOM, `tagged` + `outline` PDF |
+> | PR-064 — Minta → proses → notifikasi → unduh **end-to-end** | Belum pernah ditempuh dalam SATU jalur nyata (API + worker + MinIO + browser sekaligus) | Setiap mata rantai teruji: API (`resumes-http`), render Chromium + MinIO di CI (`pdf-render`, sejak PR-064c), notifikasi idempoten, UI unduh (e2e) |
+>
+> Tiga kriteria lain terpenuhi: seluruh PR (PR-060..PR-064 + 064a/b/c) merged lewat PR ke branch
+> phase, CI hijau di setiap PR, dan tidak ada regresi E2E. Override **tidak** mengubah status
+> verifikasi — hanya memindahkan keputusan merge. Ketiga AC di atas tetap terbuka dan tercatat
+> sebagai U-24 di [`docs/utang-teknis.md`](../utang-teknis.md).
+>
+> Kotak Testing Checklist yang kosong selain itu: `N/A` (4), Manual curl PR-060 (tidak ada jejak
+> curl — digantikan test HTTP + DB nyata), R2 staging PR-062 (belum ada lingkungan staging, lahir
+> di Phase 16), dan pembukaan PDF di reader (PR-063/064, bagian dari U-24).
 
 ## Next Phase
 

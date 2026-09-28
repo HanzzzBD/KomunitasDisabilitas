@@ -73,4 +73,14 @@ export {
   type UbahLowongan,
   type OpsiPencarianLowongan,
 } from "./endpoints/jobs.js";
+export {
+  listResumes,
+  getResume,
+  createResume,
+  updateResume,
+  deleteResume,
+  getResumePdfStatus,
+  requestResumePdf,
+  resumesKeys,
+} from "./endpoints/resumes.js";
 export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";

@@ -35,6 +35,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Akses data disabilitas harus menyertakan alasan",
           "status": 403,
         },
+        "BATAS_CV_TERCAPAI": {
+          "hint": "Hapus salah satu CV lama sebelum membuat yang baru",
+          "message": "Jumlah CV Anda sudah mencapai batas",
+          "status": 409,
+        },
         "BELUM_SIAP": {
           "hint": "Tunggu sebentar, lalu coba lagi",
           "message": "Layanan sedang tidak siap",
@@ -49,6 +54,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Centang dulu persetujuan penyimpanan data disabilitas, lalu simpan lagi",
           "message": "Kami belum boleh menyimpan data disabilitas Anda",
           "status": 403,
+        },
+        "CV_DIPAKAI_LAMARAN": {
+          "hint": "Buat CV baru bila ingin mengubah isinya, atau ubah CV ini tanpa menghapusnya",
+          "message": "CV ini sedang dipakai pada lamaran yang sudah Anda kirim",
+          "status": 409,
+        },
+        "CV_TIDAK_DITEMUKAN": {
+          "hint": "Mungkin sudah dihapus. Muat ulang daftar CV Anda, lalu coba lagi",
+          "message": "CV tidak ditemukan",
+          "status": 404,
         },
         "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
           "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",

@@ -1,0 +1,546 @@
+# Implementation Log — Phase 09 (Resume Builder & PDF)
+
+> Catatan per PR yang selesai di Phase 09. Format sesuai CLAUDE.md §1 (Dokumentasi Log Implementasi).
+
+---
+
+## PR-060 — Resumes BE (Manual CRUD + resumeSchema)
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-060---resumes-be--manual-crud--resumeschema)
+> **Tanggal:** 2026-09-16
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Modul `resumes` lahir utuh dari router sampai repository — lima endpoint `/me/resumes*` —
+beserta **kontrak tunggal isi CV** di `packages/schemas/src/resumes.ts`, yang sampai PR ini
+masih berupa skeleton kosong dari PR-004. Tidak ada migrasi: tabel `resumes` (kolom
+`content jsonb`, `pdf_url`, `created_via`) sudah ada sejak migrasi 02 (PR-010), dan PR ini
+memang tugasnya memakainya.
+
+Ini **jalur non-AI pembuatan CV**, dan itu bukan fitur cadangan yang enak dimiliki:
+graceful degradation adalah kewajiban produk (PRD), dan yang membuatnya mungkin adalah
+kenyataan bahwa seluruh modul ini tidak menyentuh `core/ai` sama sekali. Kuota habis,
+Gemini tumbang, Groq ikut tumbang — pengguna tetap bisa menyusun CV lengkap.
+
+Empat keputusan yang membentuk seluruh sisanya:
+
+**1. Isi CV punya DUA skema, bukan satu.** `resumeContentSchema` (bentuk yang DIBACA —
+seluruh bagian hadir, termasuk yang kosong) dan `resumeContentInputSchema` (bentuk yang
+DITULIS — setiap bagian boleh dihilangkan). Pemisahan ini bukan selera: satu komponen
+OpenAPI yang bentuk masuknya berbeda dari bentuk keluarnya — dan `.default()` membuatnya
+berbeda, opsional di permintaan tetapi wajib di jawaban — **ditolak generator zod-openapi**,
+dan penolakannya menggagalkan SELURUH dokumen, bukan hanya bagian CV. Ini ditemukan dengan
+cara paling langsung: tiga percobaan berturut-turut (`ZodDefault`, lalu transform
+ber-`effectType`, lalu transform bersarang) semuanya membuat `schemas.test.ts` merah pada
+generator OpenAPI, dengan pesan yang menyebut sendiri bahwa `effectType` "tidak berlaku
+untuk ZodDefault". Pola yang akhirnya dipakai sudah ada di repo: `createJobSchema` versus
+`jobAdminSchema`. Bedanya hanya bahwa isi CV dipakai dua arah pada endpoint yang SAMA,
+sehingga keduanya benar-benar bertemu di satu dokumen. Berlaku berpasangan sampai ke
+elemen larik (`ResumeExperience` ↔ `ResumeExperienceInput`, dst.) — lima pasang.
+
+**2. Isi CV TIDAK punya tempat bagi field disabilitas, dan itu ditegakkan BENTUK.** Setiap
+objek `.strict()`, jadi `disabilityTypes`/`accommodationNeeds` yang menyelinap masuk ditolak
+400 di gerbang — bukan diam-diam tersimpan di `jsonb` yang tidak terenkripsi. Alasannya
+bukan kerapian skema: CV adalah berkas yang dikirim pengguna ke perusahaan, dan
+pengungkapan ragam disabilitas HARUS tetap menjadi keputusan terpisah per lamaran
+(PR-075), bukan sesuatu yang ikut terbawa karena pernah diisi sekali di editor CV.
+Dijaga dua test — satu di `packages/schemas`, satu lewat HTTP.
+
+**3. Batas lima CV ditegakkan di dalam satu transaksi, di belakang
+`pg_advisory_xact_lock` per pengguna — bukan sebagai `count()` terpisah di service.** Dua
+POST yang tiba bersamaan akan sama-sama membaca hitungan lama, sama-sama menyimpulkan masih
+ada tempat, lalu sama-sama menulis. Batas yang bisa dilewati dengan mengklik dua kali bukan
+batas — dan justru klik gandalah yang paling sering terjadi pada koneksi lambat, yakni
+keadaan yang paling lazim bagi pengguna yang kita layani.
+
+Versi pertama memakai isolasi `Serializable` + satu kali coba ulang, dan **dibuang sebelum
+dikirim**. Alasannya terlihat saat menulis testnya: Serializable menjawab tabrakan dengan
+MEMBATALKAN salah satu transaksi (SQLSTATE 40001 → Prisma P2034), jadi repository harus
+punya lingkaran coba-ulang — dan lingkaran yang terbatas akan habis di bawah delapan
+permintaan serentak, lalu menjawab permintaan yang seharusnya 201 atau 409 dengan **500**.
+Batas yang benar tetapi kadang-kadang menjawab "terjadi kesalahan pada server" bukan
+perbaikan atas batas yang bisa dilewati; ia hanya kegagalan yang lebih jarang dan lebih
+membingungkan. Advisory lock MENUNGGU alih-alih membatalkan, sehingga tidak ada retry sama
+sekali dan hasilnya deterministik. Dibuktikan di `resumes-db.test.ts`: delapan POST serentak
+pada sisa jatah empat menghasilkan tepat empat keberhasilan dan empat 409.
+
+Kunci lock-nya **dihitung di JavaScript** (`kunciAntreCv`, SHA-1 → int64 bertanda), bukan
+oleh `hashtextextended()` PostgreSQL. Alasannya praktis: satu-satunya bagian repository ini
+yang tidak punya padanan di tabel palsu adalah SQL mentahnya, dan memindahkan perhitungan ke
+JavaScript menyisakan SQL yang tidak punya apa pun untuk salah — sekaligus membuat derivasi
+kuncinya bisa diuji tanpa database (stabil, tersebar, dan SELALU muat di jangkauan int8
+bertanda; `readBigInt64BE`, bukan unsigned).
+
+**4. `created_via` adalah PARAMETER service, bukan bagian dari badan permintaan.** Endpoint
+`/me/resumes` selalu memanggilnya dengan `"manual"`; jalur percakapan AI (PR-066) akan
+memanggil service yang SAMA dengan `"ai_chat"`. Itulah yang membuat kedua jalur berbagi satu
+tempat penegakan batas, satu kontrak isi, dan satu pemetaan baris — alih-alih dua service
+yang lambat laun berbeda pada hal yang tidak ada yang memeriksanya. Klien yang mencoba
+mengakui `createdVia: "ai_chat"` ditolak `.strict()`, bukan diabaikan diam-diam: klien yang
+mengira nilainya diterima akan menampilkan lencana "dibuat AI" pada CV manual.
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `pnpm --filter @nawasena/schemas
+check:openapi` sinkron. `pnpm test` 9/9 — `@nawasena/api` **116 berkas / 1726 lulus**
+(1 skip tak terkait, urutan boot `.env`), `@nawasena/schemas` **4 berkas / 100 lulus**.
+Dijalankan dengan **PostgreSQL hidup**, jadi seluruh berkas `*-db.test.ts` benar-benar
+berjalan alih-alih dilewati — termasuk kesembilan test `resumes-db.test.ts`. `pnpm db:seed`
+diverifikasi manual terhadap database yang sama.
+
+### Scope selesai
+
+**Kontrak (`packages/schemas`)**
+
+* **`src/resumes.ts`** — diisi dari skeleton kosong (PR-004). `RESUME_SCHEMA_VERSION = 1`
+  yang ikut tersimpan di setiap dokumen (mitigasi risiko dokumen phase: "skema CV berubah
+  setelah dipakai AI"); sembilan bagian isi CV (`schemaVersion`, `headline`, `summary`,
+  `contact`, `experiences`, `educations`, `skills`, `certifications`, `organizations`);
+  lima pasang skema entri baca/tulis; `resumeSchema`/`resumeSummarySchema` (baris `resumes`),
+  `createResumeSchema`/`updateResumeSchema`, `resumeIdParamsSchema`, dua response envelope.
+  `dateOnlySchema` **diimpor** dari `profiles.ts` — satu definisi tanggal untuk profil dan CV,
+  termasuk penolakan tanggal yang tidak ada di kalender.
+* **`src/openapi.ts` + `openapi.json`** — lima endpoint didokumentasikan; penjaga
+  `openapi-parity.test.ts` diperluas ke modul baru.
+
+**Core**
+
+* **`core/config/env.ts`** — `RESUME_MAX_PER_USER` (bawaan 5, min 1, maks 50). Punya default
+  jadi `.env` lama tetap valid; yang bisa di-override hanya ANGKANYA — bahwa batasnya ada
+  tidak bisa dimatikan lewat env. Pola sama dengan blok `RETENTION_*`.
+* **`core/http/errors.ts`** — tiga kode baru: `CV_TIDAK_DITEMUKAN` (404),
+  `BATAS_CV_TERCAPAI` (409), `CV_DIPAKAI_LAMARAN` (409).
+* **`apps/api/.env.example`** — blok CV, dijaga `env-example.test.ts`.
+
+**Modul (`apps/api/src/modules/resumes/`, baru)**
+
+* **`repositories/resumes.repository.ts`** — setiap query menyebut `userId` bersama `id`
+  (aturan yang sama dengan `career.repository.ts`): jalur yang lupa memeriksa kepemilikan
+  TIDAK BISA DITULIS. `createIfUnderLimit()` (transaksi + `pg_advisory_xact_lock`),
+  `kunciAntreCv()` (derivasi kunci, diuji tanpa DB),
+  `CvDipakaiLamaranError` (terjemahan P2003 — repository tidak menentukan status HTTP).
+  Urutan bawaan `updatedAt desc`, bukan `createdAt`: daftar ini dibuka orang yang hendak
+  melanjutkan pekerjaannya, dan yang hendak ia lanjutkan adalah yang terakhir ia sentuh.
+* **`services/resumes.service.ts`** — pemetaan baris↔kontrak eksplisit (kolom baru tidak
+  punya jalan keluar sendiri), 404 seragam untuk "tidak ada" dan "milik orang lain",
+  penerjemahan `CvDipakaiLamaranError` → 409.
+* **`controllers/` + `routers/`** — `access.authenticated()` untuk kelimanya,
+  `validate({ params, body })` di semua route ber-`:id`.
+* **`index.ts`** — factory + `service` dikembalikan untuk PR-063/064/066; dipasang di
+  `boot.ts` setelah `profiles`.
+
+**Seed**
+
+* **`prisma/seed-data.ts`** — isi CV keempat persona kini **diparse** lewat
+  `resumeContentInputSchema`. Sampai PR ini blok tersebut menulis bentuk karangannya sendiri
+  (`{ headline, ringkasan, keahlian }`) — sah sebagai `jsonb`, tetapi tidak bisa dibuka
+  editor CV maupun dirender PDF; keempat CV persona adalah data yang tidak bisa dipakai satu
+  pun fitur yang akan memakainya. `.parse()`, bukan sekadar anotasi tipe: seed yang menyimpang
+  dari kontrak membuat `pnpm db:seed` GAGAL saat itu juga.
+
+  Klausa `update` yang tadinya `{}` kini **menimpa** `title` + `content`, dan itu bukan
+  detail: baris fixture ini sudah ada di setiap database dev yang pernah di-seed, membawa
+  bentuk lama. Dengan `update: {}`, menjalankan seed baru tidak memperbaikinya sama sekali —
+  penyelarasan hanya berlaku bagi orang yang kebetulan memulai dari database kosong.
+  Diverifikasi langsung: sebelum perubahan ini, `jsonb_object_keys` pada database dev masih
+  menjawab `headline/ringkasan/keahlian` setelah seed dijalankan ulang. Pendidikan dan
+  keahlian di blok yang sama memang sudah selalu ditimpa; CV adalah satu-satunya yang tidak.
+
+**Test (4 berkas baru, 1 diperluas)**
+
+* `packages/schemas/__tests__/resumes.test.ts` (31) — bentuk dasar, versi kontrak, penolakan
+  field asing & field disabilitas, validasi per-field berbahasa manusia, urutan larik tidak
+  berubah, kesepadanan skema tulis → skema baca.
+* `apps/api/__tests__/resumes.test.ts` (18) — unit service dengan repository palsu: batas
+  dari config (termasuk angkanya muncul di pesan), `createdVia` per jalur, 404 seragam,
+  terjemahan FK, pemetaan baris (daftar tanpa `content`, `userId` tidak bocor), plus derivasi
+  kunci advisory lock (stabil, berbeda per pengguna, selalu muat di int8 bertanda).
+* `apps/api/__tests__/resumes-http.test.ts` (16) — server Express nyata: matriks akses,
+  CRUD lengkap, kepemilikan (CV milik B tidak terlihat, tidak bisa diubah/dihapus, dan tidak
+  ikut terhitung pada batas milik A), batas 409 + jatah pulih setelah hapus, validasi
+  struktur, deklarasi route (PR-019).
+* `apps/api/__tests__/resumes-db.test.ts` (9) — PostgreSQL sungguhan, kesembilannya
+  **berjalan** (bukan dilewati): urutan `updatedAt`,
+  **delapan POST serentak** pada sisa jatah empat, `jsonb` bolak-balik utuh (termasuk
+  non-latin + emoji dan urutan larik), FK lamaran menolak hapus CV, cascade `users` tetap
+  menyapu keduanya.
+* `apps/api/__tests__/openapi-parity.test.ts` — modul `resumes` ikut dirakit.
+
+### Keputusan teknis
+
+| Keputusan | Alasan | Alternatif yang ditolak |
+|---|---|---|
+| Dua skema isi CV (baca vs tulis), sampai ke elemen larik | Komponen OpenAPI ber-`.default()` yang dipakai dua arah ditolak generator dan menggagalkan seluruh dokumen | Satu skema dengan `effectType: "same"` — DICOBA, generator tetap menolak; satu skema tanpa bawaan sama sekali — ditolak, memaksa klien mengirim `null` eksplisit untuk setiap field opsional |
+| Batas CV di transaksi + `pg_advisory_xact_lock` per pengguna | `count()` lalu `create()` bisa dilewati klik ganda; batas yang bisa dilewati bukan batas. Kunci MENUNGGU, jadi tidak ada retry dan tidak ada jawaban 500 di bawah tekanan | Isolasi `Serializable` + coba-ulang — DICOBA lalu dibuang: lingkaran retry terbatas habis di bawah delapan permintaan serentak dan menjawab 500; menerima balapan dengan catatan jujur — ditolak, AC menuntut batasnya ditegakkan |
+| `PUT` mengganti `content` UTUH, tidak menggabung | Penggabungan menuntut aturan untuk setiap larik ("kirim `skills` kosong" = hapus semua, atau jangan sentuh?), dan aturan yang harus ditebak akan ditebak berbeda oleh setiap klien | Merge per bagian di server — ditolak; PR-061 mengirim dokumen utuh dengan satu bagian berubah |
+| Daftar CV tanpa `content` | Daftar dipakai untuk memilih, bukan membaca; lima dokumen lengkap adalah muatan yang dibayar setiap pengguna pada koneksi seluler tanpa satu pun yang memakainya | Daftar membawa isi penuh — ditolak; editor mengambil satu CV lewat `GET /me/resumes/:id` |
+| `access.authenticated()`, bukan `access.self("id")` | `:id` adalah id CV, bukan id pengguna — `requireSelf` akan membandingkannya dengan userId sesi lalu menolak SETIAP permintaan yang sah | `access.self("id")` — ditolak; alasan yang sama sudah dicatat di router `profiles` sejak PR-038 |
+| `certifications` ada sejak versi pertama | Bagi banyak pencari kerja penyandang disabilitas, sertifikat pelatihan vokasi adalah bukti kompetensi terkuat yang mereka punya — seringkali lebih kuat daripada riwayat kerja formal yang justru sulit didapat | Menundanya ke pasca-MVP — ditolak; memaksa bukti itu diselipkan ke ringkasan sebagai prosa |
+| Bagian `contact` adalah SALINAN, bukan rujukan ke profil | CV adalah dokumen yang dibekukan: nomor HP yang berubah di profil tidak boleh mengubah PDF yang sudah diunduh dan dikirim ke lima perusahaan | Menarik kontak dari `users`/`seeker_profiles` saat render — ditolak; PDF lama berubah isi tanpa pemiliknya tahu |
+| Seed diselaraskan ke kontrak, bukan dibiarkan | Empat CV persona yang tidak bisa dibuka editor maupun dirender PDF adalah data rusak yang baru ketahuan di PR-061/063 | Validasi hanya di jalur tulis, seed dibiarkan — ditolak; tidak ada yang akan menemukannya sampai fitur pemakainya lahir |
+
+### Risiko & batas yang diketahui
+
+* **Isi CV TIDAK divalidasi ulang saat dibaca.** Pembacaan memperlakukan `jsonb` sebagai
+  `ResumeContent` apa adanya. Yang membenarkannya: satu-satunya jalur tulis adalah gerbang
+  zod di router, dan jalur kedua (seed) kini melewati gerbang yang sama — dijaga `.parse()`
+  di `seed-data.ts`. Baris yang ditulis tangan langsung ke database (mis. lewat
+  `prisma studio`) bisa menyimpang tanpa ketahuan sampai template PDF gagal merendernya.
+* **Dua entri OpenAPI per bentuk** (`ResumeExperience` + `ResumeExperienceInput`, dst.) —
+  klien mobile yang di-generate dari `openapi.json` (Phase 15) akan melihat sepuluh tipe di
+  mana secara konseptual ada lima. Konsekuensi sadar dari keputusan #1; alternatifnya adalah
+  dokumen yang tidak bisa dibuat sama sekali.
+* **`resumes.service` belum punya satu pun pemanggil di luar router-nya.** Disengaja, pola
+  sama dengan `sensitiveAccess` (PR-039): konsumennya sudah bernama dan terjadwal — PR-063
+  (render PDF), PR-064 (endpoint unduh), PR-066 (CV dari percakapan).
+* **Ukuran `content` dibatasi per-larik, bukan per-dokumen** — terdaftar sebagai
+  [U-22](../../utang-teknis.md#u-22--ukuran-dokumen-cv-dibatasi-per-larik-bukan-per-dokumen),
+  pemilik **PR-063**. Batas jumlah elemen (30 riwayat kerja, 60 keahlian, dst.) beserta batas
+  panjang teks per field membuat batas atas ukuran dokumen terhingga, tetapi tidak ada satu
+  pun pemeriksaan atas byte total. Angkanya hanya bisa ditentukan pihak yang tahu berapa RAM
+  yang dipakai satu render — dan itu PR-063, bukan PR ini.
+* **`RESUME_MAX_PER_USER` belum pernah diuji pada nilai produksi selain bawaannya.** Test
+  memakai 1, 2, 5, 7, dan 9 — cukup untuk membuktikan angkanya datang dari config, bukan
+  untuk membuktikan perilaku pada 50.
+
+### Next steps
+
+* **PR-061** — Editor CV FE, konsumen pertama seluruh kontrak di sini. Prefill dari profil
+  (PR-038/040) adalah pemetaan langsung: bentuk entri CV sengaja dibuat cerminan sub-entitas
+  karier, dikurangi `id`.
+* **PR-062** — `core/storage` (R2/MinIO), dependensi render PDF.
+* **PR-063** — Template + processor PDF. Membaca `content` lewat `resumes.service`, BUKAN
+  lewat repository sendiri — modul yang membaca CV dengan caranya sendiri adalah modul yang
+  batas lima-CV-nya tidak berlaku.
+* **PR-064** — Endpoint enqueue/status + tombol unduh; mengisi `pdfUrl` yang hari ini selalu
+  `null`.
+* **PR-066/067** — CV dari percakapan AI: memanggil `resumes.service.create(..., "ai_chat")`
+  dan mengekstraksi ke `resumeContentSchema` yang sama.
+
+---
+
+## PR-061 — Resume Editor FE
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-061---resume-editor-fe)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Editor CV manual tersedia di `/cv` dan `/cv/:id`. Pengguna dapat membuat CV dari salinan profil,
+mengubah semua bagian `resumeContentSchema`, menambah/menghapus entri berulang, serta mengatur urutan
+dengan tombol atas/bawah. Setiap bagian memakai formulir dan penyimpanan terpisah; kegagalan satu
+bagian mempertahankan draf dan tidak menghanguskan bagian lain.
+
+### Scope selesai
+
+* Typed API client untuk list/detail/create/update/delete CV beserta query key yang dilindungi `sub`.
+* Mapper prefill paralel dari akun, profil aman, pengalaman, pendidikan, dan keahlian. Mapper tidak
+  membaca atau menyalin data disabilitas/akomodasi.
+* Daftar CV, pembuatan manual dari profil, penghapusan, dan editor section-based yang responsif.
+* Seluruh bagian kontrak: judul, headline/ringkasan, kontak+tautan, pengalaman, pendidikan,
+  keahlian, sertifikasi/pelatihan, dan organisasi/kerelawanan.
+* Reorder tanpa drag, nama aksi spesifik per item, dan pengumuman posisi baru lewat `role=status`.
+* Validasi zod per kolom sebelum request, pesan API sederhana, status loading/error/empty, serta
+  katalog `id` dan `id-simple` yang dimuat malas bersama route.
+* Unit/API/component test, axe, fixture Playwright, E2E keyboard reorder dan overflow 320 px, serta
+  [checklist NVDA](./pr-061-nvda-checklist.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Draf dan snapshot tersimpan dipisah | PUT mengganti dokumen utuh. Saat satu bagian disimpan, payload dibangun dari snapshot server dengan hanya bagian itu diganti, sehingga perubahan belum disimpan di bagian lain tidak ikut terkirim. |
+| Satu mutasi isi berjalan pada satu waktu | Mencegah dua PUT dokumen utuh saling menimpa; tombol simpan lain dinonaktifkan sampai jawaban diterima. |
+| `<details>/<summary>` untuk bagian kolaps | Perilaku keyboard dan semantik buka/tutup tersedia secara natif tanpa state/ARIA kustom. |
+| Tombol reorder, bukan drag | Bisa dipakai keyboard-only dan screen reader; urutan array tetap menjadi urutan render/PDF. |
+| Prefill membuat salinan | Perubahan CV tidak mengubah profil dan perubahan profil berikutnya tidak mengubah CV yang sudah dibuat. |
+
+### Risiko dan next steps
+
+* Checklist NVDA masih perlu ditandatangani secara manual pada lingkungan Windows + NVDA saat review.
+* Unduh PDF tetap di luar scope dan dilanjutkan PR-064.
+
+---
+
+## PR-062 — core/storage — Cloudflare R2
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-062---corestorage--cloudflare-r2)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+`core/storage` menyediakan port object storage kecil (`upload` + `presignDownload`) dengan adapter
+AWS S3 API yang kompatibel Cloudflare R2 dan MinIO. Bucket tetap privat, ukuran payload diperiksa
+sebelum jaringan disentuh, serta TTL URL dibatasi kebijakan global.
+
+### Scope selesai
+
+* Konfigurasi R2/S3 sebagai grup kredensial fail-fast, endpoint HTTPS wajib di production.
+* Bucket diturunkan dari `<prefix>-<STORAGE_BUCKET_ENV>` sehingga development, test, staging, dan
+  production terpisah secara konstruksi meski staging menjalankan `NODE_ENV=production`.
+* Path builder tervalidasi dengan domain tertutup dan helper deterministik PDF CV berbasis SHA-256.
+* Upload byte dengan batas global/per-domain dan presigned download dengan expiry eksplisit.
+* MinIO di compose dev dan CI; integration test membuktikan upload/download, akses unsigned 403,
+  serta URL yang benar-benar kedaluwarsa.
+* [Konvensi storage dan panduan MinIO](../../../apps/api/src/core/storage/README.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Bucket name diturunkan dari prefix + environment deployment | Staging dan production tetap terpisah meski keduanya menjalankan Node dalam mode production. |
+| Port tidak mengekspos list/create bucket | Runtime hanya membutuhkan akses objek; provisioning bucket adalah hak infrastruktur. |
+| Hasil upload hanya `key` dan `size` | ETag dan bentuk respons provider bukan kontrak stabil lintas R2/MinIO. |
+| Key hanya menerima segmen aman dan domain terdaftar | Mencegah traversal, string bebas, dan PII menjadi struktur storage permanen. |
+| Batas pemanggil hanya dapat memperketat batas global | Satu fitur tidak dapat menaikkan batas biaya/memori yang ditetapkan operator. |
+
+### Risiko dan next steps
+
+* Verifikasi R2 nyata tetap dilakukan di staging karena CI memakai MinIO; kredensial R2 tidak boleh
+  masuk repository maupun GitHub Actions.
+* Pembuatan bucket dan lifecycle rule dilakukan provisioning, bukan aplikasi. Lifecycle backup tetap
+  milik PR-104.
+* PR-063 memakai `resumePdfKey()` dan port ini untuk menyimpan hasil render PDF.
+
+---
+
+## PR-063 — PDF Render Processor (Puppeteer)
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-063---pdf-render-processor-puppeteer)
+> **Tanggal:** 2026-09-25
+> **Status:** Selesai (verifikasi reader manual menunggu review)
+
+### Ringkasan hasil
+
+Worker `pdf-render` membaca snapshot CV terbaru melalui `ResumesService`, menolak job stale berdasarkan
+SHA-256, merender template HTML semantik dengan Chromium, mengunggah PDF privat ke storage immutable,
+lalu memasang object key ke `pdf_url` secara optimistik. Konten CV tidak pernah disalin ke Redis.
+
+### Scope selesai
+
+* Template A4 satu kolom yang ATS-friendly, `lang=id`, heading berjenjang, urutan DOM/visual sama,
+  seluruh teks/atribut pengguna di-escape, dan font Noto untuk non-Latin/emoji.
+* Payload queue strict berisi `userId`, `resumeId`, dan hash saja; job id serta object key deterministik.
+* Idempotensi dua lapis: job/content hash yang sama dan pemeriksaan `pdf_url` sebelum menyalakan browser.
+* Optimistic write berdasarkan `updatedAt`; hasil lama tidak dapat menimpa CV yang diedit selama render.
+* Edit judul/isi menginvalidasi `pdf_url`; PDF lama tetap immutable dan tidak ditampilkan sebagai versi baru.
+* Chromium per-job selalu ditutup, error diteruskan ke retry/DLQ, timeout tahap internal tetap di bawah
+  timeout queue 90 detik.
+* Image worker Debian khusus Chromium + font Noto, concurrency 1, limit RAM 768 MiB, reservation 512 MiB,
+  dan shared memory 256 MiB. Image API tidak membawa binary Chromium.
+* Notifikasi in-app `resume.pdf_siap` diterbitkan worker setelah render sukses, dengan kunci peristiwa
+  per versi isi (retry job tidak menggandakan notifikasi).
+* Unit test template/hash/stale/race/crash/ukuran dan integration test processor → Chromium → MinIO.
+* [Checklist urutan baca PDF](./pr-063-pdf-reading-order-checklist.md).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Payload antrean hanya referensi + hash | Isi CV/PII tidak bermalam di Redis AOF; worker selalu membaca sumber terbaru lewat service. |
+| `pdf_url` menyimpan object key, bukan presigned URL | URL bertanggal kedaluwarsa bukan state database; PR-064 membuat URL baru saat unduh. |
+| Key memuat hash isi | Retry aman dan versi lama tidak ditimpa; lifecycle penghapusan objek lama dapat dilakukan terpisah. |
+| Conditional update memakai `updatedAt` | Menutup race edit/hapus selama Chromium bekerja tanpa transaksi panjang di sekitar proses eksternal. |
+| Satu browser per job | Crash/kebocoran tidak terakumulasi lintas job; biaya startup diterima karena concurrency memang 1. |
+| Batas input 1 MiB sebelum DOM | Batas skema normal jauh di bawahnya; baris DB rusak ditolak sebelum amplifikasi memori Chromium. |
+| `puppeteer-core` 24.43.1 | Seri 25 memerlukan Node 22, sedangkan runtime monorepo dipin Node 20. |
+| Notifikasi diterbitkan worker, bukan API | Pemicu sebenarnya adalah selesainya render asinkron, bukan permintaan HTTP; API belum tahu kapan job selesai. |
+
+### Risiko dan next steps
+
+* Verifikasi Adobe Reader + NVDA tetap manual; checklist belum ditandatangani dan tidak diklaim lulus.
+* Bucket `nawasena-development` tetap dibuat oleh provisioning/console MinIO, bukan runtime aplikasi.
+* PR-064 menjadi produser job, endpoint status, dan pembuat presigned URL unduh.
+
+---
+
+## PR-064 — PDF API + FE Download
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md#pr-064---pdf-api--fe-download)
+> **Tanggal:** 2026-09-26
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Alur PDF kini tersambung utuh dari editor/daftar CV ke API, antrean `pdf-render`, worker,
+object storage privat, dan unduhan presigned. API menghitung hash versi CV terkini sendiri
+sehingga klien tidak dapat memilih object key atau mengantrekan render milik pengguna lain.
+UI memantau state `queued`/`processing`, mengumumkan setiap perubahan lewat live region, dan
+meminta URL baru tepat saat pengguna menekan unduh. Pemetaan notifikasi `resume.pdf_siap` ke
+`/cv/:id` sudah lebih dulu mendarat di PR-063 (dipaksa exhaustiveness checker begitu tipe
+notifikasi terdaftar), sehingga PR ini murni endpoint + kontrol unduh.
+
+### Scope selesai
+
+* `POST /api/v1/me/resumes/:id/pdf` mengantrekan render dan menjawab 202; `GET` mengembalikan
+  discriminated status `idle | queued | processing | failed | ready`.
+* Pemeriksaan kepemilikan tetap melalui `ResumesService`; CV milik pengguna lain konsisten 404.
+* Job ID diturunkan dari resume ID + SHA-256 isi (`buildResumePdfTask`), sehingga klik berulang
+  untuk versi yang sama tidak membuat job kedua. Job gagal dapat dihapus dan diminta ulang
+  dengan jatah retry baru.
+* Status `ready` hanya sah bila `pdf_url` sama dengan key immutable untuk isi terkini. Presigned
+  URL dan waktu kedaluwarsanya tidak pernah disimpan di database.
+* Kontrol PDF reusable (`KontrolPdf`) tampil di daftar dan editor. Polling hanya aktif saat
+  antre/proses, request ganda dinonaktifkan, gagal render maupun gagal jaringan memiliki aksi
+  coba lagi yang benar.
+* Saat tombol unduh ditekan, UI melakukan GET status baru sebelum membuka URL sehingga URL yang
+  sudah kedaluwarsa diganti mulus tanpa meminta render ulang.
+* Kontrak zod (`resumePdfStatusSchema`), API client, OpenAPI, dan katalog `id`/`id-simple`
+  diperbarui.
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Status PDF berupa discriminated union | Kombinasi nullable tidak dapat menghasilkan state mustahil seperti URL pada status gagal. |
+| Query status menjadi sumber state UI tunggal | Respons POST `queued` tidak boleh menutupi hasil polling `ready` yang datang kemudian. |
+| URL di-refresh saat klik unduh | Pengguna dapat lama menyunting/menunggu; URL lama di cache UI bisa kedaluwarsa sebelum dipakai. |
+| `completed` tanpa pointer dipetakan ke `failed` | State tidak konsisten harus menawarkan retry, bukan berhenti pada spinner tanpa akhir. |
+| Endpoint tetap terdaftar saat storage belum dikonfigurasi | Kontrak tidak berubah antarlingkungan; fitur menjawab 503 yang eksplisit dan teramati. |
+
+### Penutupan Phase 09
+
+Implementasi kode PR-060 sampai PR-064 sudah lengkap dan terhubung, dengan seluruh 5 PR
+di-merge satu per satu ke `phase-09-resume-builder-pdf` (bukan sekaligus) sehingga CI hijau
+diverifikasi pada setiap tahap. Exit gate yang bergantung pada proses release tetap harus
+dilakukan di luar implementasi lokal: merge `phase-09-resume-builder-pdf` ke `main`, verifikasi
+Cloudflare R2 staging, serta penandatanganan checklist manual NVDA/Adobe Reader. Status tersebut
+tidak diklaim lulus oleh test otomatis.
+
+---
+
+## PR-064a — Pembersihan penutupan Phase 09
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-27
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Audit ulang PR-061..PR-064 sebelum phase ditutup. Keempatnya dikerjakan agen lain (Codex), jadi
+kode dibaca terhadap Acceptance Criteria dan seluruh gerbang dijalankan ulang di lokal. Hasilnya:
+lint, typecheck, unit (±3.000 test), dan build hijau. Gerbang a11y: 104/107 lulus pada run paralel;
+3 kegagalan (`profil` 0 ms, `CV - editor terisi`, `admin — tambah perusahaan`) lulus semua saat
+diulang serial, jadi itu beban mesin, bukan regresi. CI keempat PR (#150–#153) hijau. Tidak ada
+cacat logika yang ditemukan di jalur PDF (hash idempoten, optimistic write `updatedAt`
+Timestamptz(6) aman karena Prisma menulis presisi milidetik, 503 saat storage kosong). Temuan yang
+diperbaiki di PR ini semuanya pengalaman pengembang dan a11y:
+
+| Temuan | Perbaikan |
+|---|---|
+| Bucket `nawasena-development` tidak dibuat siapa pun; upload PDF pertama di stack dev gagal `NoSuchBucket`. | Skrip idempoten `pnpm --filter @nawasena/api storage:siapkan-bucket` (`apps/api/scripts/siapkan-bucket-dev.ts`) + service one-shot `minio-init` di compose; `api`/`worker` menunggu `service_completed_successfully`. Skrip menolak staging/production. Image `minio/mc` tidak lagi dipublikasikan di Docker Hub, jadi memakai SDK S3 yang sudah ada. |
+| `pnpm dev` worker tidak memuat `.env` apa pun, sehingga STORAGE_*/Chromium tidak bisa diisi dan processor `pdf-render` tidak pernah terdaftar di lokal. | Script `dev` worker memuat `../api/.env` (`--env-file-if-exists`). Satu `.env` untuk API dan worker; didokumentasikan di CLAUDE.md §5.6, `.env.example`, dan README storage. |
+| Daftar `/cv` memuat satu `KontrolPdf` per CV, masing-masing live region `polite`; NVDA membacakan status semua kartu setiap halaman dibuka. | Live region `aria-live="off"` sampai pengguna menekan tombol di kontrol itu. Status tetap terlihat/terbaca virtual cursor; selesainya render di luar sesi dikabarkan notifikasi `resume.pdf_siap`. Test baru di `resume-pdf-control.test.tsx`. |
+| 11 berkas phase 09 tidak lolos Prettier. | Diformat; tanpa perubahan perilaku. |
+
+### Catatan & risiko
+
+* `pnpm dev` yang "gagal" di mesin pengembang ternyata bentrok port: 5173 dipakai Vite proyek lain.
+  `strictPort: true` di `vite.config.ts` disengaja (origin CORS/e2e dikunci ke 5173), jadi tidak
+  diubah — hentikan proses lain yang memakai port itu.
+* Verifikasi `docker compose up minio-init` tertunda: Docker Desktop mati saat build image di mesin
+  lokal. Skripnya sendiri sudah diuji langsung terhadap MinIO (buat → sudah ada → tolak production).
+* Presigned URL di stack compose penuh ditandatangani untuk host `minio:9000` yang tidak dapat
+  dijangkau browser di host. Tidak mengenai `pnpm dev` (endpoint `127.0.0.1:9000`). Dicatat di
+  `docs/utang-teknis.md`.
+* Exit Criteria yang tersisa tidak berubah: checklist manual NVDA (PR-061) dan Adobe Reader + NVDA
+  (PR-063), verifikasi R2 staging, dan merge `phase-09 → main` atas perintah owner.
+
+---
+
+## PR-064b — STORAGE_PUBLIC_ENDPOINT (lunasi U-23) + verifikasi compose
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-27
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Melunasi [U-23](../../utang-teknis.md): URL presigned di stack compose penuh kini dapat dibuka
+browser. Env opsional `STORAGE_PUBLIC_ENDPOINT` membuat driver S3 menandatangani URL unduh untuk
+host publik, sementara upload tetap lewat endpoint internal. Sekaligus menuntaskan verifikasi
+`minio-init` yang tertunda di PR-064a.
+
+### Scope selesai
+
+* `core/config/env.ts`: `STORAGE_PUBLIC_ENDPOINT` (URL, opsional; butuh `STORAGE_ENDPOINT`; HTTPS
+  di production). `core/storage/config.ts` meneruskannya sebagai `publicEndpoint`.
+* `core/storage/storage.ts`: client presign terpisah bila `publicEndpoint` ada. Client kedua tidak
+  membuka koneksi — SigV4 presign dihitung offline.
+* Compose: API mendapat `STORAGE_PUBLIC_ENDPOINT=http://127.0.0.1:9000`; `.env.example` dan README
+  storage diperbarui.
+* Test: host URL tanpa/dengan endpoint publik memakai driver AWS asli (offline), tanda tangan
+  mencakup `host`, validasi env (tanpa endpoint internal, HTTP di production).
+
+### Keputusan teknis
+
+| Keputusan | Alasan |
+|---|---|
+| Sign dengan host publik, bukan ganti string host setelah sign | Host termasuk `X-Amz-SignedHeaders`; URL hasil ganti-string ditolak `SignatureDoesNotMatch`. |
+| Opsional, default = `STORAGE_ENDPOINT` | R2/produksi memakai satu endpoint publik; tidak ada perubahan perilaku di sana. |
+
+### Temuan saat verifikasi compose
+
+* `minio-init` pertama kali gagal `ERR_MODULE_NOT_FOUND: @aws-sdk/client-s3`. Penyebabnya bukan
+  skrip, melainkan **volume `node_modules` basi**: Docker mengisi named volume dari image hanya saat
+  volume dibuat, dan volume di mesin pengembang lahir 2026-08-01 — sebelum PR-062 menambah SDK S3.
+  Jebakan yang sama mematahkan container `api` compose. Cara pulihnya kini tertulis di komentar
+  `docker-compose.dev.yml` (hapus volume `*_node_modules`, bukan `pgdata`/`miniodata`).
+
+---
+
+## PR-064c — Integration test MinIO & Chromium benar-benar berjalan di CI
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Ditemukan saat mengaudit AC sebelum Phase 09 ditutup: `storage-minio.test.ts` (PR-062) dan
+kasus Chromium di `pdf-render.test.ts` (PR-063) **tidak pernah berjalan di CI**. `pr.yml`
+menyalakan MinIO dan mengisi `STORAGE_INTEGRATION_ENDPOINT` + `PDF_INTEGRATION_CHROME` pada langkah
+"Unit test", tetapi Turborepo 2 berjalan dalam *strict env mode* dan membuang variabel yang tidak
+dideklarasikan di `turbo.json` sebelum proses test dimulai. Kedua test pun `skip` diam-diam — log CI
+PR #150–#155 menampilkan `1 skipped` pada keduanya. Klaim "roundtrip dijaga di CI" di log PR-062
+dan PR-063 karena itu tidak benar sampai PR ini.
+
+### Perbaikan
+
+`turbo.json` → `tasks.test.env` ditambah `STORAGE_INTEGRATION_ENDPOINT` dan
+`PDF_INTEGRATION_CHROME`. Memasukkannya ke `env` (bukan `passThroughEnv`) disengaja: hasil test
+dengan dan tanpa integrasi tidak boleh berbagi cache turbo.
+
+### Verifikasi
+
+* Lokal, langsung lewat vitest: `storage-minio` lulus (unsigned 403 → presign 200 → kedaluwarsa),
+  `pdf-render` + Chrome sistem + MinIO lulus (render 1,6 dtk). Lewat turbo di lokal tidak dapat
+  dibuktikan — mesin pengembang kehabisan RAM (0,8 GB bebas).
+* CI PR ini adalah bukti utamanya: kedua test harus tampil lulus, bukan `skipped`.
+
+### Pelajaran
+
+Test integrasi yang men-`skip` dirinya bila env kosong adalah test yang dapat mati tanpa suara.
+Setiap variabel env baru untuk test wajib ikut didaftarkan di `turbo.json`.
+
+---
+
+## PR-064d — Audit AC & catatan override sebelum Phase 09 ditutup ke `main`
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+
+Owner memerintahkan `phase-09 → main`. Dokumen phase saat itu mencentang **0 dari 50** kotak
+checklist, padahal Exit Criteria menuntut setiap AC terpenuhi. Setiap kotak diaudit terhadap bukti
+(nama test, berkas, atau log CI) dan hanya yang terbukti yang dicentang, beserta rujukannya.
+
+* **AC: 22/25 terbukti.** Tiga terbuka (NVDA PR-061, urutan baca PDF PR-063, jalur utuh PR-064)
+  → blok override di bawah Exit Criteria + utang **U-24**.
+* **Testing Checklist: 15/25 dicentang.** Sisanya `N/A`, curl PR-060 (tanpa jejak), R2 staging, dan
+  verifikasi manual reader.
+* Audit inilah yang menemukan cacat PR-064c: dua integration test yang dirujuk sebagai bukti ternyata
+  selalu skip di CI. Bukti AC PR-062/063 terkait baru sah setelah PR-064c.
+
+Tanpa perubahan kode.

@@ -289,6 +289,34 @@ export const aiUsageRecordJobSchema = z
 export type AiUsageRecordJob = z.infer<typeof aiUsageRecordJobSchema>;
 
 /**
+ * Payload `pdf-render` (PR-063).
+ *
+ * Isi CV TIDAK masuk Redis: payload hanya membawa referensi pemilik, id CV,
+ * dan hash dokumen pada saat enqueue. Worker membaca ulang lewat service lalu
+ * membandingkan hash; job yang sudah stale diselesaikan tanpa merender PDF lama.
+ */
+export const pdfRenderJobSchema = z
+  .object({
+    userId: z.string().uuid(),
+    resumeId: z.string().uuid(),
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/, {
+      message: "contentHash harus SHA-256 lowercase",
+    }),
+  })
+  .strict();
+
+export type PdfRenderJob = z.infer<typeof pdfRenderJobSchema>;
+
+/** Hasil internal processor; tidak diekspos sebagai respons HTTP. */
+export const pdfRenderResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("rendered"), key: z.string(), bytes: z.number().int().min(1) }),
+  z.object({ status: z.literal("already_current"), key: z.string() }),
+  z.object({ status: z.literal("stale") }),
+]);
+
+export type PdfRenderResult = z.infer<typeof pdfRenderResultSchema>;
+
+/**
  * Payload job `notify:push` (PR-048b, SDD §16).
  *
  * SENGAJA HANYA DUA REFERENSI, bukan salinan kalimatnya. Alasannya sama dengan

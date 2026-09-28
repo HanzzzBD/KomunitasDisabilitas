@@ -151,6 +151,12 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   // ikut cocok dengan judul halaman dan dengan nama langkah di indikator
   // progres, sehingga penantiannya selesai sebelum layarnya benar-benar
   // berganti.
+  { nama: "CV - daftar", jalur: "/cv", butuhSesi: true },
+  {
+    nama: "CV - editor terisi",
+    jalur: "/cv/01912345-89ab-7def-8123-4567890abf01",
+    butuhSesi: true,
+  },
   { nama: "onboarding — ragam disabilitas", jalur: "/onboarding", butuhSesi: true },
   {
     nama: "onboarding — persetujuan",
