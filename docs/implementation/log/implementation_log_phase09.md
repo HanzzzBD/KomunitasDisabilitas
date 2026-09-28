@@ -487,3 +487,39 @@ host publik, sementara upload tetap lewat endpoint internal. Sekaligus menuntask
   volume dibuat, dan volume di mesin pengembang lahir 2026-08-01 — sebelum PR-062 menambah SDK S3.
   Jebakan yang sama mematahkan container `api` compose. Cara pulihnya kini tertulis di komentar
   `docker-compose.dev.yml` (hapus volume `*_node_modules`, bukan `pgdata`/`miniodata`).
+
+---
+
+## PR-064c — Integration test MinIO & Chromium benar-benar berjalan di CI
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+
+### Ringkasan hasil
+
+Ditemukan saat mengaudit AC sebelum Phase 09 ditutup: `storage-minio.test.ts` (PR-062) dan
+kasus Chromium di `pdf-render.test.ts` (PR-063) **tidak pernah berjalan di CI**. `pr.yml`
+menyalakan MinIO dan mengisi `STORAGE_INTEGRATION_ENDPOINT` + `PDF_INTEGRATION_CHROME` pada langkah
+"Unit test", tetapi Turborepo 2 berjalan dalam *strict env mode* dan membuang variabel yang tidak
+dideklarasikan di `turbo.json` sebelum proses test dimulai. Kedua test pun `skip` diam-diam — log CI
+PR #150–#155 menampilkan `1 skipped` pada keduanya. Klaim "roundtrip dijaga di CI" di log PR-062
+dan PR-063 karena itu tidak benar sampai PR ini.
+
+### Perbaikan
+
+`turbo.json` → `tasks.test.env` ditambah `STORAGE_INTEGRATION_ENDPOINT` dan
+`PDF_INTEGRATION_CHROME`. Memasukkannya ke `env` (bukan `passThroughEnv`) disengaja: hasil test
+dengan dan tanpa integrasi tidak boleh berbagi cache turbo.
+
+### Verifikasi
+
+* Lokal, langsung lewat vitest: `storage-minio` lulus (unsigned 403 → presign 200 → kedaluwarsa),
+  `pdf-render` + Chrome sistem + MinIO lulus (render 1,6 dtk). Lewat turbo di lokal tidak dapat
+  dibuktikan — mesin pengembang kehabisan RAM (0,8 GB bebas).
+* CI PR ini adalah bukti utamanya: kedua test harus tampil lulus, bukan `skipped`.
+
+### Pelajaran
+
+Test integrasi yang men-`skip` dirinya bila env kosong adalah test yang dapat mati tanpa suara.
+Setiap variabel env baru untuk test wajib ikut didaftarkan di `turbo.json`.
