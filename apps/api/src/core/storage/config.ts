@@ -3,6 +3,8 @@ import { StorageNotConfiguredError } from "./errors.js";
 
 export interface StorageConfig {
   endpoint: string;
+  /** Host untuk URL presigned yang dibuka browser; absen = `endpoint`. */
+  publicEndpoint?: string;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
@@ -36,6 +38,9 @@ export function storageConfigFromEnv(env: Env): StorageConfig {
 
   return {
     endpoint: env.STORAGE_ENDPOINT,
+    ...(env.STORAGE_PUBLIC_ENDPOINT === undefined
+      ? {}
+      : { publicEndpoint: env.STORAGE_PUBLIC_ENDPOINT }),
     region: env.STORAGE_REGION,
     accessKeyId: env.STORAGE_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,

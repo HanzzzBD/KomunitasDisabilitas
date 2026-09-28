@@ -265,6 +265,13 @@ const envSchema = z.object({
   // Suffix terpisah dari NODE_ENV karena staging tetap menjalankan Node dalam
   // mode `production`, tetapi wajib memakai bucket yang berbeda dari prod.
   STORAGE_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
+  /**
+   * Host yang dipakai browser untuk membuka URL presigned (PR-064b, U-23).
+   * Hanya perlu bila endpoint internal tidak dapat dijangkau browser —
+   * mis. `http://minio:9000` di jaringan compose. Kosong = sama dengan
+   * `STORAGE_ENDPOINT` (kasus R2/produksi).
+   */
+  STORAGE_PUBLIC_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
   STORAGE_ACCESS_KEY_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
   STORAGE_SECRET_ACCESS_KEY: z
     .string()
@@ -415,6 +422,25 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
       path: ["STORAGE_ENDPOINT"],
       message: "wajib memakai HTTPS pada production",
     });
+  }
+
+  if (env.STORAGE_PUBLIC_ENDPOINT !== undefined) {
+    if (env.STORAGE_ENDPOINT === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["STORAGE_PUBLIC_ENDPOINT"],
+        message: "hanya berlaku bila STORAGE_ENDPOINT juga di-set",
+      });
+    } else if (
+      env.NODE_ENV === "production" &&
+      new URL(env.STORAGE_PUBLIC_ENDPOINT).protocol !== "https:"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["STORAGE_PUBLIC_ENDPOINT"],
+        message: "wajib memakai HTTPS pada production",
+      });
+    }
   }
 
   if (

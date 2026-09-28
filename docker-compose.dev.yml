@@ -114,6 +114,9 @@ services:
       # dipakai di staging/prod (kunci prod via env vars, bukan compose).
       FIELD_KEY_V1: bmF3YXNlbmEtZGV2LWR1bW15LWtleS0wMDAwMDAwMDA=
       STORAGE_ENDPOINT: http://minio:9000
+      # URL unduh dibuka browser di host, yang tidak mengenal nama `minio`
+      # (U-23, PR-064b). Upload tetap lewat jaringan compose.
+      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
       STORAGE_ACCESS_KEY_ID: nawasena-minio
       STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
       STORAGE_BUCKET_PREFIX: nawasena
@@ -145,6 +148,16 @@ services:
       # Gejalanya menyesatkan: ERR_MODULE_NOT_FOUND untuk paket yang jelas
       # ada di package.json dan lockfile.
       # Menambah workspace baru yang dipakai runtime = tambahkan volumenya.
+      #
+      # JEBAKAN VOLUME BASI: Docker mengisi named volume dari image HANYA saat
+      # volume itu pertama dibuat. Setelah dependensi bertambah (mis.
+      # @aws-sdk/client-s3 di PR-062), `--build` saja tidak cukup — volume lama
+      # tetap memegang node_modules lama dan gejalanya sama: ERR_MODULE_NOT_FOUND.
+      # Hapus volume *_node_modules (cache saja; pgdata/miniodata JANGAN) lalu up:
+      #   docker compose -f docker-compose.dev.yml down
+      #   docker volume rm nawasena-dev_api_node_modules nawasena-dev_api_app_node_modules \
+      #     nawasena-dev_schemas_node_modules nawasena-dev_config_node_modules \
+      #     nawasena-dev_worker_node_modules nawasena-dev_worker_app_node_modules
       - .:/workspace
       - api_node_modules:/workspace/node_modules
       - api_app_node_modules:/workspace/apps/api/node_modules

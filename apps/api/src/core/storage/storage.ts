@@ -53,9 +53,9 @@ export interface CreateObjectStorageOptions {
   clock?: () => Date;
 }
 
-function awsDriver(config: StorageConfig): StorageDriver {
-  const client = new S3Client({
-    endpoint: config.endpoint,
+function s3Client(config: StorageConfig, endpoint: string): S3Client {
+  return new S3Client({
+    endpoint,
     region: config.region,
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -67,6 +67,15 @@ function awsDriver(config: StorageConfig): StorageDriver {
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   });
+}
+
+function awsDriver(config: StorageConfig): StorageDriver {
+  const client = s3Client(config, config.endpoint);
+  // Host ikut ditandatangani SigV4, jadi URL untuk browser harus DITANDATANGANI
+  // dengan host publik, bukan sekadar diganti host-nya. Presign berjalan
+  // offline — client kedua ini tidak pernah membuka koneksi.
+  const presigner =
+    config.publicEndpoint === undefined ? client : s3Client(config, config.publicEndpoint);
 
   return {
     async put(input) {
@@ -86,9 +95,13 @@ function awsDriver(config: StorageConfig): StorageDriver {
     },
 
     presignGet(input) {
-      return getSignedUrl(client, new GetObjectCommand({ Bucket: input.bucket, Key: input.key }), {
-        expiresIn: input.expiresInSeconds,
-      });
+      return getSignedUrl(
+        presigner,
+        new GetObjectCommand({ Bucket: input.bucket, Key: input.key }),
+        {
+          expiresIn: input.expiresInSeconds,
+        },
+      );
     },
   };
 }
