@@ -240,6 +240,29 @@ export const ERROR_CATALOG = {
     message: "CV ini sedang dipakai pada lamaran yang sudah Anda kirim",
     hint: "Buat CV baru bila ingin mengubah isinya, atau ubah CV ini tanpa menghapusnya",
   },
+  // --- Sesi AI CV Builder (PR-065) ---
+  // 404 juga untuk sesi milik orang lain — alasannya sama dengan CV_TIDAK_DITEMUKAN.
+  AI_SESI_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Percakapan tidak ditemukan",
+    hint: "Mungkin sudah lewat 30 hari dan dihapus. Mulai percakapan baru, atau isi formulir CV",
+  },
+  // 409: bentuk permintaannya sah, yang bentrok adalah KEADAAN sesi. Sesi yang
+  // sudah menjadi draft CV tidak menerima giliran baru — menambahkannya akan
+  // membuat transkrip berbeda dari draft yang sudah diekstrak darinya.
+  AI_SESI_SUDAH_SELESAI: {
+    status: 409,
+    message: "Percakapan ini sudah selesai",
+    hint: "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
+  },
+  // 409, bukan 413: yang penuh adalah SESINYA, bukan permintaan ini. Pesannya
+  // menyebut dua jalan keluar yang benar-benar ada — tidak ada yang hilang,
+  // percakapan yang sudah terjadi tetap bisa dijadikan draft CV.
+  AI_TRANSKRIP_PENUH: {
+    status: 409,
+    message: "Percakapan ini sudah terlalu panjang",
+    hint: "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

@@ -71,6 +71,7 @@ model User {
   aiUsage              AiUsage[]
   notifications        Notification[]
   devices              Device[]
+  aiChatSessions       AiChatSession[]
   verifiedCompanies    Company[]             @relation("CompanyVerifier")
   createdJobs          Job[]                 @relation("JobCreator")
   createdSignVideos    SignVideo[]           @relation("SignVideoCreator")
@@ -606,4 +607,37 @@ model SignVideo {
   creator User? @relation("SignVideoCreator", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("sign_videos")
+}
+
+/// Keadaan sesi AI CV Builder (PR-065). Lihat `aiChatSessionStatusSchema`.
+enum AiChatSessionStatus {
+  active
+  finalized
+}
+
+/// Sesi AI CV Builder (PR-065, SDD §6.4, risiko T7): percakapan disimpan di
+/// SERVER supaya tidak hilang saat koneksi putus.
+///
+/// Paling banyak SATU sesi `active` per pengguna — ditegakkan unique PARSIAL
+/// `ai_chat_sessions_satu_aktif` yang ditulis tangan di migrasi 16 (Prisma tidak
+/// bisa menyatakannya). Akibatnya "mulai percakapan" setelah putus MENGEMBALIKAN
+/// sesi yang sama, bukan menumpuk sesi yatim.
+///
+/// Retensi (PR-024 registry, modul ai): 30 hari setelah `finalized_at`, atau 30
+/// hari setelah `updated_at` untuk sesi yang ditinggal tanpa pernah selesai.
+model AiChatSession {
+  id          String              @id @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  /// Larik `AiChatTurn` (`{seq, role, content, at}`) — hanya ditulis lewat
+  /// `appendTurn` di repository, yang memberi `seq` dan menegakkan batas ukuran.
+  transcript  Json                @default("[]")
+  status      AiChatSessionStatus @default(active)
+  finalizedAt DateTime?           @map("finalized_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("ai_chat_sessions")
 }

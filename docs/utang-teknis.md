@@ -576,6 +576,29 @@ manusia dengan perangkat nyata.
 
 ---
 
+### U-25 — CV (`resumes`) masih `DITUNDA` di ekspor PDP padahal datanya sudah ada
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Kepatuhan (UU PDP §8.7) |
+| **Ditemukan** | PR-065 (2026-09-28), saat mendaftarkan `ai_chat_sessions` ke penjaga yang sama |
+| **Pemilik** | Belum ditetapkan — PR kecil tersendiri (kontributor ekspor modul `resumes`) |
+| **Pemicu** | **Sudah menyala** sejak PR-060 merged: pengguna bisa membuat CV lewat `/me/resumes` |
+
+`export-kelengkapan.test.ts` masih menaruh `resumes` di `DITUNDA` dengan alasan *"belum ada
+endpoint yang bisa membuat CV"*. Alasan itu berhenti benar sejak PR-060 (Phase 09 sudah di
+`main`): CV adalah data pengguna sungguhan yang hari ini **tidak ikut** berkas `GET /me/export`,
+tanpa satu pun penjaga menyalak — pola yang persis sama dengan U-03/U-04.
+
+**Kenapa tidak dibayar di PR-065.** Membayarnya menyentuh kontrak `dataExportSchema`, modul
+`resumes`, dan fixture ekspor — di luar scope sesi chat, dan PR-065 sudah menambah satu bagian
+ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor` di atas
+`resumes.service` (bentuk `Resume` yang sama dengan `GET /me/resumes/:id`), pindahkan barisnya
+`DITUNDA` → `TERDAFTAR`.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

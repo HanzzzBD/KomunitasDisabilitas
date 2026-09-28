@@ -167,6 +167,10 @@ describe("tidak ada migrasi yang menghapus indeks tanpa keputusan (PR-048a)", ()
       "applications_user_updated",
       "applications_job_status",
       "jobs_status_published_at",
+      // PR-065 — unique PARSIAL: satu sesi `active` per pengguna. Yang hilang
+      // di sini bukan hanya lambat: tanpa indeks ini, "mulai percakapan" yang
+      // terkirim dua kali melahirkan dua sesi aktif dan resume memilih acak.
+      "ai_chat_sessions_satu_aktif",
     ]) {
       expect(sql, `indeks "${indeks}" hilang dari SQL migrasi`).toContain(`"${indeks}"`);
     }

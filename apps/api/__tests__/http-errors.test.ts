@@ -25,6 +25,21 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "AI_SESI_SUDAH_SELESAI": {
+          "hint": "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
+          "message": "Percakapan ini sudah selesai",
+          "status": 409,
+        },
+        "AI_SESI_TIDAK_DITEMUKAN": {
+          "hint": "Mungkin sudah lewat 30 hari dan dihapus. Mulai percakapan baru, atau isi formulir CV",
+          "message": "Percakapan tidak ditemukan",
+          "status": 404,
+        },
+        "AI_TRANSKRIP_PENUH": {
+          "hint": "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
+          "message": "Percakapan ini sudah terlalu panjang",
+          "status": 409,
+        },
         "AKOMODASI_LOWONGAN_KOSONG": {
           "hint": "Tambahkan minimal satu akomodasi lewat PUT sebelum menerbitkan lowongan",
           "message": "Lowongan ini belum mencantumkan akomodasi apa pun",

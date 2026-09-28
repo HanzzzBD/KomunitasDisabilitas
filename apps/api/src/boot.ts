@@ -211,6 +211,16 @@ export async function startApi(options: BootOptions): Promise<void> {
     events,
   });
 
+  // Dirakit di LUAR callback `routes`, alasan yang sama dengan `profiles`:
+  // modul users membutuhkan bagian ekspor PDP miliknya (transkrip AI CV
+  // Builder, PR-065), dan satu-satunya jalan masuk ke agregator adalah
+  // parameter. `chatSessions` dikembalikan untuk endpoint SSE PR-066.
+  const ai = createAiModule({
+    prisma,
+    quota: aiQuota,
+    routes: routeRegistry.forModule("/api/v1"),
+  });
+
   const api = createServer(env, logger, {
     routes: (app) => {
       // Prefix ada di argumen forModule(), bukan di app.use(): registrar
@@ -278,17 +288,14 @@ export async function startApi(options: BootOptions): Promise<void> {
             createNotificationChannelsContributor(notificationPrefs),
             // U-04: riwayat notifikasi. Utang yang dilahirkan PR-047 sendiri.
             notifications.exportContributor,
+            // PR-065: transkrip AI CV Builder. Ditulis bersama tabelnya.
+            ai.exportContributor,
           ],
         }),
       );
       app.use(accessibility.router);
       app.use(notifications.router);
-      app.use(
-        createAiModule({
-          quota: aiQuota,
-          routes: routeRegistry.forModule("/api/v1"),
-        }),
-      );
+      app.use(ai.router);
       app.use(profiles.router);
       // CV jalur manual (PR-060). TIDAK bergantung pada gateway AI sama sekali,
       // dan itu justru intinya: graceful degradation adalah kewajiban produk

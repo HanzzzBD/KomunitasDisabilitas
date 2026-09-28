@@ -24,7 +24,11 @@ import {
   accessibilityResponseSchema,
   updateAccessibilityPreferencesSchema,
 } from "./accessibility.js";
-import { aiQuotaResponseSchema } from "./ai.js";
+import {
+  aiChatSessionParamsSchema,
+  aiChatSessionResponseSchema,
+  aiQuotaResponseSchema,
+} from "./ai.js";
 import {
   companyAdminListResponseSchema,
   companyAdminResponseSchema,
@@ -697,6 +701,30 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "dengan memberi tahu penyalahguna kapan anggaran sedang tipis.",
           responses: {
             "200": jsonOk("Ringkasan jatah AI", aiQuotaResponseSchema),
+            ...responsSesi,
+          },
+        },
+      },
+
+      // Sesi AI CV Builder (PR-065). Hanya BACA — sesi lahir dan bertambah lewat
+      // `POST /ai/cv-chat` (SSE, PR-066), satu-satunya jalur yang juga memotong
+      // kuota. Menyediakan jalur tulis kedua di sini berarti transkrip yang bisa
+      // tumbuh tanpa satu pun panggilan AI yang tercatat.
+      "/ai/cv-chat/{session}": {
+        get: {
+          operationId: "getMyAiChatSession",
+          tags: ["ai"],
+          summary: "Ambil sesi AI CV Builder sendiri",
+          description:
+            "Mengembalikan sesi beserta seluruh gilirannya, urut dan tanpa lubang — " +
+            "dipakai klien untuk melanjutkan percakapan setelah koneksi putus. Sesi " +
+            "milik pengguna lain berperilaku seperti sesi yang tidak ada: 404, bukan 403. " +
+            "Sesi dihapus 30 hari setelah selesai atau setelah aktivitas terakhirnya.",
+          requestParams: { path: aiChatSessionParamsSchema },
+          responses: {
+            "200": jsonOk("Sesi beserta transkripnya", aiChatSessionResponseSchema),
+            "400": errorResponse("`session` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
             ...responsSesi,
           },
         },
