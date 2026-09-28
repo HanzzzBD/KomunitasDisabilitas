@@ -523,3 +523,24 @@ dengan dan tanpa integrasi tidak boleh berbagi cache turbo.
 
 Test integrasi yang men-`skip` dirinya bila env kosong adalah test yang dapat mati tanpa suara.
 Setiap variabel env baru untuk test wajib ikut didaftarkan di `turbo.json`.
+
+---
+
+## PR-064d — Audit AC & catatan override sebelum Phase 09 ditutup ke `main`
+
+> **Phase:** [09 - Resume Builder & PDF](../phase-09-resume-builder-pdf.md)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+
+Owner memerintahkan `phase-09 → main`. Dokumen phase saat itu mencentang **0 dari 50** kotak
+checklist, padahal Exit Criteria menuntut setiap AC terpenuhi. Setiap kotak diaudit terhadap bukti
+(nama test, berkas, atau log CI) dan hanya yang terbukti yang dicentang, beserta rujukannya.
+
+* **AC: 22/25 terbukti.** Tiga terbuka (NVDA PR-061, urutan baca PDF PR-063, jalur utuh PR-064)
+  → blok override di bawah Exit Criteria + utang **U-24**.
+* **Testing Checklist: 15/25 dicentang.** Sisanya `N/A`, curl PR-060 (tanpa jejak), R2 staging, dan
+  verifikasi manual reader.
+* Audit inilah yang menemukan cacat PR-064c: dua integration test yang dirujuk sebagai bukti ternyata
+  selalu skip di CI. Bukti AC PR-062/063 terkait baru sah setelah PR-064c.
+
+Tanpa perubahan kode.
