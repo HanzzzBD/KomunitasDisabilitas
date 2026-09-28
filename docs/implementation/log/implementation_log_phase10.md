@@ -25,7 +25,8 @@ sama dengan `service` di modul resumes.
 Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `check:openapi` sinkron.
 `@nawasena/api` **121 berkas / 1800 lulus, 2 skip** (keduanya tak terkait: MinIO tidak dinyalakan,
 urutan boot `.env`), dijalankan dengan **PostgreSQL + Redis hidup** sehingga seluruh `*-db.test.ts`
-benar-benar berjalan. `@nawasena/schemas` 100 lulus, `@nawasena/worker` 3 lulus.
+benar-benar berjalan. Workspace lain: schemas 100, api-client 117, config 25, a11y 74, ui 188,
+web 700, worker 3 — semuanya lulus.
 
 ### Keputusan owner (AskUserQuestion, 2026-09-28)
 
@@ -88,7 +89,14 @@ Dokumen phase dan SDD diam soal tiga hal; ketiganya ditanyakan sebelum menulis k
 
 **Test** — 28 baru: `ai-chat-sessions-db.test.ts` (15, DB nyata), `ai-chat-sessions.test.ts`
 (13, unit + HTTP). Fixture ekspor lama ditambah bagian `aiChatSessions` (kontraknya `.strict()`,
-jadi berkas tanpa bagian ini memang harus merah).
+jadi berkas tanpa bagian ini memang harus merah) — lima di `apps/api`, satu di
+`packages/api-client` (`users.test.ts`), dan `BERKAS_UJI` e2e web (`palsukan-api.ts`, divalidasi
+terhadap `dataExportSchema`; tanpanya tiga test unduh-ekspor jatuh timeout).
+
+**Catatan proses:** push pertama merah di CI karena fixture `packages/api-client` terlewat —
+suite lokal saat itu hanya dijalankan untuk `apps/api`. Pelajarannya: perubahan pada
+`dataExportSchema` menyentuh SETIAP workspace yang memparse ekspor; jalankan `pnpm test` penuh
+(`--concurrency=1` di mesin ini) sebelum push.
 
 ### Keputusan teknis
 
