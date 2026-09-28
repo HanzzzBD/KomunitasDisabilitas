@@ -38,6 +38,10 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // alasan yang sudah berhenti benar — lihat catatan di atas DITUNDA.
   accessibility_profiles: "accessibility",
   notifications: "notifications",
+  // PR-065 — terdaftar sejak tabelnya lahir, bukan ditunda: pelajaran U-03/U-04
+  // (keputusan owner 2026-09-28). Tabelnya memang masih kosong sampai PR-066,
+  // tetapi alasan "belum ada datanya" persis yang dulu dibiarkan basi.
+  ai_chat_sessions: "aiChatSessions",
 };
 
 /**

@@ -103,7 +103,7 @@ function routeNyata(): { method: string; path: string }[] {
     auditLog: stub(),
     events,
   });
-  createAiModule({ quota: stub(), routes: registry.forModule(PREFIX) });
+  createAiModule({ prisma: stub(), quota: stub(), routes: registry.forModule(PREFIX) });
   createNotificationsModule({
     prisma: stub(),
     routes: registry.forModule(PREFIX),

@@ -13,6 +13,10 @@ import type { Logger } from "@nawasena/api/core/logger";
 import type { EventBus } from "@nawasena/api/core/events";
 import { createRefreshTokenPolicies, createRefreshTokenRepository } from "@nawasena/api/modules/auth";
 import { createOrphanPolicies, createRetentionService } from "@nawasena/api/modules/users";
+import {
+  createAiChatSessionPolicies,
+  createChatSessionsRepository,
+} from "@nawasena/api/modules/ai";
 import { createJobExpiryService } from "@nawasena/api/modules/jobs";
 
 export interface RetentionProcessorDeps {
@@ -27,6 +31,7 @@ export interface RetentionProcessorDeps {
     | "RETENTION_REFRESH_REUSE_DAYS"
     | "RETENTION_MATCH_SCORES_DAYS"
     | "RETENTION_AI_USAGE_DAYS"
+    | "RETENTION_AI_CHAT_SESSIONS_DAYS"
     | "RETENTION_BATCH_SIZE"
     | "RETENTION_MAX_PER_RUN"
   >;
@@ -50,6 +55,12 @@ export function createRetentionProcessor(deps: RetentionProcessorDeps): JobProce
         prisma,
         matchScoresDays: env.RETENTION_MATCH_SCORES_DAYS,
         aiUsageDays: env.RETENTION_AI_USAGE_DAYS,
+      }),
+      // PR-065: transkrip AI CV Builder — 30 hari setelah selesai, atau setelah
+      // aktivitas terakhir bagi sesi yang ditinggal (SDD §6.4 + keputusan owner).
+      ...createAiChatSessionPolicies({
+        repository: createChatSessionsRepository(prisma),
+        days: env.RETENTION_AI_CHAT_SESSIONS_DAYS,
       }),
     ],
     limits: { batchSize: env.RETENTION_BATCH_SIZE, maxPerRun: env.RETENTION_MAX_PER_RUN },

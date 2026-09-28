@@ -2017,6 +2017,82 @@
         }
       }
     },
+    "/ai/cv-chat/{session}": {
+      "get": {
+        "operationId": "getMyAiChatSession",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ambil sesi AI CV Builder sendiri",
+        "description": "Mengembalikan sesi beserta seluruh gilirannya, urut dan tanpa lubang — dipakai klien untuk melanjutkan percakapan setelah koneksi putus. Sesi milik pengguna lain berperilaku seperti sesi yang tidak ada: 404, bukan 403. Sesi dihapus 30 hari setelah selesai atau setelah aktivitas terakhirnya.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sesi beserta transkripnya",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiChatSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`session` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/companies/{id}": {
       "get": {
         "operationId": "getCompany",
@@ -4391,6 +4467,12 @@
             "items": {
               "$ref": "#/components/schemas/Notification"
             }
+          },
+          "aiChatSessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiChatSession"
+            }
           }
         },
         "required": [
@@ -4400,7 +4482,8 @@
           "profile",
           "accessibility",
           "notificationChannels",
-          "notifications"
+          "notifications",
+          "aiChatSessions"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -4921,6 +5004,98 @@
           "id-simple"
         ],
         "description": "Satu kalimat notifikasi dalam kedua varian bahasa"
+      },
+      "AiChatSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "finalized"
+            ],
+            "description": "Keadaan sesi"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiChatTurn"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "finalizedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "turns",
+          "createdAt",
+          "updatedAt",
+          "finalizedAt"
+        ],
+        "additionalProperties": false,
+        "description": "Sesi AI CV Builder beserta transkripnya"
+      },
+      "AiChatTurn": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "description": "Pembicara giliran ini"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "seq",
+          "role",
+          "content",
+          "at"
+        ],
+        "additionalProperties": false,
+        "description": "Satu giliran percakapan CV"
       },
       "AccessibilityResponse": {
         "type": "object",
@@ -5716,6 +5891,17 @@
           "batas",
           "terpakai",
           "sisa"
+        ]
+      },
+      "AiChatSessionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiChatSession"
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "CompanyPublic": {

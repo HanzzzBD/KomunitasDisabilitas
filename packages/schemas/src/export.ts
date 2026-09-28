@@ -22,6 +22,7 @@ import {
 } from "./profiles.js";
 import { accessibilityProfileSchema } from "./accessibility.js";
 import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
+import { aiChatSessionSchema } from "./ai.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -154,6 +155,20 @@ export const dataExportSchema = z
      * riwayat pengguna — dicatat sebagai U-16.
      */
     notifications: z.array(notificationSchema),
+    /**
+     * Transkrip AI CV Builder (PR-065).
+     *
+     * Ikut sejak tabelnya lahir, bukan menyusul — pelajaran U-03/U-04 yang sama
+     * dengan `notificationChannels`. Isinya kata-kata pengguna sendiri tentang
+     * riwayat kerjanya, jadi justru inilah jenis data yang paling jelas menjadi
+     * miliknya. Bentuknya dipakai ULANG dari `aiChatSessionSchema`: yang dibaca
+     * di berkas ekspor sama persis dengan yang dilayani `GET /ai/cv-chat/:session`.
+     *
+     * Hanya sesi yang MASIH ADA — sesi yang sudah lewat retensi (30 hari)
+     * memang sudah tidak dipegang platform, dan berkas ekspor tidak mengklaim
+     * sebaliknya.
+     */
+    aiChatSessions: z.array(aiChatSessionSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });

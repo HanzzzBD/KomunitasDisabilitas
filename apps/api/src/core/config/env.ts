@@ -128,6 +128,13 @@ const envSchema = z.object({
   RETENTION_REFRESH_REUSE_DAYS: hariRetensi(730),
   RETENTION_MATCH_SCORES_DAYS: hariRetensi(7),
   RETENTION_AI_USAGE_DAYS: hariRetensi(90),
+  /**
+   * Transkrip AI CV Builder (PR-065): hari setelah `finalized_at`, dan — untuk
+   * sesi yang ditinggal tanpa pernah selesai — hari setelah aktivitas terakhir.
+   * Satu angka untuk keduanya (keputusan owner 2026-09-28): minimisasi PDP yang
+   * sama tidak punya alasan berbeda bagi percakapan yang tidak pernah usai.
+   */
+  RETENTION_AI_CHAT_SESSIONS_DAYS: hariRetensi(30),
   /** Baris per DELETE. Batch besar mengunci lama & menggelembungkan WAL. */
   RETENTION_BATCH_SIZE: z.coerce
     .number({ invalid_type_error: "harus angka" })

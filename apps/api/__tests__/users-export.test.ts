@@ -86,12 +86,19 @@ const kontributorKanal: ExportContributor = {
   kumpulkan: async () => ({ email: null, push: null }),
 };
 
-/** Keempat kontributor modul lain — urutannya sama dengan boot.ts. */
+/** Transkrip AI CV Builder (PR-065) — ikut sejak tabelnya lahir. */
+const kontributorChatAi: ExportContributor = {
+  bagian: "aiChatSessions",
+  kumpulkan: async () => [],
+};
+
+/** Kelima kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
   kontributorKanal,
   kontributorNotifikasi,
+  kontributorChatAi,
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
@@ -248,6 +255,7 @@ describe("agregator ekspor", () => {
       "accessibility",
       "notificationChannels",
       "notifications",
+      "aiChatSessions",
     ]);
   });
 });
@@ -265,7 +273,14 @@ describe("audit ekspor", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile", "accessibility", "notificationChannels", "notifications"],
+        sections: [
+          "account",
+          "profile",
+          "accessibility",
+          "notificationChannels",
+          "notifications",
+          "aiChatSessions",
+        ],
       },
     });
   });

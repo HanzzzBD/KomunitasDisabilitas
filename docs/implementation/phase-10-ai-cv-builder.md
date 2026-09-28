@@ -72,11 +72,11 @@ Bisnis: percakapan CV tidak hilang saat koneksi 3G putus (T7). Teknis: state ses
 
 **Testing Checklist:**
 
-* [ ] Unit Test (append)
-* [ ] Integration Test (authz + konkurensi)
+* [x] Unit Test (append) — `ai-chat-sessions.test.ts` (13 test: validasi giliran, pemetaan penolakan, guard tipe, kebijakan retensi, HTTP)
+* [x] Integration Test (authz + konkurensi) — `ai-chat-sessions-db.test.ts` (15 test, PostgreSQL nyata)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql)
+* [x] Manual Verification (psql) — `\d ai_chat_sessions`: unique parsial `satu_aktif`, dua CHECK, FK cascade (2026-09-28)
 
 **Deliverables:**
 
@@ -92,11 +92,11 @@ Migrasi additive; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Sesi dibuat/dibaca/di-append dengan authz benar.
-* [ ] Retensi terdaftar di PR-024 (test selector).
-* [ ] Transkrip berisi giliran berurutan konsisten (append aman konkuren).
-* [ ] Migrasi down teruji.
-* [ ] Ukuran transkrip dibatasi (guard).
+* [x] Sesi dibuat/dibaca/di-append dengan authz benar. — `ai-chat-sessions-db.test.ts` + HTTP `GET /ai/cv-chat/:session`: sesi milik orang lain = 404 identik dengan yang tidak ada
+* [x] Retensi terdaftar di PR-024 (test selector). — `createAiChatSessionPolicies` dirakit di worker retensi; selektor `finalized`/`abandoned` diuji lewat `createRetentionService` di DB nyata
+* [x] Transkrip berisi giliran berurutan konsisten (append aman konkuren). — 20 append serentak → `seq` 1..20 tanpa ganda/lubang; 8 "mulai" serentak → satu sesi
+* [x] Migrasi down teruji. — `down.sql` lalu `migration.sql` dijalankan di DB nyata di dalam transaksi yang di-rollback
+* [x] Ukuran transkrip dibatasi (guard). — `AI_CHAT_LIMITS` (2.000 karakter/giliran, 120 giliran, 256 KiB) ditegakkan di `WHERE` append yang sama; tahan permintaan serentak
 
 #### Dependencies
 

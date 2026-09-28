@@ -133,6 +133,7 @@ describe("kontributor bagian accessibility", () => {
       accessibility: await kontributor.kumpulkan(USER_ID),
       notificationChannels: { email: null, push: null },
       notifications: [],
+      aiChatSessions: [],
     });
 
     expect(berkas.accessibility).toEqual(PILIHAN);

@@ -106,6 +106,28 @@ const BERKAS_UJI = {
       createdAt: "2026-01-15T20:00:00.000Z",
     },
   ],
+  // PR-065. WAJIB sejak tabel transkrip AI CV Builder lahir — tanpanya klien
+  // menolak berkas ini dan ketiga test di berkas ini jatuh dengan timeout,
+  // persis seperti yang diperingatkan di atas. Satu sesi bergiliran, bukan
+  // larik kosong, dengan alasan yang sama seperti `notifications`.
+  aiChatSessions: [
+    {
+      id: "01912345-89ab-7def-8123-4567890abe01",
+      status: "active",
+      turns: [
+        {
+          seq: 1,
+          role: "assistant",
+          content: "Halo! Apa pekerjaan terakhir Anda?",
+          at: "2026-01-15T20:00:00.000Z",
+        },
+        { seq: 2, role: "user", content: "Analis data", at: "2026-01-15T20:01:00.000Z" },
+      ],
+      createdAt: "2026-01-15T20:00:00.000Z",
+      updatedAt: "2026-01-15T20:01:00.000Z",
+      finalizedAt: null,
+    },
+  ],
 } as const;
 
 /**
