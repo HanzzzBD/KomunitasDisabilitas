@@ -40,8 +40,15 @@ import {
   createObjectStorage,
   storageConfigFromEnv,
 } from "./core/storage/index.js";
-import { createAiModule } from "./modules/ai/index.js";
-import { createAiQuota, type AiQuotaConfig } from "./core/ai/index.js";
+import { createAiModule, createAiUsageRecorder } from "./modules/ai/index.js";
+import {
+  createAiClient,
+  createAiGateway,
+  createAiPromptCache,
+  createAiQuota,
+  createAiStreamGateway,
+  type AiQuotaConfig,
+} from "./core/ai/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -215,11 +222,45 @@ export async function startApi(options: BootOptions): Promise<void> {
   // modul users membutuhkan bagian ekspor PDP miliknya (transkrip AI CV
   // Builder, PR-065), dan satu-satunya jalan masuk ke agregator adalah
   // parameter. `chatSessions` dikembalikan untuk endpoint SSE PR-066.
+  // AiClient (utang U-06, dibayar PR-066): satu-satunya jalan modul ke LLM —
+  // kuota → provider → jejak biaya → cache. Dirakit DI SINI, di composition
+  // root, sebab hanya di sini `createAiGateway` boleh dipanggil (U-07,
+  // `ai-gateway-jangkauan.test.ts`). Kunci AI kosong bukan kegagalan boot:
+  // gateway menjadi penolak `AI_NOT_CONFIGURED` dan fitur AI jatuh ke jalur
+  // non-AI (ADR-005).
+  const aiMetricCounts = new Map<string, number>();
+  const aiMetrics = {
+    increment: (name: string) => aiMetricCounts.set(name, (aiMetricCounts.get(name) ?? 0) + 1),
+  };
+  const aiClient = createAiClient({
+    provider: createAiGateway(env, logger),
+    streamProvider: createAiStreamGateway(env),
+    quota: aiQuota,
+    // Produser `ai:usage-record`; konsumennya worker (PR-043b).
+    recorder: createAiUsageRecorder({ queues, logger, metrics: aiMetrics }),
+    // `redis.cache` (allkeys-lru), BUKAN `redis.queue` — kebalikan kuota; alasan
+    // di kepala core/ai/cache.ts. Belum ada template JSON yang dipanggil hari
+    // ini (chat tidak di-cache), jadi ini murni pembayaran perakitan U-06.
+    cache: createAiPromptCache({ redis: redis.cache, logger, metrics: aiMetrics }),
+    logger,
+  });
+
+  // Dirakit di LUAR callback `routes`, alasan yang sama dengan `profiles`:
+  // modul users membutuhkan bagian ekspor PDP miliknya (transkrip AI CV
+  // Builder PR-065, jejak pemakaian AI U-05), dan satu-satunya jalan masuk ke
+  // agregator adalah parameter.
   const ai = createAiModule({
     prisma,
     quota: aiQuota,
     routes: routeRegistry.forModule("/api/v1"),
+    cvChat: { ai: aiClient, aktif: env.AI_CV_CHAT_ENABLED, logger },
   });
+  if (!env.AI_CV_CHAT_ENABLED) {
+    logger.warn(
+      { fitur: "cv_chat" },
+      "AI_CV_CHAT_ENABLED=false — chat CV dimatikan, pengguna diarahkan ke formulir",
+    );
+  }
 
   const api = createServer(env, logger, {
     routes: (app) => {
@@ -290,6 +331,8 @@ export async function startApi(options: BootOptions): Promise<void> {
             notifications.exportContributor,
             // PR-065: transkrip AI CV Builder. Ditulis bersama tabelnya.
             ai.exportContributor,
+            // U-05 (PR-066): jejak pemakaian AI — metadata biaya saja.
+            ai.usageExportContributor,
           ],
         }),
       );

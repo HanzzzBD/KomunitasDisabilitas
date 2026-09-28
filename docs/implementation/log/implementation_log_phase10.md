@@ -173,3 +173,139 @@ suite lokal saat itu hanya dijalankan untuk `apps/api`. Pelajarannya: perubahan 
 * **PR-067** — finalize: set `status='finalized'` + `finalized_at` dalam satu `UPDATE` (CHECK
   menolak keadaan setengah), idempoten per sesi.
 * **U-25** — kontributor ekspor `resumes`.
+
+---
+
+## PR-066 — CV-Chat SSE Endpoint + Prompt Interviewer
+
+> **Phase:** [10 - AI CV Builder](../phase-10-ai-cv-builder.md#pr-066---cv-chat-sse-endpoint--prompt-interviewer)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+> **Branch:** `pr-066-cv-chat-sse` → `phase-10-ai-cv-builder`
+
+### Ringkasan hasil
+
+Endpoint AI pertama di produk ini hidup: `POST /api/v1/ai/cv-chat` mengalirkan jawaban
+pewawancara `cv-interviewer.v1` lewat SSE, dengan kuota, jejak biaya, dan sambung ulang.
+Bersamanya lahir `POST /ai/cv-chat/sessions` (mulai/lanjutkan + salam statis) dan
+`GET /ai/cv-chat/:session/stream` (sambung ulang dengan `Last-Event-Id`).
+
+PR ini juga membayar tiga utang yang pemiliknya memang PR-066: **U-05** (ekspor `ai_usage`),
+**U-06** (perakitan `AiClient` di `boot.ts`, sebagian) dan **U-07** (penjaga jangkauan pabrik
+provider).
+
+Gate hijau: `pnpm lint` 9/9, `pnpm typecheck` 9/9, `check:openapi` sinkron. `@nawasena/api`
+**124 berkas / 1835 lulus, 2 skip** (tak terkait: MinIO mati, urutan boot `.env`) dengan
+PostgreSQL + Redis hidup; schemas 100, api-client 117, config 25, a11y 74, ui 188, web 700,
+worker 3.
+
+### Keputusan owner (AskUserQuestion, 2026-09-28)
+
+1. **Cacah token dari usage provider**, bukan 0/0. Aliran Gemini membawa `usageMetadata`
+   kumulatif; Groq baru mengirim `usage` bila diminta `stream_options.include_usage`.
+2. **Salam pembuka statis** — pertanyaan pertama ditulis di template dan disimpan sebagai giliran
+   asisten tanpa memanggil LLM: gratis, deterministik, tidak memotong kuota.
+3. **U-05 dibayar di PR ini** — bagian ekspor `aiUsage`.
+4. **Kuota habis dikirim sebagai event SSE `error`** (bukan 429 JSON) — klien PR-068 cukup
+   punya satu cara membaca kegagalan chat.
+5. **Model bawaan diganti** (ditanyakan SETELAH verifikasi nyata menemukan keduanya 404):
+   `gemini-3.5-flash-lite` dan `qwen/qwen3.8-27b`.
+
+### Scope selesai
+
+**Core AI**
+
+* `core/ai/stream.ts` — `chatStream(request, opsi?)` dengan kanal samping `saatSelesai`
+  (provider yang menjawab + usage), pembaca usage Gemini/Groq, `stream_options.include_usage`,
+  `createStreamBelumDikonfigurasi`. Kontrak "yield teks" PR-045 tidak berubah.
+* `core/ai/gateway.ts` — `createAiStreamGateway(env)`: Gemini utama, Groq cadangan (hanya sebelum
+  token pertama), menghormati `AI_ROUTER_FORCE_PROVIDER`.
+* `core/ai/client.ts` — `AiClient.stream()`: kuota diperiksa saat di-await (sebelum aliran
+  dibuka); refund hanya bila gagal sebelum token pertama; satu baris `ai_usage` saat aliran
+  berakhir normal. Menutup utang PR-045 "streaming belum memotong kuota".
+* `core/ai/prompts/percakapan.ts` — `definePercakapan`: pintu template percakapan teks. Pesan
+  pengguna SELALU dibungkus `bungkusDataTakTepercaya`; instruksi anti-injeksi SELALU `system`
+  pertama; peran dijamin berselang-seling; `rapikan` menormalkan keluaran.
+* `core/ai/prompts/cv-interviewer.v1.ts` — persona, larangan nasihat medis DAN larangan menanyakan
+  disabilitas/diagnosis, few-shot, salam pembuka, `maksRiwayat` 30, `maxOutputTokens` 300.
+  Terdaftar di `PROMPT_REGISTRY`.
+* `core/http/sse.ts` — event penutup (`error`/`selesai`) ikut disimpan di cincin; sambung ulang
+  ke sesi yang sudah tutup memutar ulang sisanya lalu menutup; `galat(…, tambahan)` untuk
+  `degraded`/`retryAfterSeconds`; `flushHeaders` (lihat keputusan teknis 5).
+
+**Modul `ai`**
+
+* `services/cv-chat.service.ts` — `mulai`, `siapkan` (semua penolakan pra-aliran, JSON),
+  `jalankan` (tidak pernah melempar; semua kegagalan jadi event `error`), `sambungUlang`.
+* `services/cv-chat-aliran.ts` — registry aliran in-memory berplafon (200 serentak, retensi 60 dtk
+  setelah selesai) — syarat masuk dari log PR-045.
+* `controllers/cv-chat.controller.ts` + `createAiCvChatRouter` — tiga route `authenticated`.
+* `services/ai-usage-export.service.ts` + `AiUsageRepository.listForExport` — U-05.
+
+**Kontrak, konfigurasi, wiring**
+
+* `@nawasena/schemas`: `aiCvChatRequestSchema`, `aiCvChatErrorEventSchema`, bentuk event
+  terdokumentasi, `exportAiUsageSchema` + bagian `aiUsage`; OpenAPI tiga path baru.
+* Kode error: `AI_SEDANG_MENJAWAB` (409), `AI_ALIRAN_TIDAK_ADA` (404), `AI_CHAT_DIMATIKAN` (503),
+  `AI_CHAT_SIBUK` (503).
+* Env: `AI_CV_CHAT_ENABLED` (tuas rollback, bawaan `true`); default model chat diganti.
+* `boot.ts`: `createAiClient` (gateway, stream gateway, recorder `ai_usage`, cache di
+  `redis.cache`) → modul ai; kontributor ekspor `aiUsage`.
+
+**Test** — 35 baru: `ai-cv-chat.test.ts` (23), `ai-cv-chat-http.test.ts` (9),
+`ai-gateway-jangkauan.test.ts` (3). Fixture ekspor (api ×5, api-client, e2e web) ditambah `aiUsage`.
+
+### Keputusan teknis
+
+1. **Dua fase dengan batas di header HTTP.** `siapkan` menolak sebagai JSON selama header belum
+   terkirim; `jalankan` tidak pernah melempar karena errorHandler Express tidak bisa menulis ke
+   respons yang sudah mengalir.
+2. **Aliran tidak ikut mati saat klien pergi.** Jawaban tetap dibuat dan disimpan; event menumpuk
+   di cincin SSE. Yang dijamin AC "putus → resume" adalah GILIRANNYA, bukan koneksinya.
+3. **Pesan pengguna disimpan sebelum AI dipanggil.** Kuota habis atau provider tumbang tidak
+   menghilangkan apa yang ditulis pengguna — ekstraksi PR-067 tetap membacanya.
+4. **Token vs giliran.** Event `token` hanya pratinjau (teks mentah); event `giliran` membawa isi
+   yang SUDAH dirapikan dan tersimpan. Klien mengganti pratinjau dengan `giliran`. Itulah yang
+   membuat Gemini dan Groq tersimpan dengan format yang sama.
+5. **`flushHeaders` — ditemukan oleh test, bukan penalaran.** `writeHead` Node menahan header
+   sampai tulisan pertama; sambung ulang tanpa event untuk diputar membuat klien menunggu header
+   sampai token berikutnya (test menggantung). Diperbaiki di `sse.ts` untuk semua pemakai.
+6. **Degradasi dibedakan dari kegagalan.** Sebelum token pertama (kuota, AI tak tersedia) →
+   `degraded: true`, klien beralih ke formulir. Sesudah token pertama → bukan degradasi, cukup
+   kirim ulang. `AI_SAFETY_BLOCK` → bukan degradasi (permintaannya yang ditolak).
+7. **`POST /ai/cv-chat/sessions` adalah tulis tanpa AI yang sah** — ia hanya bisa membuat satu
+   sesi aktif dan satu salam, jadi tidak bisa menumbuhkan transkrip tanpa kuota.
+8. **Tidak ada circuit breaker di jalur stream** (breaker PR-042 membungkus `AiProvider`, yang
+   tidak punya `chatStream`). Konsekuensinya terukur di U-26.
+
+### Verifikasi
+
+* **Mutasi (tiga, semua merah, dipulihkan byte-identik via md5):** refund sesudah token pertama;
+  pesan pengguna tidak dibungkus; `createAiGateway` dipanggil dari `modules/ai`.
+* **Suite HTTP dijalankan 3× berturut-turut** — tidak flaky (soket & waktu nyata).
+* **Provider nyata (manual, 2026-09-28):** dua giliran lewat service lengkap. Giliran 1: Gemini
+  melewati 15 dtk → Groq menjawab (15,5 dtk total); giliran 2: Gemini 7,3 dtk. Satu pertanyaan per
+  giliran, bahasa sederhana; `ai_usage` tercatat dengan provider, token, dan versi prompt.
+
+### Risiko & temuan
+
+* **Semua jalur AI mati di lingkungan nyata sebelum PR ini** — model bawaan `gemini-2.0-flash` dan
+  `llama-3.3-70b-versatile` sudah 404, tanpa satu test pun merah (semuanya mock). Default diganti;
+  `.env` lokal yang masih menyebut model lama tetap menimpa default dan harus diedit manual.
+* **U-26 (baru):** token pertama Gemini stream 7–22 dtk.
+* **U-27 (baru):** model embedding `text-embedding-004` juga hilang — milik PR-069.
+* **Hipotesis yang dibatalkan:** sempat diduga Gemini membiarkan koneksi menggantung setelah
+  bingkai akhir, dan perbaikannya sudah ditulis; pengukuran per potongan membuktikan yang lambat
+  adalah waktu SEBELUM byte pertama. Perbaikannya dicabut sebelum commit.
+* **Registry aliran & cincin SSE hidup di memori satu proses** — dua replika butuh sticky routing
+  (PR-098); sambung ulang yang salah proses menerima 404 dan klien membaca transkrip.
+* **Pesan pengguna tanpa jawaban** (kuota habis) tetap di transkrip; pesan berikutnya digabung
+  dengannya saat dikirim ke model.
+* **Ukuran PR ~2.300 baris** (±40% test), jauh di atas panduan 500 LOC — tiga utang ikut dibayar.
+
+### Next steps
+
+* **PR-067** — finalize + ekstraksi; pemakai `withDegradation` pertama (sisa U-06).
+* **PR-068** — klien: fetch-SSE (bukan `EventSource`, sebab auth lewat header), ganti pratinjau
+  `token` dengan isi `giliran`, beralih ke formulir saat `degraded: true`.
+* **U-26** — putuskan timeout/urutan provider untuk chat setelah ada data latensi.

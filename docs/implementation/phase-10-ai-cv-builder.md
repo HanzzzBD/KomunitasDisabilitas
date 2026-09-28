@@ -149,11 +149,11 @@ Bisnis: USP AI CV Builder — wawancara terpandu suportif satu pertanyaan per gi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (prompt builder)
-* [ ] Integration Test (SSE + kuota + resume)
+* [x] Unit Test (prompt builder) — `ai-cv-chat.test.ts` (23 test: template, usage stream, `AiClient.stream`, SSE sesudah-tutup, registry aliran)
+* [x] Integration Test (SSE + kuota + resume) — `ai-cv-chat-http.test.ts` (9 test, server + soket nyata, mesin kuota asli)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (percakapan nyata staging)
+* [x] Manual Verification (percakapan nyata ~~staging~~ lokal, provider nyata) — dua giliran Gemini/Groq nyata lewat service lengkap (2026-09-28); menemukan model bawaan pensiun & latensi Gemini (U-26/U-27)
 
 **Deliverables:**
 
@@ -169,11 +169,11 @@ RB-Std; chat dapat dimatikan via flag → UI fallback form.
 
 #### Acceptance Criteria
 
-* [ ] Streaming end-to-end (mock provider).
-* [ ] Kuota habis → DegradedError event terstruktur di stream.
-* [ ] Putus → resume tanpa kehilangan giliran (test).
-* [ ] Prompt berversi tercatat di ai_usage.
-* [ ] Fallback Groq menghasilkan format giliran sama (normalisasi).
+* [x] Streaming end-to-end (mock provider). — `ai-cv-chat-http.test.ts`: `giliran → token… → giliran → selesai`, id berurutan, transkrip tersimpan
+* [x] Kuota habis → DegradedError event terstruktur di stream. — event `error` `KUOTA_AI_HABIS` + `degraded: true` + `retryAfterSeconds`; provider tidak disentuh
+* [x] Putus → resume tanpa kehilangan giliran (test). — koneksi diputus setelah token pertama; `GET /ai/cv-chat/:session/stream` + `Last-Event-Id` menerima sisa tanpa duplikat/lubang, giliran asisten tersimpan utuh
+* [x] Prompt berversi tercatat di ai_usage. — `promptVersion: "cv-interviewer.v1"` + token dari usage provider (Gemini `usageMetadata`, Groq `include_usage`)
+* [x] Fallback Groq menghasilkan format giliran sama (normalisasi). — `cvInterviewerV1.rapikan`; test HTTP fallback + test unit dua gaya keluaran
 
 #### Dependencies
 

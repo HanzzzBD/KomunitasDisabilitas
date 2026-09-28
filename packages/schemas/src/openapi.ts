@@ -27,6 +27,8 @@ import {
 import {
   aiChatSessionParamsSchema,
   aiChatSessionResponseSchema,
+  aiCvChatRequestSchema,
+  aiCvChatSessionStartResponseSchema,
   aiQuotaResponseSchema,
 } from "./ai.js";
 import {
@@ -710,6 +712,81 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
       // `POST /ai/cv-chat` (SSE, PR-066), satu-satunya jalur yang juga memotong
       // kuota. Menyediakan jalur tulis kedua di sini berarti transkrip yang bisa
       // tumbuh tanpa satu pun panggilan AI yang tercatat.
+      // Percakapan AI CV Builder (PR-066). Jawabannya `text/event-stream`;
+      // bentuk data tiap event ditulis di kepala blok cv-chat `ai.ts`.
+      "/ai/cv-chat/sessions": {
+        post: {
+          operationId: "startMyAiCvChat",
+          tags: ["ai"],
+          summary: "Mulai atau lanjutkan sesi AI CV Builder",
+          description:
+            "Mengembalikan SATU sesi aktif milik pemanggil. Sesi baru (201) sudah berisi " +
+            "salam pembuka dari pewawancara — tanpa memanggil AI dan tanpa memotong kuota. " +
+            "Sesi aktif yang sudah ada dikembalikan apa adanya (200). 503 bila fitur chat " +
+            "sedang dimatikan: klien beralih ke formulir CV biasa.",
+          responses: {
+            "200": jsonOk("Sesi aktif yang sudah ada", aiCvChatSessionStartResponseSchema),
+            "201": jsonOk("Sesi baru beserta salam pembuka", aiCvChatSessionStartResponseSchema),
+            ...responsSesi,
+            // Menimpa 503 `responsSesi` dengan sengaja: kunci sesi yang belum
+            // diatur tetap salah satu sebabnya, tetapi di route ini ada sebab lain.
+            "503": errorResponse(
+              "Fitur chat AI sedang dimatikan, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
+            ),
+          },
+        },
+      },
+      "/ai/cv-chat": {
+        post: {
+          operationId: "sendAiCvChatMessage",
+          tags: ["ai"],
+          summary: "Kirim pesan dan terima jawaban pewawancara (SSE)",
+          description:
+            "Menjawab `text/event-stream`: event `giliran` (pesan pengguna tersimpan), " +
+            "`token` (potongan jawaban), `giliran` (jawaban tersimpan), lalu `selesai`. " +
+            "Kegagalan setelah aliran dibuka dikirim sebagai event `error` " +
+            "(`AiCvChatErrorEvent`); `degraded: true` berarti klien beralih ke formulir. " +
+            "Menghabiskan satu jatah `cv_chat`. Kegagalan sebelum aliran dibuka dijawab JSON biasa.",
+          requestBody: jsonBody(aiCvChatRequestSchema),
+          responses: {
+            "200": {
+              description: "Aliran SSE",
+              content: { "text/event-stream": { schema: { type: "string" } } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("Sesi tidak ditemukan"),
+            "409": errorResponse("Sesi sudah selesai, atau jawaban sebelumnya masih berjalan"),
+            ...responsSesi,
+            // Menimpa 503 `responsSesi` dengan sengaja: kunci sesi yang belum
+            // diatur tetap salah satu sebabnya, tetapi di route ini ada sebab lain.
+            "503": errorResponse(
+              "Fitur chat AI dimatikan atau server sedang penuh, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
+            ),
+          },
+        },
+      },
+      "/ai/cv-chat/{session}/stream": {
+        get: {
+          operationId: "resumeAiCvChatStream",
+          tags: ["ai"],
+          summary: "Sambung ulang aliran jawaban (SSE)",
+          description:
+            "Dipakai setelah koneksi putus: kirim header `Last-Event-Id` berisi nomor event " +
+            "terakhir yang diterima; event sesudahnya diputar ulang lalu aliran berlanjut. " +
+            "404 bila tidak ada aliran untuk sesi ini (sudah lama selesai) — ambil " +
+            "transkripnya lewat `GET /ai/cv-chat/{session}`, jawabannya sudah tersimpan di sana.",
+          requestParams: { path: aiChatSessionParamsSchema },
+          responses: {
+            "200": {
+              description: "Aliran SSE",
+              content: { "text/event-stream": { schema: { type: "string" } } },
+            },
+            "400": errorResponse("`session` bukan UUID"),
+            "404": errorResponse("Tidak ada aliran untuk sesi ini"),
+            ...responsSesi,
+          },
+        },
+      },
       "/ai/cv-chat/{session}": {
         get: {
           operationId: "getMyAiChatSession",

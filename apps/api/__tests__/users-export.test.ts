@@ -92,13 +92,20 @@ const kontributorChatAi: ExportContributor = {
   kumpulkan: async () => [],
 };
 
-/** Kelima kontributor modul lain — urutannya sama dengan boot.ts. */
+/** Jejak pemakaian AI (U-05, PR-066) — metadata biaya saja. */
+const kontributorPemakaianAi: ExportContributor = {
+  bagian: "aiUsage",
+  kumpulkan: async () => [],
+};
+
+/** Keenam kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
   kontributorKanal,
   kontributorNotifikasi,
   kontributorChatAi,
+  kontributorPemakaianAi,
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
@@ -256,6 +263,7 @@ describe("agregator ekspor", () => {
       "notificationChannels",
       "notifications",
       "aiChatSessions",
+      "aiUsage",
     ]);
   });
 });
@@ -280,6 +288,7 @@ describe("audit ekspor", () => {
           "notificationChannels",
           "notifications",
           "aiChatSessions",
+          "aiUsage",
         ],
       },
     });

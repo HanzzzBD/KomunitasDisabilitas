@@ -128,6 +128,18 @@ const BERKAS_UJI = {
       finalizedAt: null,
     },
   ],
+  // U-05 (PR-066). Satu baris, bukan larik kosong — alasan yang sama dengan
+  // `notifications` di atas. Tanpa bagian ini klien menolak berkasnya.
+  aiUsage: [
+    {
+      feature: "cv_chat",
+      provider: "gemini",
+      tokensIn: 812,
+      tokensOut: 64,
+      promptVersion: "cv-interviewer.v1",
+      createdAt: "2026-01-15T20:01:00.000Z",
+    },
+  ],
 } as const;
 
 /**

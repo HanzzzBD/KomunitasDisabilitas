@@ -13,7 +13,7 @@
 // sini. Keduanya tetap `export` di berkas asalnya karena dipakai di sana;
 // yang hilang hanyalah permukaan publiknya ke luar `core/ai`. Menambahkannya
 // kembali menuntut pemanggil nyata di luar modul ini, bukan antisipasi.
-export { createAiGateway, type AiGatewayEnv } from "./gateway.js";
+export { createAiGateway, createAiStreamGateway, type AiGatewayEnv } from "./gateway.js";
 export {
   AI_EMBED_DIMENSIONS,
   AiProviderError,
@@ -115,6 +115,13 @@ export {
   type OpsiBungkus,
 } from "./guard.js";
 export {
+  cvInterviewerV1,
+  definePercakapan,
+  type GiliranRiwayat,
+  type PercakapanSpec,
+  type PercakapanTemplate,
+} from "./prompts/index.js";
+export {
   definePrompt,
   PROMPT_CACHE_TTL_DEFAULT_DETIK,
   PROMPT_CACHE_TTL_MAKS_DETIK,
@@ -151,4 +158,6 @@ export {
   type AliranBiner,
   type GeminiStreamConfig,
   type GroqStreamConfig,
+  type LaporanStream,
+  type OpsiStream,
 } from "./stream.js";

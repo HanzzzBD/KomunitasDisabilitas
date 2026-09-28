@@ -166,7 +166,9 @@ const envSchema = z.object({
   GEMINI_CHAT_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("gemini-2.0-flash"),
+    // Diganti 2026-09-28 (PR-066): `gemini-2.0-flash` sudah 404 — terbukti saat
+    // verifikasi nyata pertama. Lihat utang U-26 untuk latensi model ini.
+    .default("gemini-3.5-flash-lite"),
   /** 768 dimensi (ADR-005) — dicocokkan dengan kolom vector(768) di adapter. */
   GEMINI_EMBED_MODEL: z
     .string()
@@ -193,7 +195,10 @@ const envSchema = z.object({
   GROQ_CHAT_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("llama-3.3-70b-versatile"),
+    // Diganti 2026-09-28 (PR-066): `llama-3.3-70b-versatile` sudah 404. Model
+    // penalaran (`gpt-oss-20b`) SENGAJA tidak dipakai: ia menghabiskan seluruh
+    // `maxOutputTokens` untuk penalaran dan tidak mengirim satu kata pun jawaban.
+    .default("qwen/qwen3.8-27b"),
   /** Base URL hanya diganti untuk test/staging; adapter menambahkan /openai/v1/…. */
   GROQ_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.groq.com"),
   /** Batas tunggu satu panggilan Groq; batasnya sama dengan GEMINI_TIMEOUT_MS. */
@@ -225,6 +230,16 @@ const envSchema = z.object({
       errorMap: () => ({ message: "harus 'true' atau 'false'" }),
     })
     .default("false")
+    .transform((nilai) => nilai === "true"),
+
+  // Tuas rollback AI CV Builder (PR-066): `false` mematikan chat tanpa deploy —
+  // `POST /ai/cv-chat*` menjawab 503 ber-degradasi dan klien beralih ke
+  // formulir CV biasa. Transkrip yang sudah ada tetap bisa dibaca.
+  AI_CV_CHAT_ENABLED: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("true")
     .transform((nilai) => nilai === "true"),
 
   // --- Push notification FCM HTTP v1 (PR-048b, SDD §16 `notify:push`) ---

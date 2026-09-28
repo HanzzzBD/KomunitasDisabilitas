@@ -165,3 +165,63 @@ export const aiChatSessionResponseSchema = z
   .openapi({ ref: "AiChatSessionResponse" });
 
 export type AiChatSessionResponse = z.infer<typeof aiChatSessionResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Endpoint percakapan AI CV Builder (PR-066).
+//
+// `POST /ai/cv-chat` menjawab `text/event-stream`, bukan JSON. Skema di bawah
+// menuliskan BENTUK DATA tiap event supaya klien (PR-068) punya satu sumber:
+//
+//   event `giliran` — data: `AiChatTurn` (JSON). Dikirim DUA kali per
+//                      permintaan: giliran pengguna setelah tersimpan, lalu
+//                      giliran asisten setelah jawaban utuh tersimpan.
+//   event `token`   — data: potongan teks mentah (BUKAN JSON). Hanya untuk
+//                      tampilan sementara; sumber kebenarannya `giliran`.
+//   event `error`   — data: `AiCvChatErrorEvent` (JSON), lalu aliran ditutup.
+//   event `selesai` — data kosong; aliran ditutup normal.
+//
+// Setiap event bernomor (`id:`); sambung ulang lewat
+// `GET /ai/cv-chat/:session/stream` dengan header `Last-Event-Id`.
+// ---------------------------------------------------------------------------
+
+/** Body `POST /ai/cv-chat`. */
+export const aiCvChatRequestSchema = z
+  .object({
+    /** Sesi dari `POST /ai/cv-chat/sessions` — harus sesi AKTIF milik pemanggil. */
+    sessionId: idSchema,
+    message: z
+      .string()
+      .trim()
+      .min(1, { message: "Pesan tidak boleh kosong" })
+      .max(AI_CHAT_LIMITS.maxContentChars, {
+        message: `Pesan paling panjang ${String(AI_CHAT_LIMITS.maxContentChars)} karakter`,
+      }),
+  })
+  .strict()
+  .openapi({ ref: "AiCvChatRequest" });
+
+export type AiCvChatRequest = z.infer<typeof aiCvChatRequestSchema>;
+
+/**
+ * Muatan event `error`. Amplop yang sama dengan error HTTP ({code, message,
+ * hint}) ditambah dua penanda:
+ *
+ * - `degraded: true` — kegagalan ini PUNYA jalur turun: klien beralih ke
+ *   formulir CV biasa dengan pesan jujur, bukan menampilkan galat (ADR-005).
+ *   Dipakai untuk kuota habis dan AI yang tidak tersedia sebelum menjawab.
+ * - `retryAfterSeconds` — kapan jatah dibuka lagi (kuota habis).
+ */
+export const aiCvChatErrorEventSchema = z
+  .object({
+    code: z.string(),
+    message: z.string(),
+    hint: z.string(),
+    degraded: z.boolean().optional(),
+    retryAfterSeconds: z.number().int().nonnegative().optional(),
+  })
+  .openapi({ ref: "AiCvChatErrorEvent" });
+
+export type AiCvChatErrorEvent = z.infer<typeof aiCvChatErrorEventSchema>;
+
+/** Response `POST /ai/cv-chat/sessions` — 201 sesi baru, 200 sesi aktif yang ada. */
+export const aiCvChatSessionStartResponseSchema = aiChatSessionResponseSchema;
