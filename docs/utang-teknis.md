@@ -551,6 +551,31 @@ membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bil
 
 ---
 
+### U-24 — Tiga AC Phase 09 menunggu verifikasi manual/lingkungan nyata
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | Audit AC penutupan Phase 09 (2026-09-28) |
+| **Pemilik** | Belum ditetapkan (butuh perangkat Windows + NVDA + Adobe Reader) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), atau saat ada perangkat NVDA — mana yang lebih dulu |
+
+Phase 09 ditutup ke `main` atas override owner dengan tiga AC terbuka (rincian di blok override
+[Exit Criteria Phase 09](implementation/phase-09-resume-builder-pdf.md#exit-criteria)):
+
+1. **PR-061** — isi [checklist NVDA editor CV](implementation/log/pr-061-nvda-checklist.md).
+2. **PR-063** — isi kotak manual [checklist urutan baca PDF](implementation/log/pr-063-pdf-reading-order-checklist.md)
+   (Adobe Reader + NVDA atas PDF hasil worker nyata).
+3. **PR-064** — tempuh sekali jalur utuh: stack compose penuh, minta PDF dari UI, tunggu notifikasi
+   `resume.pdf_siap`, unduh, buka berkasnya. Sejak PR-064a/b jalur ini dapat ditempuh di lokal
+   (bucket otomatis, URL presigned dapat dibuka browser).
+
+Sama sifatnya dengan U-12 dkk.: bukan kode yang kurang, melainkan bukti yang hanya bisa diambil
+manusia dengan perangkat nyata.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;
