@@ -40,6 +40,7 @@ import {
   loadQueueConfigs,
   type JobProcessor,
   type ProcessorMap,
+  createQueueRegistry,
 } from "@nawasena/api/core/queue";
 import {
   createResumePdfService,
@@ -52,6 +53,19 @@ import { createAiUsageProcessor } from "./processors/ai-usage.js";
 import { createPushProcessor } from "./processors/push.js";
 import { createEmailProcessor } from "./processors/email.js";
 import { createPdfRenderProcessor } from "./processors/pdf-render.js";
+import { createAiExtractResumeProcessor } from "./processors/ai-extract-resume.js";
+import { createRedisClients } from "@nawasena/api/core/redis";
+import {
+  createAiQuota,
+  cvExtractorV1,
+  loadAiQuotaConfig,
+  rakitAiClient,
+} from "@nawasena/api/core/ai";
+import {
+  createAiUsageRecorder,
+  createChatSessionsRepository,
+  createCvEkstraksiService,
+} from "@nawasena/api/modules/ai";
 import { createPuppeteerPdfRenderer } from "./pdf/puppeteer-renderer.js";
 
 /**
@@ -80,8 +94,12 @@ try {
 }
 
 let queueConfigs;
+let quotaConfig;
 try {
   queueConfigs = loadQueueConfigs();
+  // Gerbang fail-fast yang SAMA dengan api (PR-043): angka kuota yang salah
+  // ketik menggagalkan boot, bukan berperilaku aneh pada job pertama.
+  quotaConfig = loadAiQuotaConfig();
 } catch (err) {
   console.error(err instanceof EnvError ? err.message : err);
   process.exit(1);
@@ -165,6 +183,47 @@ const notificationsService = createNotificationsService({
   notificationRepository: createNotificationRepository(prisma),
 });
 
+// Service CV — dipakai jalur PDF (PR-063) DAN ekstraksi AI (PR-067): satu
+// service, satu penegakan batas lima CV untuk kedua jalur.
+const resumesService = createResumesService({
+  repo: createResumesRepository(prisma),
+  maksPerPengguna: env.RESUME_MAX_PER_USER,
+});
+
+// Jalur ekstraksi CV (PR-067). `AiClient` dirakit lewat `rakitAiClient` —
+// perakit yang SAMA dengan api; worker tidak memanggil pabrik provider (U-07).
+// Kuota di atas `redis.queue` (bukan cache) — alasan di boot.ts api. Worker
+// tidak MEMOTONG jatah (API sudah melakukannya saat enqueue); ia hanya
+// mengembalikannya bila percobaan terakhir gagal karena provider.
+const redis = createRedisClients(env);
+const queues = createQueueRegistry({ configs: queueConfigs, connection });
+const aiQuota = createAiQuota({
+  redis: redis.queue,
+  config: quotaConfig,
+  logger,
+  failOpen: env.AI_QUOTA_FAIL_OPEN,
+});
+const aiMetrics = {
+  increment: (name: string) => logger.warn({ metric: name }, "Metrik AI bertambah"),
+};
+const aiClient = rakitAiClient({
+  env,
+  logger,
+  quota: aiQuota,
+  recorder: createAiUsageRecorder({ queues, logger, metrics: aiMetrics }),
+  cacheRedis: redis.cache,
+  metrics: aiMetrics,
+});
+const cvEkstraksi = createCvEkstraksiService({
+  repo: createChatSessionsRepository(prisma),
+  ai: aiClient,
+  quota: aiQuota,
+  resumes: resumesService,
+  notifikasi: notificationsService,
+  template: cvExtractorV1,
+  logger,
+});
+
 // Jalur PDF (PR-063). Seluruh dependensi eksternal dirakit di composition root:
 // repository CV, R2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
 // menjatuhkan processor lain, tetapi berisik dan queue pdf-render tidak dibaca.
@@ -173,12 +232,8 @@ if (env.PDF_CHROMIUM_EXECUTABLE_PATH === undefined) {
   logger.error({}, "Path Chromium belum diatur — processor pdf-render tidak dijalankan");
 } else {
   try {
-    const resumes = createResumesService({
-      repo: createResumesRepository(prisma),
-      maksPerPengguna: env.RESUME_MAX_PER_USER,
-    });
     const pdf = createResumePdfService({
-      resumes,
+      resumes: resumesService,
       storage: createObjectStorage(storageConfigFromEnv(env)),
       renderer: createPuppeteerPdfRenderer({
         executablePath: env.PDF_CHROMIUM_EXECUTABLE_PATH,
@@ -218,6 +273,12 @@ const PROCESSORS: ProcessorMap = {
   // proses API pada setiap penghapusan akun yang pemiliknya tanpa nomor HP.
   [QUEUE_NAME.NOTIFY_EMAIL]: createEmailProcessor({ email: emailService, logger }),
   ...(pdfProcessor === undefined ? {} : { [QUEUE_NAME.PDF_RENDER]: pdfProcessor }),
+  // PR-067. Event-driven — produsernya `POST /ai/cv-chat/:session/finalize`.
+  [QUEUE_NAME.AI_EXTRACT_RESUME]: createAiExtractResumeProcessor({
+    ekstraksi: cvEkstraksi,
+    attempts: queueConfigs[QUEUE_NAME.AI_EXTRACT_RESUME].attempts,
+    logger,
+  }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
@@ -284,7 +345,15 @@ function shutdown(signal: string): void {
 
   runtime
     .drain()
-    .then(() => Promise.allSettled([dlq.close(), dlqPool.close(), prisma.$disconnect()]))
+    .then(() =>
+      Promise.allSettled([
+        dlq.close(),
+        dlqPool.close(),
+        queues.close(),
+        redis.end(),
+        prisma.$disconnect(),
+      ]),
+    )
     .then(() => {
       logger.info("Worker berhenti bersih");
       process.exit(0);

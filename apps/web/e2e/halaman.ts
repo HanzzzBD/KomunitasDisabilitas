@@ -152,6 +152,8 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   // progres, sehingga penantiannya selesai sebelum layarnya benar-benar
   // berganti.
   { nama: "CV - daftar", jalur: "/cv", butuhSesi: true },
+  // PR-068 — halaman chat (sesi dengan salam statis; mock di palsukan-api.ts).
+  { nama: "CV - chat AI", jalur: "/cv/chat", butuhSesi: true },
   {
     nama: "CV - editor terisi",
     jalur: "/cv/01912345-89ab-7def-8123-4567890abf01",

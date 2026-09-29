@@ -100,7 +100,12 @@ async function boot(redis: RedisKuotaPalsu = redisKuotaPalsu()) {
 
   const api = createServer(env, logger, {
     routes: (app) => {
-      app.use(createAiModule({ quota, routes: registry.forModule("/api/v1") }));
+      // Prisma tak pernah disentuh route kuota — `{}` cukup, dan membuat
+      // pemakaian yang tak sengaja melempar alih-alih diam-diam berjalan.
+      app.use(
+        createAiModule({ prisma: {} as never, quota, routes: registry.forModule("/api/v1") })
+          .router,
+      );
     },
   });
   // Gerbang PR-019: route tanpa deklarasi akses membuat boot GAGAL.
@@ -132,8 +137,17 @@ interface JawabanKuota {
 describe("deklarasi route (AC-6)", () => {
   it("terdaftar sebagai GET /api/v1/ai/quota dengan akses authenticated", async () => {
     const { registry } = await boot();
+    // Rute AI CV Builder (PR-065/066) ikut terpasang lewat modul yang sama.
+    // Daftarnya LENGKAP dengan sengaja: route baru di modul ai harus terlihat
+    // di sini, dan satu pun yang tidak `authenticated` membuat test ini merah.
+    const auth = { kind: "authenticated" } as const;
     expect(registry.list()).toEqual([
-      { method: "GET", path: "/api/v1/ai/quota", access: { kind: "authenticated" } },
+      { method: "POST", path: "/api/v1/ai/cv-chat", access: auth },
+      { method: "GET", path: "/api/v1/ai/cv-chat/:session", access: auth },
+      { method: "POST", path: "/api/v1/ai/cv-chat/:session/finalize", access: auth },
+      { method: "GET", path: "/api/v1/ai/cv-chat/:session/stream", access: auth },
+      { method: "POST", path: "/api/v1/ai/cv-chat/sessions", access: auth },
+      { method: "GET", path: "/api/v1/ai/quota", access: auth },
     ]);
   });
 });

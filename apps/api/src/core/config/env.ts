@@ -128,6 +128,13 @@ const envSchema = z.object({
   RETENTION_REFRESH_REUSE_DAYS: hariRetensi(730),
   RETENTION_MATCH_SCORES_DAYS: hariRetensi(7),
   RETENTION_AI_USAGE_DAYS: hariRetensi(90),
+  /**
+   * Transkrip AI CV Builder (PR-065): hari setelah `finalized_at`, dan — untuk
+   * sesi yang ditinggal tanpa pernah selesai — hari setelah aktivitas terakhir.
+   * Satu angka untuk keduanya (keputusan owner 2026-09-28): minimisasi PDP yang
+   * sama tidak punya alasan berbeda bagi percakapan yang tidak pernah usai.
+   */
+  RETENTION_AI_CHAT_SESSIONS_DAYS: hariRetensi(30),
   /** Baris per DELETE. Batch besar mengunci lama & menggelembungkan WAL. */
   RETENTION_BATCH_SIZE: z.coerce
     .number({ invalid_type_error: "harus angka" })
@@ -159,7 +166,9 @@ const envSchema = z.object({
   GEMINI_CHAT_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("gemini-2.0-flash"),
+    // Diganti 2026-09-28 (PR-066): `gemini-2.0-flash` sudah 404 — terbukti saat
+    // verifikasi nyata pertama. Lihat utang U-26 untuk latensi model ini.
+    .default("gemini-3.5-flash-lite"),
   /** 768 dimensi (ADR-005) — dicocokkan dengan kolom vector(768) di adapter. */
   GEMINI_EMBED_MODEL: z
     .string()
@@ -186,7 +195,10 @@ const envSchema = z.object({
   GROQ_CHAT_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("llama-3.3-70b-versatile"),
+    // Diganti 2026-09-28 (PR-066): `llama-3.3-70b-versatile` sudah 404. Model
+    // penalaran (`gpt-oss-20b`) SENGAJA tidak dipakai: ia menghabiskan seluruh
+    // `maxOutputTokens` untuk penalaran dan tidak mengirim satu kata pun jawaban.
+    .default("qwen/qwen3.8-27b"),
   /** Base URL hanya diganti untuk test/staging; adapter menambahkan /openai/v1/…. */
   GROQ_BASE_URL: z.string().url({ message: "harus URL valid" }).default("https://api.groq.com"),
   /** Batas tunggu satu panggilan Groq; batasnya sama dengan GEMINI_TIMEOUT_MS. */
@@ -202,6 +214,18 @@ const envSchema = z.object({
    * satu provider terbukti bermasalah dan kita perlu mematikannya tanpa deploy.
    */
   AI_ROUTER_FORCE_PROVIDER: z.enum(["gemini", "groq"]).optional(),
+  /**
+   * Batas menunggu token PERTAMA dari provider utama pada jalur stream
+   * (PR-068b, utang U-26). Lewat batas → cadangan (Groq) mengambil alih.
+   * Bawaan 8 dtk: di atas waktu token pertama Gemini saat normal (~1 dtk,
+   * terukur 2026-09-29), jauh di bawah lonjakannya (7–22 dtk, 2026-09-28).
+   */
+  AI_STREAM_FIRST_TOKEN_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1_000, { message: "minimal 1000" })
+    .max(60_000, { message: "maksimal 60000" })
+    .default(8_000),
   // --- Kuota AI (PR-043, SDD 7.1) ---
   //
   // Angka jatahnya TIDAK di sini: ia berpola (AI_QUOTA_<FITUR>_PER_DAY) dan
@@ -218,6 +242,16 @@ const envSchema = z.object({
       errorMap: () => ({ message: "harus 'true' atau 'false'" }),
     })
     .default("false")
+    .transform((nilai) => nilai === "true"),
+
+  // Tuas rollback AI CV Builder (PR-066): `false` mematikan chat tanpa deploy —
+  // `POST /ai/cv-chat*` menjawab 503 ber-degradasi dan klien beralih ke
+  // formulir CV biasa. Transkrip yang sudah ada tetap bisa dibaca.
+  AI_CV_CHAT_ENABLED: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("true")
     .transform((nilai) => nilai === "true"),
 
   // --- Push notification FCM HTTP v1 (PR-048b, SDD §16 `notify:push`) ---

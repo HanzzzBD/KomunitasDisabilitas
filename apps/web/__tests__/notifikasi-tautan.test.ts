@@ -23,6 +23,7 @@ const PARAMS = {
   jobId: "01912345-89ab-7def-8123-4567890abf01",
   status: "interview",
   resumeId: "01912345-89ab-7def-8123-4567890abf02",
+  sessionId: "01912345-89ab-7def-8123-4567890abf03",
 };
 
 describe("tujuan notifikasi", () => {
@@ -59,6 +60,15 @@ describe("tujuan notifikasi", () => {
     expect(tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_PDF_SIAP, params: PARAMS })).toBe(
       `/cv/${PARAMS.resumeId}`,
     );
+  });
+
+  it("draft CV dari AI: siap → editor draft-nya; gagal → halaman chat (transkrip + formulir)", () => {
+    expect(tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP, params: PARAMS })).toBe(
+      `/cv/${PARAMS.resumeId}`,
+    );
+    expect(
+      tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_DRAFT_AI_GAGAL, params: PARAMS }),
+    ).toBe("/cv/chat");
   });
 
   it("tidak satu pun tipe menjanjikan alamat yang belum ada di router", () => {

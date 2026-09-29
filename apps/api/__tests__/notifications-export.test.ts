@@ -172,6 +172,8 @@ describe("kontributor bagian notifications", () => {
       accessibility: { ...ACCESSIBILITY_PROFILE_KOSONG },
       notificationChannels: { email: null, push: null },
       notifications: await kontributor.kumpulkan(USER_ID),
+      aiChatSessions: [],
+      aiUsage: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);

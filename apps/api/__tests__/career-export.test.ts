@@ -169,6 +169,8 @@ describe("kontributor bagian profile", () => {
       accessibility: { ...ACCESSIBILITY_PROFILE_KOSONG },
       notificationChannels: { email: null, push: null },
       notifications: [],
+      aiChatSessions: [],
+      aiUsage: [],
     });
 
     expect(berkas.profile.skills).toEqual([SKILL]);

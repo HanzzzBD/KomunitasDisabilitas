@@ -21,12 +21,43 @@ const FOREIGN_KEY_VIOLATION = "P2003";
  */
 export type HasilSimpan = "ditulis" | "duplikat" | "pemilik-hilang";
 
+/** Satu baris `ai_usage` untuk ekspor PDP — tanpa `id` dan `userId` (milik pemiliknya sendiri). */
+export interface AiUsageBarisEkspor {
+  feature: AiFeature;
+  provider: string;
+  tokensIn: number;
+  tokensOut: number;
+  promptVersion: string | null;
+  createdAt: Date;
+}
+
 export interface AiUsageRepository {
   simpan(job: AiUsageRecordJob): Promise<HasilSimpan>;
+  /**
+   * Seluruh baris milik `userId`, terlama dulu (U-05, PR-066). Tak berbatas,
+   * sama seperti ekspor notifikasi: ekspor PDP yang memotong riwayat bukan
+   * ekspor yang lengkap. Retensi 90 hari (SDD §6.4) yang membatasinya.
+   */
+  listForExport(userId: string): Promise<AiUsageBarisEkspor[]>;
 }
 
 export function createAiUsageRepository(prisma: AppPrisma): AiUsageRepository {
   return {
+    listForExport(userId) {
+      return prisma.aiUsage.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          feature: true,
+          provider: true,
+          tokensIn: true,
+          tokensOut: true,
+          promptVersion: true,
+          createdAt: true,
+        },
+      });
+    },
+
     /**
      * Tulis satu baris. IDEMPOTEN BY CONSTRUCTION: `id` dibuat API dan menjadi
      * primary key, jadi retry BullMQ yang membawa payload sama akan menabrak PK

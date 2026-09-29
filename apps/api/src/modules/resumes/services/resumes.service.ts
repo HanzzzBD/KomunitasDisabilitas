@@ -70,6 +70,19 @@ export interface ResumesServiceDeps {
   maksPerPengguna: number;
 }
 
+/**
+ * Opsi pemanggil INTERNAL (PR-067) — tidak pernah dari badan permintaan HTTP.
+ *
+ * `id` deterministik membuat pembuatan draft IDEMPOTEN: worker ekstraksi yang
+ * di-retry setelah draft sudah tersimpan (tetapi sebelum sesi ditandai selesai)
+ * menemukan CV ber-id sama alih-alih membuat draft kedua. Controller
+ * `/me/resumes` tidak pernah mengisinya — id pilihan klien adalah id yang bisa
+ * ditebak dan ditabrak.
+ */
+export interface OpsiBuatCv {
+  id?: string;
+}
+
 export interface ResumesService {
   list(actor: ResumesActor): Promise<ResumeSummary[]>;
   get(actor: ResumesActor, id: string): Promise<Resume>;
@@ -82,7 +95,12 @@ export interface ResumesService {
    * kontrak isi, dan satu pemetaan baris — alih-alih dua service yang lambat
    * laun berbeda pada hal yang tidak ada yang memeriksanya.
    */
-  create(actor: ResumesActor, input: CreateResume, createdVia?: ResumeCreatedVia): Promise<Resume>;
+  create(
+    actor: ResumesActor,
+    input: CreateResume,
+    createdVia?: ResumeCreatedVia,
+    opsi?: OpsiBuatCv,
+  ): Promise<Resume>;
   update(actor: ResumesActor, id: string, input: UpdateResume): Promise<Resume>;
   /** Internal worker: false bila CV berubah/hilang selama proses render. */
   setPdfReadyIfUnchanged(
@@ -108,7 +126,7 @@ export function createResumesService(deps: ResumesServiceDeps): ResumesService {
       return keResume(row);
     },
 
-    async create(actor, input, createdVia = "manual") {
+    async create(actor, input, createdVia = "manual", opsi = {}) {
       // Penegakan batasnya ada DI DALAM satu transaksi di repository, bukan
       // sebagai `count()` terpisah di sini — lihat `createIfUnderLimit`. `null`
       // berarti batasnya sudah tercapai, dan itu satu-satunya arti `null` di
@@ -118,7 +136,7 @@ export function createResumesService(deps: ResumesServiceDeps): ResumesService {
         // id tidak pernah datang dari klien: id pilihan klien adalah id yang
         // bisa ditebak, dan baris yang idnya bisa ditebak adalah baris yang bisa
         // ditabrak dengan sengaja.
-        uuidV7(),
+        opsi.id ?? uuidV7(),
         { title: input.title, content: input.content, createdVia },
         maksPerPengguna,
       );

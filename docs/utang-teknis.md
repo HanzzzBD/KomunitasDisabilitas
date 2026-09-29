@@ -213,7 +213,7 @@ sebab yang disimpan sistem ini memang `type` + referensi. Barisnya berpindah `DI
 
 | | |
 |---|---|
-| **Status** | TERBUKA (atribusi dikoreksi 2026-09-05) |
+| **Status** | **LUNAS — PR-066 (2026-09-28)** (atribusi dikoreksi 2026-09-05) |
 | **Jenis** | Kepatuhan (UU PDP §8.7) |
 | **Pemilik** | **PR-066** (bukan Phase 06) |
 | **Pemicu** | Saat endpoint fitur AI pertama menulis baris `ai_usage` |
@@ -228,6 +228,12 @@ Yang salah hanyalah **pemiliknya**: bukan Phase 06 yang melahirkan datanya, mela
 PR-066 — endpoint AI pertama. Dibiarkan menunjuk Phase 06, baris ini akan terlihat seperti
 utang yang sudah jatuh tempo padahal belum, dan setiap rekonsiliasi berikutnya akan
 membuang waktu memeriksanya ulang.
+
+**PEMBAYARANNYA (2026-09-28, PR-066).** Pemicunya menyala di PR yang sama —
+`POST /ai/cv-chat` menulis baris `ai_usage` pertama — dan dibayar di sana (keputusan owner).
+Bagian ekspor `aiUsage` (`exportAiUsageSchema`: fitur, provider, token, versi prompt, waktu —
+tanpa isi, sebab isi memang tidak pernah disimpan) lewat `createAiUsageExportContributor`;
+`ai_usage` pindah `DITUNDA` → `TERDAFTAR` di `export-kelengkapan.test.ts`.
 
 ---
 
@@ -310,8 +316,8 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
-| **Pemilik** | PR-066 |
+| **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
+| **Pemilik** | Belum ditetapkan — pemakai alami: **PR-072** (re-rank feed → daftar tanpa peringkat) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -320,13 +326,33 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 `createAiQuota` + `createAiModule({ quota })`. Seluruh jaminan Phase 06 karena itu hari ini
 hanya sekuat test-nya; belum ada satu pun yang berjalan di produksi.
 
+**PEMBAYARAN PR-066.** `boot.ts` kini merakit `createAiClient` dengan `createAiGateway`,
+`createAiStreamGateway` (baru), recorder `ai_usage`, dan `createAiPromptCache` di atas
+`redis.cache`; jalur SSE hidup lewat `POST /ai/cv-chat`. **Yang belum:** `withDegradation`
+masih tanpa pemanggil — chat menurunkan kegagalan lewat event SSE ber-`degraded`, bukan lewat
+pembungkus itu (aliran tidak punya "nilai pengganti" untuk dikembalikan).
+
+**PR-067 juga tidak memakainya, dengan sengaja.** Finalize asinkron: kegagalan ekstraksi tidak
+"diganti nilai" di tempat, melainkan menjadi KEADAAN (`extractionFailedAt` + notifikasi gagal)
+yang dibaca klien. Sisi API-nya melempar `DegradedError` (kuota, fitur mati) yang sampai ke
+klien sebagai 429/503 — penurunannya terjadi di klien. Pemakai alami `withDegradation` karena
+itu kemungkinan besar bukan di jalur CV sama sekali; PR-068 yang memutuskan, dan bila ternyata
+tidak ada pemakai sah, pertimbangkan mencabut ekspornya (aturan PR-041: seam tanpa pemakai
+dicabut, bukan dibiarkan).
+
+**PR-068 memutuskan: bukan di jalur CV.** Klien menurunkan kegagalan dari penanda `degraded`
+(event SSE / kode 429–503), bukan dari `withDegradation` — helper itu milik server dan butuh
+"nilai pengganti" yang bisa dikembalikan di tempat. Fitur pertama yang punya nilai seperti itu
+adalah re-rank feed (PR-072: daftar tanpa peringkat). Bila PR-072 juga tidak memakainya, cabut
+ekspornya di sana.
+
 ---
 
 ### U-07 — Seam F1: tidak ada penjaga struktural atas `createAiGateway`
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-066 (2026-09-28)** |
 | **Pemilik** | PR-066 (syarat masuk) |
 | **Pemicu** | Modul mana pun yang memanggil `createAiGateway` langsung |
 | **Sumber** | Log Phase 06 (PR-043b F1) |
@@ -339,6 +365,12 @@ jejak biaya **dan** cache. Diverifikasi 2026-09-05: masih tidak ada penjaganya;
 Perlu dicatat bahwa penjaga sejenis **sudah terbukti bisa dibuat** di repo ini —
 `boundaries.test.ts` sudah melarang impor tiga SDK AI (AC-5 PR-041). Yang kurang bukan
 mekanismenya, melainkan aturannya.
+
+**PEMBAYARANNYA (PR-066).** `__tests__/ai-gateway-jangkauan.test.ts` menolak PEMANGGILAN
+delapan pabrik provider (`createAiGateway`, `createAiStreamGateway`, router, adapter
+Gemini/Groq baik chat maupun stream) di mana pun selain `src/core/ai/**` dan `src/boot.ts`,
+termasuk `apps/worker`. Diverifikasi mutasi: menambah satu panggilan `createAiGateway` di
+`modules/ai` membuat build merah. Ekspornya dari barrel tetap ada — composition root butuh.
 
 ---
 
@@ -555,7 +587,7 @@ membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bil
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | TERBUKA — sebagian dibayar PR-068c (2026-09-29) |
 | **Jenis** | Verifikasi manual |
 | **Ditemukan** | Audit AC penutupan Phase 09 (2026-09-28) |
 | **Pemilik** | Belum ditetapkan (butuh perangkat Windows + NVDA + Adobe Reader) |
@@ -573,6 +605,124 @@ Phase 09 ditutup ke `main` atas override owner dengan tiga AC terbuka (rincian d
 
 Sama sifatnya dengan U-12 dkk.: bukan kode yang kurang, melainkan bukti yang hanya bisa diambil
 manusia dengan perangkat nyata.
+
+**Dibayar sebagian — PR-068c (2026-09-29).** NVDA nyata dijalankan otomatis
+(`apps/web/verifikasi/`); rinciannya ada di tiap checklist.
+Butir 3 (**PR-064**) **LUNAS**: jalur utuh sudah ditempuh lewat UI di stack lokal.
+**Masih terbuka:**
+* **PR-063:** navigasi heading di pembaca PDF yang memakai tag (Adobe). Penampil Chrome tidak
+  mengekspos heading PDF. Pohon struktur sudah terbukti benar. Juga belum diuji: zoom, kontras
+  tinggi, dan pindah halaman.
+* **PR-061:** label, status wajib, dan tombol nonaktif di dalam bagian, serta daftar CV. Langkah
+  ini butuh desktop yang tidak sedang dipakai orang lain.
+
+---
+
+### U-25 — CV (`resumes`) masih `DITUNDA` di ekspor PDP padahal datanya sudah ada
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Kepatuhan (UU PDP §8.7) |
+| **Ditemukan** | PR-065 (2026-09-28), saat mendaftarkan `ai_chat_sessions` ke penjaga yang sama |
+| **Pemilik** | Belum ditetapkan — PR kecil tersendiri (kontributor ekspor modul `resumes`) |
+| **Pemicu** | **Sudah menyala** sejak PR-060 merged: pengguna bisa membuat CV lewat `/me/resumes` |
+
+`export-kelengkapan.test.ts` masih menaruh `resumes` di `DITUNDA` dengan alasan *"belum ada
+endpoint yang bisa membuat CV"*. Alasan itu berhenti benar sejak PR-060 (Phase 09 sudah di
+`main`): CV adalah data pengguna sungguhan yang hari ini **tidak ikut** berkas `GET /me/export`,
+tanpa satu pun penjaga menyalak — pola yang persis sama dengan U-03/U-04.
+
+**Kenapa tidak dibayar di PR-065.** Membayarnya menyentuh kontrak `dataExportSchema`, modul
+`resumes`, dan fixture ekspor — di luar scope sesi chat, dan PR-065 sudah menambah satu bagian
+ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor` di atas
+`resumes.service` (bentuk `Resume` yang sama dengan `GET /me/resumes/:id`), pindahkan barisnya
+`DITUNDA` → `TERDAFTAR`.
+
+---
+
+### U-26 — Latensi token pertama Gemini (stream) 7–22 detik
+
+| | |
+|---|---|
+| **Status** | **LUNAS — PR-068b (2026-09-29)** |
+| **Jenis** | Kinerja / pengalaman pengguna |
+| **Ditemukan** | Verifikasi manual PR-066 (2026-09-28), provider nyata |
+| **Pemilik** | Belum ditetapkan — keputusan operasional (model/timeout/urutan provider) |
+| **Pemicu** | Keluhan "chat lambat", atau metrik latensi PR-103 |
+
+`streamGenerateContent` untuk `gemini-3.5-flash-lite` baru mengirim header setelah **7–22 detik**
+(terukur tiga kali), lalu seluruh jawaban tiba dalam <0,5 detik — jadi bukan koneksi yang
+menggantung, melainkan waktu sebelum byte pertama. `generateContent` (non-stream) untuk prompt
+kecil menjawab dalam ~1 detik, jadi lambatnya khas jalur stream akun/model ini.
+
+Akibatnya hari ini: giliran yang melewati `GEMINI_TIMEOUT_MS` (15 dtk) jatuh ke Groq SEBELUM token
+pertama — benar menurut desain router stream, tetapi pengguna menunggu 15 detik dulu. Groq
+(`qwen/qwen3.8-27b`) menjawab token pertama dalam ~0,25 detik.
+
+**Pilihan yang ada (belum diputuskan):** timeout khusus stream yang lebih pendek; Groq sebagai
+utama untuk chat (menyimpang dari ADR-005 — perlu catatan ADR); atau model Gemini lain setelah
+diukur. Owner memilih mengganti default model saja di PR-066 (2026-09-28).
+
+**PEMBAYARANNYA (PR-068b, keputusan owner 2026-09-29: batas token-pertama).** Pengukuran ulang
+menunjukkan latensinya MELONJAK menurut waktu, bukan lambat permanen: model yang sama menjawab
+token pertama ~1 dtk pada 2026-09-29 (3 kali ukur), sementara `gemini-3.5-flash` (non-lite)
+timeout 40 dtk. Router stream kini membatalkan permintaan Gemini yang belum mengirim token apa pun
+dalam `AI_STREAM_FIRST_TOKEN_MS` (bawaan 8 dtk) dan menyerahkannya ke Groq — hanya sebelum
+token pertama, jadi aturan PR-045 tetap utuh. Gemini tetap utama (ADR-005 tidak berubah).
+Diverifikasi nyata: Gemini lambat → Groq menjawab dalam 1,3 dtk; Gemini normal tetap menjawab
+sendiri (0,6 dtk).
+
+---
+
+### U-27 — Model embedding bawaan `text-embedding-004` sudah tidak tersedia
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Konfigurasi / risiko fitur |
+| **Ditemukan** | Verifikasi manual PR-066 (2026-09-28) |
+| **Pemilik** | **PR-069** (embedding profil, Phase 11) — syarat masuk |
+| **Pemicu** | Panggilan `embed` pertama |
+
+Daftar model akun Gemini hari ini hanya memuat `gemini-embedding-001`, `gemini-embedding-2`, dan
+`gemini-embedding-2-preview`; `GEMINI_EMBED_MODEL` bawaan (`text-embedding-004`) tidak ada.
+**Tidak diganti di PR-066**: kolom `vector(768)` dan `AI_EMBED_DIMENSIONS = 768` (ADR-005) terikat
+pada dimensinya, dan model pengganti berdimensi bawaan berbeda (perlu `outputDimensionality`).
+Keputusan itu milik PR yang pertama kali memakai embedding, bukan PR chat.
+
+Temuan sejenis yang SUDAH dibayar di PR-066: `gemini-2.0-flash` dan `llama-3.3-70b-versatile`
+sama-sama 404 — artinya sejak entah kapan SEMUA jalur AI (termasuk non-stream Phase 06) mati di
+lingkungan nyata tanpa satu test pun merah. Default chat diganti ke `gemini-3.5-flash-lite` /
+`qwen/qwen3.8-27b` (keputusan owner). `.env` lokal yang masih menyebut model lama tetap menimpa
+default — baris itu harus dihapus manual.
+
+---
+
+### U-28 — AC manual Phase 10: NVDA & jaringan 3G untuk chat CV
+
+| | |
+|---|---|
+| **Status** | TERBUKA — sebagian dibayar PR-068c (2026-09-29) |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | PR-068 (2026-09-29) |
+| **Pemilik** | Belum ditetapkan (butuh Windows + NVDA, dan API dengan kunci AI sah) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), bersama U-24 |
+
+Isi [checklist PR-068](implementation/log/pr-068-nvda-checklist.md): pengumuman per kalimat
+dan fokus yang tidak berpindah pada NVDA NYATA, serta Slow 3G / putus-sambung di browser
+nyata. Semua yang bisa dibuktikan mesin sudah (e2e + axe); yang tersisa adalah telinga
+manusia — sifat yang sama dengan U-24.
+
+**Dibayar sebagian — PR-068c (2026-09-29), NVDA nyata dan provider AI nyata.** Hasilnya:
+* pengumuman "sedang mengetik" satu kali, lalu jawaban tanpa kalimat terulang;
+* tidak ada ucapan pindah fokus;
+* Slow 3G: fokus tetap;
+* putus di tengah: sambung ulang dengan `Last-Event-Id`, 0 giliran dobel.
+
+**Masih terbuka:** pintu masuk `/cv`, kuota/degradasi, finalize, putus > 1 menit, tampilan sempit,
+dan aliran bertahap di bawah 3G (tidak teramati lewat throttling CDP). Semuanya ada di
+[checklist PR-068](implementation/log/pr-068-nvda-checklist.md).
 
 ---
 

@@ -5,7 +5,18 @@ export {
   type ApiClient,
   type ApiClientOptions,
   type RequestOptions,
+  type StreamOptions,
 } from "./client.js";
+export { uraiSse, type AliranByte, type EventSse } from "./sse.js";
+export {
+  aiKeys,
+  finalizeAiChatSession,
+  getAiChatSession,
+  getAiQuota,
+  resumeAiChatStream,
+  startAiChatSession,
+  streamAiChat,
+} from "./endpoints/ai.js";
 export { ApiError, JARINGAN_GAGAL, RESPONS_TIDAK_DIKENAL, toErrorEnvelope } from "./errors.js";
 export { queryKey, type QueryKey, type QueryParams } from "./query-keys.js";
 export {

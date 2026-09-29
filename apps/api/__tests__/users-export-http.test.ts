@@ -209,6 +209,10 @@ async function boot() {
               kumpulkan: async () => ({ email: null, push: null }),
             },
             { bagian: "notifications", kumpulkan: async () => [] },
+            // PR-065 — wajib sejak tabel transkrip AI lahir.
+            { bagian: "aiChatSessions", kumpulkan: async () => [] },
+            // U-05 (PR-066) — wajib sejak `ai_usage` punya penulis.
+            { bagian: "aiUsage", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -336,7 +340,15 @@ describe("GET /api/v1/me/export — audit & log", () => {
       meta: {
         format: "json",
         formatVersion: EXPORT_FORMAT_VERSION,
-        sections: ["account", "profile", "accessibility", "notificationChannels", "notifications"],
+        sections: [
+          "account",
+          "profile",
+          "accessibility",
+          "notificationChannels",
+          "notifications",
+          "aiChatSessions",
+          "aiUsage",
+        ],
       },
     });
   });

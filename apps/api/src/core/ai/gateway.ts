@@ -10,6 +10,13 @@ import type { Logger } from "../logger/index.js";
 import { createGeminiProvider, GEMINI_PROVIDER } from "./providers/gemini.js";
 import { createGroqProvider, GROQ_PROVIDER } from "./providers/groq.js";
 import { createAiRouter } from "./router.js";
+import {
+  createAiStreamRouter,
+  createGeminiStream,
+  createGroqStream,
+  createStreamBelumDikonfigurasi,
+  type AiStreamProvider,
+} from "./stream.js";
 import { AiProviderError, type AiProvider, type FetchLike } from "./types.js";
 
 const BELUM_DIKONFIGURASI = "belum-dikonfigurasi";
@@ -54,6 +61,7 @@ export type AiGatewayEnv = Pick<
   | "GROQ_CHAT_MODEL"
   | "GROQ_TIMEOUT_MS"
   | "AI_ROUTER_FORCE_PROVIDER"
+  | "AI_STREAM_FIRST_TOKEN_MS"
 >;
 
 /**
@@ -137,4 +145,51 @@ export function createAiGateway(
       ? { forceProvider: env.AI_ROUTER_FORCE_PROVIDER }
       : {}),
   });
+}
+
+/**
+ * Rakit gateway STREAMING dari env (PR-066): Gemini utama, Groq cadangan —
+ * cadangan HANYA sebelum token pertama (`createAiStreamRouter`).
+ *
+ * Tidak ada circuit breaker di jalur ini, dan itu batas yang disadari: breaker
+ * PR-042 membungkus `AiProvider`, yang tidak punya `chatStream`. Akibatnya saat
+ * Gemini tumbang, setiap aliran membayar satu percobaan gagal sebelum jatuh ke
+ * Groq. Pada skala MVP harganya satu timeout per giliran; bila terasa, jalannya
+ * adalah breaker yang membaca kegagalan stream juga — bukan menyalin router.
+ *
+ * `AI_ROUTER_FORCE_PROVIDER` dihormati dengan arti yang sama seperti jalur
+ * non-stream: satu provider saja, tanpa cadangan.
+ *
+ * Peringatan kunci kosong TIDAK diulang di sini — `createAiGateway` sudah
+ * mencatatnya sekali saat boot, dan keadaannya sama.
+ */
+export function createAiStreamGateway(env: AiGatewayEnv, fetchImpl?: FetchLike): AiStreamProvider {
+  const gemini =
+    env.GEMINI_API_KEY === undefined
+      ? createStreamBelumDikonfigurasi(GEMINI_PROVIDER)
+      : createGeminiStream(
+          {
+            apiKey: env.GEMINI_API_KEY,
+            baseUrl: env.GEMINI_BASE_URL,
+            chatModel: env.GEMINI_CHAT_MODEL,
+            timeoutMs: env.GEMINI_TIMEOUT_MS,
+          },
+          fetchImpl,
+        );
+  const groq =
+    env.GROQ_API_KEY === undefined
+      ? createStreamBelumDikonfigurasi(GROQ_PROVIDER)
+      : createGroqStream(
+          {
+            apiKey: env.GROQ_API_KEY,
+            baseUrl: env.GROQ_BASE_URL,
+            chatModel: env.GROQ_CHAT_MODEL,
+            timeoutMs: env.GROQ_TIMEOUT_MS,
+          },
+          fetchImpl,
+        );
+
+  if (env.AI_ROUTER_FORCE_PROVIDER === "gemini") return gemini;
+  if (env.AI_ROUTER_FORCE_PROVIDER === "groq") return groq;
+  return createAiStreamRouter(gemini, groq, { batasTokenPertamaMs: env.AI_STREAM_FIRST_TOKEN_MS });
 }

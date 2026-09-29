@@ -38,6 +38,14 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // alasan yang sudah berhenti benar — lihat catatan di atas DITUNDA.
   accessibility_profiles: "accessibility",
   notifications: "notifications",
+  // PR-065 — terdaftar sejak tabelnya lahir, bukan ditunda: pelajaran U-03/U-04
+  // (keputusan owner 2026-09-28). Tabelnya memang masih kosong sampai PR-066,
+  // tetapi alasan "belum ada datanya" persis yang dulu dibiarkan basi.
+  ai_chat_sessions: "aiChatSessions",
+  // U-05, dibayar PR-066 — endpoint yang menulis baris `ai_usage` pertama.
+  // Pemicunya menyala di PR ini, jadi dibayar di PR ini (keputusan owner
+  // 2026-09-28), bukan dibiarkan menunggu rekonsiliasi berikutnya.
+  ai_usage: "aiUsage",
 };
 
 /**
@@ -47,7 +55,7 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  *
  * KETIGA SISANYA BENAR-BENAR BELUM BISA ADA. Tabelnya sudah ada sejak migrasi
  * 02–03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini tidak bisa
- * membuat CV maupun melamar, dan `ai_usage` menunggu endpoint AI pertama. Jadi
+ * membuat CV maupun melamar (`ai_usage` menyusul, lunas di PR-066). Jadi
  * ekspor tanpa bagian-bagian ini bukan ekspor yang setengah jadi — ia lengkap
  * terhadap data yang benar-benar bisa dimiliki seseorang.
  *
@@ -71,11 +79,6 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
 const DITUNDA: Readonly<Record<string, string>> = {
   resumes: "modul resumes (Phase 09) — belum ada endpoint yang bisa membuat CV",
   applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
-  // Pemiliknya dikoreksi 2026-09-05 (U-05): Phase 06 melahirkan MODULNYA, bukan
-  // datanya. `boot.ts` belum merakit `aiClient` (U-06), jadi belum ada satu pun
-  // baris `ai_usage` milik siapa pun. Yang akan melahirkan datanya PR-066.
-  ai_usage:
-    "PR-066 (endpoint AI pertama) — Phase 06 melahirkan modulnya, bukan datanya; tabel masih kosong",
 };
 
 /**

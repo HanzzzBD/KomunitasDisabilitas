@@ -25,6 +25,51 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
   it("katalog ter-snapshot — perubahan pesan selalu terlihat di review", () => {
     expect(ERROR_CATALOG).toMatchInlineSnapshot(`
       {
+        "AI_ALIRAN_TIDAK_ADA": {
+          "hint": "Muat ulang percakapan untuk melihat jawaban yang sudah tersimpan",
+          "message": "Jawaban ini sudah tidak bisa disambung lagi",
+          "status": 404,
+        },
+        "AI_CHAT_DIMATIKAN": {
+          "hint": "Anda tetap bisa membuat CV lewat formulir biasa",
+          "message": "Chat AI sedang tidak tersedia",
+          "status": 503,
+        },
+        "AI_CHAT_SIBUK": {
+          "hint": "Coba lagi sebentar lagi, atau lanjutkan lewat formulir CV biasa",
+          "message": "Chat AI sedang ramai",
+          "status": 503,
+        },
+        "AI_SEDANG_MENJAWAB": {
+          "hint": "Tunggu jawabannya selesai, lalu kirim pesan berikutnya",
+          "message": "Pewawancara masih menjawab pesan sebelumnya",
+          "status": 409,
+        },
+        "AI_SESI_KOSONG": {
+          "hint": "Jawab beberapa pertanyaan dulu, atau isi CV lewat formulir biasa",
+          "message": "Percakapan ini belum berisi jawaban Anda",
+          "status": 409,
+        },
+        "AI_SESI_SEDANG_DIFINALISASI": {
+          "hint": "Tunggu sebentar. Anda akan diberi tahu saat draft siap",
+          "message": "Draft CV sedang dibuat dari percakapan ini",
+          "status": 409,
+        },
+        "AI_SESI_SUDAH_SELESAI": {
+          "hint": "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
+          "message": "Percakapan ini sudah selesai",
+          "status": 409,
+        },
+        "AI_SESI_TIDAK_DITEMUKAN": {
+          "hint": "Mungkin sudah lewat 30 hari dan dihapus. Mulai percakapan baru, atau isi formulir CV",
+          "message": "Percakapan tidak ditemukan",
+          "status": 404,
+        },
+        "AI_TRANSKRIP_PENUH": {
+          "hint": "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
+          "message": "Percakapan ini sudah terlalu panjang",
+          "status": 409,
+        },
         "AKOMODASI_LOWONGAN_KOSONG": {
           "hint": "Tambahkan minimal satu akomodasi lewat PUT sebelum menerbitkan lowongan",
           "message": "Lowongan ini belum mencantumkan akomodasi apa pun",

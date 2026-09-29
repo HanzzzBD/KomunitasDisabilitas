@@ -54,6 +54,9 @@ const EKSPOR = {
   // SAMA dengan kolomnya — bukan menyusul seperti U-03/U-04.
   notificationChannels: { email: null, push: null },
   notifications: [],
+  // Bagian `aiChatSessions` WAJIB sejak PR-065 (transkrip AI CV Builder).
+  aiChatSessions: [],
+  aiUsage: [],
 };
 
 const PROFIL = {

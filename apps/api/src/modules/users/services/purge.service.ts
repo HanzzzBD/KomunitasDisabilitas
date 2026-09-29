@@ -65,6 +65,10 @@ export const TABEL_DIHAPUS = [
   "resume",
   "matchScore",
   "aiUsage",
+  // PR-065. Transkrip AI CV Builder adalah kata-kata pengguna tentang riwayat
+  // kerjanya — data pribadi yang paling jelas. Retensi 30 hari TIDAK menahan
+  // hak hapus: akun terhapus membawa serta transkripnya hari itu juga.
+  "aiChatSession",
   "notification",
   // PR-048a. WAJIB ikut, dan alasannya bukan kebersihan: baris `devices`
   // memegang token FCM yang masih hidup di perangkat fisik seseorang. Akun yang

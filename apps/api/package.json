@@ -15,6 +15,8 @@
     "./modules/users": "./src/modules/users/index.ts",
     "./modules/auth": "./src/modules/auth/index.ts",
     "./core/events": "./src/core/events/index.ts",
+    "./core/ai": "./src/core/ai/index.ts",
+    "./core/redis": "./src/core/redis/index.ts",
     "./modules/jobs": "./src/modules/jobs/index.ts",
     "./modules/ai": "./src/modules/ai/index.ts",
     "./modules/notifications": "./src/modules/notifications/index.ts",

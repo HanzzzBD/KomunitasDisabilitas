@@ -72,11 +72,11 @@ Bisnis: percakapan CV tidak hilang saat koneksi 3G putus (T7). Teknis: state ses
 
 **Testing Checklist:**
 
-* [ ] Unit Test (append)
-* [ ] Integration Test (authz + konkurensi)
+* [x] Unit Test (append) — `ai-chat-sessions.test.ts` (13 test: validasi giliran, pemetaan penolakan, guard tipe, kebijakan retensi, HTTP)
+* [x] Integration Test (authz + konkurensi) — `ai-chat-sessions-db.test.ts` (15 test, PostgreSQL nyata)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (psql)
+* [x] Manual Verification (psql) — `\d ai_chat_sessions`: unique parsial `satu_aktif`, dua CHECK, FK cascade (2026-09-28)
 
 **Deliverables:**
 
@@ -92,11 +92,11 @@ Migrasi additive; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Sesi dibuat/dibaca/di-append dengan authz benar.
-* [ ] Retensi terdaftar di PR-024 (test selector).
-* [ ] Transkrip berisi giliran berurutan konsisten (append aman konkuren).
-* [ ] Migrasi down teruji.
-* [ ] Ukuran transkrip dibatasi (guard).
+* [x] Sesi dibuat/dibaca/di-append dengan authz benar. — `ai-chat-sessions-db.test.ts` + HTTP `GET /ai/cv-chat/:session`: sesi milik orang lain = 404 identik dengan yang tidak ada
+* [x] Retensi terdaftar di PR-024 (test selector). — `createAiChatSessionPolicies` dirakit di worker retensi; selektor `finalized`/`abandoned` diuji lewat `createRetentionService` di DB nyata
+* [x] Transkrip berisi giliran berurutan konsisten (append aman konkuren). — 20 append serentak → `seq` 1..20 tanpa ganda/lubang; 8 "mulai" serentak → satu sesi
+* [x] Migrasi down teruji. — `down.sql` lalu `migration.sql` dijalankan di DB nyata di dalam transaksi yang di-rollback
+* [x] Ukuran transkrip dibatasi (guard). — `AI_CHAT_LIMITS` (2.000 karakter/giliran, 120 giliran, 256 KiB) ditegakkan di `WHERE` append yang sama; tahan permintaan serentak
 
 #### Dependencies
 
@@ -149,11 +149,11 @@ Bisnis: USP AI CV Builder — wawancara terpandu suportif satu pertanyaan per gi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (prompt builder)
-* [ ] Integration Test (SSE + kuota + resume)
+* [x] Unit Test (prompt builder) — `ai-cv-chat.test.ts` (23 test: template, usage stream, `AiClient.stream`, SSE sesudah-tutup, registry aliran)
+* [x] Integration Test (SSE + kuota + resume) — `ai-cv-chat-http.test.ts` (9 test, server + soket nyata, mesin kuota asli)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (percakapan nyata staging)
+* [x] Manual Verification (percakapan nyata ~~staging~~ lokal, provider nyata) — dua giliran Gemini/Groq nyata lewat service lengkap (2026-09-28); menemukan model bawaan pensiun & latensi Gemini (U-26/U-27)
 
 **Deliverables:**
 
@@ -169,11 +169,11 @@ RB-Std; chat dapat dimatikan via flag → UI fallback form.
 
 #### Acceptance Criteria
 
-* [ ] Streaming end-to-end (mock provider).
-* [ ] Kuota habis → DegradedError event terstruktur di stream.
-* [ ] Putus → resume tanpa kehilangan giliran (test).
-* [ ] Prompt berversi tercatat di ai_usage.
-* [ ] Fallback Groq menghasilkan format giliran sama (normalisasi).
+* [x] Streaming end-to-end (mock provider). — `ai-cv-chat-http.test.ts`: `giliran → token… → giliran → selesai`, id berurutan, transkrip tersimpan
+* [x] Kuota habis → DegradedError event terstruktur di stream. — event `error` `KUOTA_AI_HABIS` + `degraded: true` + `retryAfterSeconds`; provider tidak disentuh
+* [x] Putus → resume tanpa kehilangan giliran (test). — koneksi diputus setelah token pertama; `GET /ai/cv-chat/:session/stream` + `Last-Event-Id` menerima sisa tanpa duplikat/lubang, giliran asisten tersimpan utuh
+* [x] Prompt berversi tercatat di ai_usage. — `promptVersion: "cv-interviewer.v1"` + token dari usage provider (Gemini `usageMetadata`, Groq `include_usage`)
+* [x] Fallback Groq menghasilkan format giliran sama (normalisasi). — `cvInterviewerV1.rapikan`; test HTTP fallback + test unit dua gaya keluaran
 
 #### Dependencies
 
@@ -226,11 +226,11 @@ Bisnis: hasil chat menjadi CV nyata yang direview manusia (AI mengusulkan, manus
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parser retry)
-* [ ] Integration Test (job penuh, output rusak disimulasikan)
+* [x] Unit Test (parser retry) — `ai-cv-ekstraksi.test.ts` (14 test)
+* [x] Integration Test (job penuh, output rusak disimulasikan) — `ai-cv-finalize-http.test.ts` (9, kuota asli) + `ai-cv-finalize-db.test.ts` (8, PostgreSQL nyata)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (finalize sesi nyata staging)
+* [x] Manual Verification (finalize sesi nyata ~~staging~~ lokal, provider nyata) — transkrip 6 giliran → draft valid percobaan pertama; disabilitas & nomor HP yang diucapkan TIDAK masuk CV (2026-09-28)
 
 **Deliverables:**
 
@@ -246,11 +246,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Output valid → draft resume tersimpan utk review.
-* [ ] Invalid 1× → retry dengan feedback; 2× → fallback manual (tidak buntu).
-* [ ] Tidak ada draft gagal-schema tersimpan (test).
-* [ ] Notifikasi "draft CV siap direview".
-* [ ] Idempoten per sesi (finalize ganda aman).
+* [x] Output valid → draft resume tersimpan utk review. — `created_via: ai_chat`, id = id sesi, sesi `finalized` + `resumeId`
+* [x] Invalid 1× → retry dengan feedback; 2× → fallback manual (tidak buntu). — perbaikan memuat jalur+pesan masalah; gagal 2× → sesi kembali `active` + `extractionError`, transkrip utuh, notifikasi `resume.draft_ai_gagal`
+* [x] Tidak ada draft gagal-schema tersimpan (test). — satu-satunya jalan ke `resumes.create` lewat `resumeContentInputSchema.safeParse` sukses; field disabilitas ditolak `.strict()` (mutasi: melewati validasi → 4 test merah)
+* [x] Notifikasi "draft CV siap direview". — `resume.draft_ai_siap` (satu per sesi) + tautan web ke editor draft
+* [x] Idempoten per sesi (finalize ganda aman). — API: 202/200 tanpa job & jatah kedua; worker: job ganda dilewati, retry setelah draft tersimpan memakai draft yang ada
 
 #### Dependencies
 
@@ -303,11 +303,11 @@ Bisnis: pembeda produk dirasakan SEMUA ragam pengguna (chat usable dengan screen
 
 **Testing Checklist:**
 
-* [ ] Unit Test (useAiStream state machine)
+* [x] Unit Test (useAiStream state machine) — `cv-chat-aliran.test.ts` (9: kalimat, alur normal, degradasi, putus → sambung, 404, menyerah)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (happy + degraded + putus-sambung)
-* [ ] Accessibility Test (axe + NVDA aria-live manual)
-* [ ] Manual Verification (3G throttling)
+* [x] E2E Test (happy + degraded + putus-sambung) — `e2e/cv-chat.spec.ts` (6, termasuk finalize → draft & fitur dimatikan)
+* [ ] Accessibility Test (axe + NVDA aria-live manual) — axe: `/cv/chat` masuk registry halaman, lulus; NVDA: [checklist](log/pr-068-nvda-checklist.md) belum diisi (U-28)
+* [ ] Manual Verification (3G throttling) — [checklist](log/pr-068-nvda-checklist.md) bagian jaringan lambat (U-28)
 
 **Deliverables:**
 
@@ -323,11 +323,11 @@ RB-Std; flag mematikan chat → hanya form manual.
 
 #### Acceptance Criteria
 
-* [ ] Chat→finalize→draft→edit→simpan end-to-end.
-* [ ] Kuota habis → beralih form manual dengan pesan jujur (bukan error).
-* [ ] Putus koneksi → resume tanpa kehilangan percakapan.
-* [ ] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual).
-* [ ] Sisa kuota tampil & akurat.
+* [x] Chat→finalize→draft→edit→simpan end-to-end. — e2e chat → finalize → tautan "Buka draft CV" ke `/cv/:id`; edit→simpan dijaga `cv-editor.spec.ts` (PR-061) di editor yang sama
+* [x] Kuota habis → beralih form manual dengan pesan jujur (bukan error). — mode formulir di tempat, tanpa `role="alert"`, transkrip tetap terlihat (keputusan owner)
+* [x] Putus koneksi → resume tanpa kehilangan percakapan. — `Last-Event-Id` (unit + e2e); 404 → muat ulang transkrip
+* [x] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual). — otomatis: live region per kalimat + fokus tetap di kotak ketik (e2e); **NVDA 2026.1.1 nyata (PR-068c):** tiap kalimat terucap tepat sekali, tanpa ucapan pindah fokus, fokus tetap di kotak ketik — juga di Slow 3G dan saat putus-sambung ([checklist](log/pr-068-nvda-checklist.md)). Butir checklist di luar AC ini tetap di U-28
+* [x] Sisa kuota tampil & akurat. — dari `GET /ai/quota`, dimuat ulang setiap jawaban & finalize
 
 #### Dependencies
 
@@ -347,6 +347,16 @@ Phase 10 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+> **Status penutupan (audit 2026-09-29, PR-068d): seluruh AC terpenuhi, tanpa override.**
+> Keempat PR (PR-065..PR-068) ditambah PR-068b (U-26) dan PR-068c (verifikasi NVDA) sudah merged
+> lewat PR ke branch phase dengan `lint-typecheck-test` dan `a11y` hijau di setiap PR. Ke-20 AC per
+> PR tercentang dengan bukti. AC manual NVDA di PR-068 dibuktikan dengan NVDA nyata.
+> **Yang TIDAK termasuk AC tetapi tetap terbuka** (tercatat di [utang-teknis](../utang-teknis.md)):
+> * U-28, sisa checklist chat: pintu masuk, kuota habis/degradasi, finalize, putus > 1 menit,
+>   dan tampilan sempit dengan pembaca layar.
+> * U-24, dari Phase 09: navigasi heading PDF di Adobe dan langkah di dalam bagian editor.
+> * U-27: model embedding untuk PR-069.
 
 ## Next Phase
 

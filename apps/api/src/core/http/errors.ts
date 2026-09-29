@@ -240,6 +240,74 @@ export const ERROR_CATALOG = {
     message: "CV ini sedang dipakai pada lamaran yang sudah Anda kirim",
     hint: "Buat CV baru bila ingin mengubah isinya, atau ubah CV ini tanpa menghapusnya",
   },
+  // --- Sesi AI CV Builder (PR-065) ---
+  // 404 juga untuk sesi milik orang lain — alasannya sama dengan CV_TIDAK_DITEMUKAN.
+  AI_SESI_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Percakapan tidak ditemukan",
+    hint: "Mungkin sudah lewat 30 hari dan dihapus. Mulai percakapan baru, atau isi formulir CV",
+  },
+  // 409: bentuk permintaannya sah, yang bentrok adalah KEADAAN sesi. Sesi yang
+  // sudah menjadi draft CV tidak menerima giliran baru — menambahkannya akan
+  // membuat transkrip berbeda dari draft yang sudah diekstrak darinya.
+  AI_SESI_SUDAH_SELESAI: {
+    status: 409,
+    message: "Percakapan ini sudah selesai",
+    hint: "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
+  },
+  // 409, bukan 413: yang penuh adalah SESINYA, bukan permintaan ini. Pesannya
+  // menyebut dua jalan keluar yang benar-benar ada — tidak ada yang hilang,
+  // percakapan yang sudah terjadi tetap bisa dijadikan draft CV.
+  AI_TRANSKRIP_PENUH: {
+    status: 409,
+    message: "Percakapan ini sudah terlalu panjang",
+    hint: "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
+  },
+  // --- Finalize AI CV Builder (PR-067) ---
+  // 409: draft CV sedang dibuat dari percakapan ini. Giliran baru akan membuat
+  // transkrip berbeda dari yang sedang diekstrak.
+  AI_SESI_SEDANG_DIFINALISASI: {
+    status: 409,
+    message: "Draft CV sedang dibuat dari percakapan ini",
+    hint: "Tunggu sebentar. Anda akan diberi tahu saat draft siap",
+  },
+  // 409: finalize tanpa satu pun jawaban pengguna hanya akan menghasilkan CV
+  // kosong — dan memakan satu jatah finalize untuk itu.
+  AI_SESI_KOSONG: {
+    status: 409,
+    message: "Percakapan ini belum berisi jawaban Anda",
+    hint: "Jawab beberapa pertanyaan dulu, atau isi CV lewat formulir biasa",
+  },
+  // --- Percakapan AI CV Builder (PR-066) ---
+  // 409: satu sesi hanya boleh punya SATU jawaban yang sedang mengalir. Pesan
+  // kedua yang tiba sebelum jawaban pertama selesai akan membuat dua jawaban
+  // saling menyela di transkrip yang sama.
+  AI_SEDANG_MENJAWAB: {
+    status: 409,
+    message: "Pewawancara masih menjawab pesan sebelumnya",
+    hint: "Tunggu jawabannya selesai, lalu kirim pesan berikutnya",
+  },
+  // 404 untuk sambung ulang yang datang terlambat. Bukan kehilangan: jawabannya
+  // sudah tersimpan di transkrip, dan hint-nya menunjuk ke sana.
+  AI_ALIRAN_TIDAK_ADA: {
+    status: 404,
+    message: "Jawaban ini sudah tidak bisa disambung lagi",
+    hint: "Muat ulang percakapan untuk melihat jawaban yang sudah tersimpan",
+  },
+  // 503 + degradasi: fitur dimatikan operator (rollback PR-066) — klien
+  // beralih ke formulir CV biasa, bukan menampilkan galat.
+  AI_CHAT_DIMATIKAN: {
+    status: 503,
+    message: "Chat AI sedang tidak tersedia",
+    hint: "Anda tetap bisa membuat CV lewat formulir biasa",
+  },
+  // 503 + degradasi: plafon aliran serentak tercapai (penyangga sambung-ulang
+  // hidup di memori proses, jadi jumlahnya harus dibatasi).
+  AI_CHAT_SIBUK: {
+    status: 503,
+    message: "Chat AI sedang ramai",
+    hint: "Coba lagi sebentar lagi, atau lanjutkan lewat formulir CV biasa",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

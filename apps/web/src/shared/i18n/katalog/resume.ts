@@ -3,8 +3,9 @@ import type { KatalogFitur } from "../tipe.js";
 export const katalogResume = {
   "resume.daftar.judul": { id: "CV saya", "id-simple": "Daftar CV saya" },
   "resume.daftar.deskripsi": {
-    id: "Buat dan kelola CV secara manual. Data profil Anda disalin sebagai titik awal dan tetap dapat diubah.",
-    "id-simple": "Buat CV tanpa bantuan AI. Data profil akan disalin dan masih bisa Anda ubah.",
+    id: "Buat CV lewat obrolan dengan pewawancara AI, atau dari data profil Anda. Keduanya bisa diubah sebelum dipakai.",
+    "id-simple":
+      "Pilih cara buat CV: ngobrol dengan AI, atau salin dari profil. Keduanya masih bisa diubah.",
   },
   "resume.daftar.buat": { id: "Buat CV dari profil", "id-simple": "Buat CV memakai profil" },
   "resume.daftar.membuat": { id: "Membuat CVâ€¦", "id-simple": "CV sedang dibuatâ€¦" },
@@ -204,5 +205,84 @@ export const katalogResume = {
   "resume.galat.batas": {
     id: "Anda sudah mencapai batas jumlah CV.",
     "id-simple": "Jumlah CV Anda sudah penuh. Hapus satu CV sebelum membuat yang baru.",
+  },
+
+  // --- AI CV Builder (PR-068) ---
+  "resume.daftar.buatChat": {
+    id: "Buat dengan chat AI",
+    "id-simple": "Buat CV sambil ngobrol dengan AI",
+  },
+  "resume.chat.judul": { id: "Buat CV lewat obrolan", "id-simple": "Buat CV sambil ngobrol" },
+  "resume.chat.deskripsi": {
+    id: "Pewawancara AI akan menanyakan riwayat kerja dan pendidikan Anda satu per satu. Jawaban Anda disusun menjadi draft CV yang bisa Anda periksa dan ubah.",
+    "id-simple":
+      "AI akan bertanya satu hal setiap kali. Anda cukup menjawab. Nanti jawaban Anda jadi draft CV. Anda tetap bisa mengubahnya.",
+  },
+  "resume.chat.memuat": { id: "Membuka percakapan…", "id-simple": "Percakapan sedang dibuka…" },
+  "resume.chat.kembali": { id: "Kembali ke daftar CV", "id-simple": "Kembali ke semua CV" },
+  "resume.chat.transkripLabel": { id: "Percakapan", "id-simple": "Isi obrolan" },
+  "resume.chat.pewawancara": { id: "Pewawancara", "id-simple": "AI" },
+  "resume.chat.anda": { id: "Anda", "id-simple": "Saya" },
+  "resume.chat.mengetik": {
+    id: "Pewawancara sedang mengetik…",
+    "id-simple": "AI sedang menulis jawaban…",
+  },
+  "resume.chat.menyambung": {
+    id: "Sambungan terputus. Menyambung kembali…",
+    "id-simple": "Internet terputus. Sedang mencoba lagi…",
+  },
+  "resume.chat.labelPesan": { id: "Jawaban Anda", "id-simple": "Tulis jawaban Anda" },
+  "resume.chat.bantuanPesan": {
+    id: "Paling banyak {maks} karakter. Tekan Ctrl+Enter untuk mengirim.",
+    "id-simple": "Tulis paling banyak {maks} huruf. Kirim dengan Ctrl dan Enter.",
+  },
+  "resume.chat.kirim": { id: "Kirim", "id-simple": "Kirim jawaban" },
+  "resume.chat.mengirim": { id: "Mengirim…", "id-simple": "Sedang dikirim…" },
+  "resume.chat.kuota": {
+    id: "Sisa pesan hari ini: {sisa} dari {batas}. Sisa pembuatan draft: {sisaDraft}.",
+    "id-simple": "Hari ini Anda masih bisa kirim {sisa} pesan dan buat {sisaDraft} draft.",
+  },
+  "resume.chat.finalisasi": {
+    id: "Selesai dan buat draf CV",
+    "id-simple": "Selesai, jadikan CV",
+  },
+  "resume.chat.finalisasiMemproses": {
+    id: "Draft CV sedang dibuat dari percakapan Anda. Biasanya kurang dari satu menit.",
+    "id-simple": "Draft CV sedang dibuat. Tunggu sebentar.",
+  },
+  "resume.chat.finalisasiSelesai": {
+    id: "Draft CV Anda siap. Periksa dan ubah isinya sebelum dipakai melamar.",
+    "id-simple": "Draft CV sudah jadi. Cek isinya dulu sebelum melamar.",
+  },
+  "resume.chat.bukaDraft": { id: "Buka draft CV", "id-simple": "Lihat draft CV" },
+  "resume.chat.draftTerhapus": {
+    id: "Draft dari percakapan ini sudah dihapus.",
+    "id-simple": "Draft ini sudah Anda hapus.",
+  },
+  "resume.chat.finalisasiGagal": {
+    id: "Draft CV belum berhasil dibuat. Jawaban Anda tetap tersimpan — coba lagi, atau isi CV lewat formulir.",
+    "id-simple": "Draft CV belum jadi. Jawaban Anda aman. Coba lagi, atau isi formulir.",
+  },
+  "resume.chat.cobaFinalisasi": { id: "Coba buat draft lagi", "id-simple": "Coba lagi" },
+  "resume.chat.mulaiBaru": {
+    id: "Mulai percakapan baru",
+    "id-simple": "Ngobrol lagi dari awal",
+  },
+  "resume.chat.modeFormulirJudul": {
+    id: "Chat AI sedang tidak bisa dipakai",
+    "id-simple": "AI sedang tidak bisa dipakai",
+  },
+  "resume.chat.modeFormulir": {
+    id: "Anda tetap bisa membuat CV lewat formulir biasa. Percakapan di bawah tetap tersimpan dan bisa Anda salin.",
+    "id-simple": "Anda tetap bisa buat CV lewat formulir. Obrolan di bawah tidak hilang.",
+  },
+  "resume.chat.kuotaKembali": {
+    id: "Jatah chat dibuka lagi dalam sekitar {jam} jam.",
+    "id-simple": "Chat bisa dipakai lagi kira-kira {jam} jam lagi.",
+  },
+  "resume.chat.isiFormulir": { id: "Isi CV lewat formulir", "id-simple": "Pakai formulir" },
+  "resume.chat.membuatFormulir": {
+    id: "Menyiapkan formulir…",
+    "id-simple": "Formulir sedang disiapkan…",
   },
 } as const satisfies KatalogFitur;
