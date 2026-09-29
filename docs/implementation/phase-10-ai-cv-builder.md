@@ -326,7 +326,7 @@ RB-Std; flag mematikan chat → hanya form manual.
 * [x] Chat→finalize→draft→edit→simpan end-to-end. — e2e chat → finalize → tautan "Buka draft CV" ke `/cv/:id`; edit→simpan dijaga `cv-editor.spec.ts` (PR-061) di editor yang sama
 * [x] Kuota habis → beralih form manual dengan pesan jujur (bukan error). — mode formulir di tempat, tanpa `role="alert"`, transkrip tetap terlihat (keputusan owner)
 * [x] Putus koneksi → resume tanpa kehilangan percakapan. — `Last-Event-Id` (unit + e2e); 404 → muat ulang transkrip
-* [ ] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual). — otomatis: live region per kalimat + fokus tetap di kotak ketik (e2e); NVDA nyata: U-28
+* [x] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual). — otomatis: live region per kalimat + fokus tetap di kotak ketik (e2e); **NVDA 2026.1.1 nyata (PR-068c):** tiap kalimat terucap tepat sekali, tanpa ucapan pindah fokus, fokus tetap di kotak ketik — juga di Slow 3G dan saat putus-sambung ([checklist](log/pr-068-nvda-checklist.md)). Butir checklist di luar AC ini tetap di U-28
 * [x] Sisa kuota tampil & akurat. — dari `GET /ai/quota`, dimuat ulang setiap jawaban & finalize
 
 #### Dependencies
@@ -347,6 +347,16 @@ Phase 10 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+> **Status penutupan (audit 2026-09-29, PR-068d): seluruh AC terpenuhi, tanpa override.**
+> Keempat PR (PR-065..PR-068) ditambah PR-068b (U-26) dan PR-068c (verifikasi NVDA) sudah merged
+> lewat PR ke branch phase dengan `lint-typecheck-test` dan `a11y` hijau di setiap PR. Ke-20 AC per
+> PR tercentang dengan bukti. AC manual NVDA di PR-068 dibuktikan dengan NVDA nyata.
+> **Yang TIDAK termasuk AC tetapi tetap terbuka** (tercatat di [utang-teknis](../utang-teknis.md)):
+> * U-28, sisa checklist chat: pintu masuk, kuota habis/degradasi, finalize, putus > 1 menit,
+>   dan tampilan sempit dengan pembaca layar.
+> * U-24, dari Phase 09: navigasi heading PDF di Adobe dan langkah di dalam bagian editor.
+> * U-27: model embedding untuk PR-069.
 
 ## Next Phase
 
