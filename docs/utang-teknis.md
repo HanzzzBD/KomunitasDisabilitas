@@ -139,6 +139,11 @@ sering terjadi di jalur ini.
 **Pemicu berikutnya**, karena itu: setiap PR yang membuat notifikasi in-app menjadi
 satu-satunya kabar bagi peristiwa baru — bukan penambahan kanal.
 
+**Pelanggan non-notifikasi pertama (PR-069, embedding).** Handler-nya hanya meng-enqueue
+`ai-embed`, jadi yang bisa hilang saat proses mati hanyalah jarak `emit`→`enqueue` — akibatnya
+vektor basi sampai suntingan berikutnya, bukan informasi yang hilang. Pemulihannya alat
+re-embed massal (U-29).
+
 ---
 
 ### U-03 — Ekspor PDP belum memuat `accessibility_profiles`
@@ -679,7 +684,7 @@ sendiri (0,6 dtk).
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-069 (2026-09-30)** |
 | **Jenis** | Konfigurasi / risiko fitur |
 | **Ditemukan** | Verifikasi manual PR-066 (2026-09-28) |
 | **Pemilik** | **PR-069** (embedding profil, Phase 11) — syarat masuk |
@@ -696,6 +701,15 @@ sama-sama 404 — artinya sejak entah kapan SEMUA jalur AI (termasuk non-stream 
 lingkungan nyata tanpa satu test pun merah. Default chat diganti ke `gemini-3.5-flash-lite` /
 `qwen/qwen3.8-27b` (keputusan owner). `.env` lokal yang masih menyebut model lama tetap menimpa
 default — baris itu harus dihapus manual.
+
+**PEMBAYARANNYA (PR-069, keputusan owner 2026-09-30: `gemini-embedding-001`).** Default
+`GEMINI_EMBED_MODEL` diganti; adapter mengirim `outputDimensionality: 768` (+ `taskType:
+SEMANTIC_SIMILARITY`) dan menormalisasi L2 hasilnya — potongan MRL tidak ternormalisasi, dan
+`<->` pgvector peka panjang vektor. Kolom `vector(768)` dan `AI_EMBED_DIMENSIONS` tidak berubah.
+Diverifikasi NYATA: 768 dimensi, panjang 1,000000; profil "admin gudang/Excel" berkosinus 0,94
+dengan lowongan admin gudang dan 0,77 dengan lowongan koki; proses worker sungguhan menyimpan
+vektornya dan menulis baris `ai_usage` (`embed`/`gemini`). **`.env` lokal yang masih berisi
+`GEMINI_EMBED_MODEL=text-embedding-004` tetap menimpa default — hapus barisnya.**
 
 ---
 
@@ -723,6 +737,34 @@ manusia — sifat yang sama dengan U-24.
 **Masih terbuka:** pintu masuk `/cv`, kuota/degradasi, finalize, putus > 1 menit, tampilan sempit,
 dan aliran bertahap di bawah 3G (tidak teramati lewat throttling CDP). Semuanya ada di
 [checklist PR-068](implementation/log/pr-068-nvda-checklist.md).
+
+---
+
+### U-29 — Vektor untuk data yang lahir SEBELUM pipeline embedding
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Data / kelengkapan fitur |
+| **Ditemukan** | PR-069 (2026-09-30) |
+| **Pemilik** | **PR-069b** (keputusan owner 2026-09-30) — **syarat masuk PR-070** |
+| **Pemicu** | PR pertama yang MEMBACA vektor (PR-070, query kandidat) |
+
+Pipeline PR-069 hanya bereaksi pada event BARU (`profile.updated`, `job.published`,
+`job.updated`). Semua yang sudah ada sebelumnya tidak punya vektor dan tidak akan pernah
+mendapatkannya sampai disunting: di DB dev hari ini **17 lowongan tayang dan 5 profil, 0 vektor**.
+Lowongan seed juga tidak punya `createdBy`, padahal kurator pembuat adalah pemikul kuota embed
+(keputusan owner) — jadi walaupun disunting, service melewatinya dengan log `error`.
+
+Tanpa pembayaran ini PR-070 akan lulus test (fixture-nya menanam vektor sendiri) sementara feed
+nyata kosong. Yang harus dibawa PR-069b:
+* alat re-embed massal (juga alat "Rollback Strategy" PR-069 — "re-embed massal via job manual",
+  yang sampai kini tidak ada), yang meng-enqueue `ai-embed` untuk entitas tanpa vektor dan
+  **menghormati pagu global kuota** (1.200/hari);
+* `createdBy` pada lowongan seed (admin seed), atau keputusan eksplisit lain atas atribusinya.
+
+Terkait: job yang gagal final (Gemini tumbang 4× / kuota habis) juga meninggalkan entitas tanpa
+vektor BARU sampai suntingan berikutnya — alat yang sama menjadi jalur pemulihannya.
 
 ---
 

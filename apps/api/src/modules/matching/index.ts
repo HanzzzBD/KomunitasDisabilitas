@@ -1,0 +1,48 @@
+// modules/matching — wiring modul (DI manual via factory, ADR-002).
+//
+// Lahir di PR-069 dengan DUA bagian yang hidup di proses berbeda:
+//   - pemicu (proses API): berlangganan `profile.updated`, `job.published`,
+//     `job.updated` lalu meng-enqueue `ai-embed` — `createMatchingModule`;
+//   - service embedding (proses worker): dirakit langsung oleh
+//     `apps/worker` dari ekspor di bawah, dengan pembaca profil/lowongan yang
+//     disuntik composition root (antar-modul lewat service, ADR-001).
+// Belum ada route: feed `GET /me/matches` lahir di PR-073.
+import type { EventBus } from "../../core/events/index.js";
+import type { QueueRegistry } from "../../core/queue/index.js";
+import { daftarkanPemicuEmbedding } from "./services/pemicu-embedding.js";
+
+export interface MatchingModuleDeps {
+  events: EventBus;
+  /** Produser `ai-embed`; konsumennya proses apps/worker (ADR-004). */
+  queues: Pick<QueueRegistry, "enqueue">;
+}
+
+export function createMatchingModule(deps: MatchingModuleDeps): void {
+  daftarkanPemicuEmbedding(deps);
+}
+
+export {
+  createEmbeddingsRepository,
+  DIMENSI_KOLOM_VEKTOR,
+  type EmbeddingsRepository,
+} from "./repositories/embeddings.repository.js";
+export {
+  createEmbeddingService,
+  type EmbeddingService,
+  type EmbeddingServiceDeps,
+  type HasilEmbedding,
+  type SumberLowongan,
+} from "./services/embedding.service.js";
+export {
+  BATAS_TEKS_EMBEDDING,
+  teksLowongan,
+  teksProfil,
+  type LowonganUntukEmbedding,
+  type ProfilUntukEmbedding,
+} from "./services/teks-embedding.js";
+export {
+  JEDA_EMBED_MS,
+  daftarkanPemicuEmbedding,
+  kunciEmbedding,
+  type PemicuEmbeddingDeps,
+} from "./services/pemicu-embedding.js";

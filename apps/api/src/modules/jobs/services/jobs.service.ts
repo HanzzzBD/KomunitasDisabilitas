@@ -40,10 +40,28 @@ export interface JobsActor {
   requestId: string;
 }
 
+/**
+ * Bahan embedding satu lowongan (PR-069) — dibaca modul `matching` lewat
+ * service ini, bukan lewat repository-nya (ADR-001).
+ *
+ * SEMPIT DENGAN SENGAJA: hanya teks yang bermakna semantik plus `createdBy`
+ * (atribusi kuota AI, keputusan owner 2026-09-30). Akomodasi, ragam disabilitas
+ * yang disambut, lokasi, dan mode kerja TIDAK ada di sini — semuanya dinilai
+ * sebagai data terstruktur (filter PR-070, skor PR-071), dan memasukkannya ke
+ * vektor berarti menghitungnya dua kali.
+ */
+export interface JobUntukEmbedding {
+  id: string;
+  title: string;
+  description: string;
+  requirements: string | null;
+  createdBy: string | null;
+}
+
 export interface JobsServiceDeps {
   jobsRepository: JobsRepository;
   auditLog: AuditLog;
-  /** Penerbit `job.published`; `job.closed` (reason `closed_by_admin`) menyusul di `close()`. */
+  /** Penerbit `job.published`, `job.updated` (PR-069), dan `job.closed` (reason `closed_by_admin`). */
   events: EventBus;
   clock?: () => Date;
 }
@@ -178,6 +196,23 @@ export function createJobsService(deps: JobsServiceDeps) {
       return rows.map(keRingkasan);
     },
 
+    /**
+     * Bahan embedding (PR-069). `null` untuk lowongan yang tidak ada ATAU
+     * tidak aktif — lowongan yang sudah ditutup/lewat tenggat tidak akan
+     * pernah dicocokkan, jadi menghitung vektornya hanya membakar kuota.
+     */
+    async bacaUntukEmbedding(id: string): Promise<JobUntukEmbedding | null> {
+      const row = await jobsRepository.findById(id);
+      if (row === null || !masihAktif(row, now())) return null;
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        requirements: row.requirements,
+        createdBy: row.createdBy,
+      };
+    },
+
     /** GET /api/v1/admin/jobs — seluruh lowongan, tanpa pagination (skala pilot). */
     async listAdmin(): Promise<JobAdmin[]> {
       const rows = await jobsRepository.listAdmin();
@@ -207,6 +242,17 @@ export function createJobsService(deps: JobsServiceDeps) {
       if (row === null) throw appError("LOWONGAN_TIDAK_DITEMUKAN");
 
       catatPerubahan(actor, id, "update");
+      // Hanya lowongan yang SUDAH tayang (PR-069): vektornya dipakai pencocokan
+      // dan harus mengikuti isi terbarunya. Draft belum punya vektor, dan
+      // `job.published` nanti membawa isinya yang terakhir. Lowongan `closed`
+      // tidak lagi dicocokkan, jadi menyuntingnya juga tidak perlu kabar.
+      if (row.status === "published") {
+        events.emit("job.updated", {
+          jobId: id,
+          companyId: row.companyId,
+          updatedAt: row.updatedAt.toISOString(),
+        });
+      }
       return keProfilAdmin(row);
     },
 

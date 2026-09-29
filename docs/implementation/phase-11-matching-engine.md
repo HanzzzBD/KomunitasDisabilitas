@@ -74,11 +74,11 @@ Bisnis: matching selalu memakai data terbaru. Teknis: processor `ai:embed` (Gemi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (text builder)
-* [ ] Integration Test (event→vector, invalidasi)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (staging embed nyata)
+* [x] Unit Test (text builder) — `matching-embedding.test.ts`
+* [x] Integration Test (event→vector, invalidasi) — `matching-embedding-db.test.ts` (PostgreSQL + Redis nyata)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (staging embed nyata) — belum ada staging; dibuktikan di lokal dengan Gemini NYATA + proses worker sungguhan (log PR-069)
 
 **Deliverables:**
 
@@ -94,11 +94,11 @@ RB-Std; re-embed massal via job manual bila perlu.
 
 #### Acceptance Criteria
 
-* [ ] `job.published` → job_embedding terisi (integrasi).
-* [ ] `profile.updated` → profile_embedding diperbarui + match_scores user itu terhapus.
-* [ ] Teks embed tidak memuat data sensitif (test builder).
-* [ ] Gemini down → retry teratur, tidak ada fallback keliru.
-* [ ] Batch bekerja saat 50 event beruntun.
+* [x] `job.published` → job_embedding terisi (integrasi).
+* [x] `profile.updated` → profile_embedding diperbarui + match_scores user itu terhapus.
+* [x] Teks embed tidak memuat data sensitif (test builder).
+* [x] Gemini down → retry teratur, tidak ada fallback keliru. — service melempar; queue `ai-embed` 4 percobaan, backoff eksponensial 10 dtk, lalu DLQ; router tidak pernah mengalihkan `embed`
+* [x] Batch bekerja saat 50 event beruntun. — keputusan owner: *coalescing* per entitas (50 event = 1 job = 1 panggilan embed)
 
 #### Dependencies
 
@@ -181,6 +181,9 @@ RB-Std.
 #### Dependencies
 
 * PR-069
+* **Gate masuk: utang [U-29](../utang-teknis.md) dibayar PR-069b** — data yang lahir sebelum
+  pipeline embedding (17 lowongan seed, profil lama) belum punya vektor. Tanpa itu test PR-070
+  hijau sementara feed nyata kosong.
 
 #### Risks
 
