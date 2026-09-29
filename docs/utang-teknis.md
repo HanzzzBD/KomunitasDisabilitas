@@ -635,7 +635,7 @@ ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-068b (2026-09-29)** |
 | **Jenis** | Kinerja / pengalaman pengguna |
 | **Ditemukan** | Verifikasi manual PR-066 (2026-09-28), provider nyata |
 | **Pemilik** | Belum ditetapkan — keputusan operasional (model/timeout/urutan provider) |
@@ -653,6 +653,15 @@ pertama — benar menurut desain router stream, tetapi pengguna menunggu 15 deti
 **Pilihan yang ada (belum diputuskan):** timeout khusus stream yang lebih pendek; Groq sebagai
 utama untuk chat (menyimpang dari ADR-005 — perlu catatan ADR); atau model Gemini lain setelah
 diukur. Owner memilih mengganti default model saja di PR-066 (2026-09-28).
+
+**PEMBAYARANNYA (PR-068b, keputusan owner 2026-09-29: batas token-pertama).** Pengukuran ulang
+menunjukkan latensinya MELONJAK menurut waktu, bukan lambat permanen: model yang sama menjawab
+token pertama ~1 dtk pada 2026-09-29 (3 kali ukur), sementara `gemini-3.5-flash` (non-lite)
+timeout 40 dtk. Router stream kini membatalkan permintaan Gemini yang belum mengirim token apa pun
+dalam `AI_STREAM_FIRST_TOKEN_MS` (bawaan 8 dtk) dan menyerahkannya ke Groq — hanya sebelum
+token pertama, jadi aturan PR-045 tetap utuh. Gemini tetap utama (ADR-005 tidak berubah).
+Diverifikasi nyata: Gemini lambat → Groq menjawab dalam 1,3 dtk; Gemini normal tetap menjawab
+sendiri (0,6 dtk).
 
 ---
 

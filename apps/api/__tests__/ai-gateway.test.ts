@@ -20,6 +20,7 @@ const ENV: AiGatewayEnv = {
   GROQ_CHAT_MODEL: "llama-3.3-70b-versatile",
   GROQ_TIMEOUT_MS: 2_000,
   AI_ROUTER_FORCE_PROVIDER: undefined,
+  AI_STREAM_FIRST_TOKEN_MS: 8_000,
 };
 
 const logger = () => ({ warn: vi.fn() });

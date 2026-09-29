@@ -214,6 +214,18 @@ const envSchema = z.object({
    * satu provider terbukti bermasalah dan kita perlu mematikannya tanpa deploy.
    */
   AI_ROUTER_FORCE_PROVIDER: z.enum(["gemini", "groq"]).optional(),
+  /**
+   * Batas menunggu token PERTAMA dari provider utama pada jalur stream
+   * (PR-068b, utang U-26). Lewat batas → cadangan (Groq) mengambil alih.
+   * Bawaan 8 dtk: di atas waktu token pertama Gemini saat normal (~1 dtk,
+   * terukur 2026-09-29), jauh di bawah lonjakannya (7–22 dtk, 2026-09-28).
+   */
+  AI_STREAM_FIRST_TOKEN_MS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1_000, { message: "minimal 1000" })
+    .max(60_000, { message: "maksimal 60000" })
+    .default(8_000),
   // --- Kuota AI (PR-043, SDD 7.1) ---
   //
   // Angka jatahnya TIDAK di sini: ia berpola (AI_QUOTA_<FITUR>_PER_DAY) dan
