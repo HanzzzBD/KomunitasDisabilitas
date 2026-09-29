@@ -35,13 +35,12 @@ const PABRIK = [
 const POLA = new RegExp(`\\b(${PABRIK.join("|")})\\s*\\(`);
 
 /**
- * Tempat yang BOLEH memanggil, dan kenapa. `core/ai` karena di sanalah pabrik
- * itu saling menyusun; `boot.ts` karena ia composition root yang menyerahkan
- * hasilnya ke `createAiClient` — dan hanya ke sana.
+ * Tempat yang BOLEH memanggil, dan kenapa. HANYA `core/ai`: di sanalah pabrik
+ * itu saling menyusun, termasuk `rakit.ts` yang dipakai kedua composition root
+ * (`boot.ts` dan worker) sejak PR-067 — penjaga ini justru MENGETAT.
  */
 const DIIZINKAN: ReadonlyArray<{ awalan: string; alasan: string }> = [
   { awalan: join("core", "ai") + sep, alasan: "tempat pabrik didefinisikan dan saling menyusun" },
-  { awalan: "boot.ts", alasan: "composition root — hasilnya hanya diserahkan ke createAiClient" },
 ];
 
 function berkasTs(dir: string): string[] {
@@ -59,12 +58,13 @@ const pemanggil = (dir: string): string[] =>
 
 describe("jangkauan pabrik provider AI (U-07)", () => {
   it("penjaga ini tidak lulus secara hampa", () => {
-    // Bila pola tidak lagi cocok (nama pabrik berubah), boot.ts — pemanggil
-    // yang sah — ikut hilang dari daftar, dan test ini yang merah duluan.
-    expect(pemanggil(SRC).map((f) => relative(SRC, f))).toContain("boot.ts");
+    // Sejak PR-067 satu-satunya pemanggil sah adalah perakit bersama
+    // `core/ai/rakit.ts`. Bila pola tidak lagi cocok (nama pabrik berubah),
+    // ia hilang dari daftar, dan test ini yang merah duluan.
+    expect(pemanggil(SRC).map((f) => relative(SRC, f))).toContain(join("core", "ai", "rakit.ts"));
   });
 
-  it("modul (dan apa pun di luar core/ai + boot.ts) tidak memanggil pabrik provider", () => {
+  it("apa pun di luar core/ai — termasuk boot.ts — tidak memanggil pabrik provider", () => {
     const liar = pemanggil(SRC)
       .map((f) => relative(SRC, f))
       .filter((f) => !DIIZINKAN.some((d) => f === d.awalan || f.startsWith(d.awalan)));
@@ -72,12 +72,12 @@ describe("jangkauan pabrik provider AI (U-07)", () => {
     expect(
       liar,
       "Berkas berikut memanggil pabrik provider AI langsung — melewati kuota, jejak biaya, " +
-        "dan cache. Pakai `AiClient` yang dirakit di boot.ts (diteruskan lewat deps modul): " +
+        "dan cache. Pakai `rakitAiClient` (core/ai/rakit.ts) di composition root: " +
         liar.join(", "),
     ).toEqual([]);
   });
 
-  it("apps/worker juga tidak memanggilnya — worker tidak punya jalan ke AiClient hari ini", () => {
+  it("apps/worker juga tidak memanggilnya — ia merakit lewat `rakitAiClient` (PR-067)", () => {
     expect(pemanggil(WORKER_SRC).map((f) => relative(WORKER_SRC, f))).toEqual([]);
   });
 });

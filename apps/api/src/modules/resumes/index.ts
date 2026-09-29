@@ -82,6 +82,7 @@ export {
 } from "./repositories/resumes.repository.js";
 export {
   createResumesService,
+  type OpsiBuatCv,
   type ResumesActor,
   type ResumesService,
   type ResumesServiceDeps,

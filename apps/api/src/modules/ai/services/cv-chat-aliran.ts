@@ -46,6 +46,12 @@ export interface RegistriAliran {
   daftar(sessionId: string, userId: string, sesi: SseSesi): HasilDaftar;
   /** Aliran milik `userId` untuk sesi ini; milik orang lain = tidak ada. */
   ambil(sessionId: string, userId: string): SseSesi | undefined;
+  /**
+   * Adakah jawaban yang MASIH dibuat untuk sesi ini (PR-067). Finalize ditolak
+   * selama itu: ekstraksi akan membaca transkrip tanpa giliran asisten
+   * terakhirnya, dan giliran itu lalu ditolak karena sesi sudah `finalizing`.
+   */
+  sedangBerjalan(sessionId: string): boolean;
   /** Tandai selesai; entri dihapus setelah `retensiMs`. */
   selesai(sessionId: string, sesi: SseSesi): void;
   readonly jumlah: number;
@@ -74,6 +80,10 @@ export function createRegistriAliran(
       // Pemilik dicek DI SINI juga, bukan hanya oleh repository: registry ini
       // tidak menyentuh DB, dan id sesi orang lain tidak boleh membuka alirannya.
       return e !== undefined && e.userId === userId ? e.sesi : undefined;
+    },
+
+    sedangBerjalan(sessionId) {
+      return entri.get(sessionId)?.berjalan === true;
     },
 
     selesai(sessionId, sesi) {

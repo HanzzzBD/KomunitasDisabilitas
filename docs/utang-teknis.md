@@ -317,7 +317,7 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 | | |
 |---|---|
 | **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
-| **Pemilik** | PR-066 → sisa ke **PR-067** (finalize, pemakai `AiClient.prompt` pertama) |
+| **Pemilik** | PR-066 → PR-067 → sisa ke **PR-068** (klien pertama yang benar-benar memilih jalur turun) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -330,8 +330,15 @@ hanya sekuat test-nya; belum ada satu pun yang berjalan di produksi.
 `createAiStreamGateway` (baru), recorder `ai_usage`, dan `createAiPromptCache` di atas
 `redis.cache`; jalur SSE hidup lewat `POST /ai/cv-chat`. **Yang belum:** `withDegradation`
 masih tanpa pemanggil — chat menurunkan kegagalan lewat event SSE ber-`degraded`, bukan lewat
-pembungkus itu (aliran tidak punya "nilai pengganti" untuk dikembalikan). Pemakai alaminya
-PR-067 (`finalize` → draft kosong / jalur manual).
+pembungkus itu (aliran tidak punya "nilai pengganti" untuk dikembalikan).
+
+**PR-067 juga tidak memakainya, dengan sengaja.** Finalize asinkron: kegagalan ekstraksi tidak
+"diganti nilai" di tempat, melainkan menjadi KEADAAN (`extractionFailedAt` + notifikasi gagal)
+yang dibaca klien. Sisi API-nya melempar `DegradedError` (kuota, fitur mati) yang sampai ke
+klien sebagai 429/503 — penurunannya terjadi di klien. Pemakai alami `withDegradation` karena
+itu kemungkinan besar bukan di jalur CV sama sekali; PR-068 yang memutuskan, dan bila ternyata
+tidak ada pemakai sah, pertimbangkan mencabut ekspornya (aturan PR-041: seam tanpa pemakai
+dicabut, bukan dibiarkan).
 
 ---
 

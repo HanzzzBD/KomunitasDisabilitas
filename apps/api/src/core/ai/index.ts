@@ -14,6 +14,8 @@
 // yang hilang hanyalah permukaan publiknya ke luar `core/ai`. Menambahkannya
 // kembali menuntut pemanggil nyata di luar modul ini, bukan antisipasi.
 export { createAiGateway, createAiStreamGateway, type AiGatewayEnv } from "./gateway.js";
+// Perakit bersama `boot.ts` dan worker (PR-067).
+export { rakitAiClient, type RakitAiClientDeps } from "./rakit.js";
 export {
   AI_EMBED_DIMENSIONS,
   AiProviderError,
@@ -115,6 +117,8 @@ export {
   type OpsiBungkus,
 } from "./guard.js";
 export {
+  cvExtractorV1,
+  type CvExtractorInput,
   cvInterviewerV1,
   definePercakapan,
   type GiliranRiwayat,

@@ -43,10 +43,9 @@ import {
   createCvChatController,
   createCvChatService,
   createRegistriAliran,
-  type ChatSessionRow,
-  type ChatSessionsRepository,
 } from "../src/modules/ai/index.js";
 import { SESSION_KEYS } from "./helpers/session.js";
+import { repoSesiMemori } from "./helpers/chat-sessions-memori.js";
 import { redisKuotaPalsu } from "./helpers/redis-kuota.js";
 
 const A = "018f4c1e-0000-7000-8000-00000000aaaa";
@@ -83,60 +82,6 @@ function konfigurasi(): AiQuotaConfig {
       embed: 50,
     },
     globalPerDay: 10_000,
-  };
-}
-
-/** Tabel `ai_chat_sessions` di memori — kontrak repository yang sama. */
-function repoMemori(): ChatSessionsRepository {
-  const baris = new Map<string, ChatSessionRow & { userId: string }>();
-  const salin = (b: ChatSessionRow): ChatSessionRow => ({ ...b, transcript: [...b.transcript] });
-  const aktif = (u: string) =>
-    [...baris.values()].find((b) => b.userId === u && b.status === "active");
-  return {
-    findOwned: (u, id) => {
-      const b = baris.get(id);
-      return Promise.resolve(b !== undefined && b.userId === u ? salin(b) : null);
-    },
-    findActive: (u) => {
-      const b = aktif(u);
-      return Promise.resolve(b === undefined ? null : salin(b));
-    },
-    createOrGetActive: (u, id, now) => {
-      const ada = aktif(u);
-      if (ada !== undefined) return Promise.resolve({ row: salin(ada), baru: false });
-      const b = {
-        userId: u,
-        id,
-        status: "active" as const,
-        transcript: [],
-        createdAt: now,
-        updatedAt: now,
-        finalizedAt: null,
-      };
-      baris.set(id, b);
-      return Promise.resolve({ row: salin(b), baru: true });
-    },
-    appendTurn: (u, id, g, batas) => {
-      const b = baris.get(id);
-      if (b === undefined || b.userId !== u)
-        return Promise.resolve({ ok: false as const, sebab: "tidak-ada" as const });
-      if (b.status !== "active")
-        return Promise.resolve({ ok: false as const, sebab: "selesai" as const });
-      if (b.transcript.length >= batas.maxTurns)
-        return Promise.resolve({ ok: false as const, sebab: "penuh" as const });
-      const turn: AiChatTurn = {
-        seq: b.transcript.length + 1,
-        role: g.role,
-        content: g.content,
-        at: g.at.toISOString(),
-      };
-      b.transcript.push(turn);
-      b.updatedAt = g.at;
-      return Promise.resolve({ ok: true as const, turn });
-    },
-    listForExport: () => Promise.resolve([]),
-    countRetention: () => Promise.resolve(0),
-    deleteRetentionBatch: () => Promise.resolve(0),
   };
 }
 
@@ -200,7 +145,7 @@ async function boot(o: {
     logger,
     clock: () => SIANG,
   });
-  const chatSessions = createAiChatSessionsService({ repo: repoMemori(), clock: () => SIANG });
+  const chatSessions = createAiChatSessionsService({ repo: repoSesiMemori(), clock: () => SIANG });
   const cvChat = createCvChatService({
     chatSessions,
     ai: client,

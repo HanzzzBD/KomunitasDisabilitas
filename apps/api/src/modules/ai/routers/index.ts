@@ -17,6 +17,7 @@ import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { AiController } from "../controllers/ai.controller.js";
 import type { AiChatSessionsController } from "../controllers/chat-sessions.controller.js";
 import type { CvChatController } from "../controllers/cv-chat.controller.js";
+import type { CvFinalizeController } from "../controllers/cv-finalize.controller.js";
 
 /**
  * Bernama `createAiQuotaRouter`, bukan `createAiRouter` seperti pola modul lain:
@@ -75,6 +76,23 @@ export function createAiCvChatRouter(controller: CvChatController, routes: Route
     access.authenticated(),
     validate({ params: aiChatSessionParamsSchema }),
     asyncHandler(controller.sambung),
+  );
+  return routes.router;
+}
+
+/**
+ * Finalize AI CV Builder (PR-067). `authenticated` — kepemilikan sesi dijamin
+ * repository, alasan yang sama dengan route cv-chat lainnya.
+ */
+export function createAiCvFinalizeRouter(
+  controller: CvFinalizeController,
+  routes: RouteRegistrar,
+): Router {
+  routes.post(
+    "/ai/cv-chat/:session/finalize",
+    access.authenticated(),
+    validate({ params: aiChatSessionParamsSchema }),
+    asyncHandler(controller.finalisasi),
   );
   return routes.router;
 }

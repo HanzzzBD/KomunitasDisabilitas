@@ -263,6 +263,21 @@ export const ERROR_CATALOG = {
     message: "Percakapan ini sudah terlalu panjang",
     hint: "Selesaikan percakapan untuk membuat draft CV, lalu lengkapi lewat formulir",
   },
+  // --- Finalize AI CV Builder (PR-067) ---
+  // 409: draft CV sedang dibuat dari percakapan ini. Giliran baru akan membuat
+  // transkrip berbeda dari yang sedang diekstrak.
+  AI_SESI_SEDANG_DIFINALISASI: {
+    status: 409,
+    message: "Draft CV sedang dibuat dari percakapan ini",
+    hint: "Tunggu sebentar. Anda akan diberi tahu saat draft siap",
+  },
+  // 409: finalize tanpa satu pun jawaban pengguna hanya akan menghasilkan CV
+  // kosong — dan memakan satu jatah finalize untuk itu.
+  AI_SESI_KOSONG: {
+    status: 409,
+    message: "Percakapan ini belum berisi jawaban Anda",
+    hint: "Jawab beberapa pertanyaan dulu, atau isi CV lewat formulir biasa",
+  },
   // --- Percakapan AI CV Builder (PR-066) ---
   // 409: satu sesi hanya boleh punya SATU jawaban yang sedang mengalir. Pesan
   // kedua yang tiba sebelum jawaban pertama selesai akan membuat dua jawaban

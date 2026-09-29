@@ -49,6 +49,9 @@ function repoPalsu(hasilAppend: HasilAppend = { ok: false, sebab: "tidak-ada" })
     createdAt: WAKTU,
     updatedAt: WAKTU,
     finalizedAt: null,
+    resumeId: null,
+    extractionFailedAt: null,
+    extractionError: null,
   };
   const panggilanAppend: unknown[] = [];
   const repo: ChatSessionsRepository = {
@@ -63,6 +66,10 @@ function repoPalsu(hasilAppend: HasilAppend = { ok: false, sebab: "tidak-ada" })
     listForExport: () => Promise.resolve([sesi]),
     countRetention: () => Promise.resolve(0),
     deleteRetentionBatch: () => Promise.resolve(0),
+    mulaiFinalisasi: () => Promise.resolve("tidak-ada"),
+    batalFinalisasi: () => Promise.resolve(false),
+    selesaiFinalisasi: () => Promise.resolve(false),
+    gagalFinalisasi: () => Promise.resolve(false),
   };
   return { repo, panggilanAppend };
 }

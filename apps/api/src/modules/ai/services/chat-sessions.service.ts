@@ -51,6 +51,10 @@ function keSesi(row: ChatSessionRow): AiChatSession {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     finalizedAt: row.finalizedAt === null ? null : row.finalizedAt.toISOString(),
+    resumeId: row.resumeId,
+    extractionFailedAt:
+      row.extractionFailedAt === null ? null : row.extractionFailedAt.toISOString(),
+    extractionError: row.extractionError,
   };
 }
 
@@ -118,6 +122,8 @@ export function createAiChatSessionsService(
       switch (append.sebab) {
         case "tidak-ada":
           throw appError("AI_SESI_TIDAK_DITEMUKAN");
+        case "diproses":
+          throw appError("AI_SESI_SEDANG_DIFINALISASI");
         case "selesai":
           throw appError("AI_SESI_SUDAH_SELESAI");
         case "penuh":

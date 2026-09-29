@@ -307,6 +307,36 @@ export const pdfRenderJobSchema = z
 
 export type PdfRenderJob = z.infer<typeof pdfRenderJobSchema>;
 
+/**
+ * Payload `ai-extract-resume` (PR-067).
+ *
+ * Transkrip TIDAK masuk Redis — worker membacanya ulang dari DB lewat
+ * `sessionId` + `userId` (keduanya disebut di setiap query, pola `pdf-render`).
+ *
+ * `reservasi` adalah jatah `cv_finalize` yang SUDAH dipotong API saat enqueue
+ * (keputusan owner: 1 jatah per finalize). Worker membawanya ke `AiClient`
+ * supaya panggilan LLM-nya — termasuk retry-with-feedback — tidak memotong
+ * lagi, dan memakainya untuk MENGEMBALIKAN jatah bila percobaan terakhir gagal
+ * karena provider tumbang.
+ */
+export const aiExtractResumeJobSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    userId: z.string().uuid(),
+    reservasi: z
+      .object({
+        hari: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        userId: z.string().uuid(),
+        feature: z.literal("cv_finalize"),
+        tercatat: z.boolean(),
+        global: z.boolean(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export type AiExtractResumeJob = z.infer<typeof aiExtractResumeJobSchema>;
+
 /** Hasil internal processor; tidak diekspos sebagai respons HTTP. */
 export const pdfRenderResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("rendered"), key: z.string(), bytes: z.number().int().min(1) }),

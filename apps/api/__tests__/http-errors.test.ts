@@ -45,6 +45,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Pewawancara masih menjawab pesan sebelumnya",
           "status": 409,
         },
+        "AI_SESI_KOSONG": {
+          "hint": "Jawab beberapa pertanyaan dulu, atau isi CV lewat formulir biasa",
+          "message": "Percakapan ini belum berisi jawaban Anda",
+          "status": 409,
+        },
+        "AI_SESI_SEDANG_DIFINALISASI": {
+          "hint": "Tunggu sebentar. Anda akan diberi tahu saat draft siap",
+          "message": "Draft CV sedang dibuat dari percakapan ini",
+          "status": 409,
+        },
         "AI_SESI_SUDAH_SELESAI": {
           "hint": "Buka draft CV Anda untuk memeriksanya, atau mulai percakapan baru",
           "message": "Percakapan ini sudah selesai",

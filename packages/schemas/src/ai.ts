@@ -130,11 +130,14 @@ export type AiChatTurn = z.infer<typeof aiChatTurnSchema>;
 
 /**
  * `active` — percakapan masih berjalan dan bisa dilanjutkan.
- * `finalized` — sudah diekstrak menjadi draft CV (PR-067); tidak menerima
- * giliran baru, dan dihapus retensi 30 hari setelah `finalizedAt`.
+ * `finalizing` — sedang diekstrak menjadi draft CV oleh worker (PR-067); tidak
+ * menerima giliran baru. Berakhir `finalized`, atau kembali `active` dengan
+ * `extractionFailedAt` terisi bila ekstraksi gagal (keputusan owner 2026-09-28).
+ * `finalized` — sudah menjadi draft CV (`resumeId`); tidak menerima giliran
+ * baru, dan dihapus retensi 30 hari setelah `finalizedAt`.
  */
 export const aiChatSessionStatusSchema = z
-  .enum(["active", "finalized"])
+  .enum(["active", "finalizing", "finalized"])
   .openapi({ description: "Keadaan sesi" });
 
 export type AiChatSessionStatus = z.infer<typeof aiChatSessionStatusSchema>;
@@ -148,6 +151,19 @@ export const aiChatSessionSchema = z
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
     finalizedAt: timestampSchema.nullable(),
+    /**
+     * Draft CV hasil ekstraksi (PR-067). `null` sebelum `finalized` — dan juga
+     * sesudahnya bila draft itu kemudian dihapus pemiliknya.
+     */
+    resumeId: idSchema.nullable(),
+    /**
+     * Ekstraksi TERAKHIR gagal (PR-067): kapan, dan kode sebabnya (mis.
+     * `AI_INVALID_OUTPUT`, `BATAS_CV_TERCAPAI`). Keduanya `null` bila belum
+     * pernah gagal atau finalize berikutnya sedang/sudah berjalan. Klien
+     * memakainya untuk menawarkan formulir manual dengan transkrip terlampir.
+     */
+    extractionFailedAt: timestampSchema.nullable(),
+    extractionError: z.string().nullable(),
   })
   .strict()
   .openapi({ ref: "AiChatSession", description: "Sesi AI CV Builder beserta transkripnya" });
@@ -225,3 +241,30 @@ export type AiCvChatErrorEvent = z.infer<typeof aiCvChatErrorEventSchema>;
 
 /** Response `POST /ai/cv-chat/sessions` — 201 sesi baru, 200 sesi aktif yang ada. */
 export const aiCvChatSessionStartResponseSchema = aiChatSessionResponseSchema;
+
+// ---------------------------------------------------------------------------
+// Finalize → draft CV (PR-067).
+// ---------------------------------------------------------------------------
+
+/**
+ * Response `POST /ai/cv-chat/:session/finalize`.
+ *
+ * 202 + `finalizing` = ekstraksi berjalan di worker; hasilnya dibaca lewat
+ * `GET /ai/cv-chat/:session` (poll) atau notifikasi `resume.draft_ai_siap` /
+ * `resume.draft_ai_gagal`. 200 + `finalized` = sudah selesai sebelumnya —
+ * finalize ganda aman dan tidak memotong kuota lagi.
+ */
+export const aiCvChatFinalizeResultSchema = z
+  .object({
+    sessionId: idSchema,
+    status: z.enum(["finalizing", "finalized"]),
+    resumeId: idSchema.nullable(),
+  })
+  .strict()
+  .openapi({ ref: "AiCvChatFinalizeResult" });
+
+export type AiCvChatFinalizeResult = z.infer<typeof aiCvChatFinalizeResultSchema>;
+
+export const aiCvChatFinalizeResponseSchema = z
+  .object({ data: aiCvChatFinalizeResultSchema })
+  .openapi({ ref: "AiCvChatFinalizeResponse" });

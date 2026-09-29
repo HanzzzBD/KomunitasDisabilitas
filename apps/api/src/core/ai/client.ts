@@ -19,7 +19,7 @@ import { uuidV7 } from "../ids/index.js";
 import type { Logger } from "../logger/index.js";
 import type { AiPromptCache } from "./cache.js";
 import type { PromptTemplate } from "./prompts/index.js";
-import type { AiQuota } from "./quota.js";
+import type { AiQuota, AiQuotaReservasi } from "./quota.js";
 import type { AiQuotaFeature } from "./quota-config.js";
 import type { AiStreamProvider, LaporanStream } from "./stream.js";
 import { AiProviderError } from "./types.js";
@@ -43,6 +43,17 @@ export interface AiCallContext {
    * `ai_usage.prompt_version` bernilai NULL — yang memang fakta yang benar.
    */
   promptVersion?: string;
+  /**
+   * Jatah yang SUDAH dipotong pemanggil (PR-067). Ada = panggilan ini tidak
+   * memotong kuota dan tidak mengembalikannya saat gagal; keduanya urusan
+   * pemilik reservasi. Dipakai finalize CV: API memotong SATU jatah
+   * `cv_finalize` saat enqueue, dan worker boleh memanggil LLM dua kali
+   * (retry-with-feedback) di atas jatah yang sama (keputusan owner 2026-09-28).
+   *
+   * `feature` di sini dan di reservasi HARUS sama — penghitung yang dipotong
+   * adalah milik fitur di reservasi, bukan di konteks.
+   */
+  reservasi?: AiQuotaReservasi;
 }
 
 /**
@@ -235,16 +246,22 @@ export function createAiClient(deps: AiClientDeps): AiClient {
     panggil: () => Promise<T>,
     bacaJejak: (hasil: T) => { provider: string; usage?: AiUsage },
   ): Promise<T> {
-    const reservasi = await quota.periksaDanPakai({
-      userId: ctx.userId,
-      feature: ctx.feature,
-    });
+    // Jatah yang SUDAH dipotong pemanggil (`ctx.reservasi`) tidak dipotong
+    // lagi — dan tidak dikembalikan di sini: pemilik reservasi yang tahu kapan
+    // kegagalannya final (mis. percobaan terakhir sebuah job, PR-067).
+    const milikPemanggil = ctx.reservasi !== undefined;
+    const reservasi =
+      ctx.reservasi ??
+      (await quota.periksaDanPakai({
+        userId: ctx.userId,
+        feature: ctx.feature,
+      }));
 
     let hasil: T;
     try {
       hasil = await panggil();
     } catch (err) {
-      await quota.kembalikanBila(reservasi, err);
+      if (!milikPemanggil) await quota.kembalikanBila(reservasi, err);
       throw err;
     }
 
@@ -384,12 +401,15 @@ export function createAiClient(deps: AiClientDeps): AiClient {
       // `cache` absen = perilaku sebelum PR-044b, tanpa cabang tambahan.
       const tersimpan = await cache?.baca(konteksCache, template, input);
       if (tersimpan !== undefined) {
-        // Melempar bila jatah habis — lihat catatan anti-abuse di atas.
-        await quota.periksaDanPakai({
-          userId: ctx.userId,
-          feature: ctx.feature,
-          lewatiGlobal: true,
-        });
+        // Melempar bila jatah habis — lihat catatan anti-abuse di atas. Jatah
+        // yang sudah dipotong pemanggil (`ctx.reservasi`) sudah membayar hit ini.
+        if (ctx.reservasi === undefined) {
+          await quota.periksaDanPakai({
+            userId: ctx.userId,
+            feature: ctx.feature,
+            lewatiGlobal: true,
+          });
+        }
         return { data: tersimpan, dariCache: true };
       }
 

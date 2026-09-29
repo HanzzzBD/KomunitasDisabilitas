@@ -309,3 +309,103 @@ worker 3.
 * **PR-068** — klien: fetch-SSE (bukan `EventSource`, sebab auth lewat header), ganti pratinjau
   `token` dengan isi `giliran`, beralih ke formulir saat `degraded: true`.
 * **U-26** — putuskan timeout/urutan provider untuk chat setelah ada data latensi.
+
+---
+
+## PR-067 — Finalize + Ekstraksi Resume (Worker)
+
+> **Phase:** [10 - AI CV Builder](../phase-10-ai-cv-builder.md#pr-067---finalize--ekstraksi-resume-worker)
+> **Tanggal:** 2026-09-28
+> **Status:** Selesai
+> **Branch:** `pr-067-finalize-ekstraksi` → `phase-10-ai-cv-builder`
+
+### Ringkasan hasil
+
+Percakapan AI CV Builder kini bisa menjadi CV nyata. `POST /api/v1/ai/cv-chat/:session/finalize`
+memotong satu jatah `cv_finalize`, memindahkan sesi `active → finalizing`, dan mengantre
+`ai-extract-resume`; worker menjalankan `cv-extractor.v1` (JSON), memvalidasi hasilnya dengan
+kontrak yang SAMA dengan jalur manual (`resumeContentInputSchema`), mengulang sekali dengan daftar
+masalah bila gagal, lalu menyimpan draft `created_via: ai_chat` — atau mengembalikan sesi ke
+`active` dengan penanda gagal. Kedua hasil diberitahukan lewat notifikasi.
+
+### Keputusan owner (AskUserQuestion, 2026-09-28)
+
+1. **Satu jatah per finalize**, dipotong API saat enqueue (habis → 429 ber-degradasi sebelum 202).
+   Panggilan LLM di worker — termasuk retry-with-feedback — tidak memotong lagi; jatah pulang bila
+   percobaan terakhir gagal karena provider.
+2. **Gagal 2× → sesi kembali `active` + penanda gagal** (`extractionFailedAt`, `extractionError`),
+   bukan status terminal. Pengguna bisa formulir manual, atau lanjut chat lalu finalize ulang.
+3. **Notifikasi sukses DAN gagal**: `resume.draft_ai_siap`, `resume.draft_ai_gagal`.
+
+### Scope selesai
+
+* **Migrasi 17** — nilai enum `finalizing` (berkas sendiri: nilai enum baru tidak boleh dipakai di
+  transaksi yang menambahkannya). **Migrasi 18** — `resume_id` (FK `SET NULL`),
+  `extraction_failed_at`, `extraction_error`; indeks `satu_aktif` DIGANTI `satu_terbuka`
+  (`status IN ('active','finalizing')`). Keduanya punya `down.sql` yang teruji di DB nyata.
+* **`@nawasena/schemas`** — status `finalizing`; sesi + `resumeId`/`extractionFailedAt`/
+  `extractionError`; `aiExtractResumeJobSchema` (membawa reservasi kuota); respons finalize;
+  dua tipe notifikasi; OpenAPI path baru.
+* **`core/ai`** — `AiCallContext.reservasi` (jatah milik pemanggil: tidak dipotong, tidak
+  di-refund oleh `AiClient`); `rakitAiClient` — perakit BERSAMA `boot.ts` dan worker;
+  prompt `cv-extractor.v1` (terdaftar di registry).
+* **Modul `ai`** — `cv-finalize.service.ts` (API), `cv-ekstraksi.service.ts` (worker), repository:
+  `mulaiFinalisasi`/`batalFinalisasi`/`selesaiFinalisasi`/`gagalFinalisasi`; registry aliran
+  `sedangBerjalan`; route + controller finalize; `AI_SESI_SEDANG_DIFINALISASI`, `AI_SESI_KOSONG`.
+* **Modul `resumes`** — `create(…, opsi?: { id })` untuk pemanggil internal (idempotensi draft).
+* **Notifikasi** — template dua varian bahasa; tautan web (`/cv/:id` untuk siap, `/cv` untuk gagal).
+* **Worker** — processor `ai-extract-resume`; `AiClient` + kuota + recorder dirakit;
+  `@nawasena/api/core/ai` & `core/redis` diekspor untuk worker; koneksi baru ditutup saat shutdown.
+* **Test** — 31 baru: `ai-cv-ekstraksi.test.ts` (14), `ai-cv-finalize-http.test.ts` (9),
+  `ai-cv-finalize-db.test.ts` (8) + web tautan (1); helper `chat-sessions-memori.ts` kini dipakai
+  bersama tiga berkas test.
+
+### Keputusan teknis
+
+1. **Validasi kontrak CV DI SERVICE, bukan di adapter.** Skema template `cv-extractor.v1` hanya
+   `z.unknown()` (JSON sah), sebab `chatJson` hanya melaporkan ringkasan jalur saat gagal —
+   retry-with-feedback butuh daftar masalah lengkap. Satu-satunya jalan ke `resumes.create`
+   melewati `safeParse` yang sukses (mutasi: melewatinya → 4 test merah).
+2. **Keluaran bukan-JSON = keluaran rusak**, masuk jalur perbaikan — bukan provider tumbang.
+3. **Kontak TIDAK diekstrak** — dibuang dari keluaran model sebelum validasi. Terbukti di
+   verifikasi nyata: nomor HP yang diucapkan pengguna tidak masuk draft.
+4. **Id draft = id sesi.** Retry setelah draft tersimpan tetapi sebelum sesi ditandai menemukan
+   draft itu, bukan membuat yang kedua.
+5. **Pemeriksaan gratis sebelum kuota** (sesi, aliran berjalan, isi, batas CV). Mutasi: memotong
+   kuota lebih dulu → 5 test merah.
+6. **Antrean menolak → finalize tidak pernah dimulai**: sesi `active` TANPA jejak gagal, jatah
+   pulang.
+7. **Percobaan terakhir menentukan nasib kegagalan provider** — sebelum itu dilempar untuk retry
+   BullMQ di atas jatah yang sama; pada yang terakhir: refund + penanda gagal + notifikasi.
+   Kegagalan tak terduga ditandai gagal dulu (sesi tak tersangkut `finalizing`) lalu dilempar ke DLQ.
+8. **`rakitAiClient` MENGETATKAN penjaga U-07**: `boot.ts` tidak lagi memanggil pabrik provider;
+   satu-satunya pemanggil sah adalah `core/ai`.
+9. **Sesi `finalizing` terhitung "terbuka"** — "mulai" mengembalikannya; retensi `abandoned`
+   menjangkaunya bila tersangkut.
+
+### Verifikasi
+
+* Lint 9/9, typecheck 9/9, `check:openapi` sinkron; suite penuh — lihat angka di PR.
+* **Mutasi (tiga, semua merah, dipulihkan md5):** tanpa retry; tanpa validasi skema; kuota sebelum
+  pemeriksaan gratis.
+* **`down.sql` migrasi 17 salah pada tulisan pertama** — CHECK dan indeks parsial menyebut tipe
+  enum lama sehingga `ALTER COLUMN … TYPE` gagal. Ditemukan test DB, diperbaiki sebelum commit.
+* **Provider nyata:** transkrip 6 giliran → draft valid pada percobaan pertama (~5 dtk, Groq
+  menjawab), `ai_usage` tercatat `cv-extractor.v1`. Pengguna menyebut "Saya juga Tuli, pakai
+  BISINDO" dan nomor HP-nya — keduanya TIDAK muncul di draft.
+
+### Risiko & temuan
+
+* **Worker tidak punya test end-to-end** (`--passWithNoTests`) — processor dibuat sesempit
+  mungkin; seluruh logika di service api yang teruji.
+* **Latensi Gemini (U-26)** juga berlaku di sini; ekstraksi jatuh ke Groq setelah 15 dtk. Timeout
+  queue 60 dtk masih cukup untuk dua percobaan.
+* **Transkrip sampai ke cache prompt Redis** (lingkup per pengguna, TTL 1 jam, plafon 24 jam).
+  Sama sifatnya dengan template lain; purge akun tidak menjangkau Redis (catatan PR-044b).
+* **Tautan notifikasi gagal ke `/cv`** sementara — halaman chat dengan transkrip lahir di PR-068.
+
+### Next steps
+
+* **PR-068** — UI: tombol "Selesai dan buat draf CV", poll status, jalur manual dengan transkrip
+  terlampir saat `extractionFailedAt`, ubah tautan notifikasi gagal ke halaman chat; putuskan nasib
+  `withDegradation` (sisa U-06).

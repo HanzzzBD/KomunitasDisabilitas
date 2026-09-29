@@ -27,6 +27,7 @@ import {
 import {
   aiChatSessionParamsSchema,
   aiChatSessionResponseSchema,
+  aiCvChatFinalizeResponseSchema,
   aiCvChatRequestSchema,
   aiCvChatSessionStartResponseSchema,
   aiQuotaResponseSchema,
@@ -761,6 +762,36 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             // diatur tetap salah satu sebabnya, tetapi di route ini ada sebab lain.
             "503": errorResponse(
               "Fitur chat AI dimatikan atau server sedang penuh, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
+            ),
+          },
+        },
+      },
+      "/ai/cv-chat/{session}/finalize": {
+        post: {
+          operationId: "finalizeMyAiCvChat",
+          tags: ["ai"],
+          summary: "Jadikan percakapan draft CV (asinkron)",
+          description:
+            "Memotong SATU jatah `cv_finalize` lalu mengantre ekstraksi di worker (202, " +
+            "status `finalizing`). Hasilnya dibaca lewat `GET /ai/cv-chat/{session}` — `resumeId` " +
+            "terisi saat `finalized`, atau `extractionFailedAt`/`extractionError` terisi dan sesi " +
+            "kembali `active` bila ekstraksi gagal — serta notifikasi `resume.draft_ai_siap` / " +
+            "`resume.draft_ai_gagal`. Finalize ganda aman: 202 lagi selama berjalan, 200 bila " +
+            "sudah jadi, tanpa jatah tambahan. Draft TIDAK PERNAH tersimpan bila keluaran AI tidak " +
+            "lolos kontrak isi CV.",
+          requestParams: { path: aiChatSessionParamsSchema },
+          responses: {
+            "200": jsonOk("Draft sudah jadi sebelumnya", aiCvChatFinalizeResponseSchema),
+            "202": jsonOk("Ekstraksi berjalan", aiCvChatFinalizeResponseSchema),
+            "400": errorResponse("`session` bukan UUID"),
+            "404": errorResponse("Sesi tidak ditemukan"),
+            "409": errorResponse(
+              "Jawaban masih mengalir, percakapan belum berisi jawaban, atau batas CV tercapai",
+            ),
+            "429": errorResponse("Jatah finalize hari ini habis (ber-degradasi: pakai formulir)"),
+            ...responsSesi,
+            "503": errorResponse(
+              "Fitur chat AI dimatikan, antrean belum siap, atau kunci sesi server belum diatur",
             ),
           },
         },
