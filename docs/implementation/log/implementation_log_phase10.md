@@ -532,3 +532,46 @@ lama layar diam" menangani lonjakan itu tanpa meninggalkan Gemini saat ia normal
 * Juga di sesi ini: `.env` lokal berisi `GEMINI_CHAT_MODEL=` KOSONG yang membuat boot API gagal
   ("tidak boleh kosong bila diisi"); barisnya dihapus sehingga default baru berlaku (berkas tidak
   dilacak git).
+
+---
+
+## PR-068c — Verifikasi NVDA nyata & jaringan untuk U-24/U-28
+
+> **Tanggal:** 2026-09-29
+> **Status:** Selesai (utang dibayar sebagian)
+> **Branch:** `pr-068c-verifikasi-manual` → `phase-10-ai-cv-builder`
+
+### Ringkasan hasil
+
+AC manual yang terbuka (U-24 dari Phase 09, U-28) dijalankan dengan **NVDA sungguhan** terhadap
+**stack nyata**. Stack itu terdiri dari API, worker PDF, MinIO, dan Gemini/Groq asli. Harness-nya
+ada di `apps/web/verifikasi/` dan tidak dijalankan CI (khusus Windows dan butuh NVDA). Hasil per
+kotak ada di tiga checklist (PR-061, PR-063, PR-068). Status utang ada di U-24/U-28.
+
+### Keputusan teknis
+
+1. **Yang dibaca adalah log ucapan NVDA, bukan pohon aksesibilitas.** NVDA berjalan dengan folder
+   konfigurasi sementara, synth `silence`, dan log level IO. Konfigurasi milik pengguna tidak
+   disentuh.
+2. **Putus-sambung dibuat deterministik di atas server nyata.** Respons POST asli diambil utuh,
+   lalu browser hanya menerima 2 event pertama dan jaringan dimatikan 2,5 dtk. Throttling CDP
+   tidak memotong aliran secara andal.
+3. **Tombol tingkat OS (perintah NVDA) dijaga judul jendela.** `tekanTombolOs` menolak mengirim
+   bila jendela di depan bukan jendela uji. Penjaga ini lahir dari kejadian nyata: run pertama
+   tanpa penjaga mengirim Ctrl+Home dan panah bawah ke File Explorer pengguna. Tombolnya hanya
+   navigasi dan tidak mengubah apa pun.
+4. **Adobe diganti dua bukti** (keputusan owner): pohon struktur PDF (`struktur-pdf.py`) dan NVDA
+   di penampil PDF Chrome.
+
+### Risiko / batasan
+
+* **NVDA membaca jendela yang sedang di depan.** Di desktop yang sedang dipakai, fokus OS bisa
+  berpindah dan log ikut mencatat isi jendela lain. Log dan laporan run seperti itu **dihapus**,
+  bukan disimpan. Laporan harness tidak pernah di-commit. Jalankan hanya saat desktop tidak dipakai.
+* Harness menuntut token akses user uji yang ditandatangani kunci server lokal. Hanya
+  `/auth/refresh` yang dipalsukan.
+
+### Next steps
+
+* U-24: navigasi heading PDF di Adobe; langkah editor di dalam bagian (desktop yang tidak dipakai).
+* U-28: pintu masuk, kuota/degradasi, finalize, putus lama, tampilan sempit. Sisanya manual.

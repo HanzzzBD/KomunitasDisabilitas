@@ -587,7 +587,7 @@ membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bil
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | TERBUKA — sebagian dibayar PR-068c (2026-09-29) |
 | **Jenis** | Verifikasi manual |
 | **Ditemukan** | Audit AC penutupan Phase 09 (2026-09-28) |
 | **Pemilik** | Belum ditetapkan (butuh perangkat Windows + NVDA + Adobe Reader) |
@@ -605,6 +605,16 @@ Phase 09 ditutup ke `main` atas override owner dengan tiga AC terbuka (rincian d
 
 Sama sifatnya dengan U-12 dkk.: bukan kode yang kurang, melainkan bukti yang hanya bisa diambil
 manusia dengan perangkat nyata.
+
+**Dibayar sebagian — PR-068c (2026-09-29).** NVDA nyata dijalankan otomatis
+(`apps/web/verifikasi/`); rinciannya ada di tiap checklist.
+Butir 3 (**PR-064**) **LUNAS**: jalur utuh sudah ditempuh lewat UI di stack lokal.
+**Masih terbuka:**
+* **PR-063:** navigasi heading di pembaca PDF yang memakai tag (Adobe). Penampil Chrome tidak
+  mengekspos heading PDF. Pohon struktur sudah terbukti benar. Juga belum diuji: zoom, kontras
+  tinggi, dan pindah halaman.
+* **PR-061:** label, status wajib, dan tombol nonaktif di dalam bagian, serta daftar CV. Langkah
+  ini butuh desktop yang tidak sedang dipakai orang lain.
 
 ---
 
@@ -693,7 +703,7 @@ default — baris itu harus dihapus manual.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | TERBUKA — sebagian dibayar PR-068c (2026-09-29) |
 | **Jenis** | Verifikasi manual |
 | **Ditemukan** | PR-068 (2026-09-29) |
 | **Pemilik** | Belum ditetapkan (butuh Windows + NVDA, dan API dengan kunci AI sah) |
@@ -703,6 +713,16 @@ Isi [checklist PR-068](implementation/log/pr-068-nvda-checklist.md): pengumuman 
 dan fokus yang tidak berpindah pada NVDA NYATA, serta Slow 3G / putus-sambung di browser
 nyata. Semua yang bisa dibuktikan mesin sudah (e2e + axe); yang tersisa adalah telinga
 manusia — sifat yang sama dengan U-24.
+
+**Dibayar sebagian — PR-068c (2026-09-29), NVDA nyata dan provider AI nyata.** Hasilnya:
+* pengumuman "sedang mengetik" satu kali, lalu jawaban tanpa kalimat terulang;
+* tidak ada ucapan pindah fokus;
+* Slow 3G: fokus tetap;
+* putus di tengah: sambung ulang dengan `Last-Event-Id`, 0 giliran dobel.
+
+**Masih terbuka:** pintu masuk `/cv`, kuota/degradasi, finalize, putus > 1 menit, tampilan sempit,
+dan aliran bertahap di bawah 3G (tidak teramati lewat throttling CDP). Semuanya ada di
+[checklist PR-068](implementation/log/pr-068-nvda-checklist.md).
 
 ---
 
