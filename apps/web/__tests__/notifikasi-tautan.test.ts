@@ -62,13 +62,13 @@ describe("tujuan notifikasi", () => {
     );
   });
 
-  it("draft CV dari AI: siap → editor draft-nya; gagal → daftar CV (formulir manual)", () => {
+  it("draft CV dari AI: siap → editor draft-nya; gagal → halaman chat (transkrip + formulir)", () => {
     expect(tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP, params: PARAMS })).toBe(
       `/cv/${PARAMS.resumeId}`,
     );
     expect(
       tautanNotifikasi({ type: NOTIFICATION_TYPE.RESUME_DRAFT_AI_GAGAL, params: PARAMS }),
-    ).toBe("/cv");
+    ).toBe("/cv/chat");
   });
 
   it("tidak satu pun tipe menjanjikan alamat yang belum ada di router", () => {

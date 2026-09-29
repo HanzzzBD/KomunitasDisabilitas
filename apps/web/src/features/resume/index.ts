@@ -2,3 +2,4 @@ export { buatPrefillResume, type SumberPrefillResume } from "./prefill.js";
 export { EditorResume } from "./editor.js";
 export { KontrolPdf, type KontrolPdfProps } from "./pdf-control.js";
 export { pesanGalatResume, galatPerKolom, type GalatKolom } from "./galat.js";
+export { useBuatCvDariProfil } from "./use-buat-cv.js";

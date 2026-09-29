@@ -317,7 +317,7 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 | | |
 |---|---|
 | **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
-| **Pemilik** | PR-066 → PR-067 → sisa ke **PR-068** (klien pertama yang benar-benar memilih jalur turun) |
+| **Pemilik** | Belum ditetapkan — pemakai alami: **PR-072** (re-rank feed → daftar tanpa peringkat) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -339,6 +339,12 @@ klien sebagai 429/503 — penurunannya terjadi di klien. Pemakai alami `withDegr
 itu kemungkinan besar bukan di jalur CV sama sekali; PR-068 yang memutuskan, dan bila ternyata
 tidak ada pemakai sah, pertimbangkan mencabut ekspornya (aturan PR-041: seam tanpa pemakai
 dicabut, bukan dibiarkan).
+
+**PR-068 memutuskan: bukan di jalur CV.** Klien menurunkan kegagalan dari penanda `degraded`
+(event SSE / kode 429–503), bukan dari `withDegradation` — helper itu milik server dan butuh
+"nilai pengganti" yang bisa dikembalikan di tempat. Fitur pertama yang punya nilai seperti itu
+adalah re-rank feed (PR-072: daftar tanpa peringkat). Bila PR-072 juga tidak memakainya, cabut
+ekspornya di sana.
 
 ---
 
@@ -671,6 +677,23 @@ sama-sama 404 — artinya sejak entah kapan SEMUA jalur AI (termasuk non-stream 
 lingkungan nyata tanpa satu test pun merah. Default chat diganti ke `gemini-3.5-flash-lite` /
 `qwen/qwen3.8-27b` (keputusan owner). `.env` lokal yang masih menyebut model lama tetap menimpa
 default — baris itu harus dihapus manual.
+
+---
+
+### U-28 — AC manual Phase 10: NVDA & jaringan 3G untuk chat CV
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | PR-068 (2026-09-29) |
+| **Pemilik** | Belum ditetapkan (butuh Windows + NVDA, dan API dengan kunci AI sah) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), bersama U-24 |
+
+Isi [checklist PR-068](implementation/log/pr-068-nvda-checklist.md): pengumuman per kalimat
+dan fokus yang tidak berpindah pada NVDA NYATA, serta Slow 3G / putus-sambung di browser
+nyata. Semua yang bisa dibuktikan mesin sudah (e2e + axe); yang tersisa adalah telinga
+manusia — sifat yang sama dengan U-24.
 
 ---
 
