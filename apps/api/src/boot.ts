@@ -41,14 +41,7 @@ import {
   storageConfigFromEnv,
 } from "./core/storage/index.js";
 import { createAiModule, createAiUsageRecorder } from "./modules/ai/index.js";
-import {
-  createAiClient,
-  createAiGateway,
-  createAiPromptCache,
-  createAiQuota,
-  createAiStreamGateway,
-  type AiQuotaConfig,
-} from "./core/ai/index.js";
+import { createAiQuota, rakitAiClient, type AiQuotaConfig } from "./core/ai/index.js";
 import {
   assertRoutesDeclared,
   createAccessGuards,
@@ -223,37 +216,54 @@ export async function startApi(options: BootOptions): Promise<void> {
   // Builder, PR-065), dan satu-satunya jalan masuk ke agregator adalah
   // parameter. `chatSessions` dikembalikan untuk endpoint SSE PR-066.
   // AiClient (utang U-06, dibayar PR-066): satu-satunya jalan modul ke LLM —
-  // kuota → provider → jejak biaya → cache. Dirakit DI SINI, di composition
-  // root, sebab hanya di sini `createAiGateway` boleh dipanggil (U-07,
-  // `ai-gateway-jangkauan.test.ts`). Kunci AI kosong bukan kegagalan boot:
-  // gateway menjadi penolak `AI_NOT_CONFIGURED` dan fitur AI jatuh ke jalur
-  // non-AI (ADR-005).
+  // kuota → provider → jejak biaya → cache. Disusun `rakitAiClient` (core/ai),
+  // perakit yang SAMA dengan worker ekstraksi CV (PR-067) — pabrik provider
+  // tidak dipanggil di sini maupun di worker (U-07, `ai-gateway-jangkauan`).
+  // Kunci AI kosong bukan kegagalan boot: gateway menjadi penolak
+  // `AI_NOT_CONFIGURED` dan fitur AI jatuh ke jalur non-AI (ADR-005).
   const aiMetricCounts = new Map<string, number>();
   const aiMetrics = {
     increment: (name: string) => aiMetricCounts.set(name, (aiMetricCounts.get(name) ?? 0) + 1),
   };
-  const aiClient = createAiClient({
-    provider: createAiGateway(env, logger),
-    streamProvider: createAiStreamGateway(env),
+  const aiClient = rakitAiClient({
+    env,
+    logger,
     quota: aiQuota,
     // Produser `ai:usage-record`; konsumennya worker (PR-043b).
     recorder: createAiUsageRecorder({ queues, logger, metrics: aiMetrics }),
-    // `redis.cache` (allkeys-lru), BUKAN `redis.queue` — kebalikan kuota; alasan
-    // di kepala core/ai/cache.ts. Belum ada template JSON yang dipanggil hari
-    // ini (chat tidak di-cache), jadi ini murni pembayaran perakitan U-06.
-    cache: createAiPromptCache({ redis: redis.cache, logger, metrics: aiMetrics }),
-    logger,
+    // `redis.cache` (allkeys-lru), BUKAN `redis.queue` — kebalikan kuota.
+    cacheRedis: redis.cache,
+    metrics: aiMetrics,
   });
 
   // Dirakit di LUAR callback `routes`, alasan yang sama dengan `profiles`:
   // modul users membutuhkan bagian ekspor PDP miliknya (transkrip AI CV
   // Builder PR-065, jejak pemakaian AI U-05), dan satu-satunya jalan masuk ke
   // agregator adalah parameter.
+  // CV jalur manual (PR-060) — dirakit di LUAR callback `routes` sejak PR-067:
+  // modul ai membutuhkan service-nya untuk menghitung CV sebelum finalize.
+  // TIDAK bergantung pada gateway AI sama sekali, dan itu justru intinya:
+  // graceful degradation adalah kewajiban produk (PRD), jadi jalur ini harus
+  // tetap hidup utuh saat kuota habis atau kedua penyedia LLM tumbang.
+  const resumes = createResumesModule({
+    prisma,
+    routes: routeRegistry.forModule("/api/v1"),
+    maksPerPengguna: env.RESUME_MAX_PER_USER,
+    pdf: resumePdf,
+  });
+
   const ai = createAiModule({
     prisma,
     quota: aiQuota,
     routes: routeRegistry.forModule("/api/v1"),
     cvChat: { ai: aiClient, aktif: env.AI_CV_CHAT_ENABLED, logger },
+    // PR-067: produser `ai-extract-resume` + batas CV yang SAMA dengan jalur
+    // manual, dibaca lewat service modul resumes (ADR-001).
+    finalize: {
+      queues,
+      cv: { jumlah: async (actor) => (await resumes.service.list(actor)).length },
+      maksCv: env.RESUME_MAX_PER_USER,
+    },
   });
   if (!env.AI_CV_CHAT_ENABLED) {
     logger.warn(
@@ -340,19 +350,8 @@ export async function startApi(options: BootOptions): Promise<void> {
       app.use(notifications.router);
       app.use(ai.router);
       app.use(profiles.router);
-      // CV jalur manual (PR-060). TIDAK bergantung pada gateway AI sama sekali,
-      // dan itu justru intinya: graceful degradation adalah kewajiban produk
-      // (PRD), jadi jalur ini harus tetap hidup utuh saat kuota habis atau
-      // kedua penyedia LLM tumbang. `service`-nya dikembalikan untuk PR-066
-      // (CV dari percakapan) dan PR-063/064 (render PDF) — belum ada pemanggil.
-      app.use(
-        createResumesModule({
-          prisma,
-          routes: routeRegistry.forModule("/api/v1"),
-          maksPerPengguna: env.RESUME_MAX_PER_USER,
-          pdf: resumePdf,
-        }).router,
-      );
+      // CV jalur manual (PR-060) — dirakit di atas (PR-067), dipasang di sini.
+      app.use(resumes.router);
       // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk
       // `GET /companies/:id/jobs` (PR-054/055, komunikasi antar-modul lewat
       // lapisan service — CLAUDE.md §3.2). Penerbit `job.published` +

@@ -68,6 +68,10 @@ export const NOTIFICATION_TYPE = {
   LAMARAN_STATUS_BERUBAH: "lamaran.status_berubah",
   /** PDF untuk satu versi CV selesai dibuat. */
   RESUME_PDF_SIAP: "resume.pdf_siap",
+  /** Draft CV dari percakapan AI siap direview (PR-067). */
+  RESUME_DRAFT_AI_SIAP: "resume.draft_ai_siap",
+  /** Draft CV dari percakapan AI GAGAL dibuat — arahkan ke formulir (PR-067). */
+  RESUME_DRAFT_AI_GAGAL: "resume.draft_ai_gagal",
 } as const;
 
 export const notificationTypeSchema = z
@@ -76,6 +80,8 @@ export const notificationTypeSchema = z
     NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
     NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
     NOTIFICATION_TYPE.RESUME_PDF_SIAP,
+    NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP,
+    NOTIFICATION_TYPE.RESUME_DRAFT_AI_GAGAL,
   ])
   .openapi({ ref: "NotificationType", description: "Tipe notifikasi terdaftar" });
 
@@ -109,6 +115,10 @@ export const NOTIFICATION_PARAM_SCHEMAS = {
     })
     .strict(),
   "resume.pdf_siap": z.object({ resumeId: idSchema }).strict(),
+  "resume.draft_ai_siap": z.object({ resumeId: idSchema }).strict(),
+  // `sessionId`, BUKAN kutipan transkrip: klien membuka sesi itu untuk
+  // menawarkan formulir manual dengan transkrip terlampir.
+  "resume.draft_ai_gagal": z.object({ sessionId: idSchema }).strict(),
 } as const satisfies Record<NotificationType, z.ZodTypeAny>;
 
 /** Parameter satu tipe, tertipe sempit — `NotificationParams<"lamaran.terkirim">`. */

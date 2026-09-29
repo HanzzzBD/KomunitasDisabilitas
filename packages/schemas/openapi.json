@@ -2151,6 +2151,112 @@
         }
       }
     },
+    "/ai/cv-chat/{session}/finalize": {
+      "post": {
+        "operationId": "finalizeMyAiCvChat",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Jadikan percakapan draft CV (asinkron)",
+        "description": "Memotong SATU jatah `cv_finalize` lalu mengantre ekstraksi di worker (202, status `finalizing`). Hasilnya dibaca lewat `GET /ai/cv-chat/{session}` — `resumeId` terisi saat `finalized`, atau `extractionFailedAt`/`extractionError` terisi dan sesi kembali `active` bila ekstraksi gagal — serta notifikasi `resume.draft_ai_siap` / `resume.draft_ai_gagal`. Finalize ganda aman: 202 lagi selama berjalan, 200 bila sudah jadi, tanpa jatah tambahan. Draft TIDAK PERNAH tersimpan bila keluaran AI tidak lolos kontrak isi CV.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft sudah jadi sebelumnya",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiCvChatFinalizeResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Ekstraksi berjalan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiCvChatFinalizeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`session` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sesi tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Jawaban masih mengalir, percakapan belum berisi jawaban, atau batas CV tercapai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Jatah finalize hari ini habis (ber-degradasi: pakai formulir)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Fitur chat AI dimatikan, antrean belum siap, atau kunci sesi server belum diatur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/cv-chat/{session}/stream": {
       "get": {
         "operationId": "resumeAiCvChatStream",
@@ -5200,7 +5306,9 @@
           "auth.selamat_datang",
           "lamaran.terkirim",
           "lamaran.status_berubah",
-          "resume.pdf_siap"
+          "resume.pdf_siap",
+          "resume.draft_ai_siap",
+          "resume.draft_ai_gagal"
         ],
         "description": "Tipe notifikasi terdaftar"
       },
@@ -5235,6 +5343,7 @@
             "type": "string",
             "enum": [
               "active",
+              "finalizing",
               "finalized"
             ],
             "description": "Keadaan sesi"
@@ -5265,6 +5374,30 @@
             "format": "date-time",
             "description": "Waktu ISO 8601 dengan offset",
             "example": "2026-07-18T09:00:00+07:00"
+          },
+          "resumeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "extractionFailedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "extractionError": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -5273,7 +5406,10 @@
           "turns",
           "createdAt",
           "updatedAt",
-          "finalizedAt"
+          "finalizedAt",
+          "resumeId",
+          "extractionFailedAt",
+          "extractionError"
         ],
         "additionalProperties": false,
         "description": "Sesi AI CV Builder beserta transkripnya"
@@ -6189,6 +6325,50 @@
         "required": [
           "sessionId",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "AiCvChatFinalizeResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiCvChatFinalizeResult"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AiCvChatFinalizeResult": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "finalizing",
+              "finalized"
+            ]
+          },
+          "resumeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "sessionId",
+          "status",
+          "resumeId"
         ],
         "additionalProperties": false
       },

@@ -84,10 +84,13 @@ describe("schema.prisma ↔ SQL migrasi", () => {
 /**
  * Indeks yang BOLEH dihapus sebuah migrasi, beserta alasannya.
  *
- * Kosong hari ini, dan itu memang keadaan yang benar: belum ada satu pun indeks
- * yang pernah sengaja dihapus di repo ini.
+ * Satu entri sejak PR-067 — indeks yang DIGANTI di migrasi yang sama, bukan
+ * indeks yang hilang.
  */
-const DROP_INDEX_DISENGAJA: Readonly<Record<string, string>> = {};
+const DROP_INDEX_DISENGAJA: Readonly<Record<string, string>> = {
+  ai_chat_sessions_satu_aktif:
+    "PR-067 (migrasi 18): DIGANTI `ai_chat_sessions_satu_terbuka` berpredikat `status IN ('active','finalizing')` di berkas yang sama. Indeks milik PR-065 sendiri, bukan indeks raw-SQL migrasi 03.",
+};
 
 describe("tidak ada migrasi yang menghapus indeks tanpa keputusan (PR-048a)", () => {
   // KENAPA PENJAGA INI ADA — dan ia lahir dari kejadian nyata, bukan kehati-
@@ -167,10 +170,11 @@ describe("tidak ada migrasi yang menghapus indeks tanpa keputusan (PR-048a)", ()
       "applications_user_updated",
       "applications_job_status",
       "jobs_status_published_at",
-      // PR-065 — unique PARSIAL: satu sesi `active` per pengguna. Yang hilang
-      // di sini bukan hanya lambat: tanpa indeks ini, "mulai percakapan" yang
-      // terkirim dua kali melahirkan dua sesi aktif dan resume memilih acak.
-      "ai_chat_sessions_satu_aktif",
+      // PR-065/067 — unique PARSIAL: satu sesi TERBUKA (active/finalizing) per
+      // pengguna. Yang hilang di sini bukan hanya lambat: tanpa indeks ini,
+      // "mulai percakapan" yang terkirim dua kali melahirkan dua sesi aktif dan
+      // resume memilih acak.
+      "ai_chat_sessions_satu_terbuka",
     ]) {
       expect(sql, `indeks "${indeks}" hilang dari SQL migrasi`).toContain(`"${indeks}"`);
     }

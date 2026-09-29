@@ -205,6 +205,7 @@ export function createCvChatService(deps: CvChatServiceDeps): CvChatService {
     async siapkan(actor, input) {
       pastikanAktif();
       const session = await chatSessions.get(actor, input.sessionId); // 404 bila bukan miliknya
+      if (session.status === "finalizing") throw appError("AI_SESI_SEDANG_DIFINALISASI");
       if (session.status !== "active") throw appError("AI_SESI_SUDAH_SELESAI");
 
       const sesi = buatSesiSse();

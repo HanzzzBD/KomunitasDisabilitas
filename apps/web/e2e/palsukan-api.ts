@@ -126,6 +126,10 @@ const BERKAS_UJI = {
       createdAt: "2026-01-15T20:00:00.000Z",
       updatedAt: "2026-01-15T20:01:00.000Z",
       finalizedAt: null,
+      // PR-067 — hasil finalize & jejak ekstraksi yang gagal.
+      resumeId: null,
+      extractionFailedAt: null,
+      extractionError: null,
     },
   ],
   // U-05 (PR-066). Satu baris, bukan larik kosong — alasan yang sama dengan

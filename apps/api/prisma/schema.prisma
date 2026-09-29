@@ -296,6 +296,8 @@ model Resume {
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications Application[]
+  /// Sesi chat yang melahirkan CV ini (PR-067); kosong untuk CV manual.
+  aiChatSessions AiChatSession[]
 
   @@index([userId])
   @@map("resumes")
@@ -612,15 +614,17 @@ model SignVideo {
 /// Keadaan sesi AI CV Builder (PR-065). Lihat `aiChatSessionStatusSchema`.
 enum AiChatSessionStatus {
   active
+  /// Sedang diekstrak worker menjadi draft CV (PR-067, migrasi 17).
+  finalizing
   finalized
 }
 
 /// Sesi AI CV Builder (PR-065, SDD §6.4, risiko T7): percakapan disimpan di
 /// SERVER supaya tidak hilang saat koneksi putus.
 ///
-/// Paling banyak SATU sesi `active` per pengguna — ditegakkan unique PARSIAL
-/// `ai_chat_sessions_satu_aktif` yang ditulis tangan di migrasi 16 (Prisma tidak
-/// bisa menyatakannya). Akibatnya "mulai percakapan" setelah putus MENGEMBALIKAN
+/// Paling banyak SATU sesi TERBUKA (`active`/`finalizing`) per pengguna —
+/// ditegakkan unique PARSIAL `ai_chat_sessions_satu_terbuka` yang ditulis tangan
+/// di migrasi 18 (Prisma tidak bisa menyatakannya). Akibatnya "mulai percakapan" setelah putus MENGEMBALIKAN
 /// sesi yang sama, bukan menumpuk sesi yatim.
 ///
 /// Retensi (PR-024 registry, modul ai): 30 hari setelah `finalized_at`, atau 30
@@ -633,10 +637,17 @@ model AiChatSession {
   transcript  Json                @default("[]")
   status      AiChatSessionStatus @default(active)
   finalizedAt DateTime?           @map("finalized_at") @db.Timestamptz(6)
+  /// Draft CV hasil ekstraksi (PR-067). SetNull: menghapus draft tidak
+  /// menghapus transkrip.
+  resumeId           String?   @map("resume_id") @db.Uuid
+  /// Ekstraksi TERAKHIR gagal — kapan, dan KODE sebabnya (bukan pesan).
+  extractionFailedAt DateTime? @map("extraction_failed_at") @db.Timestamptz(6)
+  extractionError    String?   @map("extraction_error")
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@map("ai_chat_sessions")

@@ -110,6 +110,32 @@ export const TEMPLATE = {
       "id-simple": "Buka CV Anda. PDF terbaru bisa diunduh sekarang.",
     }),
   },
+
+  // PR-067. "Direview", bukan "siap": draft dari AI selalu diperiksa manusia
+  // sebelum dipakai (AI mengusulkan, manusia memutuskan).
+  "resume.draft_ai_siap": {
+    title: () => ({
+      id: "Draft CV dari percakapan siap direview",
+      "id-simple": "Draft CV Anda sudah jadi",
+    }),
+    body: () => ({
+      id: "Periksa dan ubah isinya bila perlu sebelum dipakai untuk melamar.",
+      "id-simple": "Buka draft CV Anda. Cek isinya, lalu ubah bila ada yang salah.",
+    }),
+  },
+
+  // PR-067. Kalimat pertamanya menenangkan dengan sengaja: yang paling ingin
+  // diketahui orang saat membaca "gagal" adalah apakah jawabannya hilang.
+  "resume.draft_ai_gagal": {
+    title: () => ({
+      id: "Draft CV belum berhasil dibuat",
+      "id-simple": "Draft CV belum jadi",
+    }),
+    body: () => ({
+      id: "Jawaban Anda tetap tersimpan. Lanjutkan lewat formulir CV, atau coba buat draft lagi.",
+      "id-simple": "Jawaban Anda aman. Isi CV lewat formulir, atau coba lagi nanti.",
+    }),
+  },
 } as const satisfies { [T in NotificationType]: TemplateNotifikasi<T> };
 
 /** Hasil render satu notifikasi — kedua varian, judul dan isi. */

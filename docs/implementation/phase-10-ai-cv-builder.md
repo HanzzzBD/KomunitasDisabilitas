@@ -226,11 +226,11 @@ Bisnis: hasil chat menjadi CV nyata yang direview manusia (AI mengusulkan, manus
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parser retry)
-* [ ] Integration Test (job penuh, output rusak disimulasikan)
+* [x] Unit Test (parser retry) — `ai-cv-ekstraksi.test.ts` (14 test)
+* [x] Integration Test (job penuh, output rusak disimulasikan) — `ai-cv-finalize-http.test.ts` (9, kuota asli) + `ai-cv-finalize-db.test.ts` (8, PostgreSQL nyata)
 * [ ] E2E Test (via PR-068)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (finalize sesi nyata staging)
+* [x] Manual Verification (finalize sesi nyata ~~staging~~ lokal, provider nyata) — transkrip 6 giliran → draft valid percobaan pertama; disabilitas & nomor HP yang diucapkan TIDAK masuk CV (2026-09-28)
 
 **Deliverables:**
 
@@ -246,11 +246,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Output valid → draft resume tersimpan utk review.
-* [ ] Invalid 1× → retry dengan feedback; 2× → fallback manual (tidak buntu).
-* [ ] Tidak ada draft gagal-schema tersimpan (test).
-* [ ] Notifikasi "draft CV siap direview".
-* [ ] Idempoten per sesi (finalize ganda aman).
+* [x] Output valid → draft resume tersimpan utk review. — `created_via: ai_chat`, id = id sesi, sesi `finalized` + `resumeId`
+* [x] Invalid 1× → retry dengan feedback; 2× → fallback manual (tidak buntu). — perbaikan memuat jalur+pesan masalah; gagal 2× → sesi kembali `active` + `extractionError`, transkrip utuh, notifikasi `resume.draft_ai_gagal`
+* [x] Tidak ada draft gagal-schema tersimpan (test). — satu-satunya jalan ke `resumes.create` lewat `resumeContentInputSchema.safeParse` sukses; field disabilitas ditolak `.strict()` (mutasi: melewati validasi → 4 test merah)
+* [x] Notifikasi "draft CV siap direview". — `resume.draft_ai_siap` (satu per sesi) + tautan web ke editor draft
+* [x] Idempoten per sesi (finalize ganda aman). — API: 202/200 tanpa job & jatah kedua; worker: job ganda dilewati, retry setelah draft tersimpan memakai draft yang ada
 
 #### Dependencies
 

@@ -144,6 +144,7 @@ describe("deklarasi route (AC-6)", () => {
     expect(registry.list()).toEqual([
       { method: "POST", path: "/api/v1/ai/cv-chat", access: auth },
       { method: "GET", path: "/api/v1/ai/cv-chat/:session", access: auth },
+      { method: "POST", path: "/api/v1/ai/cv-chat/:session/finalize", access: auth },
       { method: "GET", path: "/api/v1/ai/cv-chat/:session/stream", access: auth },
       { method: "POST", path: "/api/v1/ai/cv-chat/sessions", access: auth },
       { method: "GET", path: "/api/v1/ai/quota", access: auth },

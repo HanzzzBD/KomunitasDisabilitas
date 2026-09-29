@@ -19,6 +19,8 @@ import {
   type AiQuota,
 } from "../../core/ai/index.js";
 import type { Logger } from "../../core/logger/index.js";
+import type { QueueRegistry } from "../../core/queue/index.js";
+import { appError } from "../../core/http/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { AppPrisma } from "../../core/db/index.js";
 import { createAiQuotaService } from "./services/quota.service.js";
@@ -36,7 +38,9 @@ import { createAiUsageExportContributor } from "./services/ai-usage-export.servi
 import { createCvChatService, type CvChatService } from "./services/cv-chat.service.js";
 import { createRegistriAliran } from "./services/cv-chat-aliran.js";
 import { createCvChatController } from "./controllers/cv-chat.controller.js";
-import { createAiCvChatRouter } from "./routers/index.js";
+import { createAiCvChatRouter, createAiCvFinalizeRouter } from "./routers/index.js";
+import { createCvEkstraksiJobs, createCvFinalizeService } from "./services/cv-finalize.service.js";
+import { createCvFinalizeController } from "./controllers/cv-finalize.controller.js";
 
 export interface AiModuleDeps {
   prisma: AppPrisma;
@@ -55,6 +59,18 @@ export interface AiModuleDeps {
     /** `env.AI_CV_CHAT_ENABLED`. */
     aktif: boolean;
     logger: Pick<Logger, "error">;
+  };
+  /**
+   * Finalize → draft CV (PR-067). ABSEN = route tetap terdaftar dan menjawab
+   * 503 `BELUM_SIAP` saat hendak mengantre — pola `pdf` di modul resumes.
+   */
+  finalize?: {
+    /** Produser `ai-extract-resume`. */
+    queues: Pick<QueueRegistry, "enqueue">;
+    /** Hitung CV pemilik — lewat service modul resumes, dirakit di boot. */
+    cv: { jumlah(actor: { userId: string }): Promise<number> };
+    /** `env.RESUME_MAX_PER_USER`. */
+    maksCv: number;
   };
 }
 
@@ -88,16 +104,33 @@ export function createAiModule(deps: AiModuleDeps): AiModule {
   });
   createAiChatSessionsRouter(createAiChatSessionsController(chatSessions), deps.routes);
 
+  // SATU registry aliran untuk chat DAN finalize: finalize harus bisa melihat
+  // jawaban yang masih mengalir (PR-067).
+  const registri = createRegistriAliran();
   const cvChat = createCvChatService({
     chatSessions,
     ai: deps.cvChat?.ai ?? AI_TIDAK_DIRAKIT,
-    registri: createRegistriAliran(),
+    registri,
     template: cvInterviewerV1,
     aktif: deps.cvChat?.aktif ?? true,
     logger: deps.cvChat?.logger ?? { error: () => undefined },
   });
   // Semua registrar menulis ke Router YANG SAMA (`routes.router`).
-  const router = createAiCvChatRouter(createCvChatController(cvChat), deps.routes);
+  createAiCvChatRouter(createCvChatController(cvChat), deps.routes);
+
+  const finalize = createCvFinalizeService({
+    repo: createChatSessionsRepository(deps.prisma),
+    registri,
+    quota: deps.quota,
+    cv: deps.finalize?.cv ?? { jumlah: () => Promise.resolve(0) },
+    maksCv: deps.finalize?.maksCv ?? 5,
+    jobs:
+      deps.finalize === undefined
+        ? { enqueue: () => Promise.reject(appError("BELUM_SIAP")) }
+        : createCvEkstraksiJobs(deps.finalize.queues),
+    aktif: deps.cvChat?.aktif ?? true,
+  });
+  const router = createAiCvFinalizeRouter(createCvFinalizeController(finalize), deps.routes);
 
   return {
     router,
@@ -119,8 +152,30 @@ export { createAiController, type AiController } from "./controllers/ai.controll
 export {
   createAiChatSessionsRouter,
   createAiCvChatRouter,
+  createAiCvFinalizeRouter,
   createAiQuotaRouter,
 } from "./routers/index.js";
+export {
+  createCvEkstraksiJobs,
+  createCvFinalizeService,
+  type CvEkstraksiJobs,
+  type CvFinalizeService,
+  type CvFinalizeServiceDeps,
+} from "./services/cv-finalize.service.js";
+export {
+  createCvEkstraksiService,
+  formatPercakapan,
+  teksPerbaikan,
+  type CvEkstraksiService,
+  type CvEkstraksiServiceDeps,
+  type CvTujuan,
+  type HasilEkstraksi,
+  type PenerbitNotifikasi,
+} from "./services/cv-ekstraksi.service.js";
+export {
+  createCvFinalizeController,
+  type CvFinalizeController,
+} from "./controllers/cv-finalize.controller.js";
 export {
   createCvChatService,
   EVENT_GILIRAN,
@@ -145,6 +200,7 @@ export {
   type ChatSessionRow,
   type ChatSessionsRepository,
   type GiliranTulis,
+  type HasilMulaiFinalisasi,
   type HasilAppend,
   type KategoriRetensiChat,
 } from "./repositories/chat-sessions.repository.js";
