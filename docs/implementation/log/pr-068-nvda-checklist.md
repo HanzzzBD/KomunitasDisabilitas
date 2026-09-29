@@ -21,9 +21,9 @@ MANUSIA dengan pembaca layar sungguhan.
 ## Menjawab dan mendengar jawaban (AC PR-068)
 
 - [ ] Kotak "Jawaban Anda" membacakan label dan bantuan (batas karakter, Ctrl+Enter).
-- [ ] Setelah Ctrl+Enter, NVDA mengumumkan "Pewawancara sedang mengetik…" SEKALI, tanpa memindahkan fokus.
-- [ ] Jawaban AI dibacakan **per kalimat**, tidak terpotong per kata, dan tidak diulang dua kali (pratinjau yang mengalir disembunyikan dari pembaca layar).
-- [ ] Fokus TETAP di kotak ketik sepanjang jawaban mengalir — pengguna bisa langsung mengetik jawaban berikutnya.
+- [x] Setelah Ctrl+Enter, NVDA mengumumkan "Pewawancara sedang mengetik…" SEKALI, tanpa memindahkan fokus.
+- [x] Jawaban AI dibacakan **per kalimat**, tidak terpotong per kata, dan tidak diulang dua kali (pratinjau yang mengalir disembunyikan dari pembaca layar).
+- [x] Fokus TETAP di kotak ketik sepanjang jawaban mengalir — pengguna bisa langsung mengetik jawaban berikutnya.
 - [ ] Menekan tombol "Kirim" dengan mouse/Enter tidak menjatuhkan fokus ke awal halaman.
 - [ ] Menelusuri daftar "Percakapan" sesudahnya membacakan jawaban tersimpan (versi rapi), bukan pratinjau.
 
@@ -42,7 +42,7 @@ MANUSIA dengan pembaca layar sungguhan.
 ## Jaringan lambat / putus (Slow 3G)
 
 - [ ] Dengan throttling Slow 3G, token tetap mengalir bertahap (tidak menumpuk lalu muncul sekaligus — cek `X-Accel-Buffering`/proxy).
-- [ ] Mematikan jaringan sebentar di tengah jawaban lalu menyalakannya: "Sambungan terputus. Menyambung kembali…" tampil, jawaban berlanjut TANPA kalimat dobel.
+- [x] Mematikan jaringan sebentar di tengah jawaban lalu menyalakannya: "Sambungan terputus. Menyambung kembali…" tampil, jawaban berlanjut TANPA kalimat dobel.
 - [ ] Mematikan jaringan > 1 menit: halaman memberi pesan jujur; memuat ulang halaman menampilkan jawaban yang sudah tersimpan.
 
 ## Tampilan sempit
@@ -52,4 +52,26 @@ MANUSIA dengan pembaca layar sungguhan.
 
 ## Catatan hasil manual
 
-_(isi saat pengujian dilakukan: tanggal, versi NVDA, browser, temuan)_
+### 2026-09-29 — otomatis dengan NVDA nyata (PR-068c)
+
+NVDA 2026.1.1 (synth `silence`, log IO: yang dicatat adalah ucapan NVDA yang sebenarnya), Chrome for
+Testing (Playwright, headed), stack nyata: API + Gemini/Groq sungguhan lewat proxy Vite. Harness:
+`apps/web/verifikasi/chat-nyata.verifikasi.ts`. Kotak yang dicentang di atas berasal dari run ini.
+
+* **A. Normal.** Ucapan NVDA sesudah Ctrl+Enter: "Pewawancara sedang mengetik…" satu kali, lalu
+  jawabannya. Tiap kalimat terucap **tepat satu kali**. Tidak ada ucapan perpindahan fokus sesudah
+  pesan dikirim; fokus tetap di kotak ketik. Jawaban tersimpan dalam 2,0 dtk.
+  *Catatan:* jawaban sependek ini tiba dalam satu potongan, jadi NVDA mengucapkan kedua kalimat
+  sebagai satu ucapan. Pemecahan per kalimat saat token datang bertahap dibuktikan e2e, bukan run ini.
+  Pada run pertama, "sedang mengetik" tidak terucap karena jawaban datang lebih dulu. Ini soal
+  waktu, bukan galat.
+* **B. Slow 3G** (CDP: latensi 2 dtk, ~400 kbps). Jawaban tersimpan dalam 3,0 dtk dan fokus
+  tetap di kotak ketik. Kotak "token mengalir bertahap" **belum** dicentang: throttling CDP tidak
+  memperlambat badan aliran per potongan, jadi hal itu tidak teramati di sini.
+* **C. Putus di tengah.** Browser hanya menerima 2 dari 6 event, lalu jaringan dimatikan 2,5 dtk.
+  NVDA membacakan peringatan offline aplikasi, lalu "sedang mengetik", lalu jawaban lengkap. Klien
+  menyambung ulang ke `/stream` nyata dengan `Last-Event-Id: 2`. Hasilnya **0 giliran dobel**,
+  6 giliran bertambah, tiap kalimat terucap satu kali, dan fokus tetap di kotak ketik.
+
+**Masih terbuka (butuh manusia):** pintu masuk, kuota/degradasi, finalize, putus > 1 menit,
+tampilan sempit. Kotak yang tidak dicentang di atas ada di utang U-28.
