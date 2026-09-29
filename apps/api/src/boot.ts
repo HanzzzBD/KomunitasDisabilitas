@@ -34,6 +34,7 @@ import { createNotificationsModule } from "./modules/notifications/index.js";
 import { createProfilesModule } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
+import { createMatchingModule } from "./modules/matching/index.js";
 import { createResumePdfJobs, createResumesModule } from "./modules/resumes/index.js";
 import {
   StorageNotConfiguredError,
@@ -164,9 +165,15 @@ export async function startApi(options: BootOptions): Promise<void> {
     // pernah membaca env sendiri (ADR-007, ADR-015).
     fieldKeys,
     auditLog,
-    // Penerbit `profile.updated` (PR-038); pelanggannya lahir di PR-069.
+    // Penerbit `profile.updated` (PR-038); pelanggannya modul matching di bawah.
     events,
   });
+
+  // Pemicu embedding (PR-069): pelanggan `profile.updated`, `job.published`,
+  // dan `job.updated` di bus PROSES INI — penerbit ketiganya hidup di sini
+  // (modul profiles & jobs, lewat HTTP). Handler-nya hanya meng-enqueue
+  // `ai-embed`; perhitungan vektornya di apps/worker.
+  createMatchingModule({ events, queues });
 
   // Sama seperti `profiles` di atas, dan alasannya persis sama: modul `users`
   // membutuhkan bagian ekspor PDP keduanya (utang U-03 & U-04, dibayar
@@ -355,7 +362,8 @@ export async function startApi(options: BootOptions): Promise<void> {
       // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk
       // `GET /companies/:id/jobs` (PR-054/055, komunikasi antar-modul lewat
       // lapisan service — CLAUDE.md §3.2). Penerbit `job.published` +
-      // `job.closed` (reason `closed_by_admin`); `job.closed` sudah punya
+      // `job.updated` (pelanggannya matching, PR-069) + `job.closed` (reason
+      // `closed_by_admin`); `job.closed` sudah punya
       // pelanggan SISTEM sejak PR-024b (worker retention), tetapi lewat
       // proses TERPISAH (bus ini in-process, lihat core/events) — jadi tetap
       // belum ada pelanggan DI PROSES API ini.

@@ -21,7 +21,9 @@
     "./modules/ai": "./src/modules/ai/index.ts",
     "./modules/notifications": "./src/modules/notifications/index.ts",
     "./modules/accessibility": "./src/modules/accessibility/index.ts",
-    "./modules/resumes": "./src/modules/resumes/index.ts"
+    "./modules/resumes": "./src/modules/resumes/index.ts",
+    "./modules/profiles": "./src/modules/profiles/index.ts",
+    "./modules/matching": "./src/modules/matching/index.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",

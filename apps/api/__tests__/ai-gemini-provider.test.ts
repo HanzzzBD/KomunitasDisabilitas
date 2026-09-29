@@ -16,7 +16,7 @@ const KONFIG = {
   apiKey: "kunci-uji-rahasia",
   baseUrl: "https://ai.contoh.invalid",
   chatModel: "gemini-2.0-flash",
-  embedModel: "text-embedding-004",
+  embedModel: "gemini-embedding-001",
   timeoutMs: 2000,
 };
 
@@ -111,7 +111,7 @@ describe("createGeminiProvider — embed", () => {
     const hasil = await provider.embed({ text: "penyandang disabilitas daksa, admin" });
     expect(hasil.vector).toHaveLength(768);
     expect(hasil.dimensions).toBe(768);
-    expect(hasil.model).toBe("text-embedding-004");
+    expect(hasil.model).toBe("gemini-embedding-001");
   });
 
   it("vektor berpanjang salah = AI_INVALID_OUTPUT, BUKAN dipotong/ditambal", async () => {
@@ -124,6 +124,38 @@ describe("createGeminiProvider — embed", () => {
 
     await expect(provider.embed({ text: "apa saja" })).rejects.toMatchObject({
       name: "AiProviderError",
+      code: "AI_INVALID_OUTPUT",
+    });
+  });
+
+  it("U-27: meminta 768 dimensi ke model, bukan memotong vektor 3072 sendiri", async () => {
+    const fetchMock = vi.fn(balas({ embedding: { values: vektor768() } }));
+    await createGeminiProvider(KONFIG, fetchMock).embed({ text: "admin gudang" });
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1].body)) as Record<string, unknown>;
+    expect(body.outputDimensionality).toBe(768);
+    expect(body.taskType).toBe("SEMANTIC_SIMILARITY");
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("gemini-embedding-001:embedContent");
+  });
+
+  it("vektor hasil dinormalisasi ke panjang 1 (potongan MRL tidak ternormalisasi)", async () => {
+    const provider = createGeminiProvider(
+      KONFIG,
+      vi.fn(balas({ embedding: { values: vektor768().map((v) => v * 37) } })),
+    );
+
+    const { vector } = await provider.embed({ text: "apa saja" });
+    const panjang = Math.sqrt(vector.reduce((jumlah, v) => jumlah + v * v, 0));
+    expect(panjang).toBeCloseTo(1, 10);
+  });
+
+  it("vektor nol = AI_INVALID_OUTPUT — tidak punya arah, tidak bisa dibandingkan", async () => {
+    const provider = createGeminiProvider(
+      KONFIG,
+      vi.fn(balas({ embedding: { values: Array.from({ length: 768 }, () => 0) } })),
+    );
+
+    await expect(provider.embed({ text: "apa saja" })).rejects.toMatchObject({
       code: "AI_INVALID_OUTPUT",
     });
   });

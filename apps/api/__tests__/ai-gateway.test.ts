@@ -13,7 +13,7 @@ const ENV: AiGatewayEnv = {
   GEMINI_API_KEY: undefined,
   GEMINI_BASE_URL: "https://ai.contoh.invalid",
   GEMINI_CHAT_MODEL: "gemini-2.0-flash",
-  GEMINI_EMBED_MODEL: "text-embedding-004",
+  GEMINI_EMBED_MODEL: "gemini-embedding-001",
   GEMINI_TIMEOUT_MS: 2_000,
   GROQ_API_KEY: undefined,
   GROQ_BASE_URL: "https://groq.contoh.invalid",

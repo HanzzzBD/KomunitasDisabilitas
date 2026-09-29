@@ -128,6 +128,26 @@ function bacaTeks(kandidat: GeminiCandidate): string {
     .join("");
 }
 
+/**
+ * Skala vektor ke panjang 1 (U-27, PR-069).
+ *
+ * Hanya vektor 3072 dimensi penuh yang dinormalisasi Gemini; hasil potongan
+ * MRL (768) TIDAK. Kosinus tidak peduli panjang, tetapi jarak L2 (`<->`
+ * pgvector) peduli — dan vektor yang panjangnya berbeda-beda membuat kedua
+ * operator memberi urutan berbeda tanpa satu pun error. Menormalisasi di batas
+ * ini berarti setiap vektor di database punya sifat yang sama, apa pun operator
+ * yang kelak dipilih PR-070.
+ *
+ * `null` = vektor nol/NaN/tak hingga: tidak punya arah, tidak bisa dibandingkan.
+ */
+export function normalisasiL2(vektor: readonly number[]): number[] | null {
+  let jumlahKuadrat = 0;
+  for (const nilai of vektor) jumlahKuadrat += nilai * nilai;
+  const panjang = Math.sqrt(jumlahKuadrat);
+  if (!Number.isFinite(panjang) || panjang === 0) return null;
+  return vektor.map((nilai) => nilai / panjang);
+}
+
 export function createGeminiProvider(config: GeminiConfig, fetchImpl?: FetchLike): AiProvider {
   const kirim: FetchLike = fetchImpl ?? ((input, init) => fetch(input, init));
 
@@ -303,20 +323,35 @@ export function createGeminiProvider(config: GeminiConfig, fetchImpl?: FetchLike
         {
           model: `models/${config.embedModel}`,
           content: { parts: [{ text: request.text }] },
+          // U-27 (PR-069): model generasi `gemini-embedding-*` berdimensi
+          // bawaan 3072. Dimensi DIMINTA eksplisit, bukan dipotong di sisi kita —
+          // pemotongan MRL dilakukan model dengan benar, sedangkan memotong
+          // larik sendiri menghasilkan vektor yang tidak dilatih untuk itu.
+          outputDimensionality: AI_EMBED_DIMENSIONS,
+          // Profil dan lowongan di-embed dengan task yang SAMA: keduanya
+          // dibandingkan satu sama lain, bukan kueri pendek terhadap dokumen.
+          taskType: "SEMANTIC_SIMILARITY",
         },
         request.timeoutMs ?? config.timeoutMs,
       );
 
       const values = body.embedding?.values;
-      const vector = Array.isArray(values)
+      const mentah = Array.isArray(values)
         ? values.filter((nilai): nilai is number => typeof nilai === "number")
         : [];
 
       // Panjang salah TIDAK dipotong atau ditambal: vektor yang "hampir benar"
       // tetap masuk kolom vector(768) dan mencemari hasil pencocokan diam-diam.
-      if (vector.length !== AI_EMBED_DIMENSIONS) {
+      if (mentah.length !== AI_EMBED_DIMENSIONS) {
         throw new AiProviderError("AI_INVALID_OUTPUT", GEMINI_PROVIDER, {
-          detail: `panjang vektor ${vector.length}, seharusnya ${AI_EMBED_DIMENSIONS}`,
+          detail: `panjang vektor ${mentah.length}, seharusnya ${AI_EMBED_DIMENSIONS}`,
+        });
+      }
+
+      const vector = normalisasiL2(mentah);
+      if (vector === null) {
+        throw new AiProviderError("AI_INVALID_OUTPUT", GEMINI_PROVIDER, {
+          detail: "vektor nol atau tidak hingga",
         });
       }
 

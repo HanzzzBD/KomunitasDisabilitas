@@ -44,6 +44,22 @@ export interface EnqueueOptions {
   jobId?: string;
   /** Tunda eksekusi (ms). */
   delayMs?: number;
+  /**
+   * Kunci COALESCING (PR-069) — BEDA dengan `jobId`, dan bedanya penting.
+   *
+   * `jobId` menolak duplikat SELAMA id itu masih tersimpan, termasuk sesudah
+   * job-nya selesai (retensi `removeOnComplete`): perubahan berikutnya atas
+   * entitas yang sama akan diam-diam ditolak. Itu benar untuk pekerjaan sekali
+   * jadi (finalize CV), salah untuk "hitung ulang dari keadaan terkini".
+   *
+   * Kunci ini memakai deduplikasi BullMQ dengan `keepLastIfActive`:
+   *   - job masih menunggu/tertunda → penambahan diabaikan (diringkas);
+   *   - job sedang berjalan → SATU job susulan dijadwalkan sesudahnya, sebab
+   *     yang sedang berjalan mungkin sudah membaca keadaan lama;
+   *   - job selesai/gagal → kunci dilepas, penambahan berikutnya job baru.
+   * Paling banyak dua job per kunci (satu aktif + satu menunggu).
+   */
+  coalesceId?: string;
 }
 
 export interface EnqueueResult {
@@ -110,6 +126,9 @@ export function jobOptionsFor(config: QueueConfig, options: EnqueueOptions = {})
 
   if (options.jobId !== undefined) jobOptions.jobId = options.jobId;
   if (options.delayMs !== undefined) jobOptions.delay = options.delayMs;
+  if (options.coalesceId !== undefined) {
+    jobOptions.deduplication = { id: options.coalesceId, keepLastIfActive: true };
+  }
 
   return jobOptions;
 }

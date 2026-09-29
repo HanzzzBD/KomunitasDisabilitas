@@ -252,6 +252,15 @@ describe("jobOptionsFor — kebijakan SDD §16 melekat pada setiap job", () => {
     });
     expect(dengan).toMatchObject({ jobId: "embed-1", delay: 250 });
   });
+
+  it("coalesceId → deduplikasi keepLastIfActive, BUKAN jobId (PR-069)", () => {
+    // jobId akan menolak perubahan berikutnya selama job lama masih tersimpan
+    // di retensi `removeOnComplete` — vektor membeku tanpa satu pun error.
+    const opsi = jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED], { coalesceId: "embed-profil-x" });
+    expect(opsi).not.toHaveProperty("jobId");
+    expect(opsi.deduplication).toEqual({ id: "embed-profil-x", keepLastIfActive: true });
+    expect(jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED])).not.toHaveProperty("deduplication");
+  });
 });
 
 describe("createQueueRegistry", () => {

@@ -329,6 +329,62 @@ describe("jobs.service — update", () => {
       }),
     ).rejects.toMatchObject({ code: "LOWONGAN_TIDAK_DITEMUKAN" });
   });
+
+  it("PR-069: lowongan PUBLISHED disunting → event job.updated (vektornya harus ikut)", async () => {
+    const { service, events } = boot([barisBaru({ status: "published" })]);
+    const diterima: unknown[] = [];
+    events.on("job.updated", (p) => {
+      diterima.push(p);
+    });
+
+    await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
+
+    expect(diterima).toEqual([
+      { jobId: barisBaru().id, companyId: PERUSAHAAN_ID, updatedAt: "2026-08-01T00:00:00.000Z" },
+    ]);
+  });
+
+  it.each(["draft", "closed"] as const)("lowongan %s disunting → TANPA job.updated", async (status) => {
+    const { service, events } = boot([barisBaru({ status })]);
+    let jumlah = 0;
+    events.on("job.updated", () => {
+      jumlah += 1;
+    });
+
+    await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
+    expect(jumlah).toBe(0);
+  });
+});
+
+describe("jobs.service — bacaUntukEmbedding (PR-069, dipakai modul matching)", () => {
+  it("lowongan aktif → teks semantik + createdBy SAJA (tanpa akomodasi/lokasi)", async () => {
+    const { service } = boot([
+      barisBaru({
+        status: "published",
+        createdBy: ADMIN,
+        requirements: "Teliti",
+        accommodations: ["ramah_screen_reader"],
+        welcomedDisabilityTypes: ["netra"],
+      }),
+    ]);
+
+    expect(await service.bacaUntukEmbedding(barisBaru().id)).toEqual({
+      id: barisBaru().id,
+      title: "Staf Admin",
+      description: "Deskripsi lowongan",
+      requirements: "Teliti",
+      createdBy: ADMIN,
+    });
+  });
+
+  it.each([
+    ["draft", barisBaru({ status: "draft" })],
+    ["closed", barisBaru({ status: "closed" })],
+    ["lewat tenggat", barisBaru({ status: "published", expiresAt: new Date("2026-08-20T00:00:00Z") })],
+  ])("%s → null (tidak akan pernah dicocokkan, jangan bakar kuota)", async (_label, row) => {
+    const { service } = boot([row]);
+    expect(await service.bacaUntukEmbedding(row.id)).toBeNull();
+  });
 });
 
 describe("jobs.service — publish", () => {

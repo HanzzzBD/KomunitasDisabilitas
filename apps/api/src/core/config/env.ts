@@ -173,7 +173,10 @@ const envSchema = z.object({
   GEMINI_EMBED_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("text-embedding-004"),
+    // Diganti 2026-09-30 (PR-069, utang U-27): `text-embedding-004` sudah tidak
+    // ada di katalog. Model ini berdimensi bawaan 3072; adapter meminta 768
+    // lewat `outputDimensionality`, jadi kolom vector(768) tidak berubah.
+    .default("gemini-embedding-001"),
   /** Base URL hanya diganti untuk test/staging; default sudah benar. */
   GEMINI_BASE_URL: z
     .string()

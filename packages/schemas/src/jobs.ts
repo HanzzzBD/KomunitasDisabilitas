@@ -342,6 +342,24 @@ export const jobPublishedEventSchema = z.object({
 
 export type JobPublishedEvent = z.infer<typeof jobPublishedEventSchema>;
 
+/**
+ * Event domain `job.updated` (PR-069) — isi lowongan yang SUDAH `published`
+ * disunting admin. Lowongan draft tidak menerbitkannya: belum ada pembaca yang
+ * peduli, dan `job.published` nanti membawa keadaan terbarunya sendiri.
+ *
+ * Lahir karena tanpa event ini vektor lowongan membeku pada isi saat publish,
+ * sementara judul/deskripsinya berubah — pencocokan diam-diam memakai lowongan
+ * yang sudah tidak ada. Bentuknya sengaja sama dengan `job.published`: hanya
+ * referensi, bukan salinan isi.
+ */
+export const jobUpdatedEventSchema = z.object({
+  jobId: idSchema,
+  companyId: idSchema,
+  updatedAt: timestampSchema,
+});
+
+export type JobUpdatedEvent = z.infer<typeof jobUpdatedEventSchema>;
+
 // ============================================================================
 // PR-056 — Jobs BE: Search FTS + Filter Faceted (ADR-018)
 // ============================================================================
