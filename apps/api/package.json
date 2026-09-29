@@ -34,7 +34,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx prisma/seed.ts",
-    "storage:siapkan-bucket": "tsx --env-file-if-exists=.env scripts/siapkan-bucket-dev.ts"
+    "storage:siapkan-bucket": "tsx --env-file-if-exists=.env scripts/siapkan-bucket-dev.ts",
+    "embed:ulang": "tsx --env-file-if-exists=.env scripts/embed-ulang.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

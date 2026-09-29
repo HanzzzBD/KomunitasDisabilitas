@@ -36,16 +36,27 @@ export function kunciEmbedding(job: AiEmbedJob): string {
     : buildJobId("embed", "lowongan", job.jobId);
 }
 
+/**
+ * Satu-satunya cara meng-enqueue `ai-embed` — dipakai pemicu event DAN alat
+ * re-embed massal (PR-069b). Keduanya WAJIB berbagi kunci coalescing: job
+ * massal yang tiba bersamaan dengan suntingan pengguna harus diringkas menjadi
+ * satu, bukan dua panggilan embed untuk entitas yang sama.
+ */
+export async function antrekanEmbedding(
+  queues: Pick<QueueRegistry, "enqueue">,
+  job: AiEmbedJob,
+  delayMs: number,
+): Promise<void> {
+  await queues.enqueue(QUEUE_NAME.AI_EMBED, job, { delayMs, coalesceId: kunciEmbedding(job) });
+}
+
 export function daftarkanPemicuEmbedding(deps: PemicuEmbeddingDeps): void {
   const jedaMs = deps.jedaMs ?? JEDA_EMBED_MS;
 
   // `async` + `await` agar kegagalan enqueue (Redis tumbang) sampai ke bus dan
   // tercatat `error` di sana, bukan menjadi unhandled rejection.
   const antrekan = async (job: AiEmbedJob): Promise<void> => {
-    await deps.queues.enqueue(QUEUE_NAME.AI_EMBED, job, {
-      delayMs: jedaMs,
-      coalesceId: kunciEmbedding(job),
-    });
+    await antrekanEmbedding(deps.queues, job, jedaMs);
   };
 
   deps.events.on("profile.updated", (p) => antrekan({ jenis: "profil", userId: p.userId }));

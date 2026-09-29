@@ -143,3 +143,81 @@ menghapus `keepLastIfActive` membuat test itu merah (job kedua tidak pernah lahi
 
 1. **PR-069b** — alat re-embed massal (menghormati pagu global) + `createdBy` lowongan seed.
 2. **PR-070** — query kandidat pgvector; baru boleh dimulai setelah U-29 lunas.
+
+---
+
+## PR-069b — Re-embed massal + kurator lowongan seed (utang U-29)
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-070---candidate-query-pgvector--hard-filter-sql) (gate masuk PR-070)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai
+> **Branch:** `pr-069b-reembed-massal` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Pipeline PR-069 hanya bereaksi pada event baru, sehingga semua yang lahir sebelumnya — 17
+lowongan seed tayang dan profil lama — tidak pernah punya vektor, dan lowongan seed tanpa
+`createdBy` bahkan tidak bisa di-embed. PR ini menambah alat operator yang mengisi celah itu
+lewat pipeline yang SAMA (tidak ada jalur embedding kedua), dan membuat seed menulis kurator.
+
+Gate hijau: `lint` + `typecheck` (api, worker) bersih; `turbo run test --concurrency=1` **9/9
+task** — `@nawasena/api` **132 berkas / 1920 lulus, 2 skip** (MinIO; urutan boot `.env`) dengan
+PostgreSQL + Redis hidup; workspace lain semuanya lulus.
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+1. **Bentuk: skrip CLI** (`embed:ulang`) — tanpa endpoint baru (tanpa permukaan serangan dan
+   kontrak OpenAPI tambahan), tanpa cron.
+2. **Batas per jalan: 25% pagu global AI** (bawaan 300 dari 1.200), bisa ditimpa `--maks`.
+   Pagu itu dibagi dengan chat CV; backfill tidak boleh menghabiskannya dalam sekali jalan.
+3. **Atribusi: seed diisi admin seed saja.** Aturan runtime tetap: lowongan tanpa kurator
+   dilewati; alat menghitung dan memperingatkannya ke operator.
+
+### Scope selesai
+
+* **`modules/matching/repositories/embeddings.repository.ts`** — tiga kueri raw SQL ber-parameter:
+  * `cariProfilTanpaVektor(batas)` — hanya profil BERISI (judul/ringkasan tidak kosong, atau ada
+    keahlian/pengalaman/pendidikan) dan akun **tidak ber-soft-delete** (raw SQL tidak melewati
+    penjaga PR-021 — diverifikasi mutasi: menghapus filter itu membuat test merah). Profil
+    kosong tidak ikut karena vektornya memang NULL dengan benar; menyertakannya membuat mereka
+    memakan jatah `maks` setiap jalan.
+  * `cariLowonganTanpaVektor(batas)` — published, belum lewat tenggat, **berkurator**.
+  * `hitungLowonganTanpaKurator()` — untuk peringatan operator, tidak memakan jatah `maks`.
+* **`services/embed-ulang.service.ts`** — lowongan DULU (satu vektor melayani semua pencari
+  kerja), profil dari sisa batas; enqueue berurutan dengan jarak `jarakMs` (bawaan 1 dtk ≈ 60/menit,
+  di bawah batas per-menit tier gratis); mode `kering` hanya melapor.
+* **`services/pemicu-embedding.ts`** — `antrekanEmbedding()` diekstrak: pemicu event dan alat
+  massal WAJIB berbagi kunci coalescing, supaya job massal yang bertemu suntingan pengguna
+  diringkas menjadi satu panggilan.
+* **`services/embedding.service.ts`** — tipe `repo` dipersempit ke empat metode yang dipakainya.
+* **`scripts/embed-ulang.ts` + `scripts/embed-ulang-argumen.ts`** — CLI; konfigurasi lewat
+  gerbang yang sama dengan api/worker (`loadEnv`, `loadQueueConfigs`, `loadAiQuotaConfig`), jadi
+  jalan apa adanya di kontainer. Argumen tak dikenal / angka tak sah → keluar 1 + bantuan, bukan
+  diam-diam memakai bawaan.
+* **`package.json`** — skrip `embed:ulang`.
+* **`prisma/seed-data.ts`** — `createdBy = admin seed` untuk 20 lowongan.
+
+### Verifikasi
+
+* Unit (`matching-embed-ulang.test.ts`): pembagian batas, jarak, kunci coalescing sama dengan
+  pemicu, mode kering, `--jenis`, `maks 0`, parser argumen.
+* DB (`matching-embed-ulang-db.test.ts`): keanggotaan hasil kueri — profil kosong, akun terhapus,
+  lowongan draft/lewat tenggat/tanpa kurator/bervektor TIDAK ikut.
+* `db-seed.test.ts`: setiap lowongan seed berkurator admin seed.
+* **Manual NYATA (DB dev, Gemini nyata, proses worker sungguhan):** `--kering` → 17 lowongan + 4
+  profil; jalan sungguhan → **17/17 lowongan tayang & 5/5 profil bervektor**, 21 baris
+  `ai_usage` embed; jalan ulang → 0 (idempoten). Argumen salah (`--maks=x`) ditolak.
+
+### Risiko & catatan
+
+* **`.env` lokal owner kini berisi `GEMINI_EMBED_MODEL=` (kosong)** — skema env menolaknya
+  ("tidak boleh kosong bila diisi"), jadi api/worker/skrip lokal gagal boot. Hapus BARIS-nya,
+  bukan hanya nilainya. Verifikasi di atas memakai override env var.
+* Alat hanya mengisi vektor yang KOSONG. Vektor basi (model berganti) harus dikosongkan dulu —
+  ditulis di U-29.
+* Alat tidak menunggu worker; ia hanya meng-enqueue. Tanpa worker menyala, job menunggu di Redis.
+
+### Next steps
+
+1. **PR-070** — query kandidat pgvector. Gate U-29 sudah lunas; setelah `db:seed`, jalankan
+   `embed:ulang` agar data dev punya vektor.

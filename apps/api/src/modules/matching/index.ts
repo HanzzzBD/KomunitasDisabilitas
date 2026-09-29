@@ -41,7 +41,19 @@ export {
   type ProfilUntukEmbedding,
 } from "./services/teks-embedding.js";
 export {
+  JARAK_EMBED_ULANG_MS,
+  PORSI_PAGU_EMBED_ULANG,
+  createEmbedUlangService,
+  maksEmbedUlangBawaan,
+  type EmbedUlangDeps,
+  type EmbedUlangService,
+  type JenisEmbedUlang,
+  type LaporanEmbedUlang,
+  type OpsiEmbedUlang,
+} from "./services/embed-ulang.service.js";
+export {
   JEDA_EMBED_MS,
+  antrekanEmbedding,
   daftarkanPemicuEmbedding,
   kunciEmbedding,
   type PemicuEmbeddingDeps,

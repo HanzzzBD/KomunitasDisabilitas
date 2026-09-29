@@ -181,9 +181,10 @@ RB-Std.
 #### Dependencies
 
 * PR-069
-* **Gate masuk: utang [U-29](../utang-teknis.md) dibayar PR-069b** — data yang lahir sebelum
-  pipeline embedding (17 lowongan seed, profil lama) belum punya vektor. Tanpa itu test PR-070
-  hijau sementara feed nyata kosong.
+* **Gate masuk: utang [U-29](../utang-teknis.md) dibayar PR-069b** — ✅ LUNAS 2026-09-30. Data
+  yang lahir sebelum pipeline embedding kini bisa diisi lewat `pnpm --filter @nawasena/api
+  embed:ulang`; jalankan sesudah `db:seed`/`migrate reset` (worker harus menyala) agar feed dev
+  tidak kosong.
 
 #### Risks
 

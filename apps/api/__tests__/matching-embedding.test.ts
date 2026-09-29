@@ -21,7 +21,7 @@ import {
   kunciEmbedding,
   teksLowongan,
   teksProfil,
-  type EmbeddingsRepository,
+  type EmbeddingServiceDeps,
   type ProfilUntukEmbedding,
   type SumberLowongan,
 } from "../src/modules/matching/index.js";
@@ -133,7 +133,7 @@ function vektor(): number[] {
 
 function fakeRepo() {
   const log: string[] = [];
-  const repo: EmbeddingsRepository = {
+  const repo: EmbeddingServiceDeps["repo"] = {
     simpanVektorProfil: vi.fn((_id: string, v: readonly number[] | null) => {
       log.push(v === null ? "kosongkan-profil" : "simpan-profil");
       return Promise.resolve(true);
