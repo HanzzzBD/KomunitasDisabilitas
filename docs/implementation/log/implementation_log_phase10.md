@@ -486,3 +486,49 @@ tidak bisa dipakai. `/cv` kini menawarkan dua pintu setara: "Buat dengan chat AI
 
 * **Exit Phase 10** — seluruh PR-065..068 merged; AC manual tersisa U-24/U-28. Merge
   `phase-10 → main` hanya atas perintah owner.
+
+---
+
+## PR-068b — Batas token-pertama jalur stream (utang U-26)
+
+> **Phase:** [10 - AI CV Builder](../phase-10-ai-cv-builder.md)
+> **Tanggal:** 2026-09-29
+> **Status:** Selesai
+> **Branch:** `pr-068b-batas-token-pertama` → `phase-10-ai-cv-builder`
+
+### Ringkasan hasil
+
+Pengguna chat tidak lagi menunggu hingga 15 detik layar diam saat Gemini sedang lambat. Router
+stream membatalkan permintaan ke Gemini bila BELUM ada satu token pun dalam
+`AI_STREAM_FIRST_TOKEN_MS` (bawaan 8 dtk) dan meneruskannya ke Groq. Keputusan owner 2026-09-29
+(dari tiga opsi: batas token-pertama / Groq utama / biarkan).
+
+### Data yang mendasarinya
+
+Pengukuran 2026-09-29 (3× per model, prompt `cv-interviewer.v1` nyata): `gemini-3.5-flash-lite`
+0,8–1,1 dtk; `gemini-flash-lite-latest` 0,7–0,9 dtk; `gemini-3.1-flash-lite` 1,9–2,3 dtk;
+`gemini-3.5-flash` timeout 40 dtk (2 dari 3); Groq `qwen/qwen3.8-27b` 0,2–0,3 dtk. Kemarin model
+default yang sama butuh 7–22 dtk — latensinya melonjak menurut waktu. Batas yang mengukur "berapa
+lama layar diam" menangani lonjakan itu tanpa meninggalkan Gemini saat ia normal.
+
+### Keputusan teknis
+
+1. **Batas token-pertama ≠ timeout provider.** Timeout (15 dtk) mengukur seluruh permintaan;
+   batas ini hanya berlaku SEBELUM token pertama dan hanya bila ada cadangan.
+2. **Fetch utama DIBATALKAN, bukan diabaikan** — `OpsiStream.signal` baru diteruskan adapter ke
+   `fetch` lewat `AbortSignal.any([timeout, signal])`; tanpa itu koneksinya menggantung sampai
+   timeout penuh.
+3. **Penjadwal disuntik** (aturan repo, tanpa fake timer).
+4. **Env `AI_STREAM_FIRST_TOKEN_MS`** 1.000–60.000, bawaan 8.000 — di atas normal (~1 dtk), jauh
+   di bawah lonjakan.
+
+### Verifikasi
+
+* `ai-stream-token-pertama.test.ts` (5): diam → batal + cadangan; cepat → tanpa cadangan &
+  penjadwal dihentikan; gagal sesudah token pertama tetap galat; tanpa cadangan tanpa batas;
+  adapter Gemini benar-benar membatalkan fetch-nya.
+* Provider nyata: Gemini lambat (batas 1 dtk) → Groq menjawab 1,3 dtk; Gemini normal (batas 8 dtk)
+  → Gemini sendiri 0,6 dtk.
+* Juga di sesi ini: `.env` lokal berisi `GEMINI_CHAT_MODEL=` KOSONG yang membuat boot API gagal
+  ("tidak boleh kosong bila diisi"); barisnya dihapus sehingga default baru berlaku (berkas tidak
+  dilacak git).

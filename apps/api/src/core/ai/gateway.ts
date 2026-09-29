@@ -61,6 +61,7 @@ export type AiGatewayEnv = Pick<
   | "GROQ_CHAT_MODEL"
   | "GROQ_TIMEOUT_MS"
   | "AI_ROUTER_FORCE_PROVIDER"
+  | "AI_STREAM_FIRST_TOKEN_MS"
 >;
 
 /**
@@ -190,5 +191,5 @@ export function createAiStreamGateway(env: AiGatewayEnv, fetchImpl?: FetchLike):
 
   if (env.AI_ROUTER_FORCE_PROVIDER === "gemini") return gemini;
   if (env.AI_ROUTER_FORCE_PROVIDER === "groq") return groq;
-  return createAiStreamRouter(gemini, groq);
+  return createAiStreamRouter(gemini, groq, { batasTokenPertamaMs: env.AI_STREAM_FIRST_TOKEN_MS });
 }

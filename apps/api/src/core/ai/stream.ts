@@ -47,7 +47,26 @@ export interface LaporanStream {
 
 export interface OpsiStream {
   saatSelesai?(laporan: LaporanStream): void;
+  /**
+   * Batalkan permintaan ke provider (PR-068b). Dipakai router saat provider
+   * utama melewati batas token-pertama: tanpa pembatalan, fetch-nya tetap
+   * menggantung sampai timeout penuh, memegang koneksi yang jawabannya sudah
+   * tidak akan dipakai.
+   */
+  signal?: AbortSignal;
 }
+
+/** Penjadwal satu-kali yang DISUNTIK — aturan repo: tanpa fake timer (lihat breaker.ts). */
+export interface PenjadwalSekali {
+  setelah(fn: () => void, ms: number): () => void;
+}
+
+const penjadwalSekaliNyata: PenjadwalSekali = {
+  setelah(fn, ms) {
+    const t = setTimeout(fn, ms);
+    return () => clearTimeout(t);
+  },
+};
 
 export function dukungStream(nilai: unknown): nilai is AiStreamProvider {
   return (
@@ -213,10 +232,15 @@ async function bukaAliran(
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  batal?: AbortSignal,
 ): Promise<AliranBiner> {
   let response: Response;
+  const batasWaktu = AbortSignal.timeout(timeoutMs);
   try {
-    response = await kirim(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    response = await kirim(url, {
+      ...init,
+      signal: batal === undefined ? batasWaktu : AbortSignal.any([batasWaktu, batal]),
+    });
   } catch (err) {
     const jenis = err instanceof Error ? err.name : "Error";
     if (jenis === "TimeoutError" || jenis === "AbortError") {
@@ -313,6 +337,7 @@ export function createGeminiStream(
           body: JSON.stringify(body),
         },
         request.timeoutMs ?? config.timeoutMs,
+        opsi?.signal,
       );
       yield* potonganTeks(aliran, teksGemini, usageGemini, (usage) =>
         opsi?.saatSelesai?.({ provider: "gemini", ...(usage === undefined ? {} : { usage }) }),
@@ -360,6 +385,7 @@ export function createGroqStream(
           body: JSON.stringify(body),
         },
         request.timeoutMs ?? config.timeoutMs,
+        opsi?.signal,
       );
       yield* potonganTeks(aliran, teksGroq, usageGroq, (usage) =>
         opsi?.saatSelesai?.({ provider: "groq", ...(usage === undefined ? {} : { usage }) }),
@@ -378,24 +404,81 @@ export function createGroqStream(
  * mengetahuinya. Kegagalan SESUDAH token pertama karena itu WAJIB muncul
  * sebagai galat (AC-4), bukan diselamatkan diam-diam.
  */
+export interface OpsiRouterStream {
+  /**
+   * Batas menunggu TOKEN PERTAMA dari provider utama (PR-068b, utang U-26).
+   * Lewat batas ini — dan BELUM ada satu token pun — permintaan utama
+   * dibatalkan dan cadangan mengambil alih. Tidak berlaku sesudah token
+   * pertama: aturan "cadangan hanya sebelum token pertama" tetap utuh.
+   *
+   * Ada karena latensi Gemini MELONJAK menurut waktu (terukur 2026-09-28:
+   * 7–22 dtk; 2026-09-29: ~1 dtk untuk model yang sama). Timeout provider
+   * (15 dtk) mengukur seluruh permintaan; batas ini mengukur hal yang
+   * dirasakan pengguna — berapa lama layar diam.
+   */
+  batasTokenPertamaMs?: number;
+  penjadwal?: PenjadwalSekali;
+}
+
+/** Penanda internal: batas token-pertama terlampaui. */
+const TERLAMBAT = Symbol("terlambat");
+
 export function createAiStreamRouter(
   utama: AiStreamProvider,
   cadangan?: AiStreamProvider,
+  opsiRouter: OpsiRouterStream = {},
 ): AiStreamProvider {
+  const penjadwal = opsiRouter.penjadwal ?? penjadwalSekaliNyata;
   return {
     name: utama.name,
     async *chatStream(request, opsi) {
-      let adaToken = false;
+      const batasMs = opsiRouter.batasTokenPertamaMs;
+      const pembatal = new AbortController();
+      const sinyal =
+        opsi?.signal === undefined
+          ? pembatal.signal
+          : AbortSignal.any([opsi.signal, pembatal.signal]);
+      const aliranUtama = utama.chatStream(request, { ...opsi, signal: sinyal });
+      const iterator = aliranUtama[Symbol.asyncIterator]();
+
+      let pertama: IteratorResult<string> | typeof TERLAMBAT;
       try {
-        for await (const potongan of utama.chatStream(request, opsi)) {
-          adaToken = true;
-          yield potongan;
+        if (batasMs === undefined || cadangan === undefined) {
+          pertama = await iterator.next();
+        } else {
+          let hentikan: () => void = () => undefined;
+          const terlambat = new Promise<typeof TERLAMBAT>((selesai) => {
+            hentikan = penjadwal.setelah(() => selesai(TERLAMBAT), batasMs);
+          });
+          try {
+            pertama = await Promise.race([iterator.next(), terlambat]);
+          } finally {
+            hentikan();
+          }
         }
-        return;
       } catch (err) {
-        if (adaToken || cadangan === undefined) throw err;
+        // Gagal SEBELUM token pertama — cadangan boleh mengambil alih.
+        if (cadangan === undefined) throw err;
+        yield* cadangan.chatStream(request, opsi);
+        return;
       }
-      yield* cadangan.chatStream(request, opsi);
+
+      if (pertama === TERLAMBAT) {
+        // Utama terlalu lama diam. Batalkan fetch-nya (bukan sekadar
+        // mengabaikannya), telan penolakan yang menyusul, lalu pindah.
+        pembatal.abort();
+        void iterator.next().catch(() => undefined);
+        yield* cadangan!.chatStream(request, opsi);
+        return;
+      }
+      if (pertama.done === true) return;
+
+      // Sesudah token pertama: kegagalan WAJIB menjadi galat (AC-4 PR-045) —
+      // menyambung dua jawaban dari dua model menjadi satu paragraf dilarang.
+      yield pertama.value;
+      for (let hasil = await iterator.next(); hasil.done !== true; hasil = await iterator.next()) {
+        yield hasil.value;
+      }
     },
   };
 }
