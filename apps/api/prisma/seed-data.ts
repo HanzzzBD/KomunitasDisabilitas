@@ -383,9 +383,9 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
 
   // --- Admin (PR-009; ID by-phone karena sudah ada sebelum fixtures) ---
   const adminPhone = process.env.SEED_ADMIN_PHONE ?? "+620000000001";
-  const admin = await prisma.user.findFirst({ where: { phone: adminPhone, deletedAt: null } });
+  let admin = await prisma.user.findFirst({ where: { phone: adminPhone, deletedAt: null } });
   if (admin === null) {
-    await prisma.user.create({
+    admin = await prisma.user.create({
       data: {
         id: uuidV7(),
         phone: adminPhone,
@@ -543,6 +543,10 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
       salaryMax: j.salary?.[1] ?? null,
       publishedAt: status === "draft" ? null : new Date("2026-07-01T00:00:00Z"),
       source: "admin_curated" as const,
+      // PR-069b (U-29): kurator = admin seed. Tanpa ini tidak ada yang memikul
+      // kuota embed lowongan (keputusan owner 2026-09-30), sehingga lowongan
+      // seed tidak pernah punya vektor dan feed matching dev selalu kosong.
+      createdBy: admin.id,
     };
     await prisma.job.upsert({ where: { id }, create: { id, ...data }, update: data });
   }

@@ -36,7 +36,10 @@ export interface SumberLowongan extends LowonganUntukEmbedding {
 }
 
 export interface EmbeddingServiceDeps {
-  repo: EmbeddingsRepository;
+  repo: Pick<
+    EmbeddingsRepository,
+    "simpanVektorProfil" | "simpanVektorLowongan" | "hapusSkorPengguna" | "hapusSkorLowongan"
+  >;
   ai: Pick<AiClient, "embed">;
   /**
    * Port pembaca — dirakit composition root dari modul `profiles`/`jobs`

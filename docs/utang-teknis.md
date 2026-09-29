@@ -744,7 +744,7 @@ dan aliran bertahap di bawah 3G (tidak teramati lewat throttling CDP). Semuanya 
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-069b (2026-09-30)** |
 | **Jenis** | Data / kelengkapan fitur |
 | **Ditemukan** | PR-069 (2026-09-30) |
 | **Pemilik** | **PR-069b** (keputusan owner 2026-09-30) — **syarat masuk PR-070** |
@@ -765,6 +765,20 @@ nyata kosong. Yang harus dibawa PR-069b:
 
 Terkait: job yang gagal final (Gemini tumbang 4× / kuota habis) juga meninggalkan entitas tanpa
 vektor BARU sampai suntingan berikutnya — alat yang sama menjadi jalur pemulihannya.
+
+**PEMBAYARANNYA (PR-069b, keputusan owner 2026-09-30).** Skrip CLI
+`pnpm --filter @nawasena/api embed:ulang [--jenis=…] [--maks=N] [--jarak-ms=N] [--kering]`:
+mencari lowongan aktif berkurator dan profil BERISI (akun hidup) tanpa vektor, lalu meng-enqueue
+`ai-embed` dengan kunci coalescing yang SAMA dengan pemicu event. Batas per jalan bawaannya **25%
+pagu global** (300 dari 1.200), lowongan didahulukan, job dijarakkan 1 dtk. Lowongan tanpa kurator
+tidak diantrekan tetapi DIHITUNG dan diperingatkan ke operator. Seed kini menulis `createdBy` =
+admin seed. Diverifikasi NYATA di DB dev: 17 lowongan + 4 profil diantrekan → worker + Gemini →
+**17/17 lowongan tayang dan 5/5 profil bervektor**, 21 baris `ai_usage`; jalan ulang = 0.
+
+Yang TIDAK dibayar di sini, dengan sengaja: vektor yang ADA tetapi basi (model berganti, atau
+event yang hilang di jarak `emit`→`enqueue`). Alat ini hanya melihat vektor yang kosong; bila
+model embedding kelak diganti, vektor lama harus dikosongkan dulu (satu `UPDATE … SET … = NULL`)
+sebelum alat dijalankan — vektor dari dua model berbeda tidak sebanding.
 
 ---
 
