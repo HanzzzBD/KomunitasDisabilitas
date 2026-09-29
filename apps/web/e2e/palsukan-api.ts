@@ -430,6 +430,62 @@ function jsonkan(status: number, body: unknown) {
   return { status, contentType: "application/json", body: JSON.stringify(body) };
 }
 
+/** Sesi AI CV Builder uji (PR-068) — satu salam statis, belum ada jawaban. */
+export const SESI_CHAT_UJI_ID = "01912345-89ab-7def-8123-4567890abe11";
+export const SALAM_CHAT_UJI =
+  "Halo! Saya akan membantu Anda menyusun CV lewat obrolan singkat. Untuk mulai, apa pekerjaan terakhir Anda?";
+
+export function sesiChatUji(
+  turns: readonly { role: "user" | "assistant"; content: string }[] = [],
+) {
+  return {
+    id: SESI_CHAT_UJI_ID,
+    status: "active" as const,
+    turns: [{ role: "assistant" as const, content: SALAM_CHAT_UJI }, ...turns].map((t, i) => ({
+      seq: i + 1,
+      role: t.role,
+      content: t.content,
+      at: "2026-01-15T20:00:00.000Z",
+    })),
+    createdAt: "2026-01-15T20:00:00.000Z",
+    updatedAt: "2026-01-15T20:00:00.000Z",
+    finalizedAt: null,
+    resumeId: null,
+    extractionFailedAt: null,
+    extractionError: null,
+  };
+}
+
+/** Badan SSE dari daftar bingkai — bernomor, seperti server (`core/http/sse.ts`). */
+export function badanSse(
+  bingkai: readonly { event: string; data: string }[],
+  mulaiId = 1,
+): { status: number; contentType: string; body: string } {
+  return {
+    status: 200,
+    contentType: "text/event-stream",
+    body: bingkai
+      .map((b, i) => `id: ${String(mulaiId + i)}\nevent: ${b.event}\ndata: ${b.data}\n\n`)
+      .join(""),
+  };
+}
+
+export const JAWABAN_CHAT_UJI = "Terima kasih. Berapa lama Anda bekerja di sana?";
+
+export function kuotaUji(sisaChat = 29) {
+  return {
+    data: {
+      hari: "2026-01-16",
+      resetDalamDetik: 3_600,
+      globalTersedia: true,
+      fitur: [
+        { fitur: "cv_chat", batas: 30, terpakai: 30 - sisaChat, sisa: sisaChat },
+        { fitur: "cv_finalize", batas: 5, terpakai: 0, sisa: 5 },
+      ],
+    },
+  };
+}
+
 export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<void> {
   const bersesi = halaman?.butuhSesi === true;
   // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
@@ -461,6 +517,48 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
           : jsonkan(401, { code: "SESI_TIDAK_VALID", message: "Sesi Anda sudah berakhir" }),
       );
     }
+    // --- AI CV Builder (PR-068). Spec boleh menimpa cabang mana pun dengan
+    // `page.route` yang didaftarkan SESUDAH `palsukanApi` (Playwright memakai
+    // route terakhir lebih dulu).
+    if (jalur.endsWith("/ai/quota")) return route.fulfill(jsonkan(200, kuotaUji()));
+    if (jalur.endsWith("/ai/cv-chat/sessions")) {
+      return route.fulfill(jsonkan(200, { data: sesiChatUji() }));
+    }
+    if (jalur.endsWith("/ai/cv-chat") && route.request().method() === "POST") {
+      const { message } = route.request().postDataJSON() as { message: string };
+      const kalimat = JAWABAN_CHAT_UJI.split(/(?<=\.) /);
+      return route.fulfill(
+        badanSse([
+          {
+            event: "giliran",
+            data: JSON.stringify({
+              seq: 2,
+              role: "user",
+              content: message,
+              at: "2026-01-15T20:01:00.000Z",
+            }),
+          },
+          ...kalimat.map((k, i) => ({
+            event: "token",
+            data: i < kalimat.length - 1 ? `${k} ` : k,
+          })),
+          {
+            event: "giliran",
+            data: JSON.stringify({
+              seq: 3,
+              role: "assistant",
+              content: JAWABAN_CHAT_UJI,
+              at: "2026-01-15T20:01:05.000Z",
+            }),
+          },
+          { event: "selesai", data: "" },
+        ]),
+      );
+    }
+    if (/\/ai\/cv-chat\/[^/]+$/.test(jalur)) {
+      return route.fulfill(jsonkan(200, { data: sesiChatUji() }));
+    }
+
     if (jalur.endsWith("/me/accessibility")) {
       // DIPERIKSA SEBELUM `/me`, sebab `endsWith("/me")` tidak akan pernah
       // cocok dengan alamat ini — tetapi urutan ini juga yang menahan cabang

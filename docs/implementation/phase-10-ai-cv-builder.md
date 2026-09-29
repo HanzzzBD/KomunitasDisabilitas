@@ -303,11 +303,11 @@ Bisnis: pembeda produk dirasakan SEMUA ragam pengguna (chat usable dengan screen
 
 **Testing Checklist:**
 
-* [ ] Unit Test (useAiStream state machine)
+* [x] Unit Test (useAiStream state machine) — `cv-chat-aliran.test.ts` (9: kalimat, alur normal, degradasi, putus → sambung, 404, menyerah)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (happy + degraded + putus-sambung)
-* [ ] Accessibility Test (axe + NVDA aria-live manual)
-* [ ] Manual Verification (3G throttling)
+* [x] E2E Test (happy + degraded + putus-sambung) — `e2e/cv-chat.spec.ts` (6, termasuk finalize → draft & fitur dimatikan)
+* [ ] Accessibility Test (axe + NVDA aria-live manual) — axe: `/cv/chat` masuk registry halaman, lulus; NVDA: [checklist](log/pr-068-nvda-checklist.md) belum diisi (U-28)
+* [ ] Manual Verification (3G throttling) — [checklist](log/pr-068-nvda-checklist.md) bagian jaringan lambat (U-28)
 
 **Deliverables:**
 
@@ -323,11 +323,11 @@ RB-Std; flag mematikan chat → hanya form manual.
 
 #### Acceptance Criteria
 
-* [ ] Chat→finalize→draft→edit→simpan end-to-end.
-* [ ] Kuota habis → beralih form manual dengan pesan jujur (bukan error).
-* [ ] Putus koneksi → resume tanpa kehilangan percakapan.
-* [ ] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual).
-* [ ] Sisa kuota tampil & akurat.
+* [x] Chat→finalize→draft→edit→simpan end-to-end. — e2e chat → finalize → tautan "Buka draft CV" ke `/cv/:id`; edit→simpan dijaga `cv-editor.spec.ts` (PR-061) di editor yang sama
+* [x] Kuota habis → beralih form manual dengan pesan jujur (bukan error). — mode formulir di tempat, tanpa `role="alert"`, transkrip tetap terlihat (keputusan owner)
+* [x] Putus koneksi → resume tanpa kehilangan percakapan. — `Last-Event-Id` (unit + e2e); 404 → muat ulang transkrip
+* [ ] Giliran AI terbaca otomatis oleh NVDA tanpa mencuri fokus input (manual). — otomatis: live region per kalimat + fokus tetap di kotak ketik (e2e); NVDA nyata: U-28
+* [x] Sisa kuota tampil & akurat. — dari `GET /ai/quota`, dimuat ulang setiap jawaban & finalize
 
 #### Dependencies
 

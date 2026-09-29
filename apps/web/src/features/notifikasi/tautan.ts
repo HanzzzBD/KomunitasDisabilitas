@@ -52,9 +52,9 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // PR-067 — langsung ke editor draft-nya: review adalah langkah wajib.
       return `/cv/${String(notifikasi.params.resumeId)}`;
     case NOTIFICATION_TYPE.RESUME_DRAFT_AI_GAGAL:
-      // PR-067 — ke daftar CV, tempat formulir manual dimulai. Halaman chat
-      // (dengan transkrip terlampir) lahir di PR-068; ubah tujuan ini ke sana.
-      return "/cv";
+      // PR-068 — ke halaman chat: transkrip tersimpan di sana, beserta tombol
+      // "coba lagi" dan jalur formulir.
+      return "/cv/chat";
     default: {
       const takTerduga: never = notifikasi.type;
       throw new Error(`Tipe notifikasi tidak dikenal: ${String(takTerduga)}`);

@@ -409,3 +409,80 @@ masalah bila gagal, lalu menyimpan draft `created_via: ai_chat` — atau mengemb
 * **PR-068** — UI: tombol "Selesai dan buat draf CV", poll status, jalur manual dengan transkrip
   terlampir saat `extractionFailedAt`, ubah tautan notifikasi gagal ke halaman chat; putuskan nasib
   `withDegradation` (sisa U-06).
+
+---
+
+## PR-068 — Chat FE — useAiStream + Fallback UX
+
+> **Phase:** [10 - AI CV Builder](../phase-10-ai-cv-builder.md#pr-068---chat-fe--useaistream--fallback-ux)
+> **Tanggal:** 2026-09-29
+> **Status:** Selesai (dua AC manual → U-28)
+> **Branch:** `pr-068-chat-fe` → `phase-10-ai-cv-builder`
+
+### Ringkasan hasil
+
+AI CV Builder kini bisa dipakai dari web: halaman `/cv/chat` dengan jawaban yang mengalir,
+diumumkan pembaca layar per kalimat tanpa memindahkan fokus, sambung ulang otomatis saat
+koneksi putus, sisa kuota, finalize → draft, dan jalur formulir yang muncul DI TEMPAT saat AI
+tidak bisa dipakai. `/cv` kini menawarkan dua pintu setara: "Buat dengan chat AI" dan
+"Buat CV dari profil".
+
+### Keputusan owner (AskUserQuestion, 2026-09-29)
+
+1. **aria-live per kalimat** — token ditampung, kalimat utuh diumumkan (mitigasi risiko "SR
+   berisik" di dokumen phase).
+2. **Degradasi beralih di tempat** — kotak ketik hilang, pesan jujur + tombol "Isi CV lewat
+   formulir", transkrip tetap terlihat; TANPA navigasi otomatis.
+3. **Pintu masuk `/cv` + rute `/cv/chat`**; tautan notifikasi `resume.draft_ai_gagal` kini ke
+   `/cv/chat`.
+
+### Scope selesai
+
+* **`@nawasena/api-client`** — `uraiSse` (pengurai SSE bebas DOM, dipakai ulang mobile);
+  `ApiClient.stream?()` (auth + refresh-401 sebelum badan dibaca; non-2xx → `ApiError`); endpoint
+  `getAiQuota`, `startAiChatSession`, `getAiChatSession`, `finalizeAiChatSession`, `streamAiChat`,
+  `resumeAiChatStream`, `aiKeys`.
+* **`features/cv-chat`** — `createPenampungKalimat` (murni), `useAiStream` (mesin keadaan
+  diam/mengirim/mengetik/menyambung; sambung ulang 3× berjeda 1/2/4 dtk; 404 → muat ulang
+  transkrip).
+* **`features/resume/use-buat-cv.ts`** — "buat CV dari profil" diekstrak dari `/cv`, dipakai
+  juga oleh mode formulir chat.
+* **`routes/cv-chat.tsx`** + rute lazy; katalog `resume.chat.*` (dua varian bahasa).
+* **Test** — `cv-chat-aliran.test.ts` (9), api-client `ai-stream.test.ts` (8), e2e
+  `cv-chat.spec.ts` (6), tautan notifikasi; `/cv/chat` masuk registry halaman (gerbang axe).
+* **Checklist manual** — [pr-068-nvda-checklist.md](pr-068-nvda-checklist.md).
+
+### Keputusan teknis
+
+1. **fetch-SSE, bukan `EventSource`** — token hanya boleh lewat header `Authorization`.
+2. **`ApiClient.stream` OPSIONAL** — puluhan klien palsu di test hanya punya `request`; endpoint
+   yang butuh aliran menolak dengan `ApiError` yang bisa dibacakan, bukan `TypeError`.
+3. **Satu wilayah live, selalu ada di DOM**, `aria-atomic="false"`, dikosongkan per giliran —
+   kalimat ditambahkan sebagai anak baru supaya dibaca berurutan, tidak saling menimpa.
+4. **Pratinjau yang mengalir `aria-hidden`** — isinya sudah diumumkan per kalimat dan akan
+   diganti giliran tersimpan (versi rapi server); tanpa itu pembaca layar membacanya dua kali.
+5. **Tombol kirim/finalize memakai `aria-disabled`, bukan `disabled`** — tombol yang menjadi
+   `disabled` saat difokus menjatuhkan fokus ke `<body>`. Fokus dikembalikan ke kotak ketik.
+6. **Teks model dirender sebagai children React** (teks murni) — tidak ada jalur HTML.
+7. **Poll hasil finalize memakai GET sesi**, bukan POST sessions — sesudah `finalized`, POST
+   akan melahirkan sesi baru.
+8. **Penampung kalimat mengenali penutup markdown** (`!**`) — ditemukan test pertama.
+
+### Verifikasi
+
+* Web 710, api-client 125, ui 188, schemas 100 — lulus; Playwright **115/115** (termasuk axe
+  `/cv/chat`); anggaran bundle awal 115/200 KB; lint & typecheck hijau.
+* **Mutasi (dua, merah, dipulihkan md5):** umumkan per token (2 merah); tanpa sambung ulang
+  (3 merah).
+
+### Risiko & utang
+
+* **U-28 (baru):** NVDA nyata dan Slow 3G belum diuji manusia — checklist tersedia.
+* **U-06 (sisa):** `withDegradation` bukan milik jalur CV; pemakai alami PR-072.
+* **U-26:** latensi Gemini terasa langsung di UI ("sedang mengetik" bisa ~15 dtk sebelum Groq
+  menjawab).
+
+### Next steps
+
+* **Exit Phase 10** — seluruh PR-065..068 merged; AC manual tersisa U-24/U-28. Merge
+  `phase-10 → main` hanya atas perintah owner.

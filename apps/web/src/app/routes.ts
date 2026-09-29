@@ -208,6 +208,18 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // AI CV Builder (PR-068). Statis, jadi react-router memilihnya di atas
+        // `cv/:id` apa pun urutannya — ditulis lebih dulu supaya terbaca begitu.
+        path: "cv/chat",
+        lazy: async () => {
+          const [{ ChatCv }] = await Promise.all([
+            import("../routes/cv-chat.js"),
+            muatKatalog("resume"),
+          ]);
+          return { Component: ChatCv };
+        },
+      },
+      {
         path: "cv/:id",
         lazy: async () => {
           const [{ CvEditor }] = await Promise.all([

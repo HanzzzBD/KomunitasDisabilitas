@@ -1,21 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
-import {
-  createResume,
-  deleteResume,
-  educationsApi,
-  experiencesApi,
-  getMe,
-  getProfile,
-  listResumes,
-  profilesKeys,
-  resumesKeys,
-  skillsApi,
-  usersKeys,
-} from "@nawasena/api-client";
+import { deleteResume, listResumes, resumesKeys } from "@nawasena/api-client";
 import { KeadaanKosong, Kartu, Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useKlienApi } from "../app/klien-api.js";
-import { buatPrefillResume, KontrolPdf, pesanGalatResume } from "../features/resume/index.js";
+import { KontrolPdf, pesanGalatResume, useBuatCvDariProfil } from "../features/resume/index.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
@@ -42,40 +30,11 @@ function IsiDaftarCv() {
     queryFn: () => listResumes(klien),
   });
 
-  const buat = useMutation({
-    mutationFn: async () => {
-      const [akun, profil, pengalaman, pendidikan, keahlian] = await Promise.all([
-        queryClient.fetchQuery({ queryKey: usersKeys.me(), queryFn: () => getMe(klien) }),
-        queryClient.fetchQuery({
-          queryKey: profilesKeys.me(sub),
-          queryFn: () => getProfile(klien),
-        }),
-        queryClient.fetchQuery({
-          queryKey: profilesKeys.experiences(sub),
-          queryFn: () => experiencesApi.list(klien),
-        }),
-        queryClient.fetchQuery({
-          queryKey: profilesKeys.educations(sub),
-          queryFn: () => educationsApi.list(klien),
-        }),
-        queryClient.fetchQuery({
-          queryKey: profilesKeys.skills(sub),
-          queryFn: () => skillsApi.list(klien),
-        }),
-      ]);
-      return createResume(klien, {
-        title: t("resume.daftar.judulBawaan"),
-        content: buatPrefillResume({
-          akun: akun.data,
-          profil,
-          pengalaman,
-          pendidikan,
-          keahlian,
-        }),
-      });
-    },
-    onSuccess: (resume) => {
-      void queryClient.invalidateQueries({ queryKey: resumesKeys.list(sub) });
+  const buat = useBuatCvDariProfil({
+    klien,
+    sub,
+    judulBawaan: t("resume.daftar.judulBawaan"),
+    onBerhasil: (resume) => {
       void navigate(`/cv/${resume.id}`);
     },
   });
@@ -98,16 +57,26 @@ function IsiDaftarCv() {
           </h1>
           <p className="max-w-2xl text-base text-gray-700">{t("resume.daftar.deskripsi")}</p>
         </div>
-        <Tombol
-          className="shrink-0"
-          disabled={buat.isPending}
-          aria-busy={buat.isPending}
-          onClick={() => {
-            buat.mutate();
-          }}
-        >
-          {buat.isPending ? t("resume.daftar.membuat") : t("resume.daftar.buat")}
-        </Tombol>
+        {/* Dua pintu SETARA (keputusan owner 2026-09-28): tidak ada yang
+            disembunyikan di balik yang lain, dan formulir tetap satu klik. */}
+        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+          <Link
+            to="/cv/chat"
+            className="inline-flex min-h-sentuh items-center justify-center rounded bg-gray-900 px-4 text-base font-semibold text-white"
+          >
+            {t("resume.daftar.buatChat")}
+          </Link>
+          <Tombol
+            varian="sekunder"
+            disabled={buat.isPending}
+            aria-busy={buat.isPending}
+            onClick={() => {
+              buat.mutate();
+            }}
+          >
+            {buat.isPending ? t("resume.daftar.membuat") : t("resume.daftar.buat")}
+          </Tombol>
+        </div>
       </div>
 
       {galat !== null ? (
