@@ -54,7 +54,8 @@ export function createRerankJobs(queues: Pick<QueueRegistry, "enqueue">): Rerank
  * - `dijadwalkan`   angkatan baru + job re-rank di antrean;
  * - `kuota-habis`   jatah `rerank` hari ini habis;
  * - `dimatikan`     `MATCHING_RERANK_ENABLED=false`;
- * - `tanpa-kandidat` tidak ada yang bisa di-rerank (belum ada vektor profil / kandidat kosong);
+ * - `profil-belum-siap` pengguna belum punya vektor profil (PR-073: `alasanKosong`);
+ * - `tanpa-kandidat` profil siap, tetapi tidak ada kandidat yang lolos filter;
  * - `gagal-antre`   antrean menolak — feed tetap ada, jatah dikembalikan.
  */
 export type StatusRerank =
@@ -62,13 +63,74 @@ export type StatusRerank =
   | "dijadwalkan"
   | "kuota-habis"
   | "dimatikan"
+  | "profil-belum-siap"
   | "tanpa-kandidat"
   | "gagal-antre";
+
+/**
+ * Penanda nasib re-rank SATU angkatan (PR-073) — supaya muat berikutnya dari
+ * cache tahu apakah angkatan tanpa `rank` itu "masih disusun" atau "memang
+ * tanpa AI". Hidup di `redis.cache`: boleh hilang (evict), dan kehilangannya
+ * dibaca sebagai "tidak diketahui" → feed dianggap turun (banner muncul) —
+ * sisi yang aman. Tidak pernah menggagalkan permintaan.
+ */
+export interface PenandaRerank {
+  tulis(userId: string, computedAt: Date, status: StatusRerank): Promise<void>;
+  baca(userId: string): Promise<{ computedAt: Date; status: StatusRerank } | null>;
+}
+
+/** Kunci penanda. Tanpa data selain id pengguna (sudah menjadi kunci baris `match_scores`). */
+export const kunciPenandaRerank = (userId: string): string => `matching:rerank:v1:${userId}`;
+
+/** Port Redis minimum untuk penanda. */
+export interface PenandaRedisLike {
+  set(key: string, value: string, mode: "EX", detik: number): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+}
+
+export function createPenandaRerank(deps: {
+  redis: PenandaRedisLike;
+  logger: Pick<Logger, "warn">;
+}): PenandaRerank {
+  const { redis, logger } = deps;
+  return {
+    async tulis(userId, computedAt, status) {
+      try {
+        await redis.set(
+          kunciPenandaRerank(userId),
+          `${String(computedAt.getTime())}|${status}`,
+          "EX",
+          UMUR_CACHE_FEED_MS / 1000,
+        );
+      } catch (err) {
+        logger.warn({ err }, "Gagal menulis penanda re-rank — feed dianggap tanpa AI");
+      }
+    },
+    async baca(userId) {
+      try {
+        const isi = await redis.get(kunciPenandaRerank(userId));
+        if (isi === null) return null;
+        const [ms, status] = isi.split("|");
+        const waktu = Number(ms);
+        if (!Number.isFinite(waktu) || status === undefined || status === "") return null;
+        return { computedAt: new Date(waktu), status: status as StatusRerank };
+      } catch (err) {
+        logger.warn({ err }, "Gagal membaca penanda re-rank — feed dianggap tanpa AI");
+        return null;
+      }
+    },
+  };
+}
 
 export interface HasilSegarkan {
   /** `cache` = feed dari angkatan yang sudah ada; `baru` = baru dihitung. */
   sumber: "cache" | "baru";
   rerank: StatusRerank;
+  /**
+   * Nasib re-rank ANGKATAN yang disajikan: sama dengan `rerank` untuk angkatan
+   * baru; dari penanda untuk angkatan cache. `null` = tidak diketahui.
+   */
+  rerankAngkatan: StatusRerank | null;
   /** Sisa jatah refresh (`rerank`) hari ini, sesudah permintaan ini. */
   sisaRefresh: number;
   /** `null` = belum ada angkatan (mis. profil belum punya vektor). */
@@ -88,6 +150,8 @@ export interface FeedCacheServiceDeps {
   hitung(actor: ProfilesActor): Promise<SkorLowongan[] | null>;
   /** `env.MATCHING_RERANK_ENABLED`. */
   aktif: boolean;
+  /** Penanda nasib re-rank per angkatan (PR-073). Absen = selalu "tidak diketahui". */
+  penanda?: PenandaRerank;
   logger: Pick<Logger, "error">;
   clock?: () => Date;
 }
@@ -107,7 +171,18 @@ export function createFeedCacheService(deps: FeedCacheServiceDeps) {
     rerank: StatusRerank,
   ): Promise<HasilSegarkan> {
     const [feed, sisa] = await Promise.all([repo.bacaFeed(userId), sisaRefresh(userId)]);
-    return { sumber, rerank, sisaRefresh: sisa, computedAt: feed[0]?.computedAt ?? null, feed };
+    const computedAt = feed[0]?.computedAt ?? null;
+    let rerankAngkatan: StatusRerank | null = rerank;
+    if (sumber === "cache") {
+      const tanda = computedAt === null ? null : ((await deps.penanda?.baca(userId)) ?? null);
+      rerankAngkatan =
+        tanda !== null && computedAt !== null && tanda.computedAt.getTime() === computedAt.getTime()
+          ? tanda.status
+          : null;
+    } else if (computedAt !== null) {
+      await deps.penanda?.tulis(userId, computedAt, rerank);
+    }
+    return { sumber, rerank, rerankAngkatan, sisaRefresh: sisa, computedAt, feed };
   }
 
   /**
@@ -124,6 +199,14 @@ export function createFeedCacheService(deps: FeedCacheServiceDeps) {
   }
 
   return {
+    /**
+     * Cache apa adanya, TANPA menghitung ulang dan tanpa jatah — halaman
+     * lanjutan feed (cursor) PR-073: angkatannya harus sama dengan halaman 1.
+     */
+    baca(userId: string): Promise<HasilSegarkan> {
+      return selesai(userId, "cache", "tidak-perlu");
+    },
+
     /**
      * Feed pengguna, dari cache atau dihitung ulang. `paksa` = tombol refresh.
      */
@@ -152,7 +235,7 @@ export function createFeedCacheService(deps: FeedCacheServiceDeps) {
 
       if (skor === null || skor.length === 0) {
         if (reservasi !== null) await quota.kembalikan(reservasi);
-        return selesai(userId, "baru", "tanpa-kandidat");
+        return selesai(userId, "baru", skor === null ? "profil-belum-siap" : "tanpa-kandidat");
       }
       if (reservasi === null) return selesai(userId, "baru", tanpaRerank);
 

@@ -379,6 +379,7 @@ Bisnis: feed tetap bermakna walau AI mati total (janji degradasi). Teknis: orkes
 **API Changes:**
 
 * GET /api/v1/me/matches
+* POST /api/v1/me/matches/refresh — keputusan owner 2026-09-30: refresh berkuota dipisah dari GET supaya retry/prefetch tidak membakar jatah
 
 **Security Considerations:**
 
@@ -386,11 +387,11 @@ Bisnis: feed tetap bermakna walau AI mati total (janji degradasi). Teknis: orkes
 
 **Testing Checklist:**
 
-* [ ] Unit Test (template)
-* [ ] Integration Test (kedua mode)
+* [x] Unit Test (template) — `matching-template.test.ts` (fast-check)
+* [x] Integration Test (kedua mode) — `matching-feed-http.test.ts` (HTTP + kuota + worker re-rank asli) & `matching-feed-db.test.ts` (PostgreSQL + pgvector nyata)
 * [ ] E2E Test (via PR-074)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (matikan AI di staging)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (matikan AI di staging) — belum ada staging; mode turun dibuktikan lewat flag `MATCHING_RERANK_ENABLED=false` + LLM gagal di test HTTP
 
 **Deliverables:**
 
@@ -406,11 +407,11 @@ RB-Std; flag paksa mode degradasi tersedia.
 
 #### Acceptance Criteria
 
-* [ ] Mode normal & degraded menghasilkan kontrak response identik (golden test).
-* [ ] Gateway dimatikan → feed valid + template ("Cocok: remote, sesuai keterampilan X").
-* [ ] Penjelasan tidak pernah menyebut disabilitas user (review + test string).
-* [ ] Pagination/limit stabil.
-* [ ] p95 endpoint < 800 ms (cache hangat).
+* [x] Mode normal & degraded menghasilkan kontrak response identik (golden test). — bentuk struktural rekursif sama + keduanya lolos `matchesResponseSchema`; keputusan owner: `meta.degraded` (tanpa AI) dipisah dari `meta.aiMenyusun` (re-rank masih berjalan)
+* [x] Gateway dimatikan → feed valid + template ("Cocok: remote, sesuai keterampilan X"). — "Cocok: bisa kerja dari rumah (remote), sesuai keahlian Excel."; keputusan owner: nama keahlian dicocokkan ke teks lowongan
+* [x] Penjelasan tidak pernah menyebut disabilitas user (review + test string). — property 500 kasus (template) + keahlian "Tuli" & alasan LLM "yang Tuli" di test HTTP
+* [x] Pagination/limit stabil. — cursor mengikat angkatan + basis urutan halaman 1; re-rank selesai di antara halaman tidak mengacak urutan
+* [x] p95 endpoint < 800 ms (cache hangat). — 32,5 ms (HTTP, PostgreSQL lokal, 30 permintaan)
 
 #### Dependencies
 

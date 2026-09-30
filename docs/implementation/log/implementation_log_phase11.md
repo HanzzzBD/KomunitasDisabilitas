@@ -507,3 +507,90 @@ Gate hijau: `lint` + `typecheck` bersih; `turbo run test --concurrency=1` 27/27 
    template penjelasan deterministik untuk `explanation: null`, `meta.degraded` dari status
    `rerank`, `sisaRefresh` di respons, dan wiring `createFeedCacheService` + `createRerankJobs` di
    `boot.ts`.
+
+---
+
+## PR-073 — GET /me/matches + Template Degradasi
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-073---get-mematches--template-degradasi)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai
+> **Branch:** `pr-073-me-matches` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Endpoint feed AI Job Matching yang merangkai seluruh Phase 11: kandidat pgvector (PR-070) →
+hard filter akomodasi terenkripsi + skor (PR-071) → cache + re-rank asinkron (PR-072) → kartu
+lowongan aktif + penjelasan (LLM atau template deterministik) + meta. Satu kontrak untuk mode
+normal dan turun. `boot.ts` kini merakit rantai itu (`createMatchingFeedModule`).
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+1. **Refresh = `POST /me/matches/refresh`** terpisah dari `GET /me/matches`: aksi berkuota tidak
+   boleh terpicu GET yang diulang otomatis (prefetch, retry klien/proxy).
+2. **`meta.degraded` dipisah dari `meta.aiMenyusun`.** `degraded` = feed ini memang tanpa AI (kuota
+   habis, flag mati, antrean/LLM gagal); `aiMenyusun` = re-rank masih di antrean (muat pertama).
+3. **Profil belum siap → 200 + `data: []` + `meta.alasanKosong`** (`profil-belum-siap` /
+   `tanpa-kecocokan`), bukan error.
+4. **Template dari data**: nama keahlian pengguna yang muncul sebagai kata utuh di teks lowongan,
+   mode remote, lokasi sama, fasilitas lowongan — maks dua alasan.
+
+### Scope selesai
+
+* **`@nawasena/schemas` `matching.ts`** — `matchesQuerySchema` (limit 1–50), `matchesRefreshQuerySchema`,
+  `matchItemSchema` (`job` = kartu `JobSearchResult` yang sama dengan pencarian, `score`,
+  `explanation`, `explanationSource: ai|template`), `matchesMetaSchema` (SEMUA kunci wajib:
+  `nextCursor`, `degraded`, `aiMenyusun`, `sisaRefresh`, `diperbaruiPada`, `alasanKosong`). OpenAPI
+  + `openapi.json` diperbarui.
+* **`services/penjelasan-template.ts`** (murni) — `templatePenjelasan`, `keahlianCocok` (kata utuh,
+  Unicode, beda huruf diabaikan; keahlian ber-istilah kondisi atau pemecah kalimat dilewati).
+* **`services/matches.service.ts`** — `createHitungFeed` (kandidat → skor) dan
+  `createMatchesService.lihat/segarkan`: urut menurut `rank` bila angkatan sudah di-rerank, selain
+  itu skor; lowongan yang sudah ditutup disaring saat membaca (menutup risiko PR-072); profil +
+  keahlian hanya dibaca bila halaman butuh template. Cursor = `encodeKursor({ computedAt,
+  "<basis>:<offset>" })` — mengikat angkatan DAN basis urutan halaman 1; angkatan diganti → 400.
+* **`feed-cache.service.ts` (PR-072) diperluas** — status `profil-belum-siap`; `baca()` untuk
+  halaman lanjutan (tanpa hitung ulang/jatah); **penanda nasib re-rank per angkatan** di
+  `redis.cache` (`matching:rerank:v1:<userId>`, TTL 24 jam, gagal = "tidak diketahui" → dianggap
+  turun). `BATAS_TUNGGU_RERANK_MS` = 2 menit: lewat itu tanpa `rank` → `degraded`.
+* **Controller + router** — keduanya `access.authenticated()`; identitas dari sesi saja.
+* **Modul jobs** — `listActiveByIds` kini membawa `companyName`; `bacaUntukFeed(ids)`.
+* **`boot.ts`** — `createMatchingFeedModule` sesudah `jobs`; profil via `findSafeByUserId`, keahlian
+  via service karier, `sensitiveAccess` instance modul profiles (audit agregat yang sama).
+* **Test bersama** — `helpers/match-scores-memori.ts` (dipakai juga test PR-072).
+
+### Bukti AC
+
+| AC | Bukti |
+|---|---|
+| Kontrak identik (golden) | `matching-feed-http.test.ts`: bentuk struktural rekursif respons normal (sesudah worker) = respons turun (flag mati); keduanya lolos `matchesResponseSchema`; kunci `meta` sama |
+| AI mati → feed valid + template | flag mati: `degraded: true`, jatah utuh, "Cocok: bisa kerja dari rumah (remote), sesuai keahlian Excel."; LLM gagal di percobaan terakhir → `aiMenyusun` sampai batas 2 menit lalu `degraded` |
+| Tidak menyebut disabilitas | property 500 kasus (keahlian acak + istilah kondisi); HTTP: keahlian "Tuli" di profil & alasan LLM "untuk Anda yang Tuli" → tidak satu pun penjelasan menyebut kondisi |
+| Pagination stabil | jelajah limit 7 = seluruh 25 tanpa duplikat; re-rank selesai DI ANTARA halaman → urutan halaman 1 tetap; cursor angkatan lama/rusak & limit 51 → 400 |
+| p95 < 800 ms (cache hangat) | `matching-feed-db.test.ts`: **32,5 ms** p95 dari 30 permintaan HTTP, PostgreSQL lokal |
+
+`matching-feed-db.test.ts` juga membuktikan rantai nyata: kebutuhan akomodasi terenkripsi
+("juru bahasa isyarat") menyaring lowongan tanpa fasilitas itu, lowongan `closed` tidak muncul,
+kartu membawa nama perusahaan.
+
+### Verifikasi
+
+* Gate: `pnpm turbo run lint typecheck test --concurrency=1` — **27/27 task** hijau;
+  `@nawasena/api` **142 berkas / 2021 lulus, 2 skip** (MinIO; urutan boot `.env`) dengan
+  PostgreSQL + Redis hidup.
+* `pnpm --filter @nawasena/schemas check:openapi` — sinkron.
+
+### Risiko & catatan
+
+* **`aiMenyusun` berbasis waktu** (2 menit) + penanda di cache yang bisa ter-evict: antrean yang
+  sangat tertunda akan tampil `degraded` walau re-rank akhirnya selesai — muat berikutnya pulih.
+* **Muat halaman 1 bisa memotong jatah** bila cache kedaluwarsa (keputusan PR-072 #3) — GET tetap
+  idempoten dalam 24 jam.
+* Kartu membaca ≤ 50 lowongan per permintaan (satu query `IN`), diurutkan di memori — ukuran feed
+  dibatasi top-50, jadi tidak tumbuh.
+
+### Next steps
+
+1. **PR-074** — beranda seeker: kartu (skor teks + visual, penjelasan, ikon akomodasi berlabel),
+   banner `role="status"` untuk `degraded`/`aiMenyusun`, tombol refresh dengan `sisaRefresh`,
+   arahan `alasanKosong`. `@nawasena/api-client` belum punya klien endpoint ini.

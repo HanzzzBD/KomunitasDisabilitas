@@ -77,6 +77,18 @@ export interface JobUntukRerank {
   accommodations: AccommodationNeed[];
 }
 
+/**
+ * Kartu feed matching (PR-073): kartu publik yang SAMA dengan hasil pencarian
+ * (satu komponen kartu di FE) + teks untuk mencocokkan nama keahlian pada
+ * penjelasan template. Tidak ada `welcomedDisabilityTypes` — alasan sama
+ * dengan `JobUntukRerank`.
+ */
+export interface JobUntukFeed {
+  kartu: JobSearchResult;
+  requirements: string | null;
+  description: string;
+}
+
 export interface JobsServiceDeps {
   jobsRepository: JobsRepository;
   auditLog: AuditLog;
@@ -247,6 +259,20 @@ export function createJobsService(deps: JobsServiceDeps) {
         city: row.city,
         province: row.province,
         accommodations: row.accommodations,
+      }));
+    },
+
+    /** Kartu feed (PR-073) untuk lowongan AKTIF di antara `ids`; urutan tak dijamin. */
+    async bacaUntukFeed(ids: readonly string[]): Promise<JobUntukFeed[]> {
+      const rows = await jobsRepository.listActiveByIds(ids);
+      return rows.map((row) => ({
+        kartu: keHasilPencarian({
+          ...row,
+          // `publish()` selalu menulis `publishedAt`; jaring untuk baris seed lama.
+          publishedAt: row.publishedAt ?? row.createdAt,
+        }),
+        requirements: row.requirements,
+        description: row.description,
       }));
     },
 

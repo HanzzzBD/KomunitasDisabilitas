@@ -55,6 +55,7 @@ export {
   createJobsService,
   type JobsActor,
   type JobUntukEmbedding,
+  type JobUntukFeed,
   type JobUntukRerank,
   type JobsService,
   type JobsServiceDeps,
