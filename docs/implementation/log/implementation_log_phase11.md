@@ -221,3 +221,94 @@ PostgreSQL + Redis hidup; workspace lain semuanya lulus.
 
 1. **PR-070** — query kandidat pgvector. Gate U-29 sudah lunas; setelah `db:seed`, jalankan
    `embed:ulang` agar data dev punya vektor.
+
+---
+
+## PR-070 — Candidate Query (pgvector + Hard Filter SQL)
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-070---candidate-query-pgvector--hard-filter-sql)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai
+> **Branch:** `pr-070-candidate-query` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Langkah 1–2 SDD §7.2: top-50 lowongan aktif terdekat (kosinus pgvector) yang lolos hard filter
+mode kerja/lokasi, seluruhnya di SQL ber-parameter di repo matching. Belum ada endpoint — service
+`createKandidatService` dirakit bersama `GET /me/matches` di PR-073.
+
+Gate hijau: `lint` + `typecheck` (api, worker) bersih; `turbo run test --concurrency=1` **9/9
+task** — `@nawasena/api` **134 berkas / 1937 lulus, 2 skip** (MinIO; urutan boot `.env`) dengan
+PostgreSQL + Redis hidup (p95 kandidat di dalam suite penuh: 54,8 ms).
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+1. **Semantik filter = SDD §7.2 harfiah.** Lolos = `remote` ATAU provinsi sama (onsite/hybrid);
+   pengguna tanpa provinsi → tanpa filter lokasi. Profil belum punya preferensi "remote-only";
+   `openToRemote` (bawaan `false`, jarang dicentang) SENGAJA tidak menyaring — ia komponen
+   `location_fit` PR-071. SQL menerima daftar mode kerja sebagai parameter, jadi preferensi
+   eksplisit kelak cukup mengubah `susunFilterKandidat`.
+2. **Lowongan onsite/hybrid tanpa provinsi LOLOS** + seed diberi lokasi.
+3. **HNSW: planner bebas + bukti terkendali** (lihat "Temuan planner").
+
+### Scope selesai
+
+* **`repositories/kandidat.repository.ts`** — `cariKandidat(userId, filter, {batas, efSearch})`
+  dalam satu transaksi: cek vektor profil (akun hidup) → `set_config` LOCAL `hnsw.ef_search` +
+  `hnsw.iterative_scan = relaxed_order` → CTE `MATERIALIZED` top-N lalu urut ulang (pola anjuran
+  pgvector untuk `relaxed_order`). Mengembalikan `jobId`, `kemiripan`, mode kerja, kota/provinsi,
+  akomodasi, `publishedAt` (bahan skor PR-071). `null` = pengguna tanpa vektor.
+  * `sqlKandidat()` — SATU sumber SQL untuk repo DAN test EXPLAIN.
+  * `vektorProfil()` — vektor profil sebagai SUBQUERY, bukan literal dari aplikasi.
+  * `kondisiKandidat()` — mode kerja divalidasi ulang dengan `workModeSchema` lalu di-cast enum
+    sebagai parameter; provinsi dibandingkan `lower(btrim(...))` ber-parameter.
+* **`services/kandidat.service.ts`** — `susunFilterKandidat(profil)` (murni) + service dengan port
+  `bacaProfil` (jalur aman, dirakit PR-073).
+* **`core/config/env.ts`** — `MATCHING_HNSW_EF_SEARCH` (bawaan 100, **minimal 50**: HNSW
+  mengembalikan paling banyak `ef_search` baris, dan bawaan pgvector 40 diam-diam memotong top-50).
+  Mitigasi risiko "recall vs speed" dokumen phase.
+* **Seed** — kota/provinsi untuk lowongan onsite/hybrid (DKI, Jabar, DIY, Jatim); **j17** (onsite,
+  tayang) sengaja tanpa lokasi agar kasus "tanpa provinsi tetap lolos" terlihat di data dev.
+
+### Temuan planner (bukti AC EXPLAIN)
+
+* Vektor profil sebagai **literal** → planner memilih Seq Scan + Sort pada ±1.000 baris. Sebagai
+  **subquery** → biayanya ditaksir berbeda; di eksperimen psql 1k baris HNSW dipakai (2 ms).
+* Di test (1.059 lowongan, 315 baris lolos filter) planner tetap memilih Seq Scan + Sort — eksak
+  dan murah (p95 ±12 ms). Di **10.000 baris** (eksperimen psql, transaksi di-ROLLBACK) planner
+  memilih `Index Scan using jobs_embedding_hnsw` sendiri: 9,5 ms hangat (139 ms pada eksekusi
+  dingin pertama).
+* Test `EXPLAIN` memakai `enable_sort=off` di transaksinya SAJA: satu-satunya jalan lain untuk
+  urutan jarak adalah HNSW, jadi yang dibuktikan adalah "indeks dapat dipakai query ini". Mematikan
+  seq scan saja tidak cukup — planner beralih ke indeks `jobs_status_published_at` + Sort.
+  **Diverifikasi mutasi:** mengganti `<=>` dengan `<->` di repo membuat test merah.
+
+### Bukti AC
+
+| AC | Bukti |
+|---|---|
+| EXPLAIN memakai HNSW | test EXPLAIN atas `sqlKandidat` (lihat di atas) + eksperimen 10k |
+| Hanya published & belum expired | test DB: draft, closed, lewat tenggat — semuanya sangat dekat, tidak ada yang lolos |
+| Filter mode kerja/lokasi | test DB: remote provinsi lain, onsite provinsi sama, hybrid "  jawa BARAT " (beda huruf/spasi), onsite tanpa provinsi LOLOS; onsite Jatim & hybrid Bali tersaring; filter hanya-remote ber-parameter |
+| Top-50 penuh walau tersaring | 200 penghalang paling dekat di provinsi lain → hasil tetap 50 (iterative scan), terurut kemiripan |
+| p95 < 100 ms / 1.000 jobs | 1.059 lowongan, 40 panggilan service sesudah pemanasan: p95 **12–64 ms** di beberapa jalan lokal |
+| Injeksi gagal | `x' OR '1'='1`, `Jawa Barat') OR TRUE --`, `'; DROP TABLE jobs; --` → filter tidak melonggar, jumlah baris tabel utuh; mode kerja di luar enum ditolak sebelum SQL |
+
+### Verifikasi manual (data dev, vektor Gemini nyata dari PR-069b)
+
+Setiap persona mendapat 11 kandidat: 8 remote + onsite/hybrid di provinsinya + j17 (onsite tanpa
+provinsi). Lowongan Jawa Timur tidak pernah muncul bagi persona mana pun. Kemiripan teratas
+0,81–0,87.
+
+### Risiko & catatan
+
+* **Test p95 bergantung pada mesin.** Lulus dengan jarak lebar hari ini; bila CI kelak lambat,
+  penyebabnya lingkungan, bukan query — jangan "perbaiki" dengan menaikkan ambang tanpa mengukur.
+* `relaxed_order` + CTE `MATERIALIZED`: urutan final benar, tetapi pemilihan top-50 pada katalog
+  besar adalah APROKSIMASI (sifat HNSW). `MATCHING_HNSW_EF_SEARCH` adalah tuasnya.
+* Hari ini tidak ada preferensi mode kerja eksplisit; bila produk memintanya, ia dimulai di profil
+  (migrasi + form), lalu `susunFilterKandidat`.
+
+### Next steps
+
+1. **PR-071** — skor berbobot + hard filter akomodasi in-memory atas kandidat ini.

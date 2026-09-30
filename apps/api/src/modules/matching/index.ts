@@ -6,6 +6,8 @@
 //   - service embedding (proses worker): dirakit langsung oleh
 //     `apps/worker` dari ekspor di bawah, dengan pembaca profil/lowongan yang
 //     disuntik composition root (antar-modul lewat service, ADR-001).
+//   - query kandidat (PR-070): `createKandidatService`, dirakit bersama
+//     endpoint feed di PR-073.
 // Belum ada route: feed `GET /me/matches` lahir di PR-073.
 import type { EventBus } from "../../core/events/index.js";
 import type { QueueRegistry } from "../../core/queue/index.js";
@@ -58,3 +60,21 @@ export {
   kunciEmbedding,
   type PemicuEmbeddingDeps,
 } from "./services/pemicu-embedding.js";
+export {
+  JUMLAH_KANDIDAT,
+  createKandidatRepository,
+  kondisiKandidat,
+  sqlKandidat,
+  vektorProfil,
+  type FilterKandidat,
+  type KandidatLowongan,
+  type KandidatRepository,
+  type OpsiKandidat,
+} from "./repositories/kandidat.repository.js";
+export {
+  createKandidatService,
+  susunFilterKandidat,
+  type KandidatService,
+  type KandidatServiceDeps,
+  type ProfilUntukFilter,
+} from "./services/kandidat.service.js";
