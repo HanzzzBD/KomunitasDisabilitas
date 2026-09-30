@@ -3098,6 +3098,149 @@
         }
       }
     },
+    "/me/matches": {
+      "get": {
+        "operationId": "listMyMatches",
+        "tags": [
+          "matching"
+        ],
+        "summary": "Feed lowongan yang cocok (milik sendiri)",
+        "description": "Top-50 lowongan aktif yang lolos hard filter lokasi & akomodasi wajib, diurutkan re-rank AI bila tersedia (selain itu menurut skor). Cache 24 jam: permintaan tanpa cursor boleh menghitung ulang cache yang kedaluwarsa (memakai 1 jatah `rerank` bila tersisa). `meta.degraded` = disajikan tanpa AI (penjelasan template); `meta.aiMenyusun` = re-rank AI masih berjalan, muat ulang sebentar lagi. Cursor mengikat feed yang sedang dibaca — feed yang sudah diganti membuat cursor ditolak (400, muat ulang dari awal).",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–50)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–50)",
+              "example": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Satu halaman feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`limit` di luar 1–50, atau cursor tidak berlaku lagi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/matches/refresh": {
+      "post": {
+        "operationId": "refreshMyMatches",
+        "tags": [
+          "matching"
+        ],
+        "summary": "Segarkan feed (berkuota)",
+        "description": "Hitung ulang feed dan antre re-rank AI, memakai 1 jatah `rerank` harian (bawaan 3). Jatah habis → feed yang ada dikembalikan apa adanya dengan `meta.sisaRefresh: 0` — bukan error. Mengembalikan halaman 1.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–50)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–50)",
+              "example": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Halaman 1 feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`limit` di luar 1–50",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/{id}": {
       "get": {
         "operationId": "getJob",
@@ -6777,6 +6920,115 @@
         },
         "required": [
           "nextCursor"
+        ]
+      },
+      "MatchesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchItem"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/MatchesMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "MatchItem": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobSearchResult"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Skor kecocokan deterministik 0–1 (bukan urutan LLM)",
+            "example": 0.7312
+          },
+          "explanation": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Satu kalimat Bahasa Indonesia sederhana. Tidak pernah menyebut kondisi/disabilitas pengguna.",
+            "example": "Cocok: bisa kerja dari rumah (remote), sesuai keahlian Excel."
+          },
+          "explanationSource": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "template"
+            ],
+            "description": "`ai` = kalimat dari re-rank LLM; `template` = kalimat deterministik dari data lowongan & profil"
+          }
+        },
+        "required": [
+          "job",
+          "score",
+          "explanation",
+          "explanationSource"
+        ],
+        "description": "Satu lowongan di feed matching"
+      },
+      "MatchesMeta": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor halaman berikut; null bila halaman terakhir"
+          },
+          "degraded": {
+            "type": "boolean",
+            "description": "true = feed ini disajikan tanpa AI (kuota habis, AI dimatikan, atau re-rank gagal) — penjelasan template"
+          },
+          "aiMenyusun": {
+            "type": "boolean",
+            "description": "true = re-rank AI masih berjalan; muat ulang sebentar lagi untuk urutan & penjelasan AI"
+          },
+          "sisaRefresh": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Sisa refresh feed hari ini (jatah `rerank`)",
+            "example": 2
+          },
+          "diperbaruiPada": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu feed ini dihitung; null bila belum ada feed",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "alasanKosong": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "profil-belum-siap",
+              "tanpa-kecocokan",
+              null
+            ],
+            "description": "`profil-belum-siap` = profil belum cukup untuk dicocokkan (arahkan ke lengkapi profil); `tanpa-kecocokan` = profil siap, tetapi belum ada lowongan yang lolos filter"
+          }
+        },
+        "required": [
+          "nextCursor",
+          "degraded",
+          "aiMenyusun",
+          "sisaRefresh",
+          "diperbaruiPada",
+          "alasanKosong"
         ]
       },
       "JobPublic": {

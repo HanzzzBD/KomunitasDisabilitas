@@ -55,6 +55,11 @@ const LABEL_MODE: Record<WorkMode, string> = {
 const ISTILAH_KONDISI =
   /\b(disabilitas|difabel|penyandang|tuli|tunarungu|netra|tunanetra|buta|daksa|tunadaksa|autis|autisme|diagnosis|diagnosa|cacat)\b/i;
 
+/** Apakah teks menyebut istilah kondisi — dipakai juga template penjelasan (PR-073). */
+export function menyebutKondisi(teks: string): boolean {
+  return ISTILAH_KONDISI.test(teks);
+}
+
 /** Bagian profil NON-sensitif yang boleh masuk prompt (keputusan owner 2026-09-30). */
 export interface ProfilUntukRerank {
   headline: string | null;
@@ -169,7 +174,7 @@ export function rapikanPenjelasan(alasan: string): string | null {
   const teks = bersih(alasan);
   if (teks === "" || teks.length > MAKS_PENJELASAN) return null;
   if (/[.!?]\s+\S/.test(teks)) return null;
-  if (ISTILAH_KONDISI.test(teks)) return null;
+  if (menyebutKondisi(teks)) return null;
   return /[.!?]$/.test(teks) ? teks : `${teks}.`;
 }
 

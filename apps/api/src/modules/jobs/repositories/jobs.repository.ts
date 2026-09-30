@@ -51,6 +51,9 @@ export interface JobRow {
   updatedAt: Date;
 }
 
+/** `JobRow` + nama perusahaan — bahan kartu feed matching (PR-073). */
+export type JobRowBerperusahaan = JobRow & { companyName: string };
+
 /** POST /admin/jobs — `status`/`source` TIDAK di sini, keduanya bawaan kolom Prisma. */
 export interface JobCreateData {
   companyId: string;
@@ -218,8 +221,11 @@ export interface JobsRepository {
   findById(id: string): Promise<JobRow | null>;
   /** Lowongan `published` DAN belum `expiresAt` (atau tanpa tenggat) milik satu perusahaan. */
   listActiveByCompany(companyId: string): Promise<JobRow[]>;
-  /** Lowongan `published` DAN belum lewat tenggat di antara `ids` (PR-072); urutan tak dijamin. */
-  listActiveByIds(ids: readonly string[]): Promise<JobRow[]>;
+  /**
+   * Lowongan `published` DAN belum lewat tenggat di antara `ids` (PR-072), berikut
+   * nama perusahaannya (kartu feed PR-073); urutan tak dijamin.
+   */
+  listActiveByIds(ids: readonly string[]): Promise<JobRowBerperusahaan[]>;
   create(id: string, data: JobCreateData): Promise<JobCreateResult>;
   /** null bila `id` tidak ada. */
   update(id: string, patch: JobUpdatePatch): Promise<JobRow | null>;
@@ -268,9 +274,9 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
           status: "published",
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
-        select: KOLOM,
+        select: { ...KOLOM, company: { select: { name: true } } },
       });
-      return rows.map(keRow);
+      return rows.map(({ company, ...baris }) => ({ ...keRow(baris), companyName: company.name }));
     },
 
     create: async (id, data) => {

@@ -18,12 +18,11 @@ import {
   UMUR_CACHE_FEED_MS,
   createFeedCacheService,
   createRerankService,
-  type BarisFeed,
   type LowonganUntukRerank,
-  type MatchScoresRepository,
   type SkorLowongan,
 } from "../src/modules/matching/index.js";
 import { redisKuotaPalsu } from "./helpers/redis-kuota.js";
+import { repoMatchScoresMemori } from "./helpers/match-scores-memori.js";
 
 const USER = "018f4c1e-0000-7000-8000-00000000aaaa";
 const SIANG = new Date("2026-09-30T05:00:00.000Z");
@@ -41,68 +40,6 @@ const KONFIG: AiQuotaConfig = {
   },
   globalPerDay: 1_000,
 };
-
-/** Repo `match_scores` di memori — semantik angkatan sama dengan repo Prisma. */
-function repoMemori(): MatchScoresRepository & { baris: BarisFeed[] } {
-  let baris: BarisFeed[] = [];
-  return {
-    get baris() {
-      return baris;
-    },
-    angkatanTerbaru(userId) {
-      const milik = baris.filter((b) => b.jobId !== "" && userId === USER);
-      if (milik.length === 0) return Promise.resolve(null);
-      const computedAt = new Date(Math.max(...milik.map((b) => b.computedAt.getTime())));
-      return Promise.resolve({
-        computedAt,
-        jumlah: milik.length,
-        sudahRerank: milik.some((b) => b.rank !== null),
-      });
-    },
-    bacaFeed() {
-      return Promise.resolve(
-        [...baris].sort(
-          (a, b) =>
-            (a.rank ?? 1e9) - (b.rank ?? 1e9) ||
-            b.score - a.score ||
-            a.jobId.localeCompare(b.jobId),
-        ),
-      );
-    },
-    gantiAngkatan(_userId, skor, computedAt) {
-      baris = skor.map((s) => ({
-        jobId: s.jobId,
-        score: s.skor,
-        explanation: null,
-        rank: null,
-        computedAt,
-      }));
-      return Promise.resolve();
-    },
-    topAngkatan(_userId, computedAt, batas) {
-      return Promise.resolve(
-        baris
-          .filter((b) => b.computedAt.getTime() === computedAt.getTime())
-          .sort((a, b) => b.score - a.score)
-          .slice(0, batas)
-          .map((b) => ({ jobId: b.jobId, skor: b.score })),
-      );
-    },
-    terapkanRerank(_userId, computedAt, hasil) {
-      let n = 0;
-      for (const h of hasil) {
-        const b = baris.find(
-          (x) => x.jobId === h.jobId && x.computedAt.getTime() === computedAt.getTime(),
-        );
-        if (b === undefined) continue;
-        b.rank = h.rank;
-        b.explanation = h.explanation;
-        n++;
-      }
-      return Promise.resolve(n);
-    },
-  };
-}
 
 const skorN = (n: number): SkorLowongan[] =>
   Array.from({ length: n }, (_, i) => ({
@@ -152,7 +89,7 @@ function rakit(o: { aktif?: boolean; jawaban?: RerankKeluaran; gagal?: AiProvide
     logger,
     clock,
   });
-  const repo = repoMemori();
+  const repo = repoMatchScoresMemori();
   const antre: AiRerankFeedJob[] = [];
   const hitung = vi.fn(() => Promise.resolve<SkorLowongan[] | null>(skorN(25)));
   const enqueue = vi.fn((job: AiRerankFeedJob) => {
@@ -259,7 +196,7 @@ describe("feed cache — AC-3: refresh ke-4 dalam sehari → cache + info kuota"
       expect(h).toMatchObject({ sumber: "baru", rerank: "dijadwalkan", sisaRefresh: sisa });
       await m.kerjakan();
     }
-    const cacheSebelum = m.repo.baris.map((b) => ({ ...b }));
+    const cacheSebelum = m.repo.baris(USER).map((b) => ({ ...b }));
 
     const keempat = await m.feed.segarkan(aktor, { paksa: true });
     expect(keempat).toMatchObject({ sumber: "cache", rerank: "kuota-habis", sisaRefresh: 0 });
@@ -267,7 +204,7 @@ describe("feed cache — AC-3: refresh ke-4 dalam sehari → cache + info kuota"
     expect(m.antre).toHaveLength(0);
     expect(m.chatJson).toHaveBeenCalledTimes(3);
     // Cache lama UTUH, termasuk hasil re-rank-nya.
-    expect(m.repo.baris).toEqual(cacheSebelum);
+    expect(m.repo.baris(USER)).toEqual(cacheSebelum);
     expect(keempat.feed[0]?.rank).toBe(1);
   });
 
@@ -294,11 +231,11 @@ describe("feed cache — jalur turun lain", () => {
     expect(m.enqueue).not.toHaveBeenCalled();
   });
 
-  it("tanpa vektor profil (hitung → null) → jatah dikembalikan", async () => {
+  it("tanpa vektor profil (hitung → null) → profil-belum-siap, jatah dikembalikan", async () => {
     const m = rakit();
     m.hitung.mockResolvedValueOnce(null);
     const h = await m.feed.segarkan(aktor, { paksa: false });
-    expect(h).toMatchObject({ sumber: "baru", rerank: "tanpa-kandidat", sisaRefresh: 3 });
+    expect(h).toMatchObject({ sumber: "baru", rerank: "profil-belum-siap", sisaRefresh: 3 });
     expect(h.computedAt).toBeNull();
   });
 
@@ -369,7 +306,7 @@ describe("rerank worker — whitelist & angkatan", () => {
     expect(akhir).toEqual({ status: "gagal", kode: "AI_PROVIDER_UNAVAILABLE" });
     expect((await m.quota.ringkasan(USER)).fitur.find((f) => f.fitur === "rerank")?.sisa).toBe(3);
     // Feed tetap utuh, tanpa rank.
-    expect(m.repo.baris.every((b) => b.rank === null)).toBe(true);
+    expect(m.repo.baris(USER).every((b) => b.rank === null)).toBe(true);
   });
 
   it("worker TIDAK memotong jatah kedua (memakai reservasi API)", async () => {

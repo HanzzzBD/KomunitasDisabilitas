@@ -12,10 +12,38 @@
 //     kebijakan cache/refresh, memotong jatah `rerank`, produser
 //     `ai-rerank-feed`) dan `createRerankService` (proses worker — panggilan
 //     LLM `rerank.v1`, menulis `rank`/`explanation`).
-// Belum ada route: feed `GET /me/matches` lahir di PR-073.
+//   - feed (PR-073): `createMatchingFeedModule` — `GET /me/matches` +
+//     `POST /me/matches/refresh`, merakit seluruh rantai di atas. Pembaca
+//     profil/keahlian/lowongan disuntik composition root (antar-modul lewat
+//     service, ADR-001).
+import type { Router } from "express";
+import type { AiQuota } from "../../core/ai/index.js";
+import type { RouteRegistrar } from "../../core/auth/index.js";
+import type { AppPrisma } from "../../core/db/index.js";
 import type { EventBus } from "../../core/events/index.js";
+import type { Logger } from "../../core/logger/index.js";
 import type { QueueRegistry } from "../../core/queue/index.js";
+import { createMatchesController } from "./controllers/matches.controller.js";
+import { createKandidatRepository } from "./repositories/kandidat.repository.js";
+import { createMatchScoresRepository } from "./repositories/match-scores.repository.js";
+import { createMatchingRouter } from "./routers/index.js";
+import {
+  createFeedCacheService,
+  createPenandaRerank,
+  createRerankJobs,
+  type PenandaRedisLike,
+} from "./services/feed-cache.service.js";
+import { createKandidatService } from "./services/kandidat.service.js";
+import {
+  createHitungFeed,
+  createMatchesService,
+  type LowonganUntukFeed,
+  type MatchesService,
+  type ProfilUntukFeed,
+} from "./services/matches.service.js";
+import { createPembacaAkomodasi, createPenilaianService } from "./services/penilaian.service.js";
 import { daftarkanPemicuEmbedding } from "./services/pemicu-embedding.js";
+import type { BobotSkor } from "./services/skor.js";
 
 export interface MatchingModuleDeps {
   events: EventBus;
@@ -25,6 +53,66 @@ export interface MatchingModuleDeps {
 
 export function createMatchingModule(deps: MatchingModuleDeps): void {
   daftarkanPemicuEmbedding(deps);
+}
+
+export interface MatchingFeedModuleDeps {
+  prisma: AppPrisma;
+  routes: RouteRegistrar;
+  /** Produser `ai-rerank-feed`; konsumennya apps/worker. */
+  queues: Pick<QueueRegistry, "enqueue">;
+  /** Kuota AI yang SAMA dengan fitur AI lain (`redis.queue`). */
+  quota: Pick<AiQuota, "periksaDanPakai" | "kembalikan" | "ringkasan">;
+  /** `redis.cache` — penanda nasib re-rank per angkatan. */
+  redis: PenandaRedisLike;
+  logger: Pick<Logger, "error" | "warn">;
+  /** Jalur ber-audit (tujuan `matching`) untuk hard filter akomodasi (PR-071). */
+  sensitiveAccess: Parameters<typeof createPembacaAkomodasi>[0]["sensitiveAccess"];
+  /** Profil jalur AMAN (modul profiles). */
+  bacaProfil(userId: string): Promise<ProfilUntukFeed | null>;
+  bacaKeahlian(userId: string): Promise<ReadonlyArray<{ name: string }>>;
+  /** `jobsService.bacaUntukFeed`. */
+  bacaLowongan(ids: readonly string[]): Promise<LowonganUntukFeed[]>;
+  config: {
+    efSearch: number;
+    bobot: BobotSkor;
+    paruhKebaruanHari: number;
+    /** `MATCHING_RERANK_ENABLED`. */
+    rerankAktif: boolean;
+  };
+}
+
+export interface MatchingFeedModule {
+  router: Router;
+  service: MatchesService;
+}
+
+export function createMatchingFeedModule(deps: MatchingFeedModuleDeps): MatchingFeedModule {
+  const kandidat = createKandidatService({
+    repo: createKandidatRepository(deps.prisma),
+    bacaProfil: deps.bacaProfil,
+    efSearch: deps.config.efSearch,
+  });
+  const penilaian = createPenilaianService({
+    akomodasi: createPembacaAkomodasi({ sensitiveAccess: deps.sensitiveAccess }),
+    bobot: deps.config.bobot,
+    paruhKebaruanHari: deps.config.paruhKebaruanHari,
+  });
+  const feed = createFeedCacheService({
+    repo: createMatchScoresRepository(deps.prisma),
+    quota: deps.quota,
+    jobs: createRerankJobs(deps.queues),
+    hitung: createHitungFeed({ kandidat, penilaian, bacaProfil: deps.bacaProfil }),
+    aktif: deps.config.rerankAktif,
+    penanda: createPenandaRerank({ redis: deps.redis, logger: deps.logger }),
+    logger: deps.logger,
+  });
+  const service = createMatchesService({
+    feed,
+    bacaProfil: deps.bacaProfil,
+    bacaKeahlian: deps.bacaKeahlian,
+    bacaLowongan: deps.bacaLowongan,
+  });
+  return { router: createMatchingRouter(createMatchesController(service), deps.routes), service };
 }
 
 export {
@@ -133,7 +221,11 @@ export {
 export {
   UMUR_CACHE_FEED_MS,
   createFeedCacheService,
+  createPenandaRerank,
   createRerankJobs,
+  kunciPenandaRerank,
+  type PenandaRedisLike,
+  type PenandaRerank,
   type FeedCacheService,
   type FeedCacheServiceDeps,
   type HasilSegarkan,
@@ -146,3 +238,26 @@ export {
   type RerankService,
   type RerankServiceDeps,
 } from "./services/rerank.service.js";
+export {
+  BATAS_TUNGGU_RERANK_MS,
+  createHitungFeed,
+  createMatchesService,
+  type LowonganUntukFeed,
+  type MatchesService,
+  type MatchesServiceDeps,
+  type MatchingActor,
+  type ProfilUntukFeed,
+} from "./services/matches.service.js";
+export {
+  PENJELASAN_UMUM,
+  keahlianCocok,
+  templatePenjelasan,
+  type LowonganUntukTemplate,
+  type ProfilUntukTemplate,
+} from "./services/penjelasan-template.js";
+export { menyebutKondisi } from "./services/rerank.js";
+export {
+  createMatchesController,
+  type MatchesController,
+} from "./controllers/matches.controller.js";
+export { createMatchingRouter } from "./routers/index.js";

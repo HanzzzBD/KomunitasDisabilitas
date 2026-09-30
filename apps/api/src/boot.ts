@@ -31,10 +31,19 @@ import {
 } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createNotificationsModule } from "./modules/notifications/index.js";
-import { createProfilesModule } from "./modules/profiles/index.js";
+import {
+  createProfileRepository,
+  createProfilesModule,
+  createSkillRepository,
+  createSkillsService,
+} from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
-import { createMatchingModule } from "./modules/matching/index.js";
+import {
+  bobotDariEnv,
+  createMatchingFeedModule,
+  createMatchingModule,
+} from "./modules/matching/index.js";
 import { createResumePdfJobs, createResumesModule } from "./modules/resumes/index.js";
 import {
   StorageNotConfiguredError,
@@ -374,6 +383,43 @@ export async function startApi(options: BootOptions): Promise<void> {
         events,
       });
       app.use(jobs.router);
+      // Feed AI Job Matching (PR-073) — SESUDAH `jobs` (kartu lowongan lewat
+      // service-nya). Profil dibaca lewat jalur AMAN (`findSafeByUserId`, kolom
+      // sensitif tidak meninggalkan PostgreSQL); satu-satunya bacaan sensitif
+      // adalah hard filter akomodasi lewat `sensitiveAccess` ber-audit (PR-071).
+      const profilAman = createProfileRepository(prisma);
+      const keahlian = createSkillsService(createSkillRepository(prisma), { events });
+      const matching = createMatchingFeedModule({
+        prisma,
+        routes: routeRegistry.forModule("/api/v1"),
+        queues,
+        quota: aiQuota,
+        // Penanda nasib re-rank — cache, boleh hilang (dibaca "tanpa AI").
+        redis: redis.cache,
+        logger,
+        sensitiveAccess: profiles.sensitiveAccess,
+        bacaProfil: async (userId) => {
+          const profil = await profilAman.findSafeByUserId(userId);
+          return profil === null
+            ? null
+            : { city: profil.city, province: profil.province, openToRemote: profil.openToRemote };
+        },
+        bacaKeahlian: (userId) => keahlian.listFor(userId),
+        bacaLowongan: (ids) => jobs.service.bacaUntukFeed(ids),
+        config: {
+          efSearch: env.MATCHING_HNSW_EF_SEARCH,
+          bobot: bobotDariEnv(env),
+          paruhKebaruanHari: env.MATCHING_RECENCY_HALF_LIFE_DAYS,
+          rerankAktif: env.MATCHING_RERANK_ENABLED,
+        },
+      });
+      app.use(matching.router);
+      if (!env.MATCHING_RERANK_ENABLED) {
+        logger.warn(
+          { fitur: "rerank" },
+          "MATCHING_RERANK_ENABLED=false — feed memakai urutan skor + penjelasan template",
+        );
+      }
       // Admin-only PERTAMA di repo (PR-051) — `/companies/:id` di dalamnya
       // tetap publik (US-09); lihat komentar router modul untuk alasannya.
       app.use(

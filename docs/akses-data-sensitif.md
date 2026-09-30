@@ -116,6 +116,12 @@ membaca kebutuhan akomodasi untuk hard filter feed. Tiga hal yang disengaja:
 * **Yang dipakai hanya `accommodationNeeds.tags`.** Ragam disabilitas dan
   catatan bebas ikut terdekripsi oleh `bacaSensitif` lalu langsung dibuang;
   tidak ada yang sampai ke skor, log, maupun respons.
+* **Sejak PR-073 jalur ini hidup di produksi** lewat `GET /me/matches` dan
+  `POST /me/matches/refresh` (`createMatchingFeedModule`, instance
+  `sensitiveAccess` yang SAMA dengan modul profiles — satu penampung audit
+  agregat, ditulis saat shutdown). Pembacaan hanya terjadi saat feed DIHITUNG
+  ULANG; muat dari cache `match_scores` tidak menyentuh kolom sensitif.
+  Penjelasan feed (LLM maupun template) tidak memakai data ini sama sekali.
 
 ## `reason` adalah satu-satunya teks bebas di `audit_logs`
 

@@ -82,7 +82,7 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
           r.status === "published" &&
           (r.expiresAt === null || r.expiresAt > saatIni),
       );
-      return Promise.resolve(hasil.map((r) => ({ ...r })));
+      return Promise.resolve(hasil.map((r) => ({ ...r, companyName: "PT Uji" })));
     },
 
     create: (id, data): Promise<JobCreateResult> => {
@@ -261,6 +261,27 @@ describe("jobs.service — bacaUntukRerank (dipakai modul matching, PR-072)", ()
     expect(hasil.map((j) => j.id)).toEqual([barisBaru().id]);
     expect(hasil[0]).not.toHaveProperty("welcomedDisabilityTypes");
     expect(hasil[0]).toMatchObject({ title: "Staf Admin", workMode: expect.any(String) });
+  });
+});
+
+describe("jobs.service — bacaUntukFeed (kartu feed matching, PR-073)", () => {
+  it("kartu = bentuk hasil pencarian + teks untuk pencocokan keahlian; hanya yang aktif", async () => {
+    const { service } = boot([
+      barisBaru({ status: "published", publishedAt: new Date("2026-08-10T00:00:00Z") }),
+      barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "closed" }),
+    ]);
+    const hasil = await service.bacaUntukFeed([
+      barisBaru().id,
+      "018f4c1e-0000-7000-8000-000000000j02",
+    ]);
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0]?.kartu).toMatchObject({
+      id: barisBaru().id,
+      companyName: "PT Uji",
+      publishedAt: "2026-08-10T00:00:00.000Z",
+    });
+    expect(hasil[0]?.kartu).not.toHaveProperty("welcomedDisabilityTypes");
+    expect(hasil[0]).toHaveProperty("description");
   });
 });
 
