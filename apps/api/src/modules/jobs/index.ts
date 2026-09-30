@@ -55,6 +55,7 @@ export {
   createJobsService,
   type JobsActor,
   type JobUntukEmbedding,
+  type JobUntukRerank,
   type JobsService,
   type JobsServiceDeps,
 } from "./services/jobs.service.js";

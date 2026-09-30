@@ -74,6 +74,17 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
       return Promise.resolve(hasil.map((r) => ({ ...r })));
     },
 
+    listActiveByIds: (ids) => {
+      const saatIni = new Date();
+      const hasil = rows.filter(
+        (r) =>
+          ids.includes(r.id) &&
+          r.status === "published" &&
+          (r.expiresAt === null || r.expiresAt > saatIni),
+      );
+      return Promise.resolve(hasil.map((r) => ({ ...r })));
+    },
+
     create: (id, data): Promise<JobCreateResult> => {
       if (!perusahaanValid.has(data.companyId)) return Promise.resolve("perusahaan-tidak-ada");
       const row = barisBaru({ ...data, id, status: "draft", source: "admin_curated" });
@@ -234,6 +245,22 @@ describe("jobs.service — listActiveByCompany (dipakai modul companies)", () =>
     expect(hasil).toEqual([
       expect.objectContaining({ id: barisBaru().id, title: "Staf Admin" }),
     ]);
+  });
+});
+
+describe("jobs.service — bacaUntukRerank (dipakai modul matching, PR-072)", () => {
+  it("hanya lowongan aktif, tanpa welcomedDisabilityTypes", async () => {
+    const { service } = boot([
+      barisBaru({ status: "published", welcomedDisabilityTypes: ["tuli"] }),
+      barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "draft" }),
+    ]);
+    const hasil = await service.bacaUntukRerank([
+      barisBaru().id,
+      "018f4c1e-0000-7000-8000-000000000j02",
+    ]);
+    expect(hasil.map((j) => j.id)).toEqual([barisBaru().id]);
+    expect(hasil[0]).not.toHaveProperty("welcomedDisabilityTypes");
+    expect(hasil[0]).toMatchObject({ title: "Staf Admin", workMode: expect.any(String) });
   });
 });
 

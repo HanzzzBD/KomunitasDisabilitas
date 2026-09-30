@@ -480,6 +480,9 @@ model MatchScore {
   jobId       String  @map("job_id") @db.Uuid
   score       Decimal @db.Decimal(5, 4)
   explanation String?
+  /// Urutan hasil re-rank LLM (PR-072, migrasi 19), 1 = teratas. NULL = belum/
+  /// tidak di-rerank → urut menurut `score`. `score` tetap skor deterministik.
+  rank        Int?    @db.SmallInt
 
   computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
 

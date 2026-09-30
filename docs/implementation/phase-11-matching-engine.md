@@ -297,7 +297,7 @@ Bisnis: feed yang menjelaskan dirinya ("cocok karena…") — kepercayaan penggu
 
 **Database Changes:**
 
-* Tidak ada (match_scores dari PR-011).
+* Migrasi 19 `match_scores.rank SMALLINT NULL` (+ CHECK `rank >= 1`) — urutan hasil LLM disimpan terpisah dari `score` deterministik (keputusan owner 2026-09-30; aditif, `down.sql` tersedia).
 
 **API Changes:**
 
@@ -309,11 +309,11 @@ Bisnis: feed yang menjelaskan dirinya ("cocok karena…") — kepercayaan penggu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parser hasil)
-* [ ] Integration Test (cache + kuota + whitelist)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kualitas penjelasan di staging)
+* [x] Unit Test (parser hasil) — `matching-rerank.test.ts` (fast-check)
+* [x] Integration Test (cache + kuota + whitelist) — `matching-rerank-service.test.ts` (kuota + `AiClient` asli) & `matching-rerank-db.test.ts` (PostgreSQL nyata)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (kualitas penjelasan di staging) — belum ada staging; Gemini NYATA atas data dev, 3 persona (log PR-072)
 
 **Deliverables:**
 
@@ -329,11 +329,11 @@ RB-Std; rerank dapat dimatikan via flag → template deterministik (PR-073).
 
 #### Acceptance Criteria
 
-* [ ] Request kedua dalam 24 jam → tanpa panggilan LLM (mock counter).
-* [ ] Penjelasan ≤ 1 kalimat, bahasa sederhana (validasi panjang + review sampel).
-* [ ] Refresh ke-4 dalam sehari → pakai cache + info kuota.
-* [ ] Payload prompt diverifikasi bebas field sensitif (test inspeksi).
-* [ ] Urutan LLM tidak dapat memasukkan lowongan di luar kandidat (whitelist ID).
+* [x] Request kedua dalam 24 jam → tanpa panggilan LLM (mock counter). — keputusan owner: re-rank ASINKRON via worker `ai-rerank-feed`; muat pertama = urutan skor, hasil LLM tampil pada muat berikutnya
+* [x] Penjelasan ≤ 1 kalimat, bahasa sederhana (validasi panjang + review sampel). — `rapikanPenjelasan`: ≤ 160 karakter, tepat satu kalimat, tanpa istilah kondisi; sampel Gemini 33/33 sah
+* [x] Refresh ke-4 dalam sehari → pakai cache + info kuota. — keputusan owner: SETIAP panggilan LLM memotong 1 jatah; jatah diperiksa sebelum cache disentuh
+* [x] Payload prompt diverifikasi bebas field sensitif (test inspeksi). — keputusan owner: profil terstruktur saja (tanpa teks bebas); `welcomedDisabilityTypes` lowongan juga tidak dikirim
+* [x] Urutan LLM tidak dapat memasukkan lowongan di luar kandidat (whitelist ID). — model hanya melihat `ref` 1..N; property test 500 kasus
 
 #### Dependencies
 

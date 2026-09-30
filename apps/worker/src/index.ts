@@ -54,6 +54,7 @@ import { createEmailProcessor } from "./processors/email.js";
 import { createPdfRenderProcessor } from "./processors/pdf-render.js";
 import { createAiExtractResumeProcessor } from "./processors/ai-extract-resume.js";
 import { createAiEmbedProcessor } from "./processors/ai-embed.js";
+import { createAiRerankFeedProcessor } from "./processors/ai-rerank-feed.js";
 import { createJobsRepository, createJobsService } from "@nawasena/api/modules/jobs";
 import {
   createEducationRepository,
@@ -64,7 +65,12 @@ import {
   createSkillRepository,
   createSkillsService,
 } from "@nawasena/api/modules/profiles";
-import { createEmbeddingService, createEmbeddingsRepository } from "@nawasena/api/modules/matching";
+import {
+  createEmbeddingService,
+  createEmbeddingsRepository,
+  createMatchScoresRepository,
+  createRerankService,
+} from "@nawasena/api/modules/matching";
 import { createRedisClients } from "@nawasena/api/core/redis";
 import {
   createAiQuota,
@@ -269,6 +275,30 @@ const embeddingService = createEmbeddingService({
   logger,
 });
 
+// Jalur re-rank feed (PR-072). Profil lewat jalur AMAN yang sama dengan
+// embedding — hanya bagian terstruktur (headline, lokasi, nama keahlian, judul
+// posisi) yang dipakai; teks bebas tidak dibaca (keputusan owner 2026-09-30).
+const rerankService = createRerankService({
+  repo: createMatchScoresRepository(prisma),
+  ai: aiClient,
+  quota: aiQuota,
+  async bacaProfil(userId) {
+    const profil = await profileRepository.findSafeByUserId(userId);
+    if (profil === null) return null;
+    const [exp, skill] = await Promise.all([pengalaman.listFor(userId), keahlian.listFor(userId)]);
+    return {
+      headline: profil.headline,
+      city: profil.city,
+      province: profil.province,
+      openToRemote: profil.openToRemote,
+      keahlian: skill,
+      pengalaman: exp,
+    };
+  },
+  bacaLowongan: (ids) => jobsService.bacaUntukRerank(ids),
+  logger,
+});
+
 // Jalur PDF (PR-063). Seluruh dependensi eksternal dirakit di composition root:
 // repository CV, R2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
 // menjatuhkan processor lain, tetapi berisik dan queue pdf-render tidak dibaca.
@@ -326,6 +356,12 @@ const PROCESSORS: ProcessorMap = {
   }),
   // PR-069. Event-driven — produsernya modul matching di proses API.
   [QUEUE_NAME.AI_EMBED]: createAiEmbedProcessor({ embedding: embeddingService, logger }),
+  // PR-072. Event-driven — produsernya kebijakan cache feed di proses API.
+  [QUEUE_NAME.AI_RERANK_FEED]: createAiRerankFeedProcessor({
+    rerank: rerankService,
+    attempts: queueConfigs[QUEUE_NAME.AI_RERANK_FEED].attempts,
+    logger,
+  }),
 };
 
 // DLQ ditulis lewat pool queue bernama bebas (`<queue>-dlq`).
