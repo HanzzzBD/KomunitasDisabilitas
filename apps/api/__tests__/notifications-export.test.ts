@@ -174,6 +174,7 @@ describe("kontributor bagian notifications", () => {
       notifications: await kontributor.kumpulkan(USER_ID),
       aiChatSessions: [],
       aiUsage: [],
+      resumes: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);

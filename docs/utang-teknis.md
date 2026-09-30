@@ -633,10 +633,10 @@ Butir 3 (**PR-064**) **LUNAS**: jalur utuh sudah ditempuh lewat UI di stack loka
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kepatuhan (UU PDP §8.7) |
 | **Ditemukan** | PR-065 (2026-09-28), saat mendaftarkan `ai_chat_sessions` ke penjaga yang sama |
-| **Pemilik** | Belum ditetapkan — PR kecil tersendiri (kontributor ekspor modul `resumes`) |
+| **Pemilik** | PR utang U-25 (`utang-u25-ekspor-cv`) |
 | **Pemicu** | **Sudah menyala** sejak PR-060 merged: pengguna bisa membuat CV lewat `/me/resumes` |
 
 `export-kelengkapan.test.ts` masih menaruh `resumes` di `DITUNDA` dengan alasan *"belum ada
@@ -650,6 +650,13 @@ ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor
 `resumes.service` (bentuk `Resume` yang sama dengan `GET /me/resumes/:id`), pindahkan barisnya
 `DITUNDA` → `TERDAFTAR`.
 
+
+**PEMBAYARANNYA (2026-10-01).** `createResumesExportContributor` (modul `resumes`) membaca lewat
+service yang SAMA dengan editor CV (`list` + `get`) dan menyumbang bagian `resumes` — larik
+`resumeSchema` lengkap dengan isi — ke `dataExportSchema` (aditif; `EXPORT_FORMAT_VERSION` tetap 1).
+Dirakit di `boot.ts` sesudah `aiUsage`. `export-kelengkapan.test.ts`: `resumes` pindah
+`DITUNDA` → `TERDAFTAR`; yang tersisa di `DITUNDA` hanya `applications` (Phase 12). Berkas PDF
+tidak ikut (artefak turunan dari isi yang sama).
 ---
 
 ### U-26 — Latensi token pertama Gemini (stream) 7–22 detik

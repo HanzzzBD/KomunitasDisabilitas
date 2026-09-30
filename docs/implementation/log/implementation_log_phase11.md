@@ -680,3 +680,18 @@ halaman detail. Tamu tetap melihat landing.
 
 1. Phase 11 lengkap (PR-069..074) — Exit Criteria menunggu perintah owner untuk `phase-11 → main`.
 2. U-30: jalankan checklist NVDA saat desktop bebas.
+
+---
+
+## Utang U-25 — CV ikut berkas ekspor PDP
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai · **Branch:** `utang-u25-ekspor-cv` → `phase-11-matching-engine`
+> Keputusan owner (AskUserQuestion, 2026-10-01): dibayar sekarang sebagai PR tersendiri.
+
+Pemicu U-25 sudah menyala sejak PR-060: CV pengguna tidak ikut `GET /me/export`. Dibayar dengan
+`createResumesExportContributor` (modul `resumes`, lewat service yang sama dengan editor CV) →
+bagian `resumes: Resume[]` di `dataExportSchema` (aditif, versi format tetap 1), dirakit di
+`boot.ts`. Penjaga `export-kelengkapan.test.ts`: `resumes` → `TERDAFTAR`. Fixture ekspor (api,
+api-client, e2e web) mendapat `resumes: []`; `openapi.json` diregenerasi. Test baru
+`resume-export.test.ts` (isi lengkap per CV, milik pemanggil saja). PDF tidak ikut — artefak
+turunan dari isi yang sama.

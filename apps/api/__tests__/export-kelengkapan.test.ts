@@ -46,6 +46,9 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // Pemicunya menyala di PR ini, jadi dibayar di PR ini (keputusan owner
   // 2026-09-28), bukan dibiarkan menunggu rekonsiliasi berikutnya.
   ai_usage: "aiUsage",
+  // U-25, dibayar 2026-10-01 — alasan DITUNDA-nya ("belum ada endpoint yang bisa
+  // membuat CV") berhenti benar sejak PR-060.
+  resumes: "resumes",
 };
 
 /**
@@ -53,11 +56,12 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * memuat akun, preferensi, profil, CV, lamaran, notifikasi") — dipindahkan dari
  * checklist dokumen ke tempat yang tidak bisa dilewati.
  *
- * KETIGA SISANYA BENAR-BENAR BELUM BISA ADA. Tabelnya sudah ada sejak migrasi
- * 02–03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini tidak bisa
- * membuat CV maupun melamar (`ai_usage` menyusul, lunas di PR-066). Jadi
- * ekspor tanpa bagian-bagian ini bukan ekspor yang setengah jadi — ia lengkap
- * terhadap data yang benar-benar bisa dimiliki seseorang.
+ * YANG TERSISA BENAR-BENAR BELUM BISA ADA. Tabel `applications` sudah ada sejak
+ * migrasi 03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini
+ * belum bisa melamar. Jadi ekspor tanpa bagian itu bukan ekspor yang setengah
+ * jadi — ia lengkap terhadap data yang benar-benar bisa dimiliki seseorang.
+ * (`ai_usage` lunas di PR-066; `resumes` lunas 2026-10-01 — utang U-25, yang
+ * alasannya di sini sempat basi sejak PR-060, persis pelajaran di bawah.)
  *
  * PELAJARAN YANG DIBAYAR MAHAL, SENGAJA DITINGGALKAN DI SINI. Sampai 2026-09-05,
  * kalimat pembenar di atas juga dipakai untuk `accessibility_profiles` dan
@@ -77,7 +81,6 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * docs/utang-teknis.md.
  */
 const DITUNDA: Readonly<Record<string, string>> = {
-  resumes: "modul resumes (Phase 09) — belum ada endpoint yang bisa membuat CV",
   applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
 };
 
