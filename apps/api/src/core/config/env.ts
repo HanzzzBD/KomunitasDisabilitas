@@ -17,6 +17,22 @@ const hariRetensi = (bawaan: number) =>
     .min(1, { message: "minimal 1 hari — nilai 0 akan mengosongkan tabel" })
     .default(bawaan);
 
+/** Satu bobot skor matching (PR-071): pecahan 0..1. */
+const bobotSkor = (bawaan: number) =>
+  z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .min(0, { message: "minimal 0" })
+    .max(1, { message: "maksimal 1" })
+    .default(bawaan);
+
+/** Variabel bobot skor matching — jumlahnya wajib 1. */
+export const VARIABEL_BOBOT_MATCHING = [
+  "MATCHING_WEIGHT_SIMILARITY",
+  "MATCHING_WEIGHT_ACCOMMODATION",
+  "MATCHING_WEIGHT_LOCATION",
+  "MATCHING_WEIGHT_RECENCY",
+] as const;
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"], {
@@ -397,6 +413,23 @@ const envSchema = z.object({
     .min(50, { message: "minimal 50 — di bawahnya kandidat top-50 terpotong" })
     .max(1000, { message: "maksimal 1000" })
     .default(100),
+  // --- Skor matching (PR-071, SDD §7.2 langkah 3) ---
+  // score = SIMILARITY·cos + ACCOMMODATION·fit + LOCATION·loc + RECENCY·recency.
+  // Bawaan = angka SDD. Diubah lewat env TANPA deploy kode (AC PR-071) — itulah
+  // tuas evaluasi dengan data pilot. Jumlah keempatnya WAJIB 1 (diperiksa di
+  // `envSchemaLengkap`): bobot yang tidak berjumlah 1 membuat skor keluar dari
+  // rentang [0, 1] dan persentase "kecocokan" di layar menjadi tak bermakna.
+  MATCHING_WEIGHT_SIMILARITY: bobotSkor(0.55),
+  MATCHING_WEIGHT_ACCOMMODATION: bobotSkor(0.25),
+  MATCHING_WEIGHT_LOCATION: bobotSkor(0.1),
+  MATCHING_WEIGHT_RECENCY: bobotSkor(0.1),
+  // Waktu paruh komponen kebaruan (hari): lowongan setua ini bernilai 0,5.
+  MATCHING_RECENCY_HALF_LIFE_DAYS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 hari" })
+    .max(365, { message: "maksimal 365 hari" })
+    .default(14),
 });
 
 /**
@@ -447,6 +480,18 @@ const GRUP_KREDENSIAL = [
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
 const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
+  // Toleransi 0,001: "0.55 + 0.25 + 0.1 + 0.1" tidak persis 1 dalam biner.
+  const jumlahBobot = VARIABEL_BOBOT_MATCHING.reduce((jumlah, nama) => jumlah + env[nama], 0);
+  if (Math.abs(jumlahBobot - 1) > 0.001) {
+    for (const nama of VARIABEL_BOBOT_MATCHING) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [nama],
+        message: `jumlah keempat bobot matching harus 1 (sekarang ${jumlahBobot.toFixed(3)})`,
+      });
+    }
+  }
+
   for (const { label, vars } of GRUP_KREDENSIAL) {
     const terisi = vars.filter((nama) => env[nama] !== undefined);
     if (terisi.length === 0 || terisi.length === vars.length) continue;

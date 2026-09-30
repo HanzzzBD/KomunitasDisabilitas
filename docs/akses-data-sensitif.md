@@ -101,6 +101,22 @@ dibunuh paksa kehilangan hitungan yang belum tertulis. Yang hilang adalah
 job. Menjadikannya tahan-mati menuntut tabel penampung tersendiri, dan itu tidak
 sebanding untuk mengamankan sebuah hitungan.
 
+### Pemanggil `matching` pertama — feed (PR-071)
+
+`createPembacaAkomodasi` (`modules/matching/services/penilaian.service.ts`)
+membaca kebutuhan akomodasi untuk hard filter feed. Tiga hal yang disengaja:
+
+* **Pelaku = pengguna yang meminta feed-nya sendiri**, dan targetnya dirinya
+  sendiri. Tetap lewat `bacaSensitif` tujuan `matching` (bukan `snapshotFor`)
+  karena pembacanya adalah mesin pencocokan, bukan layar profil — dan
+  pertanyaan "berapa kali data ini dipakai untuk pencocokan?" harus terjawab.
+  Konsekuensinya satu baris agregat per **pengguna** per hari, bukan per job.
+* **Alasannya konstanta** (`ALASAN_AKSES_MATCHING`) — tidak memuat identitas
+  atau kondisi siapa pun, sesuai aturan `reason` di bawah.
+* **Yang dipakai hanya `accommodationNeeds.tags`.** Ragam disabilitas dan
+  catatan bebas ikut terdekripsi oleh `bacaSensitif` lalu langsung dibuang;
+  tidak ada yang sampai ke skor, log, maupun respons.
+
 ## `reason` adalah satu-satunya teks bebas di `audit_logs`
 
 Seluruh `meta` audit lain memakai enum atau angka, justru supaya PII tidak punya

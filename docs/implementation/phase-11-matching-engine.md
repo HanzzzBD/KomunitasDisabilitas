@@ -232,11 +232,11 @@ Bisnis: inti USP — akomodasi wajib user tidak pernah dilanggar feed. Teknis: `
 
 **Testing Checklist:**
 
-* [ ] Unit Test (per komponen + property)
-* [ ] Integration Test (dengan profil terenkripsi nyata)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kasus persona seed)
+* [x] Unit Test (per komponen + property) — `matching-skor.test.ts` (fast-check)
+* [x] Integration Test (dengan profil terenkripsi nyata) — `matching-skor-db.test.ts`
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (kasus persona seed) — log PR-071
 
 **Deliverables:**
 
@@ -252,11 +252,11 @@ RB-Std; bobot revert via env.
 
 #### Acceptance Criteria
 
-* [ ] Lowongan tanpa akomodasi wajib user TIDAK pernah lolos (property test).
-* [ ] Tiap komponen skor teruji unit terpisah.
-* [ ] Bobot berubah via config tanpa deploy kode (env).
-* [ ] User tanpa data akomodasi → fit dianggap netral (tidak menghukum).
-* [ ] Deterministik (input sama → skor sama).
+* [x] Lowongan tanpa akomodasi wajib user TIDAK pernah lolos (property test). — 1.000 kasus fast-check; mutasi `every`→`some` ditemukan dengan contoh balik minimal
+* [x] Tiap komponen skor teruji unit terpisah.
+* [x] Bobot berubah via config tanpa deploy kode (env). — `MATCHING_WEIGHT_*`, jumlah wajib 1 (boot gagal bila tidak)
+* [x] User tanpa data akomodasi → fit dianggap netral (tidak menghukum). — keputusan owner: fit = keluasan akomodasi lowongan (tidak menyentuh data user) → skor identik user dengan/tanpa kebutuhan (property)
+* [x] Deterministik (input sama → skor sama). — "sekarang" argumen; urutan stabil (pemecah seri `jobId`)
 
 #### Dependencies
 
