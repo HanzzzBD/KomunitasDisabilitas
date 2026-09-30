@@ -18,3 +18,12 @@ export { DaftarBrowseLowongan, type DaftarBrowseLowonganProps } from "./browse-d
 export { DetailLowongan, type DetailLowonganProps } from "./detail-lowongan.js";
 export { kalimatGaji } from "./gaji.js";
 export { pesanGalatLowongan } from "./pesan-galat.js";
+export { FeedMatching, PER_HALAMAN_FEED, type FeedMatchingProps } from "./feed-matching.js";
+export {
+  BATAS_TINGKAT,
+  Kecocokan,
+  kunciTingkat,
+  persenSkor,
+  type KecocokanProps,
+} from "./kecocokan.js";
+export { feedMatchingAktif } from "./bendera.js";

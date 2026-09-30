@@ -459,11 +459,11 @@ Bisnis: US-07 — pengalaman "platform ini mengerti saya". Teknis: kartu (skor t
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu + jest-axe)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (normal + degraded mock)
-* [ ] Accessibility Test (axe + NVDA kartu)
-* [ ] Manual Verification (kombinasi preferensi a11y)
+* [x] Unit Test (kartu + jest-axe) — `beranda-feed.test.tsx` (lewat `ruteApp` produksi, `harusLolosAksesibilitas`)
+* [x] Integration Test (N/A)
+* [x] E2E Test (normal + degraded mock) — `beranda-feed.spec.ts` (+ AI menyusun, kuota habis, feed→detail→kembali) & registry "beranda — feed seeker"
+* [ ] Accessibility Test (axe + NVDA kartu) — axe ✅ (jsdom + Playwright); NVDA nyata = utang [U-30](../utang-teknis.md), checklist `log/pr-074-nvda-checklist.md`
+* [ ] Manual Verification (kombinasi preferensi a11y) — mode teks sederhana teruji otomatis; sisanya di checklist U-30
 
 **Deliverables:**
 
@@ -479,11 +479,11 @@ RB-Std; fallback beranda = browse (PR-058) via flag.
 
 #### Acceptance Criteria
 
-* [ ] Kartu satu kesatuan bagi SR (skor+alasan+akomodasi terbaca utuh).
-* [ ] Skor bukan warna-saja (angka + label tekstual).
-* [ ] Degraded → banner informatif; fitur tetap lengkap; tanpa UI rusak.
-* [ ] Feed→detail→kembali: fokus & scroll pulih.
-* [ ] Refresh menampilkan sisa kuota; habis → tombol nonaktif dengan alasan.
+* [x] Kartu satu kesatuan bagi SR (skor+alasan+akomodasi terbaca utuh). — satu `KartuLowongan` (slot `pembuka`), satu tautan di akhir; urutan DOM diuji; pembacaan NVDA nyata di U-30
+* [x] Skor bukan warna-saja (angka + label tekstual). — "Kecocokan 73% — sangat cocok"; bar SVG dekoratif `aria-hidden`
+* [x] Degraded → banner informatif; fitur tetap lengkap; tanpa UI rusak. — `role="status"` selalu terpasang; axe lulus di keadaan degraded & AI menyusun
+* [x] Feed→detail→kembali: fokus & scroll pulih. — Playwright, viewport 390×600
+* [x] Refresh menampilkan sisa kuota; habis → tombol nonaktif dengan alasan. — `aria-disabled` + `aria-describedby` (tetap tercapai keyboard; fokus tidak hilang)
 
 #### Dependencies
 

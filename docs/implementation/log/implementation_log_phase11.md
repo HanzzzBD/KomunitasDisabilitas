@@ -594,3 +594,89 @@ kartu membawa nama perusahaan.
 1. **PR-074** — beranda seeker: kartu (skor teks + visual, penjelasan, ikon akomodasi berlabel),
    banner `role="status"` untuk `degraded`/`aiMenyusun`, tombol refresh dengan `sisaRefresh`,
    arahan `alasanKosong`. `@nawasena/api-client` belum punya klien endpoint ini.
+
+---
+
+## PR-074 — Matching Feed FE + Degradasi UX
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-074---matching-feed-fe--degradasi-ux)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai (NVDA nyata tercatat sebagai utang U-30)
+> **Branch:** `pr-074-matching-feed-fe` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Beranda seeker: feed AI Job Matching di `/` untuk pengguna yang sudah masuk — kartu (skor
+angka + label, alasan, info lowongan, akomodasi berlabel), banner status AI, refresh berkuota,
+keadaan kosong yang mengarahkan, pagination "muat lebih banyak", dan fokus/gulir pulih dari
+halaman detail. Tamu tetap melihat landing.
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+1. **`/` bersyarat**: belum masuk → landing; masuk → feed; `VITE_MATCHING_FEED_ENABLED=false`
+   → halaman cari lowongan (Rollback Strategy). Pengalihan sesudah login tidak berubah.
+2. **Tidak ada pembaruan otomatis**: saat `aiMenyusun`, banner + tombol manual "Tampilkan urutan
+   terbaru" (tanpa jatah); kartu tidak pernah berpindah sendiri.
+3. **"Integrasi filter browse" = jembatan**: tautan "Cari lowongan lain" ke `/lowongan` dengan
+   provinsi profil terisi. *Mode kerja tidak diisikan* — profil tidak punya preferensi mode kerja
+   (hanya `openToRemote`, yang sengaja tidak menyaring sejak PR-070).
+4. **NVDA nyata dicatat sebagai utang U-30** + checklist (desktop sedang dipakai).
+
+### Scope selesai
+
+* **`@nawasena/api-client`** — `listMatches`, `refreshMatches` (POST), `matchingKeys.feed(sub)`.
+  **Kunci dilingkupi pemilik**: cache TanStack tidak dibuang saat keluar, dan feed adalah hasil
+  saringan kebutuhan akomodasi — pola `profilesKeys`.
+* **`features/job-feed/kartu-lowongan.tsx`** — slot `pembuka` (di dalam kartu, sebelum tautan):
+  satu komponen kartu untuk pencarian dan feed.
+* **`features/job-feed/kecocokan.tsx`** — "Kecocokan 73% — sangat cocok" (batas 0,70 / 0,55),
+  bar SVG dekoratif (tanpa `style` inline), "Kenapa cocok: …", catatan "Alasan disusun AI".
+  Mode teks sederhana menyembunyikan bar dan catatan AI (mitigasi overload).
+* **`features/job-feed/feed-matching.tsx`** — `useInfiniteQuery`; banner `role="status"` yang
+  selalu terpasang; refresh `aria-disabled` + `aria-describedby` saat habis (tetap bisa difokus);
+  "Tampilkan urutan terbaru" memindahkan fokus ke judul daftar; keadaan kosong per
+  `alasanKosong`; pemulihan fokus pola PR-059.
+* **`routes/beranda.tsx`** — pemilih landing/feed/cari; saat sesi `memulihkan` tidak menebak
+  (pola `Terlindungi`); feed & halaman cari dimuat `lazy()` supaya tamu tidak mengunduhnya.
+  **`routes/beranda-seeker.tsx`** — h1, penjelasan, feed, tautan cari berprovinsi.
+* **`features/job-feed/bendera.ts`** — `VITE_MATCHING_FEED_ENABLED`.
+* **Katalog `beranda.feed.*`** (id + id-simple). Route `/` kini ikut memuat `lowongan`,
+  `companies`, `profil` (taksonomi kartu).
+* **Test** — `beranda-feed.test.tsx` (13), `api-client/matching.test.ts`; `onboarding.test.tsx`
+  disesuaikan: bacaan feed/profil milik halaman tujuan tidak dihitung sebagai kiriman wizard
+  (perlakuan sama dengan `/me/notifications`). E2E: registry "beranda — feed seeker",
+  `beranda-feed.spec.ts` (5), pemalsu `/me/matches` & `/refresh` di `palsukan-api.ts`.
+
+### Bukti AC
+
+| AC | Bukti |
+|---|---|
+| Kartu satu kesatuan bagi SR | satu `<li>`/`Kartu`, satu tautan di akhir; urutan DOM skor → alasan → info → akomodasi → tautan (vitest); NVDA nyata → U-30 |
+| Skor bukan warna-saja | teks angka + label diuji; bar `aria-hidden` |
+| Degraded → banner, fitur lengkap | vitest + Playwright (axe 0 pelanggaran di degraded & AI menyusun) |
+| Feed→detail→kembali | Playwright 390×600: fokus di tautan kartu yang dibuka, gulir ≥ posisi semula |
+| Refresh + sisa kuota; habis → nonaktif beralasan | vitest (POST, pengumuman, `aria-disabled`, deskripsi, fokus bertahan) + Playwright |
+
+### Verifikasi
+
+* Suite `turbo run lint typecheck test --concurrency=1`: **27/27 task** hijau — web 60 berkas /
+  723 lulus, api-client 130, api 2021 (2 skip).
+* `build` + `test:a11y`: **122/122** (registry + `beranda-feed.spec.ts`). Lighthouse desktop lulus.
+* Lighthouse **3G lokal: 0,79** (ambang 0,80) — **baseline tanpa PR ini juga 0,79** (FCP 3,3 dtk,
+  LCP 4,2 dtk identik), diukur di mesin yang sama dengan stash; bukan regresi PR ini. Feed & halaman
+  cari dimuat `lazy()` justru supaya landing tamu tidak bertambah berat. Keputusan akhirnya di
+  job `a11y` CI.
+* `cek:budget`: JS awal 115,7 / 200 KB (feed tidak masuk bundel awal).
+
+### Risiko & catatan
+
+* Pengguna non-seeker (admin) yang membuka `/` juga melihat feed — hasilnya keadaan
+  "profil belum siap". Sesi di klien belum membawa peran (log PR-030a); menyaring per peran
+  menunggu `userId`/peran di store sesi.
+* Landing untuk tamu kini menunggu jawaban `/auth/refresh` sebelum tampil (tanpa tebakan).
+* Batas tingkat kecocokan (0,70/0,55) dari skor data dev — evaluasi bersama bobot PR-071 saat pilot.
+
+### Next steps
+
+1. Phase 11 lengkap (PR-069..074) — Exit Criteria menunggu perintah owner untuk `phase-11 → main`.
+2. U-30: jalankan checklist NVDA saat desktop bebas.
