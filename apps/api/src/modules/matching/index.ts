@@ -8,6 +8,10 @@
 //     disuntik composition root (antar-modul lewat service, ADR-001).
 //   - query kandidat (PR-070): `createKandidatService`, dirakit bersama
 //     endpoint feed di PR-073.
+//   - re-rank + cache (PR-072): `createFeedCacheService` (proses API —
+//     kebijakan cache/refresh, memotong jatah `rerank`, produser
+//     `ai-rerank-feed`) dan `createRerankService` (proses worker — panggilan
+//     LLM `rerank.v1`, menulis `rank`/`explanation`).
 // Belum ada route: feed `GET /me/matches` lahir di PR-073.
 import type { EventBus } from "../../core/events/index.js";
 import type { QueueRegistry } from "../../core/queue/index.js";
@@ -105,3 +109,40 @@ export {
   type PenilaianService,
   type PenilaianServiceDeps,
 } from "./services/penilaian.service.js";
+export {
+  createMatchScoresRepository,
+  type BarisFeed,
+  type MatchScoresRepository,
+  type PembaruanRerank,
+  type RingkasanAngkatan,
+  type SkorUntukCache,
+} from "./repositories/match-scores.repository.js";
+export {
+  JUMLAH_RERANK,
+  LABEL_AKOMODASI,
+  MAKS_PENJELASAN,
+  MAKS_TEKS_LOWONGAN,
+  rapikanPenjelasan,
+  susunMasukanRerank,
+  uraiHasilRerank,
+  type HasilRerank,
+  type LowonganUntukRerank,
+  type MasukanRerank,
+  type ProfilUntukRerank,
+} from "./services/rerank.js";
+export {
+  UMUR_CACHE_FEED_MS,
+  createFeedCacheService,
+  createRerankJobs,
+  type FeedCacheService,
+  type FeedCacheServiceDeps,
+  type HasilSegarkan,
+  type RerankJobs,
+  type StatusRerank,
+} from "./services/feed-cache.service.js";
+export {
+  createRerankService,
+  type HasilJobRerank,
+  type RerankService,
+  type RerankServiceDeps,
+} from "./services/rerank.service.js";

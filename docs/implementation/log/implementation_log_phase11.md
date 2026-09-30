@@ -397,3 +397,113 @@ dev karenanya didominasi kemiripan + lokasi. Itu sifat data seed, bukan rumusnya
 
 1. **PR-072** — re-rank LLM top-20 + penjelasan + cache `match_scores` (skor di sini dibulatkan
    sesuai presisi kolomnya).
+
+---
+
+## PR-072 — Re-rank LLM + Cache match_scores
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-072---re-rank-llm--cache-match_scores)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai
+> **Branch:** `pr-072-rerank-cache` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Langkah 4 (re-rank LLM top-20, satu panggilan batch) dan 5 (cache `match_scores` 24 jam) SDD §7.2,
+plus kebijakan refresh berkuota. Sisi API (`createFeedCacheService`) memutuskan cache vs hitung
+ulang, memotong jatah `rerank`, lalu mengantre `ai-rerank-feed`; sisi worker
+(`createRerankService`) memanggil prompt `rerank.v1` dan menulis `rank` + `explanation`. Belum ada
+endpoint — `GET /me/matches` merakit `hitung()` (kandidat PR-070 → skor PR-071) di PR-073.
+
+Gate hijau: `lint` + `typecheck` bersih; `turbo run test --concurrency=1` 27/27 task.
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+1. **Re-rank ASINKRON via worker** (SDD §12.2, queue `ai-rerank-feed` yang sudah ada), bukan
+   sinkron di API. Muat pertama menampilkan urutan skor deterministik; hasil LLM tampil pada muat
+   berikutnya. `withDegradation` tetap dipakai — di pemesanan jatah (lihat U-06).
+2. **Migrasi 19: kolom `match_scores.rank SMALLINT NULL`** (+ CHECK `rank >= 1`). Urutan LLM
+   disimpan terpisah; `score` tetap skor deterministik yang jujur. Menyimpang dari "Database: tidak
+   ada" di dokumen phase — aditif, `down.sql` tersedia.
+3. **Setiap panggilan LLM memotong 1 jatah `rerank`** (bawaan 3/hari) — re-rank otomatis (cache
+   kedaluwarsa/terinvalidasi) maupun refresh manual. Biaya LLM per pengguna terbatas pasti.
+4. **Isi prompt = profil terstruktur saja**: headline, nama keahlian, judul posisi, lokasi,
+   kesediaan remote. Ringkasan & deskripsi pengalaman (teks bebas) tidak dikirim.
+
+### Scope selesai
+
+* **`core/ai/prompts/rerank.v1.ts`** — terdaftar di registry. Setiap lowongan = satu blok data
+  tak tepercaya (judul, mode kerja, lokasi, fasilitas, persyaratan & ringkasan dipotong 400
+  karakter); `ref` angka 1..N berada DI LUAR blok. Model tidak pernah melihat UUID. Skema keluaran
+  sengaja longgar (bentuk saja) supaya satu alasan cacat tidak membuang 19 lainnya. Lingkup cache
+  prompt per pengguna (bawaan).
+* **`modules/matching/services/rerank.ts`** (murni) — `susunMasukanRerank` (hanya field yang
+  disebut namanya; keahlian unik), `rapikanPenjelasan` (≤ 160 karakter, tepat satu kalimat, tanpa
+  baris baru, tanpa istilah kondisi seperti "tuli/netra/disabilitas" — konservatif: "ramah
+  disabilitas" pun ditolak → template PR-073), `uraiHasilRerank` (whitelist ref; ganda/pecahan/di
+  luar daftar dibuang; kandidat yang dilewatkan model menyusul menurut skor).
+* **`repositories/match-scores.repository.ts`** — satu angkatan per pengguna: `gantiAngkatan`
+  (hapus + tulis ulang atomik, `computed_at` seragam = id angkatan), `angkatanTerbaru`,
+  `bacaFeed` (`rank` menaik NULL terakhir → `score` menurun → `job_id`), `topAngkatan`,
+  `terapkanRerank` (hanya baris angkatan yang sama — hasil basi tidak menulis apa pun).
+* **`services/feed-cache.service.ts`** — `segarkan(actor, { paksa })`:
+  cache < 24 jam & tidak paksa → cache; selain itu jatah DIPESAN LEBIH DULU (sebelum cache
+  disentuh) → jatah habis + cache segar → cache + `kuota-habis`; lainnya hitung ulang → simpan →
+  antre. Hasil membawa `sumber`, `rerank` (status), `sisaRefresh`, `computedAt`, `feed`. Jatah
+  dikembalikan bila tanpa kandidat, hitung gagal, atau antrean menolak (`gagal-antre`, feed tetap
+  ada). `createRerankJobs`: id job `ai-rerank:<user>:<computedAt>`.
+* **`services/rerank.service.ts`** — worker: top-20 angkatan → profil aman + lowongan AKTIF →
+  `ai.prompt` dengan `reservasi` dari API (tidak memotong ulang) → urai → tulis. Angkatan basi /
+  profil hilang / tanpa lowongan aktif → dilewati + jatah pulang. Gagal provider: bukan percobaan
+  terakhir → dilempar (retry BullMQ); terakhir → `kembalikanBila` + status `gagal` (bukan DLQ —
+  feed tetap berfungsi).
+* **`@nawasena/schemas`** — `aiRerankFeedJobSchema` (`.strict()`, hanya referensi + reservasi).
+* **Modul jobs** — `listActiveByIds` (repo) + `bacaUntukRerank` (service), SENGAJA tanpa
+  `welcomedDisabilityTypes` (lowongan "menyambut Tuli" di prompt = penjelasan yang menyebut
+  kondisi pengguna).
+* **Worker** — processor `ai-rerank-feed` + perakitan dengan pembaca profil jalur aman.
+* **Env** — `MATCHING_RERANK_ENABLED` (bawaan `true`): tuas rollback; `false` = tanpa LLM dan
+  tanpa memotong jatah.
+* **Utang U-06 LUNAS** — pemanggil `withDegradation` pertama.
+
+### Bukti AC
+
+| AC | Bukti |
+|---|---|
+| Request kedua < 24 jam tanpa LLM | `matching-rerank-service.test.ts`: provider penghitung `chatJson` = 1 setelah dua muat (6 jam terpisah); `hitung` dipanggil sekali, antrean kosong |
+| Penjelasan ≤ 1 kalimat, sederhana | `rapikanPenjelasan` (6 kasus tolak + fasilitas & angka desimal lolos); sampel Gemini nyata 33/33 lolos, dibaca manual |
+| Refresh ke-4 → cache + info kuota | kuota ASLI (`createAiQuota`, Redis palsu): tiga refresh paksa `sisaRefresh` 2→1→0, keempat `sumber: cache, rerank: kuota-habis, sisaRefresh: 0`, baris cache identik sebelum/sesudah |
+| Payload bebas field sensitif | inspeksi `rerankV1.bangun(...)` dari objek yang ditumpangi `disabilityTypes`/`summary`/`accommodationNeeds`: tidak ada yang terbawa; DB test: `welcomedDisabilityTypes` tidak sampai ke prompt |
+| Whitelist ID | property fast-check 500 kasus: keluaran APA PUN → permutasi persis kandidat, rank 1..N; test ref 21/999 → tidak menambah baris (memori & PostgreSQL) |
+
+### Verifikasi
+
+* Gate: `pnpm turbo run lint typecheck test --concurrency=1` — **27/27 task** hijau;
+  `@nawasena/api` **139 berkas / 1996 lulus, 2 skip** (MinIO; urutan boot `.env`) dengan
+  PostgreSQL + Redis hidup; migrasi 19 diterapkan ke DB dev (`migrate status` bersih).
+* **Manual (Gemini NYATA, data dev, 3 persona, 11 kandidat masing-masing):** 1,5–2,2 dtk per
+  panggilan, ±1.600 token masuk / 200–450 keluar (20 lowongan ≈ 2.800 token masuk). 33/33
+  penjelasan lolos validasi; contoh: "Cocok karena Anda menguasai Data Entry dan tersedia fasilitas
+  ruang kerja tenang." Tidak ada yang menyebut kondisi pengguna — termasuk persona yang headline-nya
+  "mahir TalkBack/NVDA".
+
+### Risiko & catatan
+
+* **Headline tetap teks bebas** dan bisa mengisyaratkan kondisi (contoh persona di atas). Model
+  tidak menyebutnya pada sampel, dan filter istilah kondisi menjadi jaring kedua — tetapi ini
+  tripwire kata, bukan jaminan.
+* **Refresh ganda serentak** bisa memesan dua jatah; job angkatan yang kalah mendapati angkatannya
+  basi dan mengembalikan jatahnya, jadi biaya bersihnya satu — kecuali bila kedua job sempat
+  berjalan sebelum angkatan kedua tertulis (jendela milidetik).
+* **Cache prompt (1 jam, per pengguna)** di atas `match_scores`: refresh paksa dengan top-20 &
+  profil yang identik dalam satu jam memakai jawaban tersimpan — tanpa panggilan LLM, tetapi tetap
+  memakai satu jatah refresh (dipesan API).
+* Lowongan yang ditutup sesudah angkatan ditulis tetap berada di cache (tanpa `rank`) sampai
+  invalidasi PR-069 (`job.updated`) — PR-073 sebaiknya tetap memfilter keaktifan saat membaca.
+
+### Next steps
+
+1. **PR-073** — `GET /me/matches`: rakit `hitung()` dari `kandidatService` + `penilaianService`,
+   template penjelasan deterministik untuk `explanation: null`, `meta.degraded` dari status
+   `rerank`, `sisaRefresh` di respons, dan wiring `createFeedCacheService` + `createRerankJobs` di
+   `boot.ts`.

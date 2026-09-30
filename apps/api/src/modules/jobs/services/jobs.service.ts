@@ -10,6 +10,7 @@
 // idempotensi seperti `verify()` company SENGAJA tidak ditiru di sini.
 import {
   AUDIT_ACTION,
+  type AccommodationNeed,
   type CreateJob,
   type JobAdmin,
   type JobPublic,
@@ -18,6 +19,7 @@ import {
   type JobSearchResponse,
   type JobSearchResult,
   type UpdateJob,
+  type WorkMode,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import type { EventBus } from "../../../core/events/index.js";
@@ -56,6 +58,23 @@ export interface JobUntukEmbedding {
   description: string;
   requirements: string | null;
   createdBy: string | null;
+}
+
+/**
+ * Bahan prompt re-rank (PR-072). SENGAJA tanpa `welcomedDisabilityTypes`:
+ * lowongan yang "menyambut Tuli" di prompt membuat model menulis "cocok untuk
+ * Anda yang Tuli" — penjelasan yang menyebut kondisi pengguna (dilarang,
+ * PR-073).
+ */
+export interface JobUntukRerank {
+  id: string;
+  title: string;
+  description: string;
+  requirements: string | null;
+  workMode: WorkMode;
+  city: string | null;
+  province: string | null;
+  accommodations: AccommodationNeed[];
 }
 
 export interface JobsServiceDeps {
@@ -211,6 +230,24 @@ export function createJobsService(deps: JobsServiceDeps) {
         requirements: row.requirements,
         createdBy: row.createdBy,
       };
+    },
+
+    /**
+     * Bahan re-rank (PR-072) untuk banyak lowongan sekaligus. Yang sudah tidak
+     * aktif TIDAK dikembalikan — pemanggil memperlakukannya sebagai hilang.
+     */
+    async bacaUntukRerank(ids: readonly string[]): Promise<JobUntukRerank[]> {
+      const rows = await jobsRepository.listActiveByIds(ids);
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        requirements: row.requirements,
+        workMode: row.workMode,
+        city: row.city,
+        province: row.province,
+        accommodations: row.accommodations,
+      }));
     },
 
     /** GET /api/v1/admin/jobs — seluruh lowongan, tanpa pagination (skala pilot). */

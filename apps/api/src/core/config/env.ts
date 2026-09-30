@@ -430,6 +430,15 @@ const envSchema = z.object({
     .min(1, { message: "minimal 1 hari" })
     .max(365, { message: "maksimal 365 hari" })
     .default(14),
+  // Tuas rollback re-rank LLM feed (PR-072): `false` = feed tetap dihitung dan
+  // di-cache, tetapi TANPA panggilan LLM dan tanpa memotong jatah `rerank` —
+  // urutan skor deterministik + penjelasan template (PR-073).
+  MATCHING_RERANK_ENABLED: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("true")
+    .transform((nilai) => nilai === "true"),
 });
 
 /**

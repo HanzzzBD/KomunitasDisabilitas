@@ -321,8 +321,8 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 
 | | |
 |---|---|
-| **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
-| **Pemilik** | Belum ditetapkan — pemakai alami: **PR-072** (re-rank feed → daftar tanpa peringkat) |
+| **Status** | **LUNAS — PR-066 (2026-09-28) + PR-072 (2026-09-30)** |
+| **Pemilik** | PR-072 (pemanggil `withDegradation` pertama) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -350,6 +350,12 @@ dicabut, bukan dibiarkan).
 "nilai pengganti" yang bisa dikembalikan di tempat. Fitur pertama yang punya nilai seperti itu
 adalah re-rank feed (PR-072: daftar tanpa peringkat). Bila PR-072 juga tidak memakainya, cabut
 ekspornya di sana.
+
+**PEMBAYARAN PR-072.** `feed-cache.service.ts` memesan jatah `rerank` lewat
+`withDegradation(() => quota.periksaDanPakai(...), null)`: penolakan kuota (`DegradedError`
+`KUOTA_AI_HABIS`) turun menjadi "feed tanpa re-rank" — urutan skor deterministik + penjelasan
+template (PR-073) — sedangkan kegagalan lain (Redis tanpa fail-open, bug) tetap naik apa adanya.
+Keempat bagian utang ini kini punya pemanggil produksi; ekspornya dipertahankan.
 
 ---
 

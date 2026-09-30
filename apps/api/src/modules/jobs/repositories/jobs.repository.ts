@@ -218,6 +218,8 @@ export interface JobsRepository {
   findById(id: string): Promise<JobRow | null>;
   /** Lowongan `published` DAN belum `expiresAt` (atau tanpa tenggat) milik satu perusahaan. */
   listActiveByCompany(companyId: string): Promise<JobRow[]>;
+  /** Lowongan `published` DAN belum lewat tenggat di antara `ids` (PR-072); urutan tak dijamin. */
+  listActiveByIds(ids: readonly string[]): Promise<JobRow[]>;
   create(id: string, data: JobCreateData): Promise<JobCreateResult>;
   /** null bila `id` tidak ada. */
   update(id: string, patch: JobUpdatePatch): Promise<JobRow | null>;
@@ -253,6 +255,19 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
         orderBy: { publishedAt: "desc" },
+        select: KOLOM,
+      });
+      return rows.map(keRow);
+    },
+
+    listActiveByIds: async (ids) => {
+      if (ids.length === 0) return [];
+      const rows = await prisma.job.findMany({
+        where: {
+          id: { in: [...ids] },
+          status: "published",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
         select: KOLOM,
       });
       return rows.map(keRow);
