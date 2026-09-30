@@ -53,7 +53,11 @@ export const ruteApp: RouteObject[] = [
         lazy: async () => {
           const [{ Beranda }] = await Promise.all([
             import("../routes/beranda.js"),
-            muatKatalog("beranda"),
+            // `lowongan`/`companies`/`profil` ikut sejak PR-074: pengguna yang
+            // masuk melihat feed di alamat ini, dan kartunya meminjam taksonomi
+            // jenis/mode kerja (`companies`), label akomodasi (`profil`), dan
+            // pesan galat (`lowongan`) — pola sama route `lowongan`.
+            muatKatalog("beranda", "lowongan", "companies", "profil"),
           ]);
           return { Component: Beranda };
         },

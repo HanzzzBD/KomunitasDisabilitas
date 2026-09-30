@@ -788,6 +788,25 @@ sebelum alat dijalankan — vektor dari dua model berbeda tidak sebanding.
 
 ---
 
+### U-30 — AC manual PR-074: NVDA nyata untuk kartu feed matching
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | PR-074 (2026-09-30) |
+| **Pemilik** | Belum ditetapkan (butuh Windows + NVDA dan desktop yang tidak dipakai) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), bersama U-24 dan U-28 |
+
+Testing Checklist PR-074 menyebut "axe + NVDA kartu". axe lulus di jsdom dan Playwright
+(empat keadaan feed); yang tersisa adalah telinga manusia: urutan pembacaan kartu, pengumuman
+banner status AI yang tidak mencuri fokus, dan tombol refresh `aria-disabled` beserta alasannya.
+Keputusan owner 2026-09-30: dicatat, dijalankan nanti — harness `apps/web/verifikasi/` merekam
+jendela yang sedang aktif, jadi butuh desktop bebas. Isi:
+[checklist PR-074](implementation/log/pr-074-nvda-checklist.md).
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;
