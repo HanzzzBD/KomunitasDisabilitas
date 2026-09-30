@@ -78,3 +78,30 @@ export {
   type KandidatServiceDeps,
   type ProfilUntukFilter,
 } from "./services/kandidat.service.js";
+export {
+  BOBOT_SKOR_SDD,
+  KEBARUAN_TANPA_TANGGAL,
+  NILAI_LOKASI,
+  hitungSkor,
+  komponenAkomodasi,
+  komponenKebaruan,
+  komponenKemiripan,
+  komponenLokasi,
+  memenuhiAkomodasi,
+  nilaiKandidat,
+  type BobotSkor,
+  type KomponenSkor,
+  type KonteksSkor,
+  type LowonganUntukSkor,
+  type ProfilUntukSkor,
+  type SkorLowongan,
+} from "./services/skor.js";
+export {
+  ALASAN_AKSES_MATCHING,
+  bobotDariEnv,
+  createPembacaAkomodasi,
+  createPenilaianService,
+  type PembacaAkomodasi,
+  type PenilaianService,
+  type PenilaianServiceDeps,
+} from "./services/penilaian.service.js";

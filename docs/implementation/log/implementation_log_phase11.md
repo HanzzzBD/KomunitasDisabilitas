@@ -312,3 +312,88 @@ provinsi). Lowongan Jawa Timur tidak pernah muncul bagi persona mana pun. Kemiri
 ### Next steps
 
 1. **PR-071** — skor berbobot + hard filter akomodasi in-memory atas kandidat ini.
+
+---
+
+## PR-071 — Scoring Service + Accommodation Fit In-Memory
+
+> **Phase:** [11 - Matching Engine](../phase-11-matching-engine.md#pr-071---scoring-service--accommodation-fit-in-memory)
+> **Tanggal:** 2026-09-30
+> **Status:** Selesai
+> **Branch:** `pr-071-scoring-service` → `phase-11-matching-engine`
+
+### Ringkasan hasil
+
+Langkah 2 (hard filter akomodasi) dan 3 (skor berbobot) SDD §7.2 atas kandidat PR-070:
+`skor = w₁·kemiripan + w₂·akomodasi + w₃·lokasi + w₄·kebaruan`, bobot dari env. Kebutuhan
+akomodasi dibaca terdekripsi lewat jalur ber-audit tujuan `matching` dan hanya dipakai sebagai hard
+filter. Belum ada endpoint — dirakit bersama `GET /me/matches` di PR-073.
+
+Gate hijau: `lint` + `typecheck` bersih; `turbo run test --concurrency=1` **9/9 task** —
+`@nawasena/api` **136 berkas / 1959 lulus, 2 skip** (MinIO; urutan boot `.env`) dengan
+PostgreSQL + Redis hidup.
+
+### Keputusan owner (AskUserQuestion, 2026-09-30)
+
+SDD hanya menetapkan bobot; nilai komponennya diputuskan owner:
+
+1. **accommodation_fit = keluasan akomodasi lowongan** (jumlah unik ÷ 6 taksonomi), sama untuk
+   semua pengguna. Kebutuhan pribadi hanya menjadi hard filter — "terpenuhi" tidak lagi membedakan
+   lowongan yang sudah lolos filter. Karena rumusnya tidak menyentuh data pengguna, pengguna tanpa
+   data otomatis netral (AC), dan skornya **identik** dengan pengguna berkebutuhan (diuji property).
+2. **location_fit = tabel `NILAI_LOKASI`**: remote 1 (openToRemote) / 0,8; kota sama 1; provinsi
+   sama beda kota 0,7; lowongan tanpa provinsi 0,3; pengguna tanpa provinsi 0,5; provinsi lain 0.
+3. **recency = 0,5^(umur/14 hari)**, waktu paruh lewat env; tanggal kosong 0,5; masa depan = 1.
+4. **fast-check** sebagai devDependency (`4.10.2`, dipin).
+
+### Scope selesai
+
+* **`services/skor.ts`** — fungsi MURNI: `komponenKemiripan/Akomodasi/Lokasi/Kebaruan`,
+  `memenuhiAkomodasi` (kebutuhan ⊆ akomodasi lowongan), `hitungSkor`, `nilaiKandidat` (filter →
+  skor → urut skor menurun, pemecah seri `jobId`). "Sekarang" adalah argumen. Skor & komponen
+  dibulatkan 4 desimal (presisi `match_scores.score` DECIMAL(5,4)) dan dijepit ke [0, 1].
+* **`services/penilaian.service.ts`** —
+  * `createPembacaAkomodasi`: `sensitiveAccess.bacaSensitif(actor, actor.userId, { purpose:
+    "matching", reason: ALASAN_AKSES_MATCHING })`; mengambil HANYA `accommodationNeeds.tags`.
+    Tanpa profil / consent dicabut / tags kosong → `null` (tidak menyaring).
+  * `createPenilaianService.nilai(actor, profilNonSensitif, kandidat)` — kandidat kosong → tidak
+    membaca data sensitif sama sekali.
+  * `bobotDariEnv(env)`.
+  * Impor lintas modul lewat BERKAS service `profiles` (bukan index-nya) — aturan boundaries.
+* **`core/config/env.ts`** — `MATCHING_WEIGHT_SIMILARITY/ACCOMMODATION/LOCATION/RECENCY` (bawaan
+  SDD) + `MATCHING_RECENCY_HALF_LIFE_DAYS` (14). `envSchemaLengkap` menolak boot bila jumlah bobot
+  ≠ 1 (toleransi 0,001) dan menyebut keempat variabelnya.
+* **`docs/akses-data-sensitif.md`** — subbagian "Pemanggil `matching` pertama".
+
+### Bukti AC
+
+| AC | Bukti |
+|---|---|
+| Tanpa akomodasi wajib TIDAK PERNAH lolos | property test 1.000 kasus + kebalikannya (yang lengkap SELALU lolos); **mutasi** `every`→`some` → fast-check menemukan contoh balik minimal (1 lowongan, 2 kebutuhan) |
+| Komponen teruji terpisah | satu `it` per komponen, termasuk tepi (NaN, di luar taksonomi, masa depan, tanpa tanggal, beda huruf/spasi) |
+| Bobot via env tanpa deploy | `loadEnv` → `bobotDariEnv` → skor berubah; jumlah ≠ 1 → boot gagal |
+| Tanpa data → netral | property: skor user tanpa data = skor user berkebutuhan untuk setiap lowongan yang lolos |
+| Deterministik | property: input sama/urutan masukan dibalik → keluaran & urutan identik |
+| (keamanan) | keluaran hanya `jobId`/`skor`/`komponen` angka; test DB: ciphertext benar-benar di `bytea`, keluaran tidak memuat `daksa`/catatan; audit agregat 1 baris `entityId: null` |
+
+### Verifikasi manual (data dev, kunci `.env`, vektor Gemini nyata)
+
+Rantai PR-070 → PR-071 untuk setiap profil: akun ber-consent dengan 2 kebutuhan akomodasi → **2
+dari 11** kandidat lolos; persona tanpa consent → 11/11 (netral). Skor teratas 0,61–0,66.
+Catatan: pada data seed komponen kebaruan hampir nol dan seragam (semua `published_at`
+2026-07-01) dan keluasan akomodasi seragam 0,33 (setiap lowongan seed punya 2 akomodasi) — urutan
+dev karenanya didominasi kemiripan + lokasi. Itu sifat data seed, bukan rumusnya.
+
+### Risiko & catatan
+
+* **Audit agregat per pengguna per hari**, bukan per job: pemanggilnya permintaan feed milik
+  pengguna sendiri (dicatat di `akses-data-sensitif.md`).
+* `bacaSensitif` ikut mendekripsi ragam disabilitas & catatan bebas lalu dibuang — biaya jalur
+  baku; menambah pembaca "tags saja" berarti jalur baca sensitif keempat, yang sengaja dihindari.
+* Bobot/tabel awal belum dievaluasi dengan data pilot (risiko dokumen phase) — semuanya konstanta
+  bernama atau env.
+
+### Next steps
+
+1. **PR-072** — re-rank LLM top-20 + penjelasan + cache `match_scores` (skor di sini dibulatkan
+   sesuai presisi kolomnya).
