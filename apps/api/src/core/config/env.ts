@@ -385,6 +385,18 @@ const envSchema = z.object({
     .min(1, { message: "minimal 1 — nilai 0 membuat CV tidak bisa dibuat sama sekali" })
     .max(50, { message: "maksimal 50" })
     .default(5),
+  // --- Matching (PR-070) ---
+  // `hnsw.ef_search` untuk query kandidat: lebar daftar kandidat yang ditelusuri
+  // indeks HNSW. Tuas recall ↔ kecepatan (risiko PR-070). BATAS BAWAHNYA 50 dan
+  // itu bukan selera: HNSW mengembalikan paling banyak `ef_search` baris, jadi
+  // nilai di bawah jumlah kandidat (50, SDD §7.2) diam-diam memotong feed.
+  // Bawaan pgvector (40) karena itu justru SALAH untuk query ini.
+  MATCHING_HNSW_EF_SEARCH: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(50, { message: "minimal 50 — di bawahnya kandidat top-50 terpotong" })
+    .max(1000, { message: "maksimal 1000" })
+    .default(100),
 });
 
 /**

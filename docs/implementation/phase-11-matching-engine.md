@@ -152,11 +152,11 @@ Bisnis: kandidat relevan dalam <100 ms. Teknis: `$queryRaw` pgvector (satu-satun
 
 **Testing Checklist:**
 
-* [ ] Unit Test (builder param)
-* [ ] Integration Test (pgvector nyata di CI)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (EXPLAIN ANALYZE)
+* [x] Unit Test (builder param) — `matching-kandidat.test.ts`
+* [x] Integration Test (pgvector nyata di CI) — `matching-kandidat-db.test.ts` (1.059 lowongan)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (EXPLAIN ANALYZE) — 1k & 10k baris + data dev persona (log PR-070)
 
 **Deliverables:**
 
@@ -172,11 +172,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] EXPLAIN memakai HNSW (bukti PR).
-* [ ] Hanya published & belum expired lolos.
-* [ ] Filter work_mode sesuai preferensi user (remote-only → remote/hybrid).
-* [ ] p95 < 100 ms pada 1.000 jobs seed.
-* [ ] Injection attempt gagal (test).
+* [x] EXPLAIN memakai HNSW (bukti PR). — keputusan owner: planner bebas (±1k baris = Seq Scan eksak; 10k = HNSW alami, terukur manual); test membuktikan indeks DAPAT dipakai query yang persis sama (`enable_sort=off`), diverifikasi mutasi `<=>`→`<->`
+* [x] Hanya published & belum expired lolos.
+* [x] Filter work_mode sesuai preferensi user (remote-only → remote/hybrid). — profil belum punya preferensi "remote-only"; keputusan owner: SDD §7.2 harfiah (remote ATAU provinsi sama ATAU lowongan tanpa provinsi), `openToRemote` tidak menyaring; SQL menerima daftar mode kerja sebagai parameter
+* [x] p95 < 100 ms pada 1.000 jobs seed. — 1.059 lowongan: p95 12–64 ms (lokal, beberapa jalan)
+* [x] Injection attempt gagal (test).
 
 #### Dependencies
 
