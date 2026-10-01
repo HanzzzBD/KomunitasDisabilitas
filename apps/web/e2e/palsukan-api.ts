@@ -147,6 +147,8 @@ const BERKAS_UJI = {
   // Bagian `resumes` WAJIB sejak utang U-25 (2026-10-01) — pelajaran komentar
   // `profile` di atas: bagian wajib yang hilang membuat unduhan gagal diam-diam.
   resumes: [],
+  // Bagian `applications` WAJIB sejak PR-075 (endpoint apply lahir).
+  applications: [],
 } as const;
 
 /**

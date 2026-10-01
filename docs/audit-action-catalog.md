@@ -8,6 +8,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `ACCOUNT_EMAIL_CHANGED` | Pemilik mengubah/mengosongkan email akun | `hadPreviousEmail`, `cleared` |
 | `PROFILE_SENSITIVE_READ` | Baca data disabilitas/akomodasi | `purpose`, `fields`, `reason`, `count` |
 | `PROFILE_SENSITIVE_UPDATED` | Simpan/hapus data disabilitas/akomodasi, dan pemberian/pencabutan consent-nya | `operation`, `fields` |
+| `APPLICATION_SUBMITTED` | Lamaran terkirim (PR-075) — `disclosed` adalah FAKTA pengungkapan, tidak pernah isinya | `jobId`, `disclosed` |
 | `APPLICATION_STATUS_CHANGED` | Perubahan status lamaran | `from`, `to` |
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
 | `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |

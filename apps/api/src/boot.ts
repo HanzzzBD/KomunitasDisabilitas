@@ -24,6 +24,7 @@ import {
   createSessionUserSource,
 } from "./modules/auth/index.js";
 import {
+  createAdminDirectory,
   createNotificationChannelsContributor,
   createNotificationPrefsService,
   createUserProfileRepository,
@@ -39,6 +40,10 @@ import {
 } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
+import {
+  createApplicationsExport,
+  createApplicationsModule,
+} from "./modules/applications/index.js";
 import {
   bobotDariEnv,
   createMatchingFeedModule,
@@ -218,12 +223,15 @@ export async function startApi(options: BootOptions): Promise<void> {
     // adalah kanal OPT-IN, jadi tanpa pemeriksaan ini mayoritas notifikasi
     // melahirkan job yang pasti dibuang konsumen.
     preferensiKanal: notificationPrefs,
+    // Penerima kabar `admin.lamaran_baru` (PR-075) — kolom `role` milik modul
+    // users, jadi daftarnya datang dari sana, bukan dari query di notifications.
+    direktoriAdmin: createAdminDirectory(createUserProfileRepository(prisma)),
     logger,
     // Pelanggan `auth.user_registered` (bersama modul accessibility),
     // `application.submitted`, dan `application.status_changed` — instance bus
     // yang SAMA, sebab bus ini in-process dan dua instance tidak saling
-    // mendengar. Dua event lamaran belum punya penerbit: modul `applications`
-    // lahir di Phase 12 (lihat core/events).
+    // mendengar. Penerbit `application.submitted` = modul `applications`
+    // (PR-075); `application.status_changed` menyusul di PR-076.
     events,
   });
 
@@ -364,6 +372,9 @@ export async function startApi(options: BootOptions): Promise<void> {
             ai.usageExportContributor,
             // U-25 (2026-10-01): CV — pemicunya menyala sejak PR-060.
             resumes.exportContributor,
+            // PR-075: lamaran + salinan pengungkapannya — ditulis bersama
+            // endpoint apply, bukan menyusul (pelajaran U-03/U-04/U-25).
+            createApplicationsExport({ prisma, fieldKeys }),
           ],
         }),
       );
@@ -388,6 +399,26 @@ export async function startApi(options: BootOptions): Promise<void> {
         events,
       });
       app.use(jobs.router);
+      // Apply + Disclosure Control (PR-075) — SESUDAH `jobs` dan `resumes`
+      // (lowongan aktif & kepemilikan CV lewat service keduanya). Snapshot
+      // pengungkapan dibaca lewat `sensitiveAccess` modul profiles (tujuan
+      // `disclosure`, selalu ber-audit) dan dienkripsi dengan kunci yang SAMA.
+      app.use(
+        createApplicationsModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          // Cache, bukan queue: kunci yang terusir hanya menurunkan "putar
+          // ulang" menjadi 409 dari unique DB — tidak pernah lamaran ganda.
+          redis: redis.cache,
+          fieldKeys,
+          auditLog,
+          events,
+          logger,
+          jobsService: jobs.service,
+          resumesService: resumes.service,
+          sensitiveAccess: profiles.sensitiveAccess,
+        }).router,
+      );
       // Feed AI Job Matching (PR-073) — SESUDAH `jobs` (kartu lowongan lewat
       // service-nya). Profil dibaca lewat jalur AMAN (`findSafeByUserId`, kolom
       // sensitif tidak meninggalkan PostgreSQL); satu-satunya bacaan sensitif

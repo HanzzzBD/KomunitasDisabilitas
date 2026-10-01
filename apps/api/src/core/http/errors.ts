@@ -252,6 +252,44 @@ export const ERROR_CATALOG = {
     message: "CV ini sedang dipakai pada lamaran yang sudah Anda kirim",
     hint: "Buat CV baru bila ingin mengubah isinya, atau ubah CV ini tanpa menghapusnya",
   },
+  // --- Lamaran / apply (PR-075) ---
+  // 400: header wajib (keputusan owner 2026-10-01). Klien resmi selalu
+  // mengirimnya; yang menerima pesan ini adalah pengembang klien, bukan
+  // pelamar — tetapi tetap ditulis sederhana, sebab ia bisa sampai ke layar.
+  IDEMPOTENCY_KEY_DIPERLUKAN: {
+    status: 400,
+    message: "Permintaan melamar tidak lengkap",
+    hint: "Muat ulang halaman, lalu coba lamar lagi",
+  },
+  // 422: kunci yang SAMA dipakai untuk lowongan BERBEDA. Memutar ulang
+  // respons lama di sini akan memberi tahu klien bahwa lamaran ke lowongan
+  // kedua berhasil, padahal tidak pernah dibuat.
+  IDEMPOTENCY_KEY_BENTROK: {
+    status: 422,
+    message: "Permintaan ini bentrok dengan lamaran lain",
+    hint: "Muat ulang halaman, lalu coba lamar lagi",
+  },
+  // 409: permintaan pertama dengan kunci yang sama masih berjalan. Hint-nya
+  // menenangkan — klik ganda pada koneksi lambat adalah penyebab terlazim.
+  LAMARAN_SEDANG_DIPROSES: {
+    status: 409,
+    message: "Lamaran Anda sedang dikirim",
+    hint: "Tunggu sebentar. Anda tidak perlu menekan tombol lagi",
+  },
+  // 409: unique (user_id, job_id) menolak — lamaran ke lowongan ini sudah ada.
+  SUDAH_MELAMAR: {
+    status: 409,
+    message: "Anda sudah melamar lowongan ini",
+    hint: "Lihat status lamaran Anda di halaman Lamaran Saya",
+  },
+  // 422: pelamar memilih mengungkap, tetapi tidak ada data untuk diungkap
+  // (consent belum diberikan, atau ragam & akomodasi masih kosong). Menyimpan
+  // lamaran "ber-disclose" yang kosong akan menyesatkan admin.
+  DATA_DISABILITAS_KOSONG: {
+    status: 422,
+    message: "Belum ada data disabilitas untuk dikirim",
+    hint: "Isi data disabilitas di profil Anda, atau lamar tanpa mengirimnya",
+  },
   // --- Sesi AI CV Builder (PR-065) ---
   // 404 juga untuk sesi milik orang lain — alasannya sama dengan CV_TIDAK_DITEMUKAN.
   AI_SESI_TIDAK_DITEMUKAN: {

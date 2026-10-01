@@ -29,6 +29,10 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
     operation: "fieldsUpdated",
     fields: ["accommodationNeeds"],
   },
+  [AUDIT_ACTION.APPLICATION_SUBMITTED]: {
+    jobId: "018f4c1e-0000-7000-8000-000000000075",
+    disclosed: false,
+  },
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: { from: "viewed", to: "interview" },
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },

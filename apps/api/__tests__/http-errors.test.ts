@@ -110,6 +110,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "CV tidak ditemukan",
           "status": 404,
         },
+        "DATA_DISABILITAS_KOSONG": {
+          "hint": "Isi data disabilitas di profil Anda, atau lamar tanpa mengirimnya",
+          "message": "Belum ada data disabilitas untuk dikirim",
+          "status": 422,
+        },
         "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
           "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
           "message": "Email Google Anda belum terverifikasi",
@@ -129,6 +134,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Ulangi dari tombol Masuk dengan Google; tautan masuk hanya berlaku sekali",
           "message": "Masuk dengan Google tidak berhasil",
           "status": 401,
+        },
+        "IDEMPOTENCY_KEY_BENTROK": {
+          "hint": "Muat ulang halaman, lalu coba lamar lagi",
+          "message": "Permintaan ini bentrok dengan lamaran lain",
+          "status": 422,
+        },
+        "IDEMPOTENCY_KEY_DIPERLUKAN": {
+          "hint": "Muat ulang halaman, lalu coba lamar lagi",
+          "message": "Permintaan melamar tidak lengkap",
+          "status": 400,
         },
         "JSON_TIDAK_VALID": {
           "hint": "Coba ulangi; laporkan bila terus terjadi",
@@ -160,6 +175,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Jatah bantuan AI Anda hari ini sudah habis",
           "status": 429,
         },
+        "LAMARAN_SEDANG_DIPROSES": {
+          "hint": "Tunggu sebentar. Anda tidak perlu menekan tombol lagi",
+          "message": "Lamaran Anda sedang dikirim",
+          "status": 409,
+        },
         "LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS": {
           "hint": "Tutup lowongan (status closed) sebagai gantinya",
           "message": "Lowongan ini sudah punya pelamar dan tidak bisa dihapus",
@@ -189,6 +209,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Silakan masuk lagi untuk melanjutkan",
           "message": "Sesi Anda sudah berakhir",
           "status": 401,
+        },
+        "SUDAH_MELAMAR": {
+          "hint": "Lihat status lamaran Anda di halaman Lamaran Saya",
+          "message": "Anda sudah melamar lowongan ini",
+          "status": 409,
         },
         "TERJADI_KESALAHAN": {
           "hint": "Coba lagi beberapa saat; laporkan bila terus terjadi",

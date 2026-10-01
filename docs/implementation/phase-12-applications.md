@@ -59,6 +59,7 @@ Bisnis: USP Disclosure Control — user memutuskan per lamaran apakah data disab
 **Database Changes:**
 
 * Tidak ada (tabel dari PR-011).
+* **Realisasi (keputusan owner 2026-10-01):** migrasi 20 menambah `applications.disclosure_snapshot` (BYTEA terenkripsi, nullable) + CHECK `applications_snapshot_hanya_bila_disclose` — tabel PR-011 tidak punya tempat untuk snapshot.
 
 **API Changes:**
 
@@ -70,11 +71,11 @@ Bisnis: USP Disclosure Control — user memutuskan per lamaran apakah data disab
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service)
-* [ ] Integration Test (idempoten + race + snapshot)
+* [x] Unit Test (service)
+* [x] Integration Test (idempoten + race + snapshot)
 * [ ] E2E Test (via PR-078)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi DB dua mode disclose)
+* [x] Manual Verification (inspeksi DB dua mode disclose — SQL mentah di `applications-db.test.ts`)
 
 **Deliverables:**
 
@@ -90,11 +91,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Retry ganda (Idempotency-Key sama) → satu lamaran.
-* [ ] Race dua request paralel → satu lamaran (unique).
-* [ ] disclose=false → tidak ada field sensitif tersimpan di application (test DB).
-* [ ] disclose=true → snapshot akomodasi tersimpan (bukan referensi live — perubahan profil kemudian tidak mengubah lamaran lama).
-* [ ] Event submitted terbit → notifikasi admin.
+* [x] Retry ganda (Idempotency-Key sama) → satu lamaran.
+* [x] Race dua request paralel → satu lamaran (unique).
+* [x] disclose=false → tidak ada field sensitif tersimpan di application (test DB).
+* [x] disclose=true → snapshot akomodasi tersimpan (bukan referensi live — perubahan profil kemudian tidak mengubah lamaran lama).
+* [x] Event submitted terbit → notifikasi admin.
 
 #### Dependencies
 

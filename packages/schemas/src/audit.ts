@@ -14,6 +14,11 @@ export const AUDIT_ACTION = {
   AUTH_REFRESH_REUSED: "AUTH_REFRESH_REUSED",
   PROFILE_SENSITIVE_READ: "PROFILE_SENSITIVE_READ",
   PROFILE_SENSITIVE_UPDATED: "PROFILE_SENSITIVE_UPDATED",
+  /** PR-075: lamaran terkirim. `disclosed` dicatat sebagai boolean — FAKTA
+   *  bahwa data disabilitas diungkap, tidak pernah ISI-nya. Pembacaan profil
+   *  sensitif yang mendahuluinya punya baris sendiri (PROFILE_SENSITIVE_READ,
+   *  tujuan `disclosure`). */
+  APPLICATION_SUBMITTED: "APPLICATION_SUBMITTED",
   APPLICATION_STATUS_CHANGED: "APPLICATION_STATUS_CHANGED",
   COMPANY_VERIFIED: "COMPANY_VERIFIED",
   ADMIN_RESOURCE_CHANGED: "ADMIN_RESOURCE_CHANGED",
@@ -49,6 +54,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.AUTH_REFRESH_REUSED,
   AUDIT_ACTION.PROFILE_SENSITIVE_READ,
   AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED,
+  AUDIT_ACTION.APPLICATION_SUBMITTED,
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
   AUDIT_ACTION.COMPANY_VERIFIED,
   AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
@@ -192,6 +198,10 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED]: z.object({
     operation: z.enum(["consentGranted", "consentRevoked", "fieldsUpdated"]),
     fields: z.array(sensitiveFieldSchema),
+  }),
+  [AUDIT_ACTION.APPLICATION_SUBMITTED]: z.object({
+    jobId: idSchema,
+    disclosed: z.boolean(),
   }),
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: z.object({
     from: applicationStatusSchema,

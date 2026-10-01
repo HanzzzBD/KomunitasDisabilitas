@@ -100,6 +100,20 @@ export const TEMPLATE = {
     }),
   },
 
+  // PR-075. Dibaca ADMIN, jadi tidak menenangkan siapa pun — kalimatnya
+  // menyebut tindakan yang ditunggu. Tanpa nama pelamar dan tanpa keterangan
+  // pengungkapan: notifikasi bukan tempat data itu (lihat peta parameter).
+  "admin.lamaran_baru": {
+    title: () => ({
+      id: "Lamaran baru masuk",
+      "id-simple": "Ada lamaran baru",
+    }),
+    body: () => ({
+      id: "Tinjau lamaran ini dan teruskan ke perusahaan partner.",
+      "id-simple": "Buka lamaran ini. Lalu kirim ke perusahaan.",
+    }),
+  },
+
   "resume.pdf_siap": {
     title: () => ({
       id: "PDF CV Anda siap",

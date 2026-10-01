@@ -40,6 +40,7 @@ import {
   createCompanySchema,
   updateCompanySchema,
 } from "./companies.js";
+import { applicationResponseSchema, applyJobSchema, idempotencyKeySchema } from "./applications.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -92,7 +93,7 @@ import {
   matchesRefreshQuerySchema,
   matchesResponseSchema,
 } from "./matching.js";
-import type { ZodTypeAny } from "zod";
+import { z, type ZodTypeAny } from "zod";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -1031,6 +1032,37 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "200": jsonOk("Detail lowongan", jobPublicResponseSchema),
             "400": errorResponse("`id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
+          },
+        },
+      },
+      // Melamar (PR-075, PRD US-11 / FR-5.1–5.2). Idempotensi dua lapis:
+      // header `Idempotency-Key` (Redis 24 jam) + unique (user, job) di DB.
+      "/jobs/{id}/apply": {
+        post: {
+          operationId: "applyJob",
+          tags: ["applications"],
+          summary: "Lamar lowongan (pencari kerja)",
+          description:
+            "`discloseDisability` WAJIB dinyatakan eksplisit. `true` menyimpan SALINAN " +
+            "terenkripsi ragam disabilitas + akomodasi saat ini; `false` tidak menyimpan " +
+            "apa pun yang sensitif. Kunci `Idempotency-Key` yang sama memutar ulang 201 " +
+            "pertama dengan header `Idempotent-Replayed: true`.",
+          requestParams: {
+            path: jobIdParamsSchema,
+            header: z.object({ "Idempotency-Key": idempotencyKeySchema }),
+          },
+          requestBody: jsonBody(applyJobSchema),
+          responses: {
+            "201": jsonOk("Lamaran terkirim (atau putar ulang)", applicationResponseSchema),
+            "400": errorResponse("Input tidak valid, atau header Idempotency-Key tidak ada"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Lowongan atau CV tidak ditemukan"),
+            "409": errorResponse("Sudah melamar lowongan ini, atau lamaran sedang dikirim"),
+            "422": errorResponse(
+              "Kunci dipakai untuk lowongan lain, atau tidak ada data disabilitas untuk dikirim",
+            ),
+            "429": errorResponse("Terlalu banyak lamaran — lihat header Retry-After"),
+            ...responsSesi,
           },
         },
       },

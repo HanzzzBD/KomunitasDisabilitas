@@ -113,3 +113,4 @@ export {
   type NotificationPrefsService,
   type NotificationPrefsServiceDeps,
 } from "./services/notification-prefs.service.js";
+export { createAdminDirectory, type AdminDirectory } from "./services/admin-directory.service.js";
