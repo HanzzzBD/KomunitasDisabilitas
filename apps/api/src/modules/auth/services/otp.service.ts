@@ -11,7 +11,7 @@ import { appError } from "../../../core/http/index.js";
 import type { Logger } from "../../../core/logger/index.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
-import { alasanAmanUntukLog, buildOtpMessage, type OtpSender } from "./otp-sender.js";
+import { alasanAmanUntukLog, buildOtpMessage, type PhoneSender } from "./phone-sender.js";
 import type { SessionService, SessionTokens } from "./session.service.js";
 
 /**
@@ -33,7 +33,7 @@ const AUDIT_ENTITY = "auth.otp";
 export interface OtpServiceDeps {
   otpRepository: OtpRepository;
   userRepository: AuthUserRepository;
-  sender: OtpSender;
+  sender: PhoneSender;
   /** Penerbit pasangan token (PR-018b) — verify berakhir dengan sesi, bukan userId telanjang. */
   sessionService: Pick<SessionService, "issue">;
   auditLog: AuditLog;
@@ -145,13 +145,13 @@ export function createOtpService(deps: OtpServiceDeps) {
 
       try {
         // Teks dirakit DI SINI, bukan di adapter: transport tidak boleh tahu
-        // makna pesan yang dibawanya (lihat OtpMessage.text).
+        // makna pesan yang dibawanya (lihat PhoneMessage.text).
         await sender.send({ phone, text: buildOtpMessage(code) });
       } catch (err) {
         // Kode yang tidak pernah sampai tidak boleh menggantung 5 menit.
         await otpRepository.dropCode(phone);
         // Alasan provider ikut dicatat (setelah diredaksi): dengan SATU provider
-        // terpasang, createFallbackOtpSender mengembalikan sender itu langsung
+        // terpasang, createFallbackPhoneSender mengembalikan sender itu langsung
         // sehingga log rantai — satu-satunya tempat `alasan` dulu muncul — tidak
         // pernah berjalan. Akibatnya OTP gagal tanpa satu pun petunjuk kenapa,
         // justru pada konfigurasi yang paling lazim di awal.

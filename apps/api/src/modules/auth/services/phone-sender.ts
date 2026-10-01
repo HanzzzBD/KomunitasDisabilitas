@@ -1,6 +1,11 @@
-// modules/auth — kontrak pengirim OTP + rantai fallback.
+// modules/auth — kontrak pengirim pesan ke nomor HP (WhatsApp/SMS) + rantai fallback.
 //
-// Service TIDAK boleh tahu nama provider: ia hanya memanggil OtpSender.send().
+// NAMANYA `PhoneSender`, BUKAN `OtpSender` lagi (utang U-09, 2026-10-01):
+// kanalnya generik — kode masuk, pemberitahuan pasca-hapus akun, dan pesan
+// apa pun kelak lewat jalur yang sama. Yang khusus OTP hanya penyusun teksnya
+// (`buildOtpMessage`), dan karena itu hanya ia yang masih bernama OTP.
+//
+// Service TIDAK boleh tahu nama provider: ia hanya memanggil PhoneSender.send().
 // Risiko "ketergantungan Fonnte" (layanan kecil) dijawab di sini: rantai
 // pengirim mencoba provider berikutnya saat yang pertama gagal, dan service
 // tidak perlu tahu itu terjadi.
@@ -9,7 +14,7 @@ import type { Logger } from "../../../core/logger/index.js";
 import { createFonnteSender, type FetchLike } from "./fonnte.sender.js";
 import { createTwilioSender } from "./twilio.sender.js";
 
-export interface OtpMessage {
+export interface PhoneMessage {
   /** Nomor tujuan E.164. PII — jangan pernah masuk log/audit. */
   phone: string;
   /**
@@ -27,19 +32,19 @@ export interface OtpMessage {
   text: string;
 }
 
-export interface OtpSender {
+export interface PhoneSender {
   /** Nama untuk log/metrik (bukan rahasia): "fonnte", "twilio", … */
   readonly name: string;
-  send(message: OtpMessage): Promise<void>;
+  send(message: PhoneMessage): Promise<void>;
 }
 
 /** Gagal kirim di sisi provider — pemanggil memutuskan fallback/menyerah. */
-export class OtpSenderError extends Error {
+export class PhoneSenderError extends Error {
   readonly provider: string;
 
   constructor(provider: string, message: string) {
     super(message);
-    this.name = "OtpSenderError";
+    this.name = "PhoneSenderError";
     this.provider = provider;
   }
 }
@@ -59,7 +64,7 @@ const MAKS_ALASAN = 200;
  *
  * Dua aturan, keduanya karena teks ini datang dari PIHAK LUAR:
  *
- * 1. **Hanya `OtpSenderError` yang pesannya boleh ikut.** Error jenis lain
+ * 1. **Hanya `PhoneSenderError` yang pesannya boleh ikut.** Error jenis lain
  *    dilaporkan sebatas NAMA-nya. Pesan `Error` sembarang bisa memuat apa saja
  *    — URL berparameter, isi body, jejak internal — dan tidak ada satu pun yang
  *    kita kendalikan. Nama kelasnya cukup untuk membedakan jenis kegagalan.
@@ -70,7 +75,7 @@ const MAKS_ALASAN = 200;
  *    kode tidak boleh ikut bertahan bersamanya.
  */
 export function alasanAmanUntukLog(err: unknown): { provider: string; alasan: string } {
-  if (!(err instanceof OtpSenderError)) {
+  if (!(err instanceof PhoneSenderError)) {
     return {
       provider: "tidak diketahui",
       alasan: err instanceof Error ? err.name : "kesalahan tidak dikenal",
@@ -101,12 +106,12 @@ export function buildOtpMessage(code: string): string {
  * dan kode yang telanjur dibuat dihanguskan. Deny-by-default — API tetap bisa
  * di-boot tanpa kredensial provider (pola INTERNAL_TOKEN, PR-015b).
  */
-export function createUnavailableOtpSender(): OtpSender {
+export function createUnavailablePhoneSender(): PhoneSender {
   return {
     name: "belum-dikonfigurasi",
     send() {
       return Promise.reject(
-        new OtpSenderError("belum-dikonfigurasi", "Provider pengirim OTP belum dikonfigurasi"),
+        new PhoneSenderError("belum-dikonfigurasi", "Provider pengirim OTP belum dikonfigurasi"),
       );
     },
   };
@@ -118,11 +123,11 @@ export function createUnavailableOtpSender(): OtpSender {
  * tetap menerima kodenya, jadi ini belum insiden. Log memuat nama provider dan
  * alasan dari provider, TIDAK pernah nomor tujuan atau kode.
  */
-export function createFallbackOtpSender(
-  senders: readonly OtpSender[],
+export function createFallbackPhoneSender(
+  senders: readonly PhoneSender[],
   logger: Pick<Logger, "warn">,
-): OtpSender {
-  if (senders.length === 0) return createUnavailableOtpSender();
+): PhoneSender {
+  if (senders.length === 0) return createUnavailablePhoneSender();
   if (senders.length === 1) return senders[0]!;
 
   const rantai = senders.map((sender) => sender.name).join(" → ");
@@ -157,7 +162,7 @@ export function createFallbackOtpSender(
         }
       }
 
-      throw new OtpSenderError(gagal.join(","), `Semua pengirim OTP gagal (${rantai})`);
+      throw new PhoneSenderError(gagal.join(","), `Semua pengirim OTP gagal (${rantai})`);
     },
   };
 }
@@ -167,7 +172,7 @@ export function createFallbackOtpSender(
  * cadangan — urutan SDD §8.1. Provider yang kredensialnya kosong dilewati;
  * tanpa satu pun provider, hasilnya pengirim "belum dikonfigurasi" (503).
  */
-export function createOtpSenderFromEnv(
+export function createPhoneSenderFromEnv(
   env: Pick<
     Env,
     | "FONNTE_TOKEN"
@@ -180,8 +185,8 @@ export function createOtpSenderFromEnv(
   >,
   logger: Pick<Logger, "warn">,
   fetchImpl?: FetchLike,
-): OtpSender {
-  const senders: OtpSender[] = [];
+): PhoneSender {
+  const senders: PhoneSender[] = [];
 
   if (env.FONNTE_TOKEN !== undefined) {
     senders.push(
@@ -216,5 +221,5 @@ export function createOtpSenderFromEnv(
     );
   }
 
-  return createFallbackOtpSender(senders, logger);
+  return createFallbackPhoneSender(senders, logger);
 }

@@ -134,7 +134,7 @@ describe("alamat email tidak pernah bocor", () => {
   it("tidak muncul di pesan galat mana pun", async () => {
     // Provider lazim mengutip balik alamat tujuan di pesan galatnya, yang
     // berarti PII bisa masuk log lewat pintu yang tidak kita tulis sendiri.
-    // Aturan yang sama dengan `alasanAmanUntukLog` pada otp-sender.ts.
+    // Aturan yang sama dengan `alasanAmanUntukLog` pada phone-sender.ts.
     const kasus: Array<[number, unknown]> = [
       [401, { message: `API key tidak berlaku untuk ${ALAMAT}` }],
       [429, { message: `Terlalu banyak kirim ke ${ALAMAT}` }],

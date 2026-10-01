@@ -13,7 +13,7 @@ import {
   createAccountService,
   HARI_SEBELUM_PURGE,
 } from "../src/modules/auth/index.js";
-import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
+import type { PhoneSender } from "../src/modules/auth/services/phone-sender.js";
 import type { AuthUserRepository } from "../src/modules/auth/repositories/user.repository.js";
 
 const USER_ID = "01912345-89ab-7def-8123-000000000001";
@@ -302,7 +302,7 @@ describe("hapus akun — keadaan akun", () => {
 /** Sender penangkap; `gagal: true` meniru provider yang mati. */
 function fakeSender(opsi: { gagal?: boolean } = {}) {
   const terkirim: Array<{ phone: string; text: string }> = [];
-  const sender: OtpSender = {
+  const sender: PhoneSender = {
     name: "uji",
     async send(pesan) {
       if (opsi.gagal === true) throw new Error("provider mati");

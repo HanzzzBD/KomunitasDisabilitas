@@ -31,7 +31,7 @@ import type { QueueRegistry } from "../../../core/queue/index.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import type { GoogleIdTokenVerifier } from "./google-id-token.js";
 import type { GoogleCodeExchange } from "./google-token.js";
-import type { OtpSender } from "./otp-sender.js";
+import type { PhoneSender } from "./phone-sender.js";
 import type { OtpService } from "./otp.service.js";
 
 /** Entitas audit modul ini (tanpa PII — nomor/email/googleId tidak pernah ikut). */
@@ -92,7 +92,7 @@ export interface AccountServiceDeps {
    * provider; penghapusan tetap berjalan, hanya pemberitahuannya yang tidak
    * terkirim. Ia jaring pengaman, bukan syarat.
    */
-  sender?: OtpSender;
+  sender?: PhoneSender;
   /**
    * Registry antrean — jalur pemberitahuan pasca-hapus bagi akun TANPA nomor HP
    * (PR-049a). OPSIONAL: tanpanya penghapusan tetap berjalan, hanya kabarnya

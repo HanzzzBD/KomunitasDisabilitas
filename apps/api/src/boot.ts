@@ -20,7 +20,7 @@ import { createInternalAuth, createInternalModule } from "./modules/internal/ind
 import {
   createAuthModule,
   createGoogleConfigFromEnv,
-  createOtpSenderFromEnv,
+  createPhoneSenderFromEnv,
   createSessionUserSource,
 } from "./modules/auth/index.js";
 import {
@@ -316,7 +316,7 @@ export async function startApi(options: BootOptions): Promise<void> {
           // mencabut keluarga sesi milik pemenangnya.
           toleransiRotasiDetik: env.AUTH_REFRESH_ROTATION_GRACE_SECONDS,
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
-          sender: createOtpSenderFromEnv(env, logger),
+          sender: createPhoneSenderFromEnv(env, logger),
           // Produser `notify:email` (PR-049a): pemberitahuan pasca-hapus bagi
           // akun tanpa nomor HP. Lewat antrean, bukan panggilan langsung —
           // gerbang U-02, alasannya di account.service.ts.

@@ -98,7 +98,7 @@ function bacaPesan(body: unknown): string {
  * Resend lazim mengutip balik alamat tujuan di pesan galatnya
  * (`Invalid \`to\` field: orang@contoh.id`), yang berarti PII bisa masuk log
  * lewat pintu yang tidak kita tulis sendiri. Aturan dan alasannya sama dengan
- * `alasanAmanUntukLog` pada `otp-sender.ts` — hanya bentuk yang diredaksi yang
+ * `alasanAmanUntukLog` pada `phone-sender.ts` — hanya bentuk yang diredaksi yang
  * berbeda.
  */
 const BERBENTUK_ALAMAT = /[^\s<>"]+@[^\s<>"]+/g;
