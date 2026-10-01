@@ -34,7 +34,7 @@ import {
   type SessionKeys,
   type SessionUserLookup,
 } from "../../core/auth/index.js";
-import { createUnavailableOtpSender, type OtpSender } from "./services/otp-sender.js";
+import { createUnavailablePhoneSender, type PhoneSender } from "./services/phone-sender.js";
 import type { FetchLike } from "./services/fonnte.sender.js";
 
 /** Konfigurasi login Google; undefined = fitur dimatikan (503). */
@@ -55,7 +55,7 @@ export interface AuthModuleDeps {
   /** env.OTP_HASH_SECRET; undefined = endpoint OTP tertutup (503). */
   otpHashSecret: string | undefined;
   /** Adapter pengirim OTP; default "belum dikonfigurasi". */
-  sender?: OtpSender;
+  sender?: PhoneSender;
   /** undefined = endpoint Google tertutup (503). */
   google?: GoogleAuthConfig;
   /**
@@ -125,7 +125,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
     otpService = createOtpService({
       otpRepository: createOtpRepository({ redis: deps.redis, secret: deps.otpHashSecret }),
       userRepository,
-      sender: deps.sender ?? createUnavailableOtpSender(),
+      sender: deps.sender ?? createUnavailablePhoneSender(),
       sessionService,
       auditLog: deps.auditLog,
       events: deps.events,
@@ -243,13 +243,13 @@ export function createGoogleConfigFromEnv(
 export { createOtpService, OTP_POLICY, type OtpService } from "./services/otp.service.js";
 export {
   buildOtpMessage,
-  createFallbackOtpSender,
-  createOtpSenderFromEnv,
-  createUnavailableOtpSender,
-  OtpSenderError,
-  type OtpMessage,
-  type OtpSender,
-} from "./services/otp-sender.js";
+  createFallbackPhoneSender,
+  createPhoneSenderFromEnv,
+  createUnavailablePhoneSender,
+  PhoneSenderError,
+  type PhoneMessage,
+  type PhoneSender,
+} from "./services/phone-sender.js";
 export {
   createGoogleIdTokenVerifier,
   parseGoogleIdentity,

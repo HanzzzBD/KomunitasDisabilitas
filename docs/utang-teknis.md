@@ -412,7 +412,7 @@ berisi `matching/rerank.v2.ts`) supaya rekursinya tidak bisa hilang diam-diam. D
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kosmetik / keterbacaan |
 | **Pemilik** | Belum ditetapkan |
 | **Sumber** | Log Phase 02 (PR-018) |
@@ -424,6 +424,11 @@ menyentuh 78 rujukan di 9 berkas. Diverifikasi 2026-09-05: nama masih dipakai.
 di sana rename-nya berada di jalur perubahan, bukan menjadi diff terpisah yang mengubur
 perubahan sesungguhnya.
 
+**PEMBAYARANNYA (2026-10-01).** Rename murni, tanpa perubahan perilaku: `OtpSender` → `PhoneSender`,
+`OtpMessage` → `PhoneMessage`, `OtpSenderError` → `PhoneSenderError`, `createFallbackOtpSender` /
+`createOtpSenderFromEnv` / `createUnavailableOtpSender` → `…PhoneSender…`; berkas `otp-sender.ts` →
+`phone-sender.ts` (test-nya ikut). `buildOtpMessage` TETAP — dialah satu-satunya bagian yang memang
+khusus OTP. Rujukan di log/dokumen phase lama dibiarkan sebagai riwayat.
 ---
 
 ### U-10 — Jendela toleransi rotasi token di sisi server

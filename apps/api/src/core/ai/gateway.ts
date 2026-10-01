@@ -26,7 +26,7 @@ const BELUM_DIKONFIGURASI = "belum-dikonfigurasi";
  * AI_NOT_CONFIGURED, tetapi NAMANYA tetap nama provider aslinya supaya log,
  * metrik, dan tuas `AI_ROUTER_FORCE_PROVIDER` tetap menunjuk sesuatu yang nyata.
  *
- * Deny-by-default, pola `createUnavailableOtpSender`. Boot TIDAK gagal karena
+ * Deny-by-default, pola `createUnavailablePhoneSender`. Boot TIDAK gagal karena
  * kunci AI kosong: fitur AI selalu punya jalur non-AI (ADR-005), jadi API tanpa
  * kunci adalah keadaan sah untuk dev — yang tidak sah adalah panggilan AI yang
  * diam-diam mengembalikan sesuatu.

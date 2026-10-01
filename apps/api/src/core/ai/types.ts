@@ -54,7 +54,7 @@ export const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
 };
 
 /**
- * Kegagalan di sisi provider. Pola `OtpSenderError`: pemanggil memutuskan
+ * Kegagalan di sisi provider. Pola `PhoneSenderError`: pemanggil memutuskan
  * fallback/menyerah, bukan berkas ini.
  *
  * ATURAN KERAS (Security Considerations PR-041): `message` HANYA boleh

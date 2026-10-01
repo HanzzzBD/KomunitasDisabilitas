@@ -10,9 +10,9 @@ import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
 import { busUji } from "./helpers/events.js";
 import { registrarUji } from "./helpers/routes.js";
-import { createAuthModule, createOtpSenderFromEnv } from "../src/modules/auth/index.js";
+import { createAuthModule, createPhoneSenderFromEnv } from "../src/modules/auth/index.js";
 import type { OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
-import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
+import type { PhoneSender } from "../src/modules/auth/services/phone-sender.js";
 import type { FetchLike } from "../src/modules/auth/services/fonnte.sender.js";
 import { SESSION_KEYS, fakeRefreshTokenStore } from "./helpers/session.js";
 
@@ -105,7 +105,7 @@ afterEach(async () => {
 interface BootOptions {
   otpHashSecret?: string | undefined;
   /** Ganti sender mock bawaan (mis. rantai Fonnte→Twilio dengan fetch palsu). */
-  sender?: OtpSender;
+  sender?: PhoneSender;
   /** undefined eksplisit = uji perilaku tanpa kunci sesi (503). */
   sessionKeys?: typeof SESSION_KEYS | undefined;
 }
@@ -121,7 +121,7 @@ async function boot(options: BootOptions = {}) {
   });
   const logger = createLogger(env, { destination });
   const terkirim: Array<{ phone: string; text: string }> = [];
-  const sender: OtpSender = {
+  const sender: PhoneSender = {
     name: "uji",
     async send(message) {
       terkirim.push({ ...message });
@@ -264,7 +264,7 @@ describe("alur penuh dengan rantai provider (PR-016b)", () => {
       TWILIO_BASE_URL: "https://twilio.uji",
     });
     const { base } = await boot({
-      sender: createOtpSenderFromEnv(env, { warn: () => {} }, palsu.impl),
+      sender: createPhoneSenderFromEnv(env, { warn: () => {} }, palsu.impl),
     });
 
     const res = await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
@@ -291,7 +291,7 @@ describe("alur penuh dengan rantai provider (PR-016b)", () => {
       TWILIO_FROM: "+15550000000",
     });
     const { base } = await boot({
-      sender: createOtpSenderFromEnv(env, { warn: () => {} }, impl),
+      sender: createPhoneSenderFromEnv(env, { warn: () => {} }, impl),
     });
 
     const res = await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });

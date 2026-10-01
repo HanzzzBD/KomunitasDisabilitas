@@ -779,3 +779,14 @@ sesi, termasuk token segar pemenang (pengguna terlempar keluar).
   kode baru hanya mengatakan "token ini baru saja dirotasi" kepada pemegang token yang sudah tidak
   berlaku; pemutaran ulang dalam jendela tidak menghasilkan sesi, dan deteksi reuse tetap aktif di
   luar jendela.
+
+---
+
+## Utang U-09 — `OtpSender` → `PhoneSender`
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai · **Branch:** `utang-u09-rename-otp` → `phase-11-matching-engine`
+
+Rename murni (16 berkas, 95 baris; tanpa perubahan perilaku): kanal WhatsApp/SMS sudah generik
+(kode masuk + pemberitahuan pasca-hapus akun). `PhoneSender`, `PhoneMessage`, `PhoneSenderError`,
+`createFallbackPhoneSender`, `createPhoneSenderFromEnv`, `createUnavailablePhoneSender`; berkas
+`phone-sender.ts`. `buildOtpMessage` tetap bernama OTP karena memang khusus OTP.

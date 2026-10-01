@@ -6,12 +6,12 @@ import { loadEnv, EnvError } from "../src/core/config/env.js";
 import {
   alasanAmanUntukLog,
   buildOtpMessage,
-  createFallbackOtpSender,
-  createOtpSenderFromEnv,
-  createUnavailableOtpSender,
-  OtpSenderError,
-  type OtpSender,
-} from "../src/modules/auth/services/otp-sender.js";
+  createFallbackPhoneSender,
+  createPhoneSenderFromEnv,
+  createUnavailablePhoneSender,
+  PhoneSenderError,
+  type PhoneSender,
+} from "../src/modules/auth/services/phone-sender.js";
 import { createFonnteSender, type FetchLike } from "../src/modules/auth/services/fonnte.sender.js";
 import { createTwilioSender } from "../src/modules/auth/services/twilio.sender.js";
 
@@ -81,8 +81,8 @@ describe("adapter Fonnte", () => {
       .send(PESAN)
       .catch((e: unknown) => e);
 
-    expect(err).toBeInstanceOf(OtpSenderError);
-    expect((err as OtpSenderError).provider).toBe("fonnte");
+    expect(err).toBeInstanceOf(PhoneSenderError);
+    expect((err as PhoneSenderError).provider).toBe("fonnte");
     expect((err as Error).message).toContain("saldo habis");
   });
 
@@ -130,7 +130,7 @@ describe("adapter Twilio", () => {
       .send(PESAN)
       .catch((e: unknown) => e);
 
-    expect((err as OtpSenderError).provider).toBe("twilio");
+    expect((err as PhoneSenderError).provider).toBe("twilio");
     expect((err as Error).message).toContain("HTTP 401");
     expect((err as Error).message).toContain("Authenticate");
   });
@@ -139,15 +139,15 @@ describe("adapter Twilio", () => {
 describe("rantai fallback (AC: Fonnte gagal → Twilio otomatis)", () => {
   function chain(hasil: Array<"ok" | "gagal">) {
     const dipakai: string[] = [];
-    const senders: OtpSender[] = hasil.map((h, i) => ({
+    const senders: PhoneSender[] = hasil.map((h, i) => ({
       name: i === 0 ? "fonnte" : "twilio",
       send: async () => {
         dipakai.push(i === 0 ? "fonnte" : "twilio");
-        if (h === "gagal") throw new OtpSenderError(i === 0 ? "fonnte" : "twilio", "gagal uji");
+        if (h === "gagal") throw new PhoneSenderError(i === 0 ? "fonnte" : "twilio", "gagal uji");
       },
     }));
     const log = logger();
-    return { sender: createFallbackOtpSender(senders, log), dipakai, log };
+    return { sender: createFallbackPhoneSender(senders, log), dipakai, log };
   }
 
   it("Fonnte sukses → Twilio tidak pernah dipanggil", async () => {
@@ -166,12 +166,12 @@ describe("rantai fallback (AC: Fonnte gagal → Twilio otomatis)", () => {
     );
   });
 
-  it("semua provider gagal → OtpSenderError menyebut seluruh rantai", async () => {
+  it("semua provider gagal → PhoneSenderError menyebut seluruh rantai", async () => {
     const { sender, dipakai } = chain(["gagal", "gagal"]);
     const err = await sender.send(PESAN).catch((e: unknown) => e);
     expect(dipakai).toEqual(["fonnte", "twilio"]);
-    expect(err).toBeInstanceOf(OtpSenderError);
-    expect((err as OtpSenderError).provider).toBe("fonnte,twilio");
+    expect(err).toBeInstanceOf(PhoneSenderError);
+    expect((err as PhoneSenderError).provider).toBe("fonnte,twilio");
     expect((err as Error).message).toContain("fonnte → twilio");
   });
 
@@ -184,9 +184,9 @@ describe("rantai fallback (AC: Fonnte gagal → Twilio otomatis)", () => {
   });
 
   it("tanpa pengirim sama sekali → pengirim 'belum dikonfigurasi'", async () => {
-    const sender = createFallbackOtpSender([], logger());
-    expect(sender.name).toBe(createUnavailableOtpSender().name);
-    await expect(sender.send(PESAN)).rejects.toBeInstanceOf(OtpSenderError);
+    const sender = createFallbackPhoneSender([], logger());
+    expect(sender.name).toBe(createUnavailablePhoneSender().name);
+    await expect(sender.send(PESAN)).rejects.toBeInstanceOf(PhoneSenderError);
   });
 });
 
@@ -204,23 +204,23 @@ describe("perakitan dari env", () => {
   };
 
   it("tanpa provider mana pun → 'belum dikonfigurasi' (deny-by-default)", () => {
-    const sender = createOtpSenderFromEnv(loadEnv(envDasar), logger());
+    const sender = createPhoneSenderFromEnv(loadEnv(envDasar), logger());
     expect(sender.name).toBe("belum-dikonfigurasi");
   });
 
   it("hanya Fonnte → satu pengirim, tanpa pembungkus rantai", () => {
     const env = loadEnv({ ...envDasar, FONNTE_TOKEN: "t" });
-    expect(createOtpSenderFromEnv(env, logger()).name).toBe("fonnte");
+    expect(createPhoneSenderFromEnv(env, logger()).name).toBe("fonnte");
   });
 
   it("hanya Twilio → Twilio menjadi satu-satunya pengirim", () => {
     const env = loadEnv({ ...envDasar, ...twilioLengkap });
-    expect(createOtpSenderFromEnv(env, logger()).name).toBe("twilio");
+    expect(createPhoneSenderFromEnv(env, logger()).name).toBe("twilio");
   });
 
   it("keduanya → urutan Fonnte primer, Twilio cadangan (SDD §8.1)", () => {
     const env = loadEnv({ ...envDasar, FONNTE_TOKEN: "t", ...twilioLengkap });
-    expect(createOtpSenderFromEnv(env, logger()).name).toBe("fonnte → twilio");
+    expect(createPhoneSenderFromEnv(env, logger()).name).toBe("fonnte → twilio");
   });
 
   it("kredensial Twilio setengah terisi → boot GAGAL dengan nama variabel hilang", () => {
@@ -246,7 +246,7 @@ describe("perakitan dari env", () => {
 
 describe("alasanAmanUntukLog — keterangan kegagalan yang aman dicatat", () => {
   it("meredaksi nomor HP yang dikutip balik provider", () => {
-    const err = new OtpSenderError("fonnte", "invalid target 6289637037236");
+    const err = new PhoneSenderError("fonnte", "invalid target 6289637037236");
     const { alasan } = alasanAmanUntukLog(err);
     expect(alasan).not.toContain("6289637037236");
     expect(alasan).toContain("[angka]");
@@ -256,17 +256,17 @@ describe("alasanAmanUntukLog — keterangan kegagalan yang aman dicatat", () => 
     // Skenario nyata: provider menolak lalu menyertakan message yang dikirim.
     // Tanpa redaksi, kode masuk log — dan log bertahan jauh lebih lama daripada
     // TTL 5 menit kodenya.
-    const err = new OtpSenderError("fonnte", `gagal: ${buildOtpMessage(KODE)}`);
+    const err = new PhoneSenderError("fonnte", `gagal: ${buildOtpMessage(KODE)}`);
     const { alasan } = alasanAmanUntukLog(err);
     expect(alasan).not.toContain(KODE);
   });
 
   it("TIDAK meredaksi kode status HTTP — itu keterangan berguna, bukan rahasia", () => {
-    const err = new OtpSenderError("fonnte", "Fonnte menolak permintaan (HTTP 502)");
+    const err = new PhoneSenderError("fonnte", "Fonnte menolak permintaan (HTTP 502)");
     expect(alasanAmanUntukLog(err).alasan).toBe("Fonnte menolak permintaan (HTTP 502)");
   });
 
-  it("error di luar OtpSenderError dilaporkan sebatas NAMA kelasnya", () => {
+  it("error di luar PhoneSenderError dilaporkan sebatas NAMA kelasnya", () => {
     // Pesan Error sembarang bisa memuat URL berparameter atau isi body; tidak
     // satu pun kita kendalikan, jadi tidak satu pun boleh masuk log.
     const err = new TypeError("fetch failed: https://api.fonnte.com/send?target=6289637037236");
@@ -283,23 +283,23 @@ describe("alasanAmanUntukLog — keterangan kegagalan yang aman dicatat", () => 
   });
 
   it("keterangan panjang dipotong (provider bisa mengembalikan teks besar)", () => {
-    const err = new OtpSenderError("fonnte", "x".repeat(500));
+    const err = new PhoneSenderError("fonnte", "x".repeat(500));
     expect(alasanAmanUntukLog(err).alasan).toHaveLength(200);
   });
 
   it("log rantai fallback tidak memuat nomor maupun kode", async () => {
     const baris: unknown[] = [];
     const logger = { warn: (obj: unknown) => void baris.push(obj) };
-    const gagalDenganKutipan: OtpSender = {
+    const gagalDenganKutipan: PhoneSender = {
       name: "fonnte",
       send: () =>
         Promise.reject(
-          new OtpSenderError("fonnte", `tolak target ${PESAN.phone}: ${buildOtpMessage(KODE)}`),
+          new PhoneSenderError("fonnte", `tolak target ${PESAN.phone}: ${buildOtpMessage(KODE)}`),
         ),
     };
-    const cadangan: OtpSender = { name: "twilio", send: () => Promise.resolve() };
+    const cadangan: PhoneSender = { name: "twilio", send: () => Promise.resolve() };
 
-    await createFallbackOtpSender([gagalDenganKutipan, cadangan], logger).send(PESAN);
+    await createFallbackPhoneSender([gagalDenganKutipan, cadangan], logger).send(PESAN);
 
     // Tanpa baris ini, ketiga assertion di bawah lulus meski logger tidak
     // pernah dipanggil sama sekali — lulus secara hampa.

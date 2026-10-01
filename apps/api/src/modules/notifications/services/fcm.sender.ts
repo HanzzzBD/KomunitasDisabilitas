@@ -94,7 +94,7 @@ function bacaKode(body: unknown): string {
  * Adapter yang setiap panggilannya menjawab "tidak dikonfigurasi".
  *
  * Boot TIDAK PERNAH gagal karena kredensial FCM yang belum ada — pola yang sama
- * dengan `createUnavailableOtpSender` dan `createAiGateway` tanpa kunci. Push
+ * dengan `createUnavailablePhoneSender` dan `createAiGateway` tanpa kunci. Push
  * adalah kanal tambahan; mematikan seluruh worker karena ia belum disetel akan
  * ikut mematikan purge PDP dan retensi, yang tidak ada hubungannya.
  */
