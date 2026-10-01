@@ -19,10 +19,7 @@ function actorOf(req: Request): SessionActor {
   return { requestId: typeof req.id === "string" ? req.id : randomUUID() };
 }
 
-export function createSessionController(deps: {
-  service: SessionService;
-  cookie: SessionCookie;
-}) {
+export function createSessionController(deps: { service: SessionService; cookie: SessionCookie }) {
   const { service, cookie } = deps;
 
   /**
@@ -90,7 +87,9 @@ export function createSessionController(deps: {
       // menyentuh cookie. Lihat catatan di atas.
       const tokens = await service.refresh(token, actorOf(req));
 
-      res.status(200).json({ data: serahkan(res, tokens, dariBody === undefined ? "web" : "mobile") });
+      res
+        .status(200)
+        .json({ data: serahkan(res, tokens, dariBody === undefined ? "web" : "mobile") });
     },
 
     /**

@@ -141,9 +141,7 @@ describe("single-flight (refresh ROTATING)", () => {
 
     await Promise.all([client.request("/a"), client.request("/b"), client.request("/c")]);
 
-    const panggilanRefresh = fetch.mock.calls.filter((c) =>
-      String(c[0]).endsWith("/auth/refresh"),
-    );
+    const panggilanRefresh = fetch.mock.calls.filter((c) => String(c[0]).endsWith("/auth/refresh"));
     expect(panggilanRefresh).toHaveLength(1);
   });
 
@@ -197,9 +195,9 @@ describe("mobile (refresh token di body)", () => {
 
     await client.request("/me");
 
-    const bodyRefresh = JSON.parse(
-      String((fetch.mock.calls[1]?.[1] as { body: string }).body),
-    ) as { refreshToken: string };
+    const bodyRefresh = JSON.parse(String((fetch.mock.calls[1]?.[1] as { body: string }).body)) as {
+      refreshToken: string;
+    };
     expect(bodyRefresh.refreshToken).toBe("refresh-lama");
     expect(refreshTersimpan).toEqual(["refresh-baru"]);
   });

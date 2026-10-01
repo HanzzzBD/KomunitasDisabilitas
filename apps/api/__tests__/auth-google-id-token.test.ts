@@ -32,7 +32,12 @@ beforeAll(async () => {
   kunciGoogle = await generateKeyPair("RS256");
   kunciPenyerang = await generateKeyPair("RS256");
 
-  const jwk: JWK = { ...(await exportJWK(kunciGoogle.publicKey)), kid: "uji-1", alg: "RS256", use: "sig" };
+  const jwk: JWK = {
+    ...(await exportJWK(kunciGoogle.publicKey)),
+    kid: "uji-1",
+    alg: "RS256",
+    use: "sig",
+  };
 
   jwksServer = createServer((_req, res) => {
     jwksHit += 1;
@@ -176,14 +181,18 @@ describe("createGoogleIdTokenVerifier — verifikasi penuh lewat JWKS", () => {
 
   it("audience salah → 401 (token untuk aplikasi lain tidak boleh dipakai di sini)", async () => {
     const err = await tangkap(async () =>
-      verifier().verify(await buatIdToken({ audience: "aplikasi-lain.apps.googleusercontent.com" })),
+      verifier().verify(
+        await buatIdToken({ audience: "aplikasi-lain.apps.googleusercontent.com" }),
+      ),
     );
     expect(err.code).toBe("TOKEN_GOOGLE_TIDAK_VALID");
     expect(err.status).toBe(401);
   });
 
   it("issuer salah → 401", async () => {
-    const err = await tangkap(async () => verifier().verify(await buatIdToken({ issuer: "https://jahat.example" })));
+    const err = await tangkap(async () =>
+      verifier().verify(await buatIdToken({ issuer: "https://jahat.example" })),
+    );
     expect(err.status).toBe(401);
   });
 
@@ -212,8 +221,7 @@ describe("createGoogleIdTokenVerifier — verifikasi penuh lewat JWKS", () => {
   it("token tanpa tanda tangan (alg: none) → 401", async () => {
     // Dirakit manual: `jose` menolak menandatangani alg none, dan memang itu
     // intinya — penyerang tidak memakai library kita.
-    const b64 = (nilai: unknown) =>
-      Buffer.from(JSON.stringify(nilai)).toString("base64url");
+    const b64 = (nilai: unknown) => Buffer.from(JSON.stringify(nilai)).toString("base64url");
     const tokenNone = `${b64({ alg: "none", typ: "JWT" })}.${b64({
       sub: "google-sub-001",
       email: "rina@contoh.id",

@@ -80,7 +80,11 @@ describe("kredensial Google OAuth (PR-017)", () => {
   });
 
   it.each([
-    ["GOOGLE_CLIENT_ID saja", { GOOGLE_CLIENT_ID: GOOGLE.GOOGLE_CLIENT_ID }, "GOOGLE_CLIENT_SECRET"],
+    [
+      "GOOGLE_CLIENT_ID saja",
+      { GOOGLE_CLIENT_ID: GOOGLE.GOOGLE_CLIENT_ID },
+      "GOOGLE_CLIENT_SECRET",
+    ],
     [
       "GOOGLE_CLIENT_SECRET saja",
       { GOOGLE_CLIENT_SECRET: GOOGLE.GOOGLE_CLIENT_SECRET },

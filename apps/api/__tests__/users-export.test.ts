@@ -116,7 +116,10 @@ const KONTRIBUTOR_MODUL = [
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
-function fakeRedis(): ExportRedisLike & { nilai: Map<string, number>; ttlNilai: Map<string, number> } {
+function fakeRedis(): ExportRedisLike & {
+  nilai: Map<string, number>;
+  ttlNilai: Map<string, number>;
+} {
   const nilai = new Map<string, number>();
   const ttlNilai = new Map<string, number>();
   return {
@@ -145,7 +148,9 @@ function fakeAudit() {
   return { auditLog: auditLog as never, entri };
 }
 
-function rakit(options: { contributors?: readonly ExportContributor[]; redis?: ExportRedisLike } = {}) {
+function rakit(
+  options: { contributors?: readonly ExportContributor[]; redis?: ExportRedisLike } = {},
+) {
   const audit = fakeAudit();
   const redis = options.redis ?? fakeRedis();
   const service = createExportService({
@@ -350,7 +355,9 @@ describe("kuota ekspor", () => {
     // biaya penyalahgunaan tetap dibayar server.
     const dasar = createAccountContributor({ findAccountForExport: async () => barisAkun() });
     const kumpulkan = vi.fn((userId: string) => dasar.kumpulkan(userId));
-    const { service } = rakit({ contributors: [{ bagian: "account", kumpulkan }, ...KONTRIBUTOR_MODUL] });
+    const { service } = rakit({
+      contributors: [{ bagian: "account", kumpulkan }, ...KONTRIBUTOR_MODUL],
+    });
 
     for (let i = 0; i < EXPORT_POLICY.maxPerWindow; i += 1) await service.exportMe(actor);
     expect(kumpulkan).toHaveBeenCalledTimes(EXPORT_POLICY.maxPerWindow); // spy benar tersambung

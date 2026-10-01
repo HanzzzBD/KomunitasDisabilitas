@@ -34,7 +34,9 @@ function fakeDlqQueue(): QueueLike & { add: ReturnType<typeof vi.fn> } {
 
 describe("withTimeout — penegakan batas waktu SDD §16", () => {
   it("meneruskan hasil bila selesai sebelum batas", async () => {
-    await expect(withTimeout(Promise.resolve("ok"), 1_000, QUEUE_NAME.AI_EMBED)).resolves.toBe("ok");
+    await expect(withTimeout(Promise.resolve("ok"), 1_000, QUEUE_NAME.AI_EMBED)).resolves.toBe(
+      "ok",
+    );
   });
 
   it("processor menggantung → JobTimeoutError (bukan menggantung selamanya)", async () => {
@@ -84,9 +86,17 @@ describe("createDlqHandler", () => {
     const dlqQueue = fakeDlqQueue();
     const logger = fakeLogger();
     const increment = vi.fn();
-    const handler = createDlqHandler({ dlqFactory: () => dlqQueue, logger, metrics: { increment } });
+    const handler = createDlqHandler({
+      dlqFactory: () => dlqQueue,
+      logger,
+      metrics: { increment },
+    });
 
-    await handler.onFailed(QUEUE_NAME.AI_EMBED, { attemptsMade: 1, opts: { attempts: 4 } }, new Error("x"));
+    await handler.onFailed(
+      QUEUE_NAME.AI_EMBED,
+      { attemptsMade: 1, opts: { attempts: 4 } },
+      new Error("x"),
+    );
 
     expect(dlqQueue.add).not.toHaveBeenCalled();
     expect(increment).not.toHaveBeenCalled();

@@ -51,7 +51,10 @@ export type AuditLog = (
   meta: unknown,
 ) => void;
 
-export function sanitizeAuditMeta(action: AuditAction, meta: unknown): Record<string, unknown> | null {
+export function sanitizeAuditMeta(
+  action: AuditAction,
+  meta: unknown,
+): Record<string, unknown> | null {
   const parsed = auditMetaSchemas[action].safeParse(meta);
   return parsed.success ? parsed.data : null;
 }

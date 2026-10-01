@@ -364,9 +364,7 @@ describe("sumber nonce yang rusak GAGAL TERTUTUP", () => {
     ["bukan heksa sama sekali", "zzzz-zzzz"],
     ["terlalu pendek", "abc"],
   ])("sumber %s melempar, bukan memakai nonce nol", (_nama, keluaran) => {
-    expect(() => bungkusDataTakTepercaya("data", { nonces: () => keluaran })).toThrow(
-      /nonce/i,
-    );
+    expect(() => bungkusDataTakTepercaya("data", { nonces: () => keluaran })).toThrow(/nonce/i);
   });
 
   it("sumber yang cukup panjang tetap bekerja — penjaga ini tidak menolak semuanya", () => {

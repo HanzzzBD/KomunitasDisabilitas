@@ -40,7 +40,7 @@ import { SESSION_KEYS } from "./helpers/session.js";
 const PREFIX = "/api/v1";
 
 /** Semua factory modul di bawah MURNI konstruksi — tidak satu pun menyentuh I/O. */
-const stub = <T,>(): T => ({}) as T;
+const stub = <T>(): T => ({}) as T;
 
 const logger = createLogger(
   { LOG_LEVEL: "fatal" },

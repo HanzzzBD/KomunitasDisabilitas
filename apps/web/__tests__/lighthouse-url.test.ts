@@ -17,7 +17,9 @@ const CONFIG = ["lighthouserc.json", "lighthouserc-3g.json"];
 
 function urlAudit(berkas: string): string[] {
   const akarWeb = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  const isi = JSON.parse(readFileSync(resolve(akarWeb, berkas), "utf8")) as { ci: { collect: { url: string[] } } };
+  const isi = JSON.parse(readFileSync(resolve(akarWeb, berkas), "utf8")) as {
+    ci: { collect: { url: string[] } };
+  };
   return isi.ci.collect.url;
 }
 

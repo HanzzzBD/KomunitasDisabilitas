@@ -65,12 +65,7 @@ export interface LangkahRingkasanProps {
   tautanProfil?: ReactNode;
 }
 
-export function LangkahRingkasan({
-  store,
-  ragam,
-  setuju,
-  tautanProfil,
-}: LangkahRingkasanProps) {
+export function LangkahRingkasan({ store, ragam, setuju, tautanProfil }: LangkahRingkasanProps) {
   const t = useTeks();
   const efektif = store.getState().efektif();
 

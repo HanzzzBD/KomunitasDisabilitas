@@ -58,7 +58,10 @@ export function bacaSinyalOS(jendela: JendelaMedia): SinyalOS {
  *
  * Mengembalikan fungsi pembatalan.
  */
-export function pantauSinyalOS(jendela: JendelaMedia, saatBerubah: (sinyal: SinyalOS) => void): () => void {
+export function pantauSinyalOS(
+  jendela: JendelaMedia,
+  saatBerubah: (sinyal: SinyalOS) => void,
+): () => void {
   const daftar = Object.values(KUERI_OS).map((kueri) => jendela.matchMedia(kueri));
   const teruskan = () => {
     saatBerubah(bacaSinyalOS(jendela));
@@ -74,7 +77,8 @@ export function pantauSinyalOS(jendela: JendelaMedia, saatBerubah: (sinyal: Siny
 
   return () => {
     for (const mql of daftar) {
-      if (typeof mql.removeEventListener === "function") mql.removeEventListener("change", teruskan);
+      if (typeof mql.removeEventListener === "function")
+        mql.removeEventListener("change", teruskan);
       else mql.removeListener?.(teruskan);
     }
   };

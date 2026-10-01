@@ -9,7 +9,11 @@
 // membandingkan DOM hasilnya dengan keluaran fungsi aslinya, untuk sebuah
 // matriks preferensi. Kalau salah satu berubah tanpa yang lain, ia merah.
 import { afterEach, describe, expect, it } from "vitest";
-import { KUNCI_PENYIMPANAN, rekonsiliasi, type UpdateAccessibilityPreferences } from "@nawasena/a11y";
+import {
+  KUNCI_PENYIMPANAN,
+  rekonsiliasi,
+  type UpdateAccessibilityPreferences,
+} from "@nawasena/a11y";
 import { terapkanToken } from "@nawasena/a11y/web";
 import { SKRIP_PRA_PAINT } from "../src/shared/a11y/skrip-pra-paint.js";
 
@@ -64,13 +68,16 @@ const KASUS: Array<[string, UpdateAccessibilityPreferences]> = [
   ["kurangi gerak", { reduceMotion: true }],
   ["bahasa sederhana", { simpleLanguage: true }],
   ["target sentuh besar", { largeTouchTargets: true }],
-  ["semua menyala", {
-    textScale: 175,
-    highContrast: true,
-    reduceMotion: true,
-    simpleLanguage: true,
-    largeTouchTargets: true,
-  }],
+  [
+    "semua menyala",
+    {
+      textScale: 175,
+      highContrast: true,
+      reduceMotion: true,
+      simpleLanguage: true,
+      largeTouchTargets: true,
+    },
+  ],
   ["eksplisit mati", { highContrast: false, reduceMotion: false }],
   ["tanpa token", { prefersSignLanguage: true, screenReaderHint: true }],
 ];

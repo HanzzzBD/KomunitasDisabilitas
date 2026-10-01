@@ -54,7 +54,7 @@ test("seluruh halaman bisa ditempuh dengan keyboard saja (AC-5)", async ({ page 
     terjangkau.push(
       await page.evaluate(() => {
         const el = document.activeElement;
-        return el === null ? "" : (el.getAttribute("aria-label") ?? (el.textContent ?? ""));
+        return el === null ? "" : (el.getAttribute("aria-label") ?? el.textContent ?? "");
       }),
     );
   }

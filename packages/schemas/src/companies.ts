@@ -112,9 +112,7 @@ export const companyAdminSchema = companyPublicSchema
 
 export type CompanyAdmin = z.infer<typeof companyAdminSchema>;
 
-export const companyIdParamsSchema = z
-  .object({ id: idSchema })
-  .openapi({ ref: "CompanyIdParams" });
+export const companyIdParamsSchema = z.object({ id: idSchema }).openapi({ ref: "CompanyIdParams" });
 
 export type CompanyIdParams = z.infer<typeof companyIdParamsSchema>;
 

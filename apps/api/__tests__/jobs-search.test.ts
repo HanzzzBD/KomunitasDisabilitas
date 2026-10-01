@@ -152,7 +152,10 @@ describe("jobs.search — filter diteruskan apa adanya ke repository", () => {
 
 describe("jobs.search — cursor", () => {
   it("cursor valid didekode dan diteruskan sebagai {sortAt, id}", async () => {
-    const posisi = { sortAt: new Date("2026-07-01T00:00:00Z"), id: "018f4c1e-0000-7000-8000-000000000jxx" };
+    const posisi = {
+      sortAt: new Date("2026-07-01T00:00:00Z"),
+      id: "018f4c1e-0000-7000-8000-000000000jxx",
+    };
     const { service, panggilan } = rakitService([]);
 
     await service.search({ limit: 10, cursor: encodeKursor(posisi) });
@@ -163,9 +166,9 @@ describe("jobs.search — cursor", () => {
   it("cursor rusak melempar KursorTidakValidError, BUKAN dianggap halaman pertama", async () => {
     const { service, panggilan } = rakitService([]);
 
-    await expect(service.search({ limit: 10, cursor: "!!!tidak-base64url-yang-sah!!!" })).rejects.toThrow(
-      KursorTidakValidError,
-    );
+    await expect(
+      service.search({ limit: 10, cursor: "!!!tidak-base64url-yang-sah!!!" }),
+    ).rejects.toThrow(KursorTidakValidError);
     // Repository TIDAK PERNAH dipanggil — kesalahan input ditolak sebelum query.
     expect(panggilan).toHaveLength(0);
   });

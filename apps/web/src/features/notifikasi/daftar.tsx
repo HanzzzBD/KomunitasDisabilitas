@@ -114,9 +114,7 @@ export function DaftarNotifikasi({ klien, sub, Tautan }: DaftarNotifikasiProps) 
           pages: lama.pages.map((halaman) => ({
             ...halaman,
             data: halaman.data.map((n) =>
-              n.id === id && n.readAt === null
-                ? { ...n, readAt: new Date().toISOString() }
-                : n,
+              n.id === id && n.readAt === null ? { ...n, readAt: new Date().toISOString() } : n,
             ),
             meta: { ...halaman.meta, unreadCount: Math.max(0, halaman.meta.unreadCount - 1) },
           })),

@@ -1,9 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  AUDIT_ACTION,
-  type AuditAction,
-  type AuditActor,
-} from "@nawasena/schemas";
+import { AUDIT_ACTION, type AuditAction, type AuditActor } from "@nawasena/schemas";
 import {
   AUDIT_METRIC,
   createAuditLog,
@@ -94,7 +90,6 @@ describe("sanitizeAuditMeta — allowlist PII per action", () => {
       expect(JSON.stringify(meta)).not.toContain("juru bahasa");
     },
   );
-
 });
 
 describe("createAuditLog", () => {
@@ -145,7 +140,9 @@ describe("createAuditLog", () => {
   });
 
   it("kegagalan writer di-log dan menaikkan metrik tanpa PII", async () => {
-    const { options, error, increment } = createOptions(() => Promise.reject(new Error("DB gagal")));
+    const { options, error, increment } = createOptions(() =>
+      Promise.reject(new Error("DB gagal")),
+    );
     const auditLog = createAuditLog(options);
 
     auditLog(ACTOR, AUDIT_ACTION.DATA_EXPORTED, "user", ENTITY_ID, {

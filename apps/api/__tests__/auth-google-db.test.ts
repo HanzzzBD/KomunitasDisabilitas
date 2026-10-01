@@ -37,7 +37,10 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-const identitas = (suffix: string, override: Partial<{ email: string; fullName: string }> = {}) => ({
+const identitas = (
+  suffix: string,
+  override: Partial<{ email: string; fullName: string }> = {},
+) => ({
   googleId: googleUji(suffix),
   email: override.email ?? emailUji(suffix),
   fullName: override.fullName ?? "Bayu Nugroho",
@@ -170,9 +173,9 @@ describe("findOrCreateByGoogle", () => {
     ]);
 
     expect(new Set(hasil.map((h) => h.id)).size).toBe(1);
-    expect(
-      await prisma.user.count({ where: { googleId: googleUji("06"), deletedAt: null } }),
-    ).toBe(1);
+    expect(await prisma.user.count({ where: { googleId: googleUji("06"), deletedAt: null } })).toBe(
+      1,
+    );
   });
 
   it("akun terhapus dengan email sama tidak ikut tertaut", async (ctx) => {

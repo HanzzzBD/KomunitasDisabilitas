@@ -144,11 +144,7 @@ const persyaratanSchema = z
   .max(3000, { message: "Persyaratan maksimal 3000 karakter" })
   .nullable();
 
-const wilayahSchema = z
-  .string()
-  .trim()
-  .max(100, { message: "Maksimal 100 karakter" })
-  .nullable();
+const wilayahSchema = z.string().trim().max(100, { message: "Maksimal 100 karakter" }).nullable();
 
 /** Rupiah per bulan — bukan sen, bukan mata uang lain (skala pilot Indonesia). */
 const gajiSchema = z
@@ -163,7 +159,9 @@ const akomodasiLowonganSchema = z
 
 const disabilitasDisambutSchema = z
   .array(disabilityTypeSchema)
-  .max(disabilityTypeSchema.options.length, { message: "Terlalu banyak ragam disabilitas dipilih" });
+  .max(disabilityTypeSchema.options.length, {
+    message: "Terlalu banyak ragam disabilitas dipilih",
+  });
 
 /**
  * `salaryMin` ≤ `salaryMax` bila keduanya diisi — dipasang sekali di sini,
@@ -174,11 +172,7 @@ function periksaRentangGaji(
   nilai: { salaryMin?: number | null; salaryMax?: number | null },
   ctx: z.RefinementCtx,
 ): void {
-  if (
-    nilai.salaryMin != null &&
-    nilai.salaryMax != null &&
-    nilai.salaryMin > nilai.salaryMax
-  ) {
+  if (nilai.salaryMin != null && nilai.salaryMax != null && nilai.salaryMin > nilai.salaryMax) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Gaji minimum tidak boleh lebih besar dari gaji maksimum",

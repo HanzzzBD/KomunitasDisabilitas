@@ -18,7 +18,10 @@ import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { createServer, type ApiServer } from "../src/server.js";
 import { createAuthModule } from "../src/modules/auth/index.js";
-import { createOtpRepository, type OtpRedisLike } from "../src/modules/auth/repositories/otp.repository.js";
+import {
+  createOtpRepository,
+  type OtpRedisLike,
+} from "../src/modules/auth/repositories/otp.repository.js";
 import { GOOGLE_ISSUERS } from "../src/modules/auth/services/google-id-token.js";
 import { createTokenService } from "../src/core/auth/index.js";
 import { busUji } from "./helpers/events.js";
@@ -65,7 +68,11 @@ beforeAll(async () => {
     req.on("data", (c: Buffer) => potongan.push(c));
     req.on("end", () => {
       void (async () => {
-        const idToken = await new SignJWT({ email: "pemilik@contoh.id", email_verified: true, name: "Pemilik" })
+        const idToken = await new SignJWT({
+          email: "pemilik@contoh.id",
+          email_verified: true,
+          name: "Pemilik",
+        })
           .setProtectedHeader({ alg: "RS256", kid: "uji-1" })
           .setSubject(subDikembalikan)
           .setIssuer(GOOGLE_ISSUERS[0])
@@ -131,8 +138,22 @@ interface BarisUser {
 
 function userAwal(): BarisUser[] {
   return [
-    { id: USER_OTP, phone: PHONE, googleId: null, role: "seeker", tokenVersion: 0, deletedAt: null },
-    { id: USER_GOOGLE, phone: null, googleId: GOOGLE_SUB, role: "seeker", tokenVersion: 0, deletedAt: null },
+    {
+      id: USER_OTP,
+      phone: PHONE,
+      googleId: null,
+      role: "seeker",
+      tokenVersion: 0,
+      deletedAt: null,
+    },
+    {
+      id: USER_GOOGLE,
+      phone: null,
+      googleId: GOOGLE_SUB,
+      role: "seeker",
+      tokenVersion: 0,
+      deletedAt: null,
+    },
   ];
 }
 
@@ -183,8 +204,9 @@ function fakePrisma(rows: BarisUser[]) {
   const client = {
     user,
     refreshToken,
-    $transaction: <T>(fn: (tx: { user: typeof user; refreshToken: typeof refreshToken }) => Promise<T>) =>
-      fn({ user, refreshToken }),
+    $transaction: <T>(
+      fn: (tx: { user: typeof user; refreshToken: typeof refreshToken }) => Promise<T>,
+    ) => fn({ user, refreshToken }),
   };
   return { prisma: client as unknown as PrismaClient, refreshRows: refreshStore.rows };
 }
@@ -271,7 +293,13 @@ async function boot(options: BootOptions = {}) {
           google:
             options.googleAktif === false
               ? undefined
-              : { clientId: CLIENT_ID, clientSecret: "rahasia", jwksUrl, tokenUrl, timeoutMs: 5000 },
+              : {
+                  clientId: CLIENT_ID,
+                  clientSecret: "rahasia",
+                  jwksUrl,
+                  tokenUrl,
+                  timeoutMs: 5000,
+                },
           auditLog: (_actor, action, _entity, entityId, meta) => {
             audit.push({ action, entityId, meta });
           },
@@ -306,7 +334,11 @@ function sesiHidup(refreshRows: ReturnType<typeof fakePrisma>["refreshRows"], us
   return refreshRows.filter((r) => r.userId === userId && r.revokedAt === null);
 }
 
-function tanamSesi(refreshRows: ReturnType<typeof fakePrisma>["refreshRows"], userId: string, n: number) {
+function tanamSesi(
+  refreshRows: ReturnType<typeof fakePrisma>["refreshRows"],
+  userId: string,
+  n: number,
+) {
   for (let i = 0; i < n; i += 1) {
     refreshRows.push({
       id: `refresh-${userId}-${i}`,

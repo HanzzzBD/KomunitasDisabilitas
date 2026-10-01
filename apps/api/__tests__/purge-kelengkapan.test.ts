@@ -35,7 +35,8 @@ const DIPERTAHANKAN: Readonly<Record<string, string>> = {
  * jadi tautannya lepas sendiri saat baris users dihapus.
  */
 const KEPENGARANGAN: Readonly<Record<string, string>> = {
-  companies: "verified_by — data perusahaan milik platform; menghapusnya karena verifikatornya pergi akan menghilangkan status verifikasi yang sah.",
+  companies:
+    "verified_by — data perusahaan milik platform; menghapusnya karena verifikatornya pergi akan menghilangkan status verifikasi yang sah.",
   jobs: "created_by — lowongan milik platform; riwayat lamaran orang lain bergantung padanya.",
   sign_videos: "created_by — kamus BISINDO milik platform, dipakai seluruh pengguna.",
 };
@@ -62,10 +63,7 @@ describe("kelengkapan purge — setiap tabel data pengguna sudah diputuskan", ()
 
   it("tidak ada tabel berelasi User yang belum diputuskan", () => {
     const belum = berelasi.filter(
-      (m) =>
-        !dihapus.has(m.delegate) &&
-        !(m.tabel in DIPERTAHANKAN) &&
-        !(m.tabel in KEPENGARANGAN),
+      (m) => !dihapus.has(m.delegate) && !(m.tabel in DIPERTAHANKAN) && !(m.tabel in KEPENGARANGAN),
     );
 
     expect(

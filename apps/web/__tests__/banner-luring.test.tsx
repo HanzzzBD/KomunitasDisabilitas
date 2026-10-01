@@ -86,7 +86,9 @@ describe("BannerLuring", () => {
     expect(resume).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledTimes(1);
     // Urutannya disengaja: mutasi adalah niat pengguna yang sudah dinyatakan.
-    expect(resume.mock.invocationCallOrder[0]).toBeLessThan(invalidate.mock.invocationCallOrder[0]!);
+    expect(resume.mock.invocationCallOrder[0]).toBeLessThan(
+      invalidate.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("hilang lagi begitu koneksi kembali", () => {

@@ -141,9 +141,7 @@ describe("AC 1 — baris karier dapat ditambah, diubah, dihapus", () => {
     renderProfil();
     await tungguSiap();
 
-    expect(
-      await screen.findByText("Anda belum menambahkan pengalaman kerja."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Anda belum menambahkan pengalaman kerja.")).toBeInTheDocument();
     expect(screen.getByText("Anda belum menambahkan riwayat pendidikan.")).toBeInTheDocument();
     expect(screen.getByText("Anda belum menambahkan keahlian.")).toBeInTheDocument();
   });
@@ -284,9 +282,7 @@ describe("AC 5 — pesan galat per kolom, bahasa sederhana", () => {
       expect(kolom).toHaveAttribute("aria-invalid", "true");
     });
     const idGalat = kolom.getAttribute("aria-describedby")?.split(" ") ?? [];
-    const teks = idGalat
-      .map((id) => document.getElementById(id)?.textContent ?? "")
-      .join(" ");
+    const teks = idGalat.map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
     expect(teks).toContain("Nama posisi tidak boleh kosong");
   });
 

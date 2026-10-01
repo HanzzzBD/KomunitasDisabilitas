@@ -207,12 +207,18 @@ describe("POST /api/v1/auth/otp/verify", () => {
     const { base, terkirim } = await boot();
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
     const pertama = (await (
-      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: kodeDari(terkirim[0]!.text) })
+      await kirimJson(`${base}/auth/otp/verify`, {
+        phone: PHONE,
+        code: kodeDari(terkirim[0]!.text),
+      })
     ).json()) as { data: { userId: string } };
 
     await kirimJson(`${base}/auth/otp/request`, { phone: PHONE });
     const kedua = (await (
-      await kirimJson(`${base}/auth/otp/verify`, { phone: PHONE, code: kodeDari(terkirim[1]!.text) })
+      await kirimJson(`${base}/auth/otp/verify`, {
+        phone: PHONE,
+        code: kodeDari(terkirim[1]!.text),
+      })
     ).json()) as { data: { userId: string; isNewUser: boolean } };
 
     expect(kedua.data.userId).toBe(pertama.data.userId);

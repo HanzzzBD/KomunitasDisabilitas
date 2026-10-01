@@ -156,9 +156,7 @@ export function DialogHapusAkun({ klien, cara, onSelesai }: DialogHapusAkunProps
     <Dialog
       terbuka={terbuka}
       onUbahTerbuka={ubahTerbuka}
-      pemicu={
-        <Tombol varian="sekunder">{t("pengaturan.hapus.tombol")}</Tombol>
-      }
+      pemicu={<Tombol varian="sekunder">{t("pengaturan.hapus.tombol")}</Tombol>}
       judul={t(JUDUL[langkah])}
       deskripsi={DESKRIPSI[langkah] === undefined ? undefined : t(DESKRIPSI[langkah]!)}
       labelTutup={t("pengaturan.hapus.batal")}

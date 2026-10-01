@@ -93,6 +93,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Utang U-01 (2026-10-01): tanpa gerbang ini kode masuk tanpa diformat, dan
+      # `pnpm format` lalu menulis ulang ratusan berkas di luar scope PR mana pun.
+      # Sekali diformat seluruhnya, gerbang inilah yang menjaganya tetap begitu.
+      - name: Format (prettier --check)
+        run: pnpm format:check
+
       - name: Typecheck
         run: pnpm typecheck
 

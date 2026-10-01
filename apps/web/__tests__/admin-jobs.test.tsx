@@ -178,7 +178,11 @@ function klienPalsu(
   };
 }
 
-function renderDi(jalur: string, daftarLowongan: JobAdmin[] = [], daftarPerusahaan?: CompanyAdmin[]) {
+function renderDi(
+  jalur: string,
+  daftarLowongan: JobAdmin[] = [],
+  daftarPerusahaan?: CompanyAdmin[],
+) {
   useStoreSesi.setState({ status: "masuk" });
   const jejak: Permintaan[] = [];
   const router = createMemoryRouter(ruteApp, { initialEntries: [jalur] });
@@ -291,8 +295,14 @@ describe("formulir — tambah (AC: buat→publish→close)", () => {
 
     await userEvent.click(screen.getByRole("combobox", { name: /Perusahaan/ }));
     await userEvent.click(screen.getByRole("option", { name: "PT Inklusif Fiktif" }));
-    await userEvent.type(screen.getByRole("textbox", { name: /Judul lowongan/ }), "Posisi Baru Fiktif");
-    await userEvent.type(screen.getByRole("textbox", { name: /Deskripsi/ }), "Deskripsi posisi baru");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /Judul lowongan/ }),
+      "Posisi Baru Fiktif",
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /Deskripsi/ }),
+      "Deskripsi posisi baru",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
@@ -308,9 +318,7 @@ describe("formulir — tambah (AC: buat→publish→close)", () => {
 
 describe("formulir — ubah", () => {
   it("kolom terisi nilai lowongan yang sudah ada", async () => {
-    renderDi("/admin/jobs/id-1", [
-      lowongan({ id: "id-1", title: "Posisi Lama", city: "Bandung" }),
-    ]);
+    renderDi("/admin/jobs/id-1", [lowongan({ id: "id-1", title: "Posisi Lama", city: "Bandung" })]);
 
     expect(await screen.findByDisplayValue("Posisi Lama")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Bandung")).toBeInTheDocument();
@@ -345,15 +353,15 @@ describe("formulir — ubah", () => {
     };
     expect(badan.title).toBe("Staf Admin Senior");
     expect(badan.companyId).toBeUndefined();
-    expect(await screen.findByText(/Perubahan pada Staf Admin Senior sudah tersimpan/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Perubahan pada Staf Admin Senior sudah tersimpan/),
+    ).toBeInTheDocument();
   });
 });
 
 describe("terbitkan (AC: validasi akomodasi wajib sebelum publish, client)", () => {
   it("akomodasi kosong → tombol Terbitkan nonaktif dengan keterangan, TIDAK mengirim apa pun", async () => {
-    const { jejak } = renderDi("/admin/jobs/id-1", [
-      lowongan({ id: "id-1", accommodations: [] }),
-    ]);
+    const { jejak } = renderDi("/admin/jobs/id-1", [lowongan({ id: "id-1", accommodations: [] })]);
     await screen.findByRole("button", { name: "Terbitkan lowongan ini" });
 
     expect(screen.getByRole("button", { name: "Terbitkan lowongan ini" })).toHaveAttribute(
@@ -369,9 +377,7 @@ describe("terbitkan (AC: validasi akomodasi wajib sebelum publish, client)", () 
   });
 
   it("akomodasi terisi → Terbitkan mengirim POST, status berubah, tombol Tutup muncul", async () => {
-    renderDi("/admin/jobs/id-1", [
-      lowongan({ id: "id-1", accommodations: ["akses_kursi_roda"] }),
-    ]);
+    renderDi("/admin/jobs/id-1", [lowongan({ id: "id-1", accommodations: ["akses_kursi_roda"] })]);
     await userEvent.click(await screen.findByRole("button", { name: "Terbitkan lowongan ini" }));
 
     expect(await screen.findByText("Diterbitkan", { exact: true })).toBeInTheDocument();
@@ -382,9 +388,7 @@ describe("terbitkan (AC: validasi akomodasi wajib sebelum publish, client)", () 
 
 describe("tutup (AC: konfirmasi close, berdampak pelamar)", () => {
   it("tombol Tutup memunculkan dialog konfirmasi, BELUM mengirim apa pun", async () => {
-    const { jejak } = renderDi("/admin/jobs/id-1", [
-      lowongan({ id: "id-1", status: "published" }),
-    ]);
+    const { jejak } = renderDi("/admin/jobs/id-1", [lowongan({ id: "id-1", status: "published" })]);
     await screen.findByRole("button", { name: "Tutup lowongan ini" });
 
     await userEvent.click(screen.getByRole("button", { name: "Tutup lowongan ini" }));
@@ -404,9 +408,7 @@ describe("tutup (AC: konfirmasi close, berdampak pelamar)", () => {
   });
 
   it("membatalkan dialog TIDAK mengirim apa pun", async () => {
-    const { jejak } = renderDi("/admin/jobs/id-1", [
-      lowongan({ id: "id-1", status: "published" }),
-    ]);
+    const { jejak } = renderDi("/admin/jobs/id-1", [lowongan({ id: "id-1", status: "published" })]);
     await userEvent.click(await screen.findByRole("button", { name: "Tutup lowongan ini" }));
 
     const tombolBatal = screen.getAllByRole("button", { name: "Batal" });

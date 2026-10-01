@@ -48,10 +48,10 @@ tempat menuliskan sebab dan pertimbangan lengkap. Yang ada di sini adalah **stat
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: PR khusus format sekali) |
 | **Jenis** | Tooling |
 | **Ditemukan** | PR-047 (2026-09-05) |
-| **Pemilik** | Belum ditetapkan |
+| **Pemilik** | PR utang U-01 (`utang-u01-format-repo`) |
 | **Pemicu** | Siapa pun yang menjalankan `pnpm format` dan mengirim diff-nya |
 
 Menjalankan `pnpm format` pada pohon yang **`pnpm lint` hijau** tetap menulis ulang
@@ -71,6 +71,15 @@ sini akan menjadi alasan basi seperti yang dilarang aturan di atas.
 **Bukan blocker.** `pnpm lint` (yang dijalankan CI) tetap hijau; yang rusak adalah
 perintah `format` manual.
 
+**SEBABNYA (diselidiki 2026-10-01).** Bukan drift versi prettier dan bukan akhir baris (`git ls-files
+--eol`: hanya 7 berkas CRLF di working tree Windows, index seluruhnya LF). Sebabnya sederhana: **CI
+tidak pernah menjalankan `prettier --check`**, dan `pnpm lint` tidak memuat prettier — kode masuk
+tanpa diformat sejak awal, PR demi PR.
+
+**PEMBAYARANNYA.** Satu PR format murni (`pnpm format`: 141 berkas, tanpa perubahan logika — suite
+penuh hijau sesudahnya) + langkah CI baru **`Format (prettier --check)`** di job
+`lint-typecheck-test` (nama job tidak berubah, jadi ruleset tetap mengenalinya). Sejak itu `pnpm
+format` aman dijalankan, dan kode yang tidak diformat membuat CI merah.
 ---
 
 ### U-02 — Bus event in-process bisa kehilangan notifikasi saat proses mati

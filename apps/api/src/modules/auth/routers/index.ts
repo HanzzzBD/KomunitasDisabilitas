@@ -90,7 +90,12 @@ export function createAuthRouter(controllers: AuthControllers, routes: RouteRegi
     );
   } else {
     const bodySesi = validate({ body: refreshSessionSchema });
-    routes.post("/auth/refresh", access.public(ALASAN_SESI), bodySesi, asyncHandler(session.refresh));
+    routes.post(
+      "/auth/refresh",
+      access.public(ALASAN_SESI),
+      bodySesi,
+      asyncHandler(session.refresh),
+    );
     // Keluar (PR-018c). Kredensialnya refresh token itu sendiri — `requireAuth`
     // sudah ada sejak PR-019, tetapi memakainya di sini akan membuat pengguna
     // yang access token-nya baru kedaluwarsa tidak bisa keluar sama sekali.

@@ -140,9 +140,11 @@ describe("updateCompanyAdmin", () => {
 
 describe("verifyCompanyAdmin", () => {
   it("mengirim POST TANPA badan ke /admin/companies/:id/verify", async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      jsonResponse(200, { data: { ...PERUSAHAAN, inclusivityStatus: "verified" } }),
-    );
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(200, { data: { ...PERUSAHAAN, inclusivityStatus: "verified" } }),
+      );
 
     const hasil = await verifyCompanyAdmin(klien(fetch), PERUSAHAAN.id);
 

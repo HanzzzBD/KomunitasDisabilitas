@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Writable } from "node:stream";
-import { QUEUE_NAME, QUEUE_NAMES, dlqNameOf, internalQueuesResponseSchema } from "@nawasena/schemas";
+import {
+  QUEUE_NAME,
+  QUEUE_NAMES,
+  dlqNameOf,
+  internalQueuesResponseSchema,
+} from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
 import { QUEUE_DEFAULTS, type QueueLike, type QueueRegistry } from "../src/core/queue/index.js";
@@ -45,7 +50,11 @@ function registryPalsu(counts: Record<string, number> = {}): QueueRegistry {
 }
 
 async function bootTestServer(
-  options: { token?: string; queueCounts?: Record<string, number>; dlqCounts?: Record<string, number> } = {},
+  options: {
+    token?: string;
+    queueCounts?: Record<string, number>;
+    dlqCounts?: Record<string, number>;
+  } = {},
 ) {
   const destination = new Writable({
     write(_chunk, _enc, cb) {

@@ -4,6 +4,12 @@
     "noEmit": true,
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "__tests__/**/*.ts", "__tests__/**/*.tsx", "vitest.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "__tests__/**/*.ts",
+    "__tests__/**/*.tsx",
+    "vitest.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

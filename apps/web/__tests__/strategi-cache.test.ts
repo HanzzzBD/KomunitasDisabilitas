@@ -15,10 +15,7 @@ const AKAR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASAL = "https://nawasena.id";
 
 const minta = (url: string, extra: { method?: string; navigasi?: boolean } = {}) =>
-  putuskanStrategi(
-    { url, method: extra.method ?? "GET", navigasi: extra.navigasi ?? false },
-    ASAL,
-  );
+  putuskanStrategi({ url, method: extra.method ?? "GET", navigasi: extra.navigasi ?? false }, ASAL);
 
 describe("putuskanStrategi — yang BOLEH disimpan", () => {
   it("aset build ber-hash → cache-dulu", () => {

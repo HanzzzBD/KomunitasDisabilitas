@@ -56,5 +56,8 @@ export {
   type CompaniesService,
   type CompaniesServiceDeps,
 } from "./services/companies.service.js";
-export { createCompaniesController, type CompaniesController } from "./controllers/companies.controller.js";
+export {
+  createCompaniesController,
+  type CompaniesController,
+} from "./controllers/companies.controller.js";
 export { createCompaniesRouter } from "./routers/index.js";

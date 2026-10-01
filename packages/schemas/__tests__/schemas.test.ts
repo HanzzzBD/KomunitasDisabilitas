@@ -277,9 +277,9 @@ describe("profil perusahaan (PR-051)", () => {
 
   it("website harus URL sah", () => {
     expect(createCompanySchema.safeParse({ name: "X", website: "bukan-url" }).success).toBe(false);
-    expect(
-      createCompanySchema.safeParse({ name: "X", website: "https://contoh.id" }).success,
-    ).toBe(true);
+    expect(createCompanySchema.safeParse({ name: "X", website: "https://contoh.id" }).success).toBe(
+      true,
+    );
   });
 
   it("taksonomi akomodasi liar ditolak, nilai valid diterima", () => {
@@ -305,12 +305,8 @@ describe("profil perusahaan (PR-051)", () => {
   });
 
   it("update: inclusivityStatus HANYA menerima unverified/self_claimed — 'verified' ditolak", () => {
-    expect(
-      updateCompanySchema.safeParse({ inclusivityStatus: "unverified" }).success,
-    ).toBe(true);
-    expect(
-      updateCompanySchema.safeParse({ inclusivityStatus: "self_claimed" }).success,
-    ).toBe(true);
+    expect(updateCompanySchema.safeParse({ inclusivityStatus: "unverified" }).success).toBe(true);
+    expect(updateCompanySchema.safeParse({ inclusivityStatus: "self_claimed" }).success).toBe(true);
     expect(updateCompanySchema.safeParse({ inclusivityStatus: "verified" }).success).toBe(false);
   });
 
@@ -382,9 +378,9 @@ describe("lowongan (PR-055)", () => {
       createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000, salaryMax: 5_000_000 })
         .success,
     ).toBe(true);
-    expect(
-      createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000 }).success,
-    ).toBe(true);
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, salaryMin: 5_000_000 }).success).toBe(
+      true,
+    );
   });
 
   it("gaji negatif atau bukan bilangan bulat ditolak", () => {
@@ -398,9 +394,7 @@ describe("lowongan (PR-055)", () => {
     expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, status: "published" }).success).toBe(
       false,
     );
-    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, source: "employer" }).success).toBe(
-      false,
-    );
+    expect(createJobSchema.safeParse({ ...BADAN_MINIMAL, source: "employer" }).success).toBe(false);
   });
 
   it("update: badan kosong sah, field yang tidak disebut tidak ikut berubah", () => {
@@ -414,9 +408,7 @@ describe("lowongan (PR-055)", () => {
   });
 
   it("update: expiresAt menerima ISO 8601 atau null, menolak tanggal rusak", () => {
-    expect(
-      updateJobSchema.safeParse({ expiresAt: "2026-12-31T00:00:00.000Z" }).success,
-    ).toBe(true);
+    expect(updateJobSchema.safeParse({ expiresAt: "2026-12-31T00:00:00.000Z" }).success).toBe(true);
     expect(updateJobSchema.safeParse({ expiresAt: null }).success).toBe(true);
     expect(updateJobSchema.safeParse({ expiresAt: "bukan-tanggal" }).success).toBe(false);
   });
@@ -474,15 +466,13 @@ describe("pencarian lowongan — query (PR-056)", () => {
   });
 
   it("accommodations: nilai di luar taksonomi ditolak", () => {
-    expect(jobSearchQuerySchema.safeParse({ accommodations: ["kursi_pijat"] }).success).toBe(
-      false,
-    );
+    expect(jobSearchQuerySchema.safeParse({ accommodations: ["kursi_pijat"] }).success).toBe(false);
     expect(
       jobSearchQuerySchema.safeParse({ accommodations: "akses_kursi_roda,kursi_pijat" }).success,
     ).toBe(false);
   });
 
-  it("accommodations: string kosong → dianggap tidak diisi (undefined), bukan array kosong/[\"\"]", () => {
+  it('accommodations: string kosong → dianggap tidak diisi (undefined), bukan array kosong/[""]', () => {
     expect(jobSearchQuerySchema.parse({ accommodations: "" }).accommodations).toBeUndefined();
   });
 

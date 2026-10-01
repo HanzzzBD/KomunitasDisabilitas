@@ -72,8 +72,7 @@ export function konfigPengalaman(sub: string | null): KonfigKarier<Experience> {
       description: teksAtauNull(nilai.description),
     }),
     judulItem: (item) => item.title,
-    ringkas: (item) =>
-      gabungKeterangan(item.company, gabungRentang(item.startDate, item.endDate)),
+    ringkas: (item) => gabungKeterangan(item.company, gabungRentang(item.startDate, item.endDate)),
     idItem: (item) => item.id,
   };
 }

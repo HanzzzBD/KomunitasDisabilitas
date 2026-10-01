@@ -31,8 +31,7 @@ export async function daftarkanServiceWorker(opsi: OpsiDaftar): Promise<boolean>
   if (!opsi.produksi) return false;
 
   const kontainer =
-    opsi.serviceWorker ??
-    (typeof navigator === "undefined" ? undefined : navigator.serviceWorker);
+    opsi.serviceWorker ?? (typeof navigator === "undefined" ? undefined : navigator.serviceWorker);
 
   // Browser lama, atau konteks tak aman (http non-localhost). Keduanya sah dan
   // bukan kegagalan: aplikasi tetap berjalan penuh tanpa service worker.

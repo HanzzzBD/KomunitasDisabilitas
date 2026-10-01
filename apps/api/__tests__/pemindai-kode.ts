@@ -73,4 +73,3 @@ export function tanpaKomentar(kode: string): string {
 
   return hasil;
 }
-

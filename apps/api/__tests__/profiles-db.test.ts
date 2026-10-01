@@ -77,7 +77,11 @@ let urutan = 0;
 async function buatAktor(): Promise<ProfilesActor> {
   urutan += 1;
   const user = await prisma.user.create({
-    data: { id: uuidV7(), phone: `${PREFIX_UJI}${String(urutan).padStart(6, "0")}`, fullName: "Uji Profil" },
+    data: {
+      id: uuidV7(),
+      phone: `${PREFIX_UJI}${String(urutan).padStart(6, "0")}`,
+      fullName: "Uji Profil",
+    },
   });
   audit.length = 0;
   return { userId: user.id, requestId: uuidV7() };

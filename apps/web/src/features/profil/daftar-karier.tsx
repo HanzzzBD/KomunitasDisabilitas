@@ -262,7 +262,10 @@ export function DaftarKarier<Item>({ konfig, klien }: DaftarKarierProps<Item>) {
       return;
     }
     setGalatKolom({});
-    simpan.mutate({ id: sunting === "baru" ? null : sunting, badan: hasil.nilai as Record<string, unknown> });
+    simpan.mutate({
+      id: sunting === "baru" ? null : sunting,
+      badan: hasil.nilai as Record<string, unknown>,
+    });
   }
 
   const satuan = t(konfig.satuan);

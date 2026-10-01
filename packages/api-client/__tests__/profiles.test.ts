@@ -50,7 +50,10 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 function klien(fetch: ReturnType<typeof vi.fn>) {
-  return createApiClient({ baseUrl: "https://x/api/v1", fetch: fetch as unknown as typeof globalThis.fetch });
+  return createApiClient({
+    baseUrl: "https://x/api/v1",
+    fetch: fetch as unknown as typeof globalThis.fetch,
+  });
 }
 
 describe("getProfile", () => {

@@ -129,11 +129,10 @@ describe("jalur sensitif terhadap DB sungguhan", () => {
     if (!dbTersedia) return ctx.skip();
     const userId = await buatProfil();
 
-    const profil = await akses.bacaSensitif(
-      { userId: uuidV7(), requestId: uuidV7() },
-      userId,
-      { purpose: "support", reason: "tiket #4821" },
-    );
+    const profil = await akses.bacaSensitif({ userId: uuidV7(), requestId: uuidV7() }, userId, {
+      purpose: "support",
+      reason: "tiket #4821",
+    });
 
     expect(profil?.sensitive?.disabilityTypes).toEqual(["tuli"]);
     expect(jejak).toHaveLength(1);

@@ -420,13 +420,9 @@ describe("POST /api/v1/admin/jobs — create", () => {
 describe("PUT /api/v1/admin/jobs/:id — update", () => {
   it("admin mengubah judul → 200, audit update", async () => {
     const { base, jobs, audit } = await boot({ jobs: [jobBaru()] });
-    const res = await panggil(
-      base,
-      "PUT",
-      `/admin/jobs/${jobs[0]!.id}`,
-      await tokenUntuk(ADMIN),
-      { title: "Kasir Senior" },
-    );
+    const res = await panggil(base, "PUT", `/admin/jobs/${jobs[0]!.id}`, await tokenUntuk(ADMIN), {
+      title: "Kasir Senior",
+    });
 
     expect(res.status).toBe(200);
     expect((await badan(res)).data).toMatchObject({ title: "Kasir Senior" });
@@ -443,13 +439,9 @@ describe("PUT /api/v1/admin/jobs/:id — update", () => {
 
   it("mengirim `status` di body → 400 (transisi hanya lewat publish/close)", async () => {
     const { base, jobs } = await boot({ jobs: [jobBaru()] });
-    const res = await panggil(
-      base,
-      "PUT",
-      `/admin/jobs/${jobs[0]!.id}`,
-      await tokenUntuk(ADMIN),
-      { status: "published" },
-    );
+    const res = await panggil(base, "PUT", `/admin/jobs/${jobs[0]!.id}`, await tokenUntuk(ADMIN), {
+      status: "published",
+    });
     expect(res.status).toBe(400);
   });
 });
@@ -577,7 +569,12 @@ describe("POST /api/v1/admin/jobs/:id/close — AC-4", () => {
 
   it("id tidak ada → 404", async () => {
     const { base } = await boot();
-    const res = await panggil(base, "POST", `/admin/jobs/${TAK_ADA}/close`, await tokenUntuk(ADMIN));
+    const res = await panggil(
+      base,
+      "POST",
+      `/admin/jobs/${TAK_ADA}/close`,
+      await tokenUntuk(ADMIN),
+    );
     expect(res.status).toBe(404);
   });
 });
@@ -585,7 +582,12 @@ describe("POST /api/v1/admin/jobs/:id/close — AC-4", () => {
 describe("DELETE /api/v1/admin/jobs/:id — AC-3", () => {
   it("lowongan tanpa lamaran → 204, audit delete", async () => {
     const { base, jobs, audit } = await boot({ jobs: [jobBaru()] });
-    const res = await panggil(base, "DELETE", `/admin/jobs/${jobs[0]!.id}`, await tokenUntuk(ADMIN));
+    const res = await panggil(
+      base,
+      "DELETE",
+      `/admin/jobs/${jobs[0]!.id}`,
+      await tokenUntuk(ADMIN),
+    );
 
     expect(res.status).toBe(204);
     expect(audit).toEqual([expect.objectContaining({ meta: { operation: "delete" } })]);
@@ -609,7 +611,12 @@ describe("DELETE /api/v1/admin/jobs/:id — AC-3", () => {
 
   it("seeker tidak dapat menghapus → 403, baris tetap ada", async () => {
     const { base, jobs } = await boot({ jobs: [jobBaru()] });
-    const res = await panggil(base, "DELETE", `/admin/jobs/${jobs[0]!.id}`, await tokenUntuk(SEEKER));
+    const res = await panggil(
+      base,
+      "DELETE",
+      `/admin/jobs/${jobs[0]!.id}`,
+      await tokenUntuk(SEEKER),
+    );
 
     expect(res.status).toBe(403);
     expect(jobs).toHaveLength(1);

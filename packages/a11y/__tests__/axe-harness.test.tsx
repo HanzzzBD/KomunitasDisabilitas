@@ -86,9 +86,7 @@ describe("batas jsdom dicatat eksplisit", () => {
   it("kontras yang jelas buruk memang TIDAK tertangkap di sini", async () => {
     // Bukti jujur bahwa lapisan ini punya lubang, bukan klaim bahwa ia lengkap.
     // PR-031b yang menutupnya dengan browser sungguhan.
-    const el = pasang(
-      `<p style="color:#fff;background:#fff">Teks putih di atas putih</p>`,
-    );
+    const el = pasang(`<p style="color:#fff;background:#fff">Teks putih di atas putih</p>`);
     await expect(harusLolosAksesibilitas(el)).resolves.toBeUndefined();
   });
 });

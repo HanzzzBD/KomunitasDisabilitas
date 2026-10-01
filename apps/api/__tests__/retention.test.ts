@@ -104,10 +104,10 @@ describe("mesin retensi — batching & batas run", () => {
 
   it("batch tidak penuh menghentikan loop tanpa query tambahan", async () => {
     const hapus = vi.fn((_now: Date, batas: number) => Promise.resolve(Math.min(batas, 10)));
-    const { service } = rakit(
-      [{ nama: "uji", hitung: () => Promise.resolve(0), hapus }],
-      { batchSize: 100, maxPerRun: 1000 },
-    );
+    const { service } = rakit([{ nama: "uji", hitung: () => Promise.resolve(0), hapus }], {
+      batchSize: 100,
+      maxPerRun: 1000,
+    });
 
     await service.run();
 

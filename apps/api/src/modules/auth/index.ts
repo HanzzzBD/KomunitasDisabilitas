@@ -120,7 +120,10 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
   // sebagai alat pembuktian ulang saat hapus akun (PR-021).
   let otpService: OtpService | undefined;
   if (deps.otpHashSecret === undefined) {
-    deps.logger.warn({ modul: "auth" }, "OTP_HASH_SECRET belum di-set — endpoint OTP dimatikan (503)");
+    deps.logger.warn(
+      { modul: "auth" },
+      "OTP_HASH_SECRET belum di-set — endpoint OTP dimatikan (503)",
+    );
   } else if (sesi !== null && sessionService !== undefined) {
     otpService = createOtpService({
       otpRepository: createOtpRepository({ redis: deps.redis, secret: deps.otpHashSecret }),
@@ -229,7 +232,8 @@ export function createGoogleConfigFromEnv(
   },
   fetchImpl?: FetchLike,
 ): GoogleAuthConfig | undefined {
-  if (env.GOOGLE_CLIENT_ID === undefined || env.GOOGLE_CLIENT_SECRET === undefined) return undefined;
+  if (env.GOOGLE_CLIENT_ID === undefined || env.GOOGLE_CLIENT_SECRET === undefined)
+    return undefined;
   return {
     clientId: env.GOOGLE_CLIENT_ID,
     clientSecret: env.GOOGLE_CLIENT_SECRET,
@@ -285,7 +289,11 @@ export {
   type SessionService,
   type SessionTokens,
 } from "./services/session.service.js";
-export { createSessionCookie, REFRESH_COOKIE, type SessionCookie } from "./controllers/session-cookie.js";
+export {
+  createSessionCookie,
+  REFRESH_COOKIE,
+  type SessionCookie,
+} from "./controllers/session-cookie.js";
 /**
  * Repository akun. Diekspor untuk composition root apps/worker (PR-049a), yang
  * merakit jalur email dari potongan dua modul: template dan adapter dari
@@ -293,6 +301,9 @@ export { createSessionCookie, REFRESH_COOKIE, type SessionCookie } from "./contr
  * ini. Jalan masuknya PARAMETER di composition root, bukan import lintas modul
  * di dalam service (aturan boundaries PR-002), persis pola `devices` PR-048b.
  */
-export { createAuthUserRepository, type AuthUserRepository } from "./repositories/user.repository.js";
+export {
+  createAuthUserRepository,
+  type AuthUserRepository,
+} from "./repositories/user.repository.js";
 export { createFonnteSender, FONNTE_PROVIDER, type FetchLike } from "./services/fonnte.sender.js";
 export { createTwilioSender, TWILIO_PROVIDER } from "./services/twilio.sender.js";

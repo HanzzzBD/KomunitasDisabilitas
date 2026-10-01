@@ -33,9 +33,7 @@ test.describe("kurasi perusahaan — alur sungguhan", () => {
     // Form terisi NILAI SUNGGUHAN dari baris yang diklik — bukan kosong.
     await expect(page.locator('input[value="PT Uji Fiktif"]')).toBeVisible();
     await expect(page.getByText("Belum diverifikasi")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Verifikasi perusahaan ini" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verifikasi perusahaan ini" })).toBeVisible();
 
     await tungguGayaTenang(page);
     const hasil = await new AxeBuilder({ page }).withTags(TAG).analyze();
@@ -69,9 +67,7 @@ test.describe("kurasi perusahaan — alur sungguhan", () => {
     // Tombol Verifikasi hilang begitu perusahaan sudah terverifikasi — AC
     // "un-verify tidak ada di UI ini" (lihat komentar `admin-companies-
     // formulir.tsx`): tidak ada jalan menurunkan status lagi dari sini.
-    await expect(
-      page.getByRole("button", { name: "Verifikasi perusahaan ini" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Verifikasi perusahaan ini" })).toHaveCount(0);
   });
 
   test("AC 'Buat→edit→verifikasi end-to-end': menyimpan form Tambah mendarat di halaman Ubah", async ({
@@ -94,8 +90,6 @@ test.describe("kurasi perusahaan — alur sungguhan", () => {
     await page.waitForURL(/\/admin\/companies\/[^/]+$/);
     await expect(page).not.toHaveURL(/\/admin\/companies\/(baru|:id)$/);
     await expect(page.getByText("Belum diverifikasi")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Verifikasi perusahaan ini" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verifikasi perusahaan ini" })).toBeVisible();
   });
 });

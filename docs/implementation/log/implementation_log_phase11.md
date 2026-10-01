@@ -790,3 +790,16 @@ Rename murni (16 berkas, 95 baris; tanpa perubahan perilaku): kanal WhatsApp/SMS
 (kode masuk + pemberitahuan pasca-hapus akun). `PhoneSender`, `PhoneMessage`, `PhoneSenderError`,
 `createFallbackPhoneSender`, `createPhoneSenderFromEnv`, `createUnavailablePhoneSender`; berkas
 `phone-sender.ts`. `buildOtpMessage` tetap bernama OTP karena memang khusus OTP.
+
+---
+
+## Utang U-01 — Format seluruh repo sekali + gerbang CI
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai · **Branch:** `utang-u01-format-repo` → `phase-11-matching-engine`
+> Keputusan owner (AskUserQuestion, 2026-10-01): PR khusus format sekali.
+
+Sebab yang selama ini belum diselidiki: CI tidak pernah menjalankan `prettier --check` (dan `pnpm
+lint` tidak memuat prettier), jadi kode masuk tanpa diformat. Bukan soal versi maupun akhir baris
+(index seluruhnya LF). Dibayar dengan `pnpm format` sekali (141 berkas, format murni) + langkah CI
+`Format (prettier --check)` di job `lint-typecheck-test`. Dokumen di `docs/` dan dokumen produk
+tetap dikecualikan `.prettierignore` seperti sebelumnya.

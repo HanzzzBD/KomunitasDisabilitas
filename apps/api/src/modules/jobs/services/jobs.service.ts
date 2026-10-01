@@ -299,7 +299,9 @@ export function createJobsService(deps: JobsServiceDeps) {
       const { expiresAt, ...sisa } = input;
       const patch: JobUpdatePatch = {
         ...sisa,
-        ...(expiresAt !== undefined && { expiresAt: expiresAt === null ? null : new Date(expiresAt) }),
+        ...(expiresAt !== undefined && {
+          expiresAt: expiresAt === null ? null : new Date(expiresAt),
+        }),
       };
       const row = await jobsRepository.update(id, patch);
       if (row === null) throw appError("LOWONGAN_TIDAK_DITEMUKAN");

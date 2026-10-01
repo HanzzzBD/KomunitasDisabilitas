@@ -43,7 +43,8 @@ const LOKAL = new Set(["apps/api/.env", ".env"]);
  * `implementation_log_phaseXX.md`) ikut terjaring dan penjaganya jadi berisik —
  * dan penjaga yang berisik akan dimatikan orang, bukan diperbaiki.
  */
-const BERBENTUK_PATH = /^(apps|packages|docs|infra|\.github)\/|^docker-compose[\w.-]*\.ya?ml$|^Dockerfile$/;
+const BERBENTUK_PATH =
+  /^(apps|packages|docs|infra|\.github)\/|^docker-compose[\w.-]*\.ya?ml$|^Dockerfile$/;
 
 /** Rujukan bergaya markdown: [teks](path) — anchor & URL dilewati. */
 function tautan(isi: string): string[] {

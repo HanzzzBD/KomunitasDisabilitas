@@ -169,9 +169,7 @@ export function createFcmSender(config: FcmConfig, fetchImpl?: FetchLike): FcmSe
 
     if (!res.ok) {
       throw new FcmError(
-        res.status === 400 || res.status === 401
-          ? "FCM_KREDENSIAL_TIDAK_VALID"
-          : "FCM_TOKEN_GAGAL",
+        res.status === 400 || res.status === 401 ? "FCM_KREDENSIAL_TIDAK_VALID" : "FCM_TOKEN_GAGAL",
         `Penukaran token FCM gagal (HTTP ${res.status})`,
         res.status,
       );
@@ -242,7 +240,11 @@ export function createFcmSender(config: FcmConfig, fetchImpl?: FetchLike): FcmSe
         // menukar yang baru — 401 juga muncul saat token kebetulan hangus lebih
         // cepat daripada dugaan kita.
         cache = null;
-        throw new FcmError("FCM_KREDENSIAL_TIDAK_VALID", `FCM menolak kredensial (${kode})`, res.status);
+        throw new FcmError(
+          "FCM_KREDENSIAL_TIDAK_VALID",
+          `FCM menolak kredensial (${kode})`,
+          res.status,
+        );
       }
 
       throw new FcmError(
