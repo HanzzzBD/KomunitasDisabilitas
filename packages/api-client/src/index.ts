@@ -100,4 +100,10 @@ export {
   matchingKeys,
   type OpsiFeedMatching,
 } from "./endpoints/matching.js";
-export { createSessionRefresher, type SessionRefresherOptions } from "./session.js";
+export {
+  createSessionRefresher,
+  JEDA_COBA_ULANG_ROTASI_MS,
+  refreshSesiToleran,
+  type OpsiRefreshToleran,
+  type SessionRefresherOptions,
+} from "./session.js";

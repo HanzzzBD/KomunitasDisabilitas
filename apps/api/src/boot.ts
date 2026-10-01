@@ -312,6 +312,9 @@ export async function startApi(options: BootOptions): Promise<void> {
           sessionKeys,
           // `Secure` dilepas HANYA di dev, tempat API berjalan di http localhost.
           cookieSecure: env.NODE_ENV !== "development",
+          // Utang U-10: balapan rotasi (dua tab, boot vs 401) tidak lagi
+          // mencabut keluarga sesi milik pemenangnya.
+          toleransiRotasiDetik: env.AUTH_REFRESH_ROTATION_GRACE_SECONDS,
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
           sender: createOtpSenderFromEnv(env, logger),
           // Produser `notify:email` (PR-049a): pemberitahuan pasca-hapus bagi

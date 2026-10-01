@@ -71,6 +71,8 @@ export interface AuthModuleDeps {
   sessionKeys?: SessionKeys;
   /** `Secure` pada cookie refresh; dimatikan hanya untuk dev di http localhost. */
   cookieSecure?: boolean;
+  /** Jendela toleransi rotasi refresh token, detik (utang U-10). Bawaan 0 = tanpa toleransi. */
+  toleransiRotasiDetik?: number;
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
   routes: RouteRegistrar;
   auditLog: AuditLog;
@@ -106,6 +108,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
       userRepository,
       refreshTokenRepository: createRefreshTokenRepository(deps.prisma),
       auditLog: deps.auditLog,
+      toleransiRotasiMs: (deps.toleransiRotasiDetik ?? 0) * 1000,
     });
     controllers.session = createSessionController({ service: sessionService, cookie });
   }

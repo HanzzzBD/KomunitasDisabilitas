@@ -9,7 +9,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import {
   createApiClient,
   createSessionRefresher,
-  refreshSession,
+  refreshSesiToleran,
   type ApiClient,
 } from "@nawasena/api-client";
 import { ambilTokenAkses, useStoreSesi } from "../shared/sesi/store.js";
@@ -94,7 +94,10 @@ export function pulihkanSesi(klien: ApiClient): Promise<void> {
   // bisa diukur di dev, dan itu pula yang membuat verifikasi keyboard-only
   // jalur Google mustahil diselesaikan sebelumnya.
   //
-  // YANG TIDAK DITUTUP GERBANG INI, supaya tidak dikira sudah aman:
+  // YANG TIDAK DITUTUP GERBANG INI — dan sejak utang U-10 (2026-10-01) DITUTUP
+  // DI SERVER: token yang dirotasi ≤ 10 detik lalu ditolak `SESI_SUDAH_DIROTASI`
+  // TANPA mencabut keluarga, dan `refreshSesiToleran` (api-client) mencoba lagi
+  // dengan cookie terbaru. Uraian aslinya dipertahankan sebagai riwayat:
   //   - Dua tab yang dibuka bersamaan. Keduanya konteks JavaScript terpisah
   //     dengan WeakMap sendiri-sendiri, jadi keduanya tetap mengirim nilai
   //     cookie yang sama.
@@ -113,8 +116,7 @@ export function pulihkanSesi(klien: ApiClient): Promise<void> {
   //     membuat yang kalah hanya mendapat 401 biasa.)
   //
   // Keduanya butuh jendela toleransi di sisi server (memperlakukan token yang
-  // baru saja dirotasi sebagai balapan, bukan reuse) — dicatat sebagai
-  // lanjutan, di luar lingkup PR ini.
+  // baru saja dirotasi sebagai balapan, bukan reuse) — dibayar utang U-10.
   //
   // Gerbangnya per-KLIEN, bukan per-modul: test merakit banyak klien, dan
   // gerbang modul-global akan membuat pemulihan kedua diam-diam memakai hasil
@@ -134,7 +136,9 @@ export function pulihkanSesi(klien: ApiClient): Promise<void> {
 async function jalankanPemulihan(klien: ApiClient): Promise<void> {
   let hasil: string | null = null;
   try {
-    const { data } = await refreshSession(klien);
+    // Tahan balapan rotasi (utang U-10): pemulihan yang kalah dari refresh
+    // lain mencoba lagi alih-alih membaca "belum masuk".
+    const { data } = await refreshSesiToleran(klien);
     hasil = data.accessToken;
   } catch {
     // Sebab penolakan tidak dibedakan: tidak ada cookie, kedaluwarsa, atau

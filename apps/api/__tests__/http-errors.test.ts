@@ -180,6 +180,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Halaman atau data tidak ditemukan",
           "status": 404,
         },
+        "SESI_SUDAH_DIROTASI": {
+          "hint": "Coba lagi sebentar",
+          "message": "Sesi Anda sedang diperbarui",
+          "status": 401,
+        },
         "SESI_TIDAK_VALID": {
           "hint": "Silakan masuk lagi untuk melanjutkan",
           "message": "Sesi Anda sudah berakhir",
