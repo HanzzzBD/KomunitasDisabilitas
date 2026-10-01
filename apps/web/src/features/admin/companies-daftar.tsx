@@ -40,7 +40,9 @@ export function DaftarPerusahaan({ klien }: DaftarPerusahaanProps) {
     if (urutan === undefined) return baris;
     const arah = urutan.arah === "asc" ? 1 : -1;
     return [...baris].sort(
-      (a, b) => bandingkan(a[urutan.kunci as keyof CompanyAdmin], b[urutan.kunci as keyof CompanyAdmin]) * arah,
+      (a, b) =>
+        bandingkan(a[urutan.kunci as keyof CompanyAdmin], b[urutan.kunci as keyof CompanyAdmin]) *
+        arah,
     );
   }, [daftar.data, urutan]);
 

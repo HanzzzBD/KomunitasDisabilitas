@@ -62,11 +62,7 @@ const LowonganBrowse = lazy(async () => {
  * kelas yang sedikit berbeda, dan tidak ada yang menyadarinya karena ketiganya
  * tampak "kurang lebih sama".
  */
-const NILAI = [
-  { kunci: "cocok" },
-  { kunci: "terbuka" },
-  { kunci: "menyesuaikan" },
-] as const;
+const NILAI = [{ kunci: "cocok" }, { kunci: "terbuka" }, { kunci: "menyesuaikan" }] as const;
 
 const LANGKAH = ["beranda.cara.satu", "beranda.cara.dua", "beranda.cara.tiga"] as const;
 

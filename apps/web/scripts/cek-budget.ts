@@ -143,7 +143,9 @@ function jalankan(): void {
   // "0 KB, lolos" pada keadaan itu adalah kegagalan penjaga yang paling
   // berbahaya: ia hijau justru ketika ia berhenti mengukur apa pun.
   if (jalurAset.length === 0) {
-    console.error("Tidak ada JS awal terdeteksi di dist/index.html — build gagal atau bentuknya berubah.");
+    console.error(
+      "Tidak ada JS awal terdeteksi di dist/index.html — build gagal atau bentuknya berubah.",
+    );
     process.exit(1);
   }
 

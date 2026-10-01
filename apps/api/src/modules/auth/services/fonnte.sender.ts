@@ -62,7 +62,10 @@ export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike):
       }
 
       if (!response.ok) {
-        throw new PhoneSenderError(FONNTE_PROVIDER, `Fonnte menolak permintaan (HTTP ${response.status})`);
+        throw new PhoneSenderError(
+          FONNTE_PROVIDER,
+          `Fonnte menolak permintaan (HTTP ${response.status})`,
+        );
       }
 
       const body: unknown = await response.json().catch(() => null);

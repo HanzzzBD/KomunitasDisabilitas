@@ -103,7 +103,9 @@ describe("profil publik perusahaan", () => {
   it("menampilkan nama sebagai h1, dan badge status verified secara tekstual", async () => {
     renderDi(`/companies/${PERUSAHAAN_ID}`, perusahaan({ inclusivityStatus: "verified" }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: "PT Inklusif Fiktif" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "PT Inklusif Fiktif" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Terverifikasi")).toBeInTheDocument();
   });
 

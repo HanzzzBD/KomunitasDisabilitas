@@ -16,7 +16,11 @@ const KONFIG = {
   tokenUrl: "https://oauth2.contoh.invalid/token",
   timeoutMs: 2000,
 };
-const INPUT = { code: "kode-uji", codeVerifier: "v".repeat(64), redirectUri: "http://localhost/cb" };
+const INPUT = {
+  code: "kode-uji",
+  codeVerifier: "v".repeat(64),
+  redirectUri: "http://localhost/cb",
+};
 const IDENTITAS: GoogleIdentity = {
   googleId: "sub-1",
   email: "rina@contoh.id",
@@ -33,7 +37,10 @@ describe("createGoogleCodeExchange", () => {
       Promise.reject(new TypeError("fetch failed")),
     );
 
-    await expect(exchange.exchange(INPUT)).rejects.toMatchObject({ code: "BELUM_SIAP", status: 503 });
+    await expect(exchange.exchange(INPUT)).rejects.toMatchObject({
+      code: "BELUM_SIAP",
+      status: 503,
+    });
     // Log kegagalan menyebut jenisnya saja — bukan kredensial permintaan.
     const dicatat = JSON.stringify(log.warn.mock.calls);
     expect(dicatat).toContain("TypeError");
@@ -85,7 +92,8 @@ describe("createGoogleCodeExchange", () => {
 
 const repoPalsu = (isNew = true): AuthUserRepository =>
   ({
-    findOrCreateByGoogle: () => Promise.resolve({ id: "01912345-89ab-7def-8123-000000000001", isNew }),
+    findOrCreateByGoogle: () =>
+      Promise.resolve({ id: "01912345-89ab-7def-8123-000000000001", isNew }),
   }) as unknown as AuthUserRepository;
 
 const buat = (gagalDengan?: AppError, opsi: { isNew?: boolean } = {}) => {
@@ -95,7 +103,8 @@ const buat = (gagalDengan?: AppError, opsi: { isNew?: boolean } = {}) => {
   const emitEvent = vi.fn();
   const service = createGoogleService({
     exchange: {
-      exchange: () => (gagalDengan === undefined ? Promise.resolve("token") : Promise.reject(gagalDengan)),
+      exchange: () =>
+        gagalDengan === undefined ? Promise.resolve("token") : Promise.reject(gagalDengan),
     },
     verifier: { verify: () => Promise.resolve(IDENTITAS) },
     userRepository: repoPalsu(opsi.isNew),

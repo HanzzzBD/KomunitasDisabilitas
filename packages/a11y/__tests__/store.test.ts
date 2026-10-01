@@ -120,7 +120,10 @@ describe("store — migrasi & state rusak", () => {
         pilihanPengguna: { reduceMotion: true, admin: true, __proto__: { jahat: 1 } },
       }),
     });
-    const p = createA11yStore({ storage: st }).getState().pilihanPengguna as Record<string, unknown>;
+    const p = createA11yStore({ storage: st }).getState().pilihanPengguna as Record<
+      string,
+      unknown
+    >;
 
     expect(p.reduceMotion).toBe(true);
     expect(p.admin).toBeUndefined();

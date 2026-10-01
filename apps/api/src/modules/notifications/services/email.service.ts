@@ -71,7 +71,10 @@ export interface EmailServiceDeps {
    * pilihan bahasa seseorang tetap dihormati pada kabar terakhir yang ia terima.
    */
   accessibility: {
-    getMe(actor: { userId: string; requestId: string }): Promise<{ simpleLanguage: boolean | null }>;
+    getMe(actor: {
+      userId: string;
+      requestId: string;
+    }): Promise<{ simpleLanguage: boolean | null }>;
   };
   logger: Pick<Logger, "info" | "warn" | "error">;
 }

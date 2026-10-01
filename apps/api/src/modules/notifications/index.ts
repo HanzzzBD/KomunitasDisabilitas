@@ -15,7 +15,12 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { EventBus } from "../../core/events/index.js";
-import { QUEUE_NAME, kanalBerlaku, notifyEmailJobSchema, notifyPushJobSchema } from "@nawasena/schemas";
+import {
+  QUEUE_NAME,
+  kanalBerlaku,
+  notifyEmailJobSchema,
+  notifyPushJobSchema,
+} from "@nawasena/schemas";
 import type { NotificationChannelPrefs } from "@nawasena/schemas";
 import { buildJobId, type QueueRegistry } from "../../core/queue/index.js";
 import type { Logger } from "../../core/logger/index.js";
@@ -99,7 +104,11 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
    * ke layar kunci), bukan alasan menjatuhkan pelanggan event yang pekerjaan
    * utamanya sudah selesai. Pola yang sama dengan `ai-usage.service.ts`.
    */
-  async function antrekanPush(lahir: boolean, userId: string, notificationId: string): Promise<void> {
+  async function antrekanPush(
+    lahir: boolean,
+    userId: string,
+    notificationId: string,
+  ): Promise<void> {
     if (!lahir || deps.queues === undefined) return;
     try {
       const job = notifyPushJobSchema.parse({ notificationId, userId });

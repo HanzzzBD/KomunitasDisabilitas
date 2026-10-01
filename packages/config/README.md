@@ -4,8 +4,8 @@ Preset bersama (shared config) untuk seluruh workspace Nawasena: TypeScript, ESL
 
 ## Isi Paket
 
-| Export                              | Isi                                                |
-| ----------------------------------- | -------------------------------------------------- |
+| Export                               | Isi                                                |
+| ------------------------------------ | -------------------------------------------------- |
 | `@nawasena/config/tsconfig/base`     | tsconfig strict dasar                              |
 | `@nawasena/config/tsconfig/node`     | turunan base untuk app Node (api, worker)          |
 | `@nawasena/config/tsconfig/react`    | turunan base untuk app React (web, ui)             |

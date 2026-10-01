@@ -107,9 +107,7 @@ describe("penutupan lowongan kedaluwarsa (AC)", () => {
 
     expect(laporan).toMatchObject({ dryRun: false, closed: 1, remaining: 0 });
     expect(await status(id)).toBe("closed");
-    expect(terbit).toEqual([
-      { jobId: id, closedAt: SEKARANG.toISOString(), reason: "expired" },
-    ]);
+    expect(terbit).toEqual([{ jobId: id, closedAt: SEKARANG.toISOString(), reason: "expired" }]);
   });
 
   it("updated_at ikut diperbarui — @updatedAt tidak berlaku pada raw SQL", async (ctx) => {

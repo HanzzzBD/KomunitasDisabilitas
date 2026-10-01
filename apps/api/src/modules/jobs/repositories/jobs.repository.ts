@@ -284,7 +284,10 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
         const row = await prisma.job.create({ data: { id, ...data }, select: KOLOM });
         return keRow(row);
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === FOREIGN_KEY_VIOLATION) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === FOREIGN_KEY_VIOLATION
+        ) {
           return "perusahaan-tidak-ada";
         }
         throw err;
@@ -357,7 +360,9 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
         kondisi.push(Prisma.sql`j."work_mode" = ${filter.workMode}::"WorkMode"`);
       }
       if (filter.accommodations !== undefined && filter.accommodations.length > 0) {
-        kondisi.push(Prisma.sql`j."accommodations" @> ${JSON.stringify(filter.accommodations)}::jsonb`);
+        kondisi.push(
+          Prisma.sql`j."accommodations" @> ${JSON.stringify(filter.accommodations)}::jsonb`,
+        );
       }
       if (filter.query !== undefined) {
         // FTS (indeks `jobs_fts_gin`) ATAU KEMIRIPAN KATA trigram (indeks

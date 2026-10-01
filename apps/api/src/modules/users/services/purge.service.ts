@@ -22,10 +22,7 @@
 // didefinisikan dari KEADAAN TUJUAN — baris yang masih memegang PII — sehingga
 // yang sudah bersih tidak pernah terpilih lagi, dan run yang gagal separuh jalan
 // otomatis dilanjutkan run berikutnya tanpa penanganan khusus.
-import {
-  AUDIT_ACTION,
-  type PdpPurgeReport,
-} from "@nawasena/schemas";
+import { AUDIT_ACTION, type PdpPurgeReport } from "@nawasena/schemas";
 import type { Prisma } from "@prisma/client";
 import type { AuditLog } from "../../../core/audit/index.js";
 import type { AppPrisma } from "../../../core/db/index.js";
@@ -167,7 +164,9 @@ export function createPurgeService(deps: PurgeServiceDeps) {
   };
 
   /** Hitung dampak tanpa menulis apa pun (dry-run). */
-  async function telaah(userId: string): Promise<Omit<PdpPurgeReport, "dryRun" | "accounts" | "hasMore">> {
+  async function telaah(
+    userId: string,
+  ): Promise<Omit<PdpPurgeReport, "dryRun" | "accounts" | "hasMore">> {
     const hired = await prisma.application.count({ where: { userId, status: "hired" } });
     let records = 0;
     for (const tabel of TABEL_DIHAPUS) {

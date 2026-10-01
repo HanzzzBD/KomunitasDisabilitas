@@ -38,9 +38,7 @@ test("mengisi data dasar lalu menyimpan bagiannya", async ({ page }) => {
   await page.getByLabel("Kota").fill("Bandung");
 
   const [permintaan] = await Promise.all([
-    page.waitForRequest(
-      (r) => r.url().includes("/me/profile") && r.method() === "PUT",
-    ),
+    page.waitForRequest((r) => r.url().includes("/me/profile") && r.method() === "PUT"),
     page.getByRole("button", { name: "Simpan bagian ini" }).click(),
   ]);
 
@@ -57,7 +55,9 @@ test("kolom disabilitas TIDAK ADA sebelum izin diberikan", async ({ page }) => {
 
   await expect(page.getByRole("checkbox", { name: "Tuli atau kurang dengar" })).toHaveCount(0);
   await expect(
-    page.getByRole("checkbox", { name: "Saya mengizinkan Nawasena menyimpan data disabilitas saya" }),
+    page.getByRole("checkbox", {
+      name: "Saya mengizinkan Nawasena menyimpan data disabilitas saya",
+    }),
   ).not.toBeChecked();
 });
 
@@ -113,7 +113,9 @@ test("memberi izin, mengisi data sensitif, lalu MENCABUTNYA sampai tuntas", asyn
   // terkirim.
   await expect(page.getByRole("checkbox", { name: "Tuli atau kurang dengar" })).toHaveCount(0);
   await expect(
-    page.getByRole("checkbox", { name: "Saya mengizinkan Nawasena menyimpan data disabilitas saya" }),
+    page.getByRole("checkbox", {
+      name: "Saya mengizinkan Nawasena menyimpan data disabilitas saya",
+    }),
   ).not.toBeChecked();
 });
 

@@ -177,7 +177,10 @@ export function gabungkanDariServer(
   if (sekarang.simpleLanguage === sebelum.simpleLanguage && server.simpleLanguage !== null) {
     hasil.simpleLanguage = server.simpleLanguage;
   }
-  if (sekarang.largeTouchTargets === sebelum.largeTouchTargets && server.largeTouchTargets !== null) {
+  if (
+    sekarang.largeTouchTargets === sebelum.largeTouchTargets &&
+    server.largeTouchTargets !== null
+  ) {
     hasil.largeTouchTargets = server.largeTouchTargets;
   }
   if (

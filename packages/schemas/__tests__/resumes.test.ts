@@ -147,7 +147,9 @@ describe("validasi per-field berbahasa manusia (AC-2)", () => {
     const hasil = resumeContentInputSchema.safeParse({
       experiences: [{ title: "Analis Data", startDate: "2026-02-30" }],
     });
-    expect(pesanPerField(hasil)["experiences.0.startDate"]).toBe("Tanggal itu tidak ada di kalender");
+    expect(pesanPerField(hasil)["experiences.0.startDate"]).toBe(
+      "Tanggal itu tidak ada di kalender",
+    );
   });
 
   it.each([RESUME_YEAR_MIN - 1, RESUME_YEAR_MAX + 1])("menolak tahun %i", (tahun) => {

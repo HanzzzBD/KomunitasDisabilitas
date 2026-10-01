@@ -29,7 +29,12 @@ export interface PushServiceDeps {
    * Preferensi aksesibilitas pemilik notifikasi — untuk memilih varian bahasa.
    * Impor LINTAS MODUL yang sah: service → service (aturan boundaries PR-002).
    */
-  accessibility: { getMe(actor: { userId: string; requestId: string }): Promise<{ simpleLanguage: boolean | null }> };
+  accessibility: {
+    getMe(actor: {
+      userId: string;
+      requestId: string;
+    }): Promise<{ simpleLanguage: boolean | null }>;
+  };
   logger: Pick<Logger, "info" | "warn" | "error">;
 }
 
@@ -93,10 +98,16 @@ export function createPushService(deps: PushServiceDeps) {
       // jauh lebih baik daripada tidak ada kabar sama sekali.
       let sederhana = false;
       try {
-        const preferensi = await accessibility.getMe({ userId, requestId: `push:${notificationId}` });
+        const preferensi = await accessibility.getMe({
+          userId,
+          requestId: `push:${notificationId}`,
+        });
         sederhana = preferensi.simpleLanguage === true;
       } catch (err) {
-        logger.warn({ err, notificationId }, "Preferensi bahasa tak terbaca — push memakai varian baku");
+        logger.warn(
+          { err, notificationId },
+          "Preferensi bahasa tak terbaca — push memakai varian baku",
+        );
       }
 
       let terkirim = 0;

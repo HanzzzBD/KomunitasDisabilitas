@@ -175,9 +175,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
   it("panel ringkasan menautkan ke bagian Lowongan (PR-057)", async () => {
     renderAdmin();
 
-    expect(
-      await screen.findByRole("heading", { level: 3, name: "Lowongan" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 3, name: "Lowongan" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Buka daftar lowongan" })).toHaveAttribute(
       "href",
       "/admin/jobs",

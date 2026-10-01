@@ -197,9 +197,9 @@ describe("jobs.service — getPublic", () => {
 
   it("tidak ada sama sekali → 404", async () => {
     const { service } = boot([]);
-    await expect(
-      service.getPublic("018f4c1e-0000-7000-8000-00000000dead"),
-    ).rejects.toMatchObject({ code: "LOWONGAN_TIDAK_DITEMUKAN" } satisfies Partial<AppError>);
+    await expect(service.getPublic("018f4c1e-0000-7000-8000-00000000dead")).rejects.toMatchObject({
+      code: "LOWONGAN_TIDAK_DITEMUKAN",
+    } satisfies Partial<AppError>);
   });
 
   it("salaryVisible=false → salaryMin/salaryMax disembunyikan (null)", async () => {
@@ -218,7 +218,12 @@ describe("jobs.service — getPublic", () => {
 
   it("salaryVisible=true → salaryMin/salaryMax tampil apa adanya", async () => {
     const { service } = boot([
-      barisBaru({ status: "published", salaryVisible: true, salaryMin: 5_000_000, salaryMax: 8_000_000 }),
+      barisBaru({
+        status: "published",
+        salaryVisible: true,
+        salaryMin: 5_000_000,
+        salaryMax: 8_000_000,
+      }),
     ]);
     const hasil = await service.getPublic(barisBaru().id);
     expect(hasil.salaryMin).toBe(5_000_000);
@@ -242,9 +247,7 @@ describe("jobs.service — listActiveByCompany (dipakai modul companies)", () =>
       barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "draft" }),
     ]);
     const hasil = await service.listActiveByCompany(PERUSAHAAN_ID);
-    expect(hasil).toEqual([
-      expect.objectContaining({ id: barisBaru().id, title: "Staf Admin" }),
-    ]);
+    expect(hasil).toEqual([expect.objectContaining({ id: barisBaru().id, title: "Staf Admin" })]);
   });
 });
 
@@ -392,16 +395,19 @@ describe("jobs.service — update", () => {
     ]);
   });
 
-  it.each(["draft", "closed"] as const)("lowongan %s disunting → TANPA job.updated", async (status) => {
-    const { service, events } = boot([barisBaru({ status })]);
-    let jumlah = 0;
-    events.on("job.updated", () => {
-      jumlah += 1;
-    });
+  it.each(["draft", "closed"] as const)(
+    "lowongan %s disunting → TANPA job.updated",
+    async (status) => {
+      const { service, events } = boot([barisBaru({ status })]);
+      let jumlah = 0;
+      events.on("job.updated", () => {
+        jumlah += 1;
+      });
 
-    await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
-    expect(jumlah).toBe(0);
-  });
+      await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
+      expect(jumlah).toBe(0);
+    },
+  );
 });
 
 describe("jobs.service — bacaUntukEmbedding (PR-069, dipakai modul matching)", () => {
@@ -428,7 +434,10 @@ describe("jobs.service — bacaUntukEmbedding (PR-069, dipakai modul matching)",
   it.each([
     ["draft", barisBaru({ status: "draft" })],
     ["closed", barisBaru({ status: "closed" })],
-    ["lewat tenggat", barisBaru({ status: "published", expiresAt: new Date("2026-08-20T00:00:00Z") })],
+    [
+      "lewat tenggat",
+      barisBaru({ status: "published", expiresAt: new Date("2026-08-20T00:00:00Z") }),
+    ],
   ])("%s → null (tidak akan pernah dicocokkan, jangan bakar kuota)", async (_label, row) => {
     const { service } = boot([row]);
     expect(await service.bacaUntukEmbedding(row.id)).toBeNull();
@@ -441,7 +450,9 @@ describe("jobs.service — publish", () => {
       barisBaru({ status: "draft", accommodations: ["akses_kursi_roda"] }),
     ]);
     const diterima: unknown[] = [];
-    events.on("job.published", (p) => { diterima.push(p); });
+    events.on("job.published", (p) => {
+      diterima.push(p);
+    });
 
     const hasil = await service.publish({ userId: ADMIN, requestId: REQ }, barisBaru().id);
 
@@ -460,7 +471,9 @@ describe("jobs.service — publish", () => {
   it("draft TANPA akomodasi → 422 AKOMODASI_LOWONGAN_KOSONG, tanpa audit/event", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "draft", accommodations: [] })]);
     const diterima: unknown[] = [];
-    events.on("job.published", (p) => { diterima.push(p); });
+    events.on("job.published", (p) => {
+      diterima.push(p);
+    });
 
     await expect(
       service.publish({ userId: ADMIN, requestId: REQ }, barisBaru().id),
@@ -500,7 +513,9 @@ describe("jobs.service — close", () => {
   it("published → closed, audit, event job.closed reason=closed_by_admin", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "published" })]);
     const diterima: unknown[] = [];
-    events.on("job.closed", (p) => { diterima.push(p); });
+    events.on("job.closed", (p) => {
+      diterima.push(p);
+    });
 
     const hasil = await service.close({ userId: ADMIN, requestId: REQ }, barisBaru().id);
 
@@ -518,7 +533,9 @@ describe("jobs.service — close", () => {
   it("draft → 409 TRANSISI_STATUS_TIDAK_VALID, tanpa audit/event", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "draft" })]);
     const diterima: unknown[] = [];
-    events.on("job.closed", (p) => { diterima.push(p); });
+    events.on("job.closed", (p) => {
+      diterima.push(p);
+    });
 
     await expect(
       service.close({ userId: ADMIN, requestId: REQ }, barisBaru().id),

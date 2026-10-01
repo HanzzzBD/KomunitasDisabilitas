@@ -67,9 +67,7 @@ describe("adapter Fonnte", () => {
     expect(panggilan).toHaveLength(1);
     expect(panggilan[0]!.url).toBe("https://fonnte.uji/send");
     expect(panggilan[0]!.init.method).toBe("POST");
-    expect((panggilan[0]!.init.headers as Record<string, string>).Authorization).toBe(
-      FONNTE.token,
-    );
+    expect((panggilan[0]!.init.headers as Record<string, string>).Authorization).toBe(FONNTE.token);
     const body = bacaBody(panggilan[0]!.init);
     expect(body.get("target")).toBe(PESAN.phone);
     expect(body.get("message")).toContain(KODE);
@@ -92,7 +90,9 @@ describe("adapter Fonnte", () => {
   });
 
   it("jaringan mati/timeout → gagal tanpa membocorkan detail permintaan", async () => {
-    const { impl } = fakeFetch([Object.assign(new Error("connect ECONNREFUSED"), { name: "TimeoutError" })]);
+    const { impl } = fakeFetch([
+      Object.assign(new Error("connect ECONNREFUSED"), { name: "TimeoutError" }),
+    ]);
     const err = await createFonnteSender(FONNTE, impl)
       .send(PESAN)
       .catch((e: unknown) => e);
@@ -123,9 +123,7 @@ describe("adapter Twilio", () => {
   });
 
   it("HTTP 401 → gagal dengan pesan provider", async () => {
-    const { impl } = fakeFetch([
-      { status: 401, body: { code: 20003, message: "Authenticate" } },
-    ]);
+    const { impl } = fakeFetch([{ status: 401, body: { code: 20003, message: "Authenticate" } }]);
     const err = await createTwilioSender(TWILIO, impl)
       .send(PESAN)
       .catch((e: unknown) => e);

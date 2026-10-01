@@ -171,10 +171,9 @@ describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", (
   });
 
   it("setiap alasan benar-benar ditulis, bukan diisi seadanya", () => {
-    const terlaluPendek = [
-      ...Object.entries(DITUNDA),
-      ...Object.entries(DIKECUALIKAN),
-    ].filter(([, alasan]) => alasan.trim().length < 20);
+    const terlaluPendek = [...Object.entries(DITUNDA), ...Object.entries(DIKECUALIKAN)].filter(
+      ([, alasan]) => alasan.trim().length < 20,
+    );
 
     expect(terlaluPendek.map(([t]) => t)).toEqual([]);
   });
@@ -256,7 +255,17 @@ const KOLOM_USERS_TERDAFTAR: Readonly<Record<string, string>> = {
 };
 
 /** Tipe skalar Prisma yang dipakai repo ini. */
-const SKALAR = new Set(["String", "Int", "Boolean", "DateTime", "Json", "Float", "BigInt", "Decimal", "Bytes"]);
+const SKALAR = new Set([
+  "String",
+  "Int",
+  "Boolean",
+  "DateTime",
+  "Json",
+  "Float",
+  "BigInt",
+  "Decimal",
+  "Bytes",
+]);
 
 /** Nama setiap `enum` yang dideklarasikan di schema — enum adalah KOLOM, bukan relasi. */
 function enumDiSchema(prismaSchema: string): Set<string> {

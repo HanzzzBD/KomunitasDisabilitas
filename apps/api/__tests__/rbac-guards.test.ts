@@ -194,7 +194,10 @@ describe("requireSelf", () => {
   ) {
     const handler = guards.requireSelf("userId", alsoRoles);
     return new Promise<unknown>((resolve) => {
-      const req = { auth: { userId: USER_ID, role, tokenVersion: 0 }, params } as unknown as Request;
+      const req = {
+        auth: { userId: USER_ID, role, tokenVersion: 0 },
+        params,
+      } as unknown as Request;
       handler(req, {} as Response, ((err?: unknown) => resolve(err)) as NextFunction);
     });
   }

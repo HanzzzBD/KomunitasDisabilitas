@@ -117,7 +117,11 @@ function renderPanel(opsi: OpsiKlien = {}) {
 
 /** Panelnya dimuat lazy; tenggat dilonggarkan seperti di `pengaturan.test.tsx`. */
 async function tungguPanel() {
-  await screen.findByRole("heading", { level: 2, name: "Preferensi notifikasi" }, { timeout: 5000 });
+  await screen.findByRole(
+    "heading",
+    { level: 2, name: "Preferensi notifikasi" },
+    { timeout: 5000 },
+  );
 }
 
 const saklar = (nama: string) => screen.getByRole("checkbox", { name: nama });

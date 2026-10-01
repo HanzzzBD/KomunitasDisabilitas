@@ -80,9 +80,19 @@ function providerPalsu(nama = "gemini", usage: AiUsage = USAGE) {
   );
   const embed = vi.fn(
     (): Promise<AiEmbedResponse> =>
-      Promise.resolve({ vector: [0.1, 0.2], dimensions: 2, provider: nama, model: `embed-${nama}` }),
+      Promise.resolve({
+        vector: [0.1, 0.2],
+        dimensions: 2,
+        provider: nama,
+        model: `embed-${nama}`,
+      }),
   );
-  return { provider: { name: nama, chat, chatJson, embed } as unknown as AiProvider, chat, chatJson, embed };
+  return {
+    provider: { name: nama, chat, chatJson, embed } as unknown as AiProvider,
+    chat,
+    chatJson,
+    embed,
+  };
 }
 
 /** Provider palsu yang selalu gagal dengan kode tertentu (spy jumlah panggilan). */
@@ -187,7 +197,10 @@ describe("AC-3 — satu panggilan sukses = tepat satu peristiwa pemakaian", () =
     const rec = recorderPalsu();
     const { client } = rakit({ recorder: rec.recorder });
 
-    await client.chat({ userId: USER, feature: "cv_chat", promptVersion: "cv-chat.v2" }, PERMINTAAN);
+    await client.chat(
+      { userId: USER, feature: "cv_chat", promptVersion: "cv-chat.v2" },
+      PERMINTAAN,
+    );
 
     expect(rec.dicatat[0]).toMatchObject({ promptVersion: "cv-chat.v2" });
   });
@@ -284,9 +297,9 @@ describe("AC-6 — pencatatan tidak pernah mencabut jawaban yang sudah jadi", ()
     const rec = recorderPalsu("menolak");
     const { client, logger } = rakit({ recorder: rec.recorder });
 
-    await expect(client.chat({ userId: USER, feature: "cv_chat" }, PERMINTAAN)).resolves.toMatchObject(
-      { text: "jawaban gemini" },
-    );
+    await expect(
+      client.chat({ userId: USER, feature: "cv_chat" }, PERMINTAAN),
+    ).resolves.toMatchObject({ text: "jawaban gemini" });
     expect(logger.error).toHaveBeenCalledTimes(1);
   });
 
@@ -294,9 +307,9 @@ describe("AC-6 — pencatatan tidak pernah mencabut jawaban yang sudah jadi", ()
     const rec = recorderPalsu("melempar");
     const { client, logger } = rakit({ recorder: rec.recorder });
 
-    await expect(client.embed({ userId: USER, feature: "embed" }, { text: "halo" })).resolves.toMatchObject(
-      { dimensions: 2 },
-    );
+    await expect(
+      client.embed({ userId: USER, feature: "embed" }, { text: "halo" }),
+    ).resolves.toMatchObject({ dimensions: 2 });
     expect(logger.error).toHaveBeenCalledTimes(1);
   });
 });
@@ -347,9 +360,9 @@ describe("AC-9 — reserve-then-refund di jalur AiClient", () => {
       redis,
     });
 
-    await expect(client.chat({ userId: USER, feature: "cv_chat" }, PERMINTAAN)).rejects.toMatchObject(
-      { code: "AI_TIMEOUT" },
-    );
+    await expect(
+      client.chat({ userId: USER, feature: "cv_chat" }, PERMINTAAN),
+    ).rejects.toMatchObject({ code: "AI_TIMEOUT" });
 
     expect(redis.nilai(kunciKuotaUser(HARI, USER, "cv_chat"))).toBe(0);
     expect(redis.nilai(kunciKuotaGlobal(HARI))).toBe(0);

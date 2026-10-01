@@ -166,7 +166,11 @@ export function createEmailSender(config: EmailConfig, fetchImpl?: FetchLike): E
         // Kredensial salah juga tidak membaik bila diulang — tetapi ia TIDAK
         // boleh diam: ia mematikan kanal bagi SEMUA orang, bukan satu alamat.
         // Dilempar supaya job berakhir di DLQ dan terlihat.
-        throw new EmailError("EMAIL_KREDENSIAL_TIDAK_VALID", `Resend menolak kredensial (${alasan})`, res.status);
+        throw new EmailError(
+          "EMAIL_KREDENSIAL_TIDAK_VALID",
+          `Resend menolak kredensial (${alasan})`,
+          res.status,
+        );
       }
 
       throw new EmailError(
@@ -179,9 +183,12 @@ export function createEmailSender(config: EmailConfig, fetchImpl?: FetchLike): E
 }
 
 /** Rakit adapter dari env, atau adapter "tidak tersedia" bila kredensial kosong. */
-export function createEmailSenderFromEnv(
-  env: { RESEND_API_KEY?: string; EMAIL_FROM?: string; RESEND_BASE_URL?: string; EMAIL_SEND_TIMEOUT_MS?: number },
-): EmailSender {
+export function createEmailSenderFromEnv(env: {
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  RESEND_BASE_URL?: string;
+  EMAIL_SEND_TIMEOUT_MS?: number;
+}): EmailSender {
   const { RESEND_API_KEY, EMAIL_FROM } = env;
   if (RESEND_API_KEY === undefined || EMAIL_FROM === undefined) {
     return createUnavailableEmailSender();

@@ -165,8 +165,7 @@ export function createProfileRepository(prisma: AppPrisma) {
               WHERE user_id = ${userId}::uuid FOR UPDATE`,
           );
           const kini = terkunci[0]?.consent_sensitive_at ?? null;
-          const efektif =
-            patch.consentSensitiveAt !== undefined ? patch.consentSensitiveAt : kini;
+          const efektif = patch.consentSensitiveAt !== undefined ? patch.consentSensitiveAt : kini;
           if (efektif === null) return { ok: false };
         }
 

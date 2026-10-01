@@ -203,7 +203,10 @@ async function boot() {
             },
             // Dua bagian WAJIB sejak 2026-09-05 (U-03 & U-04) — penampung
             // kosong, dengan alasan yang sama seperti `profile` di atas.
-            { bagian: "accessibility", kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }) },
+            {
+              bagian: "accessibility",
+              kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }),
+            },
             {
               bagian: "notificationChannels",
               kumpulkan: async () => ({ email: null, push: null }),

@@ -175,7 +175,8 @@ export const katalogOnboarding = {
     // tersimpan untuk dicabut (QC-2 review PR-035). Kalimatnya sekarang
     // menyatakan itu apa adanya, bukan menjanjikan kendali yang belum ada.
     id: "Izin ini tidak kami simpan di mana pun. Begitu Anda meninggalkan pengaturan ini, izinnya hilang dengan sendirinya.",
-    "id-simple": "Izin ini tidak kami simpan. Kalau Anda tutup pengaturan ini, izinnya hilang sendiri.",
+    "id-simple":
+      "Izin ini tidak kami simpan. Kalau Anda tutup pengaturan ini, izinnya hilang sendiri.",
   },
   "onboarding.persetujuan.butir.takWajib": {
     id: "Menolak tidak mengurangi apa pun: seluruh fitur Nawasena tetap terbuka untuk Anda.",

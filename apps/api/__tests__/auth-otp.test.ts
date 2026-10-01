@@ -271,7 +271,10 @@ describe("verify", () => {
 
   it("verify menerbitkan pasangan token (PR-018b)", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const hasil = await ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR);
+    const hasil = await ctx.service.verify(
+      { phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) },
+      ACTOR,
+    );
 
     expect(ctx.sessionIssue).toHaveBeenCalledWith(hasil.userId);
     expect(hasil.tokens.accessToken).toBe("access-uji");

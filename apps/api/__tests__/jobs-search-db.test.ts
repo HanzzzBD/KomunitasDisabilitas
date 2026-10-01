@@ -131,7 +131,11 @@ describe("pencarian FTS bahasa Indonesia (AC)", () => {
     if (!dbTersedia) return ctx.skip();
     await buatLowongan({ title: "Staf Gudang" });
 
-    const hasil = await service.search({ limit: 20, city: ISOLASI, query: "xyzzyabc123takadaduniawi" });
+    const hasil = await service.search({
+      limit: 20,
+      city: ISOLASI,
+      query: "xyzzyabc123takadaduniawi",
+    });
 
     expect(hasil.data).toEqual([]);
     expect(hasil.meta.nextCursor).toBeNull();
@@ -167,7 +171,11 @@ describe("filter akomodasi ⊇ (AC)", () => {
       accommodations: ["akses_kursi_roda", "juru_bahasa_isyarat"],
     });
 
-    const hasil = await service.search({ limit: 20, city: ISOLASI, accommodations: ["akses_kursi_roda"] });
+    const hasil = await service.search({
+      limit: 20,
+      city: ISOLASI,
+      accommodations: ["akses_kursi_roda"],
+    });
 
     expect(hasil.data.map((d) => d.title)).toEqual([`${TANDA} Punya Dua`]);
   });
@@ -189,7 +197,11 @@ describe("filter akomodasi ⊇ (AC)", () => {
     if (!dbTersedia) return ctx.skip();
     await buatLowongan({ title: "Tanpa Akomodasi", accommodations: [] });
 
-    const hasil = await service.search({ limit: 20, city: ISOLASI, accommodations: ["akses_kursi_roda"] });
+    const hasil = await service.search({
+      limit: 20,
+      city: ISOLASI,
+      accommodations: ["akses_kursi_roda"],
+    });
 
     expect(hasil.data).toEqual([]);
   });
@@ -268,7 +280,11 @@ describe("cursor pagination stabil di PostgreSQL (AC)", () => {
     // Penyusup terbit LEBIH BARU dari seluruh baris "Awal" — masuk ke puncak daftar.
     await buatLowongan({ title: "Penyusup", publishedAt: new Date(dasar + 60_000) });
 
-    const p2 = await service.search({ limit: 2, city: ISOLASI, cursor: p1.meta.nextCursor as string });
+    const p2 = await service.search({
+      limit: 2,
+      city: ISOLASI,
+      cursor: p1.meta.nextCursor as string,
+    });
 
     const tumpang = p2.data.filter((d) => p1.data.some((awal) => awal.id === d.id));
     expect(tumpang).toEqual([]);
@@ -282,7 +298,11 @@ describe("cursor pagination stabil di PostgreSQL (AC)", () => {
     }
 
     const p1 = await service.search({ limit: 2, city: ISOLASI });
-    const p2 = await service.search({ limit: 2, city: ISOLASI, cursor: p1.meta.nextCursor as string });
+    const p2 = await service.search({
+      limit: 2,
+      city: ISOLASI,
+      cursor: p1.meta.nextCursor as string,
+    });
 
     const tumpang = p2.data.filter((d) => p1.data.some((awal) => awal.id === d.id));
     expect(tumpang).toEqual([]);
@@ -296,7 +316,9 @@ describe("cursor rusak (AC validasi input)", () => {
     if (!dbTersedia) return ctx.skip();
     await buatLowongan({ title: "Ada Satu" });
 
-    await expect(service.search({ limit: 20, cursor: "***bukan-base64url-yang-sah***" })).rejects.toThrow();
+    await expect(
+      service.search({ limit: 20, cursor: "***bukan-base64url-yang-sah***" }),
+    ).rejects.toThrow();
   });
 });
 

@@ -2,7 +2,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { AUDIT_ACTION } from "@nawasena/schemas";
-import { createAuditLog, createPrismaAuditWriter, type AuditLoggerOptions } from "../src/core/audit/index.js";
+import {
+  createAuditLog,
+  createPrismaAuditWriter,
+  type AuditLoggerOptions,
+} from "../src/core/audit/index.js";
 import { uuidV7 } from "../src/core/ids/index.js";
 
 const prisma = new PrismaClient();
@@ -61,18 +65,12 @@ describe("auditLog — penulisan Prisma", () => {
     const requestId = uuidV7();
     const entityId = uuidV7();
 
-    auditLog(
-      { actorId, requestId },
-      AUDIT_ACTION.PROFILE_SENSITIVE_READ,
-      "audit-test",
-      entityId,
-      {
-        purpose: "support",
-        fields: ["disabilityTypes"],
-        reason: "tiket #4821",
-        phone: "nomor-dummy",
-      },
-    );
+    auditLog({ actorId, requestId }, AUDIT_ACTION.PROFILE_SENSITIVE_READ, "audit-test", entityId, {
+      purpose: "support",
+      fields: ["disabilityTypes"],
+      reason: "tiket #4821",
+      phone: "nomor-dummy",
+    });
 
     const id = created[0];
     expect(id).toBeDefined();

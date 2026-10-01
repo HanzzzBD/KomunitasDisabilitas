@@ -340,7 +340,9 @@ describe("panel aksesibilitas — slot PR-036 SUDAH terisi", () => {
 
     expect(await screen.findAllByRole("checkbox")).toHaveLength(6);
     expect(screen.getByRole("slider")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kembalikan ke setelan bawaan" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Kembalikan ke setelan bawaan" }),
+    ).toBeInTheDocument();
   });
 
   it("keadaan kosong yang lama IKUT HILANG", async () => {

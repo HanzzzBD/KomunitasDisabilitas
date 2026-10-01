@@ -162,7 +162,9 @@ async function boot(options: { sessionKeys?: typeof SESSION_KEYS } = {}) {
     tokenService: kunci === undefined ? undefined : createTokenService(kunci),
     findSessionUser: (id) => {
       const u = baris.find((r) => r.deletedAt === null && r.id === id);
-      return Promise.resolve(u === undefined ? null : { id: u.id, role: u.role, tokenVersion: u.tokenVersion });
+      return Promise.resolve(
+        u === undefined ? null : { id: u.id, role: u.role, tokenVersion: u.tokenVersion },
+      );
     },
   });
   const registry = createRouteRegistry({ guardsFor: guards.guardsFor });

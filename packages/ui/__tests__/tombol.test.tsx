@@ -44,7 +44,11 @@ describe("Tombol — semantik natif dipertahankan", () => {
 
   it("disabled tidak bisa diklik dan keluar dari urutan tab", async () => {
     const klik = vi.fn();
-    render(<Tombol disabled onClick={klik}>Simpan</Tombol>);
+    render(
+      <Tombol disabled onClick={klik}>
+        Simpan
+      </Tombol>,
+    );
 
     await userEvent.click(screen.getByRole("button"));
     expect(klik).not.toHaveBeenCalled();

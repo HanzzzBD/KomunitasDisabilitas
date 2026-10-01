@@ -95,7 +95,8 @@ function fakePrisma(isi: { experience: Baris[]; education: Baris[]; skill: Baris
     experience: tabel(isi.experience),
     education: tabel(isi.education),
     skill: tabel(isi.skill),
-    $transaction: <T>(fn: (tx: unknown) => Promise<T>) => fn({ seekerProfile, $queryRaw: queryRaw }),
+    $transaction: <T>(fn: (tx: unknown) => Promise<T>) =>
+      fn({ seekerProfile, $queryRaw: queryRaw }),
   };
   return client as unknown as PrismaClient;
 }
@@ -274,7 +275,10 @@ describe("kepemilikan (AC-1) — milik orang lain berperilaku seperti tidak ada"
   for (const e of ENTITAS) {
     it(`${e.path} — daftar, ubah, dan hapus tidak pernah menjangkau baris B`, async () => {
       const milikB: Baris = { id: HANTU, userId: B, ...e.contoh };
-      const { base, data } = await boot({ [e.nama === "experiences" ? "experience" : e.nama === "educations" ? "education" : "skill"]: [milikB] });
+      const { base, data } = await boot({
+        [e.nama === "experiences" ? "experience" : e.nama === "educations" ? "education" : "skill"]:
+          [milikB],
+      });
       const token = await tokenUntuk(A);
 
       // Daftar A kosong meski tabelnya berisi.

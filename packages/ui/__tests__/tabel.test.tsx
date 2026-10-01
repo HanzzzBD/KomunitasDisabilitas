@@ -106,10 +106,7 @@ describe("AC: sortable via keyboard", () => {
       "aria-sort",
       "ascending",
     );
-    expect(screen.getByRole("columnheader", { name: "Kota" })).toHaveAttribute(
-      "aria-sort",
-      "none",
-    );
+    expect(screen.getByRole("columnheader", { name: "Kota" })).toHaveAttribute("aria-sort", "none");
   });
 
   it("arah desc tercermin di aria-sort", () => {
@@ -124,7 +121,10 @@ describe("AC: sortable via keyboard", () => {
   it("kolom tanpa `urut` tidak pernah punya aria-sort, meski disebut di `urutan`", () => {
     render(
       <Contoh
-        kolom={[{ kunci: "nama", label: "Nama" }, { kunci: "kota", label: "Kota", urut: true }]}
+        kolom={[
+          { kunci: "nama", label: "Nama" },
+          { kunci: "kota", label: "Kota", urut: true },
+        ]}
         urutan={{ kunci: "nama", arah: "asc" }}
       />,
     );

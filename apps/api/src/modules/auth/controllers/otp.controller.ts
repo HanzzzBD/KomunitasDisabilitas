@@ -16,7 +16,10 @@ function actorOf(req: Request): OtpActor {
   return { requestId: typeof req.id === "string" ? req.id : randomUUID() };
 }
 
-export function createOtpController(service: OtpService, sesi: Pick<SessionController, "serahkan">) {
+export function createOtpController(
+  service: OtpService,
+  sesi: Pick<SessionController, "serahkan">,
+) {
   return {
     /** POST /auth/otp/request → 202 (permintaan diterima, pengiriman selesai). */
     async request(req: Request, res: Response): Promise<void> {

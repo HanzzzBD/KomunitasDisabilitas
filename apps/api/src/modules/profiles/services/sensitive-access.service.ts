@@ -60,24 +60,25 @@ export type TujuanAksesLain = Exclude<SensitiveAccessPurpose, "selfService">;
  * dengan membaca satu tabel — dan supaya tujuan baru tidak bisa lahir tanpa
  * seseorang memilih jawabannya.
  */
-export const KEBIJAKAN_AUDIT: Readonly<Record<SensitiveAccessPurpose, "perPanggilan" | "agregat" | "tanpaCatatan">> =
-  {
-    // Membaca profil sendiri terjadi setiap kali halaman profil dibuka. Satu
-    // baris audit per pembukaan halaman akan menenggelamkan pembacaan oleh
-    // pihak lain — satu-satunya yang benar-benar perlu ditemukan saat
-    // menyelidiki — di bawah ribuan baris yang tidak pernah menarik siapa pun.
-    // Dan secara hukum tidak ada yang perlu dipertanggungjawabkan: tidak ada
-    // pengungkapan ketika subjek dan pembacanya orang yang sama.
-    selfService: "tanpaCatatan",
-    support: "perPanggilan",
-    disclosure: "perPanggilan",
-    // Pencocokan membaca ribuan profil per batch. Satu baris per profil bukan
-    // audit melainkan salinan tabel; yang berguna saat menyelidiki adalah
-    // "berapa banyak, oleh job mana, hari apa". Sejalan dengan aturan yang
-    // sudah tertulis di docs/audit-action-catalog.md: baca massal dicatat
-    // per-job, bukan per-record.
-    matching: "agregat",
-  };
+export const KEBIJAKAN_AUDIT: Readonly<
+  Record<SensitiveAccessPurpose, "perPanggilan" | "agregat" | "tanpaCatatan">
+> = {
+  // Membaca profil sendiri terjadi setiap kali halaman profil dibuka. Satu
+  // baris audit per pembukaan halaman akan menenggelamkan pembacaan oleh
+  // pihak lain — satu-satunya yang benar-benar perlu ditemukan saat
+  // menyelidiki — di bawah ribuan baris yang tidak pernah menarik siapa pun.
+  // Dan secara hukum tidak ada yang perlu dipertanggungjawabkan: tidak ada
+  // pengungkapan ketika subjek dan pembacanya orang yang sama.
+  selfService: "tanpaCatatan",
+  support: "perPanggilan",
+  disclosure: "perPanggilan",
+  // Pencocokan membaca ribuan profil per batch. Satu baris per profil bukan
+  // audit melainkan salinan tabel; yang berguna saat menyelidiki adalah
+  // "berapa banyak, oleh job mana, hari apa". Sejalan dengan aturan yang
+  // sudah tertulis di docs/audit-action-catalog.md: baca massal dicatat
+  // per-job, bukan per-record.
+  matching: "agregat",
+};
 
 export interface SensitiveAccessDeps {
   profileRepository: ProfileRepository;
@@ -126,7 +127,12 @@ export function createSensitiveAccess(deps: SensitiveAccessDeps) {
       AUDIT_ACTION.PROFILE_SENSITIVE_READ,
       AUDIT_ENTITY,
       entityId,
-      { purpose, fields: [...FIELD_SENSITIF], reason: e.reason, ...(count === undefined ? {} : { count }) },
+      {
+        purpose,
+        fields: [...FIELD_SENSITIF],
+        reason: e.reason,
+        ...(count === undefined ? {} : { count }),
+      },
     );
 
   /**

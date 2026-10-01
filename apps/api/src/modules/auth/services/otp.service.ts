@@ -62,7 +62,13 @@ export function createOtpService(deps: OtpServiceDeps) {
   const { otpRepository, userRepository, sender, sessionService, auditLog, events, logger } = deps;
 
   const auditGagal = (actor: OtpActor, reason: "otpInvalid" | "rateLimited" | "accountLocked") => {
-    auditLog({ actorId: null, requestId: actor.requestId }, AUDIT_ACTION.AUTH_LOGIN_FAILED, AUDIT_ENTITY, null, { reason });
+    auditLog(
+      { actorId: null, requestId: actor.requestId },
+      AUDIT_ACTION.AUTH_LOGIN_FAILED,
+      AUDIT_ENTITY,
+      null,
+      { reason },
+    );
   };
 
   /** Lockout aktif → tolak sebelum menyentuh kode/kuota apa pun. */
@@ -164,8 +170,7 @@ export function createOtpService(deps: OtpServiceDeps) {
 
       // 0 = kuota jam berjalan masih tersisa; selain itu, tunggu jendela reset.
       return {
-        retryAfterSeconds:
-          kirim.value >= OTP_POLICY.maxSendPerWindow ? kirim.resetInSeconds : 0,
+        retryAfterSeconds: kirim.value >= OTP_POLICY.maxSendPerWindow ? kirim.resetInSeconds : 0,
       };
     },
 

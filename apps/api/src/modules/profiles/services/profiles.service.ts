@@ -104,7 +104,9 @@ export function keProfil(row: SeekerProfileRow, crypto: FieldCrypto): SeekerProf
       // Itu keadaan yang wajar (formulir dibuka, belum disimpan), jadi bentuk
       // kosongnya harus sama dengan bentuk terisi — UI tidak perlu cabang.
       disabilityTypes:
-        row.disabilityTypes === null ? [] : crypto.decryptJson<DisabilityType[]>(row.disabilityTypes),
+        row.disabilityTypes === null
+          ? []
+          : crypto.decryptJson<DisabilityType[]>(row.disabilityTypes),
       accommodationNeeds:
         row.accommodationNeeds === null
           ? { ...ACCOMMODATION_NEEDS_KOSONG }
@@ -188,7 +190,8 @@ export function createProfilesService(deps: ProfilesServiceDeps) {
       // tercatat. Audit yang hanya melihat kolom consent akan diam persis pada
       // kasus yang paling perlu dijelaskan.
       const adaDataSensitif =
-        (sebelum?.disabilityTypes ?? null) !== null || (sebelum?.accommodationNeeds ?? null) !== null;
+        (sebelum?.disabilityTypes ?? null) !== null ||
+        (sebelum?.accommodationNeeds ?? null) !== null;
       const mencabutConsent =
         input.consentSensitive === false && (consentSebelum !== null || adaDataSensitif);
 

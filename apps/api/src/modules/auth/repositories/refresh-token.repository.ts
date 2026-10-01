@@ -156,11 +156,7 @@ export function createRefreshTokenRepository(prisma: AppPrisma) {
       await prisma.refreshToken.updateMany({ where: { id }, data: { revokedReason: "reuse" } });
     },
 
-    async revokeFamily(
-      familyId: string,
-      now: Date,
-      reason: RefreshRevokedReason,
-    ): Promise<number> {
+    async revokeFamily(familyId: string, now: Date, reason: RefreshRevokedReason): Promise<number> {
       const hasil = await prisma.refreshToken.updateMany({
         where: { familyId, revokedAt: null },
         data: { revokedAt: now, revokedReason: reason },
@@ -208,7 +204,11 @@ export function createRefreshTokenRepository(prisma: AppPrisma) {
      * batas pada tabel yang terus tumbuh mengunci lama serta menggelembungkan
      * WAL (SDD §6.4 catatan operasional).
      */
-    async deleteRetentionBatch(kategori: RetentionKategori, cutoff: Date, batas: number): Promise<number> {
+    async deleteRetentionBatch(
+      kategori: RetentionKategori,
+      cutoff: Date,
+      batas: number,
+    ): Promise<number> {
       switch (kategori) {
         case "expired":
           return prisma.$executeRaw`

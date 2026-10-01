@@ -30,10 +30,7 @@ export interface NotificationPrefsActor {
 }
 
 export interface NotificationPrefsServiceDeps {
-  userRepository: Pick<
-    UserProfileRepository,
-    "findNotificationPrefs" | "updateNotificationPrefs"
-  >;
+  userRepository: Pick<UserProfileRepository, "findNotificationPrefs" | "updateNotificationPrefs">;
 }
 
 /**

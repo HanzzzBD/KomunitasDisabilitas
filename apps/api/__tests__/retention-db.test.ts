@@ -14,7 +14,10 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { uuidV7 } from "../src/core/ids/index.js";
-import { createRefreshTokenRepository, createRefreshTokenPolicies } from "../src/modules/auth/index.js";
+import {
+  createRefreshTokenRepository,
+  createRefreshTokenPolicies,
+} from "../src/modules/auth/index.js";
 import { createOrphanPolicies, createRetentionService } from "../src/modules/users/index.js";
 import { createPrismaClient } from "../src/core/db/index.js";
 

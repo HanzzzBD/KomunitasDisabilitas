@@ -63,9 +63,7 @@ export function KonfirmasiHapusGoogle({
   if (selesai) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 p-4">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {t("pengaturan.hapus.selesai.judul")}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("pengaturan.hapus.selesai.judul")}</h1>
         <p className="text-base text-gray-900">
           {t("pengaturan.hapus.selesai.penjelasan", { hari: HARI_SEBELUM_PURGE })}
         </p>
@@ -94,9 +92,7 @@ export function KonfirmasiHapusGoogle({
   if (status === "keluar") {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 p-4">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {t("pengaturan.hapus.kembali.judul")}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("pengaturan.hapus.kembali.judul")}</h1>
         <p role="alert" className="text-base text-gray-900">
           {t("pengaturan.hapus.kembali.sesiHabis")}
         </p>

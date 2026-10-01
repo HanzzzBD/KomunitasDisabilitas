@@ -54,11 +54,7 @@ export type KunciDisabilitas = "disabilityTypes" | "disability_types";
  * seluruh guard — dan pintu yang tidak dilihat satu pun test, sebab penjaga
  * jangkauan hanya memindai `prompts/**`, bukan tempat panggilan.
  */
-type PunyaIndexSignature<T> = string extends keyof T
-  ? true
-  : number extends keyof T
-    ? true
-    : false;
+type PunyaIndexSignature<T> = string extends keyof T ? true : number extends keyof T ? true : false;
 
 export type TanpaDisabilitas<T> = T extends Date
   ? // Hentikan rekursi pada Date: memetakan propertinya mengubah objek waktu

@@ -337,7 +337,10 @@ describe("kebijakan & dokumentasinya (AC-5)", () => {
     // AC-5 menuntut "dokumentasi kapan memakai jalur mana". Dokumen yang tidak
     // diperiksa akan menua diam-diam: kebijakan berubah di kode, dokumennya
     // tetap menjanjikan yang lama, dan orang berikutnya memercayai dokumennya.
-    const doc = readFileSync(join(__dirname, "..", "..", "..", "docs", "akses-data-sensitif.md"), "utf8");
+    const doc = readFileSync(
+      join(__dirname, "..", "..", "..", "docs", "akses-data-sensitif.md"),
+      "utf8",
+    );
 
     for (const jalur of ["bacaAman", "bacaSensitif", "snapshotFor"]) {
       expect(doc, `dokumen tidak menyebut jalur ${jalur}`).toContain(jalur);

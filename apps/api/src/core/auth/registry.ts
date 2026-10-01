@@ -217,7 +217,9 @@ export function assertRoutesDeclared(app: Express, registry: RouteRegistry): voi
             const tanda = `${kunci} ${path}`;
             ditemukan.add(tanda);
             if (!dideklarasikan.has(tanda)) {
-              pelanggaran.push(`${tanda} — terpasang tanpa deklarasi akses (pakai registrar route)`);
+              pelanggaran.push(
+                `${tanda} — terpasang tanpa deklarasi akses (pakai registrar route)`,
+              );
             }
           }
         }
@@ -226,13 +228,17 @@ export function assertRoutesDeclared(app: Express, registry: RouteRegistry): voi
 
       if (isRouter(layer.handle)) {
         if (!registry.knows(layer.handle)) {
-          pelanggaran.push("Router dipasang di luar route registry (createRouteRegistry().forModule)");
+          pelanggaran.push(
+            "Router dipasang di luar route registry (createRouteRegistry().forModule)",
+          );
           continue;
         }
         // Registrar sudah menulis path penuh; memasangnya dengan prefix membuat
         // URL sebenarnya berbeda dari yang terdeklarasi.
         if (layer.regexp?.fast_slash !== true) {
-          pelanggaran.push("Router registry dipasang dengan prefix — gunakan app.use(registrar.router)");
+          pelanggaran.push(
+            "Router registry dipasang dengan prefix — gunakan app.use(registrar.router)",
+          );
           continue;
         }
         telusuri(layer.handle.stack ?? []);

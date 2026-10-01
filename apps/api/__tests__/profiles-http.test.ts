@@ -637,7 +637,10 @@ describe("PUT /api/v1/me/profile — validasi taksonomi (AC-5)", () => {
     ],
     ["disclosureDefault liar", { disclosureDefault: "kadang" }],
     ["headline melebihi 120 karakter", { headline: "x".repeat(121) }],
-    ["catatan akomodasi melebihi 500 karakter", { accommodationNeeds: { tags: [], notes: "y".repeat(501) } }],
+    [
+      "catatan akomodasi melebihi 500 karakter",
+      { accommodationNeeds: { tags: [], notes: "y".repeat(501) } },
+    ],
     ["field asing", { foo: "bar" }],
   ])("%s → 400 VALIDATION_ERROR", async (_nama, body) => {
     const { base, baris } = await boot();
