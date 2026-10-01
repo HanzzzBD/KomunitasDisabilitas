@@ -101,6 +101,26 @@ dibunuh paksa kehilangan hitungan yang belum tertulis. Yang hilang adalah
 job. Menjadikannya tahan-mati menuntut tabel penampung tersendiri, dan itu tidak
 sebanding untuk mengamankan sebuah hitungan.
 
+### Pemanggil `disclosure` pertama — apply (PR-075)
+
+`POST /jobs/:id/apply` dengan `discloseDisability: true` membaca profil pelamar lewat
+`bacaSensitif` tujuan `disclosure` (`modules/applications/index.ts`):
+
+* **Pelaku = target = pelamar sendiri**, tetapi tetap lewat `bacaSensitif` (bukan
+  `snapshotFor`): ini pengungkapan ke pihak lain, jadi "kapan data ini pernah diserahkan
+  ke perusahaan?" harus terjawab di `audit_logs`. Satu baris per lamaran ber-disclose,
+  `entityId` = pelamar; `requestId`-nya sama dengan baris `APPLICATION_SUBMITTED`.
+* **Alasannya konstanta** (`ALASAN_AKSES_PENGUNGKAPAN`) — tanpa identitas maupun kondisi.
+* **Dibaca SESUDAH lowongan, CV, dan "belum pernah melamar" lolos.** Lamaran yang pasti
+  gagal tidak pernah mendekripsi profil siapa pun.
+* **Hasilnya SALINAN**, dienkripsi ulang ke `applications.disclosure_snapshot` (ragam +
+  akomodasi + `capturedAt`, `disclosureSnapshotSchema`). Profil yang berubah kemudian tidak
+  mengubah lamaran lama. `disclose=false` → kolomnya `NULL`, dan CHECK
+  `applications_snapshot_hanya_bila_disclose` (migrasi 20) menolak penulisan sebaliknya.
+* **Pembaca salinan itu:** pemiliknya lewat ekspor PDP (bagian `applications`, tanpa audit —
+  alasan yang sama dengan `snapshotFor`), dan kelak admin lewat jalur ter-audit (PR-077).
+  Respons `POST /apply` sendiri tidak pernah membawanya.
+
 ### Pemanggil `matching` pertama — feed (PR-071)
 
 `createPembacaAkomodasi` (`modules/matching/services/penilaian.service.ts`)

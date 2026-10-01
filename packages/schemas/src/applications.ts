@@ -15,6 +15,7 @@
 import "zod-openapi/extend";
 import { z } from "zod";
 import { idSchema, timestampSchema } from "./common.js";
+import { sensitiveProfileSchema } from "./profiles.js";
 
 /**
  * Status pipeline lamaran — cerminan enum `ApplicationStatus` di schema.prisma.
@@ -79,3 +80,101 @@ export const applicationStatusChangedEventSchema = z.object({
 });
 
 export type ApplicationStatusChangedEvent = z.infer<typeof applicationStatusChangedEventSchema>;
+
+// ---------------------------------------------------------------------------
+// Apply (PR-075) — POST /api/v1/jobs/:id/apply
+// ---------------------------------------------------------------------------
+
+/**
+ * Header `Idempotency-Key` — WAJIB (keputusan owner 2026-10-01).
+ *
+ * Bentuknya dibatasi longgar (8–128 karakter aman-URL) alih-alih harus UUID:
+ * yang dijamin header ini adalah KEUNIKAN per percobaan melamar, dan klien
+ * bebas memilih cara membangkitkannya. Batas atas mencegah kunci Redis raksasa.
+ */
+export const idempotencyKeySchema = z
+  .string({ required_error: "Header Idempotency-Key wajib diisi" })
+  .trim()
+  .regex(/^[A-Za-z0-9_-]{8,128}$/, {
+    message: "Idempotency-Key harus 8–128 karakter huruf, angka, - atau _",
+  });
+
+/**
+ * Badan permintaan melamar.
+ *
+ * `discloseDisability` WAJIB DAN TANPA DEFAULT. Default `false` di kolom DB
+ * adalah jaring pengaman; di kontrak HTTP, ketiadaan pilihan bukan pilihan.
+ * Keputusan pengungkapan harus dinyatakan klien secara eksplisit (PRD US-11) —
+ * dialog PR-078 yang memastikannya bukan centang yang tersembunyi.
+ *
+ * `resumeId` wajib: lamaran tanpa CV tidak punya isi untuk dibaca perusahaan.
+ * Klien tanpa CV diarahkan membuatnya lebih dulu (AC PR-078).
+ */
+export const applyJobSchema = z
+  .object({
+    resumeId: idSchema,
+    discloseDisability: z.boolean({
+      required_error: "Pilih apakah data disabilitas ikut dikirim",
+    }),
+  })
+  .strict()
+  .openapi({ ref: "ApplyJob" });
+
+export type ApplyJob = z.infer<typeof applyJobSchema>;
+
+/**
+ * Lamaran sebagaimana dibaca PELAMARNYA.
+ *
+ * Snapshot pengungkapan SENGAJA tidak ikut: pelamar sudah tahu isi profilnya
+ * sendiri, dan respons yang membawa data disabilitas adalah respons yang bisa
+ * berakhir di cache, log proxy, atau tangkapan layar.
+ */
+export const applicationSchema = z
+  .object({
+    id: idSchema,
+    jobId: idSchema,
+    resumeId: idSchema.nullable(),
+    discloseDisability: z.boolean(),
+    status: applicationStatusSchema,
+    appliedAt: timestampSchema,
+  })
+  .openapi({ ref: "Application" });
+
+export type Application = z.infer<typeof applicationSchema>;
+
+export const applicationResponseSchema = z
+  .object({ data: applicationSchema })
+  .openapi({ ref: "ApplicationResponse" });
+
+export type ApplicationResponse = z.infer<typeof applicationResponseSchema>;
+
+/**
+ * Isi `applications.disclosure_snapshot` SETELAH didekripsi (PR-075).
+ *
+ * Ragam disabilitas + kebutuhan akomodasi (keputusan owner 2026-10-01, PRD
+ * US-11), ditambah kapan salinannya diambil. Tidak pernah dikirim ke pelamar
+ * dan tidak punya ref OpenAPI — pembacanya kelak hanya jalur admin ter-audit
+ * (PR-077). Ditaruh di sini supaya penulis (PR-075) dan pembaca (PR-077)
+ * membaca bentuk yang SAMA.
+ */
+export const disclosureSnapshotSchema = sensitiveProfileSchema
+  .extend({ capturedAt: timestampSchema })
+  .strict();
+
+export type DisclosureSnapshot = z.infer<typeof disclosureSnapshotSchema>;
+
+/**
+ * Satu lamaran di berkas ekspor PDP milik PELAMARNYA (PR-075, keputusan owner
+ * 2026-10-01 — dibayar bersama endpoint pertama yang menulis `applications`,
+ * pelajaran U-03/U-04/U-25).
+ *
+ * BERBEDA dari `applicationSchema` di satu hal yang disengaja: SALINAN data
+ * disabilitas yang diserahkan ikut, terdekripsi. Hak akses UU PDP berarti
+ * pelamar berhak tahu persis apa yang sudah diterima tiap perusahaan — dan
+ * salinan itu bisa berbeda dari profilnya hari ini. `null` = tidak diungkap.
+ */
+export const exportApplicationSchema = applicationSchema
+  .extend({ disclosureSnapshot: disclosureSnapshotSchema.nullable() })
+  .openapi({ ref: "ExportApplication" });
+
+export type ExportApplication = z.infer<typeof exportApplicationSchema>;

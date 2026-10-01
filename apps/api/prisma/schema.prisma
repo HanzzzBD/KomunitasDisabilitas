@@ -450,6 +450,12 @@ model Application {
 
   /// Kontrol disclosure disabilitas PER LAMARAN (PRD FR-6.2).
   discloseDisability Boolean @default(false) @map("disclose_disability")
+  /// CIPHERTEXT (bytea) — SALINAN ragam disabilitas + akomodasi saat melamar
+  /// (PR-075, SDD §13). Hanya terisi bila `disclose_disability` true; CHECK
+  /// `applications_snapshot_hanya_bila_disclose` (migrasi 20) menegakkannya.
+  /// Salinan, bukan referensi: profil yang berubah kemudian tidak mengubah
+  /// lamaran lama. JANGAN log/serialisasi.
+  disclosureSnapshot Bytes? @map("disclosure_snapshot")
 
   status ApplicationStatus @default(submitted)
   /// Append-only {from,to,by,at} (SDD §6.2) — promosi ke tabel bila perlu

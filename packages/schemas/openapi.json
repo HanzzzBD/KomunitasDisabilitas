@@ -3323,6 +3323,141 @@
         }
       }
     },
+    "/jobs/{id}/apply": {
+      "post": {
+        "operationId": "applyJob",
+        "tags": [
+          "applications"
+        ],
+        "summary": "Lamar lowongan (pencari kerja)",
+        "description": "`discloseDisability` WAJIB dinyatakan eksplisit. `true` menyimpan SALINAN terenkripsi ragam disabilitas + akomodasi saat ini; `false` tidak menyimpan apa pun yang sensitif. Kunci `Idempotency-Key` yang sama memutar ulang 201 pertama dengan header `Idempotent-Replayed: true`.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lamaran terkirim (atau putar ulang)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau header Idempotency-Key tidak ada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan akun pencari kerja",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lowongan atau CV tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sudah melamar lowongan ini, atau lamaran sedang dikirim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Kunci dipakai untuk lowongan lain, atau tidak ada data disabilitas untuk dikirim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Terlalu banyak lamaran — lihat header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/jobs": {
       "get": {
         "operationId": "listJobsAdmin",
@@ -4944,6 +5079,12 @@
             "items": {
               "$ref": "#/components/schemas/Resume"
             }
+          },
+          "applications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportApplication"
+            }
           }
         },
         "required": [
@@ -4956,7 +5097,8 @@
           "notifications",
           "aiChatSessions",
           "aiUsage",
-          "resumes"
+          "resumes",
+          "applications"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -5456,6 +5598,7 @@
           "auth.selamat_datang",
           "lamaran.terkirim",
           "lamaran.status_berubah",
+          "admin.lamaran_baru",
           "resume.pdf_siap",
           "resume.draft_ai_siap",
           "resume.draft_ai_gagal"
@@ -6057,6 +6200,100 @@
         ],
         "additionalProperties": false,
         "description": "Satu pengalaman organisasi"
+      },
+      "Application": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "resumeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "discloseDisability": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "viewed",
+              "in_review",
+              "interview",
+              "offered",
+              "hired",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "appliedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "resumeId",
+          "discloseDisability",
+          "status",
+          "appliedAt"
+        ]
+      },
+      "ExportApplication": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Application"
+          }
+        ],
+        "properties": {
+          "disclosureSnapshot": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SensitiveProfile"
+                  }
+                ],
+                "properties": {
+                  "capturedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Waktu ISO 8601 dengan offset",
+                    "example": "2026-07-18T09:00:00+07:00"
+                  }
+                },
+                "required": [
+                  "capturedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "disclosureSnapshot"
+        ]
       },
       "AccessibilityResponse": {
         "type": "object",
@@ -7581,6 +7818,36 @@
           "expiresAt"
         ],
         "description": "Profil lowongan (tampilan publik)"
+      },
+      "ApplyJob": {
+        "type": "object",
+        "properties": {
+          "resumeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "discloseDisability": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resumeId",
+          "discloseDisability"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Application"
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "JobAdmin": {
         "type": "object",

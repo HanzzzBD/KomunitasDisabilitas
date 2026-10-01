@@ -60,6 +60,13 @@ export interface NotificationsModuleDeps {
    * default-nya diam, sebab email adalah kanal opt-in.
    */
   preferensiKanal?: { untukProduser(userId: string): Promise<NotificationChannelPrefs> };
+  /**
+   * Penerima kabar `admin.lamaran_baru` (PR-075) — dirakit composition root dari
+   * modul `users`, pemilik kolom `role`. OPSIONAL dengan alasan yang sama dengan
+   * `preferensiKanal`: tanpanya pelamar tetap menerima bukti terima, hanya admin
+   * yang tidak dikabari.
+   */
+  direktoriAdmin?: { idAdminAktif(): Promise<string[]> };
   logger?: Pick<Logger, "error">;
 }
 
@@ -225,6 +232,32 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       payload.userId,
       idNotifikasi("lamaran.terkirim", payload.userId, payload.applicationId),
     );
+  });
+
+  // Lamaran terkirim → satu kabar per ADMIN per lamaran (PR-075, AC "event
+  // submitted → notifikasi admin"). Langganan TERPISAH dari bukti terima di atas
+  // dengan sengaja: bus menjalankan tiap pelanggan dalam try sendiri, jadi
+  // direktori admin yang gagal dibaca tidak pernah menelan bukti terima pelamar.
+  //
+  // Berurutan per admin, bukan `Promise.all`: jumlah admin pilot satu digit, dan
+  // kegagalan satu penulisan tetap terlihat di log bus alih-alih tercampur.
+  // `kunciPeristiwa` = applicationId — event yang terbit ulang tidak melahirkan
+  // kabar kedua bagi admin yang sama.
+  deps.events.on("application.submitted", async (payload) => {
+    if (deps.direktoriAdmin === undefined) return;
+    for (const adminId of await deps.direktoriAdmin.idAdminAktif()) {
+      const lahir = await service.terbitkan({
+        userId: adminId,
+        type: "admin.lamaran_baru",
+        params: { applicationId: payload.applicationId, jobId: payload.jobId },
+        kunciPeristiwa: payload.applicationId,
+      });
+      await antrekanKanalLuar(
+        lahir,
+        adminId,
+        idNotifikasi("admin.lamaran_baru", adminId, payload.applicationId),
+      );
+    }
   });
 
   // Perpindahan status → satu kabar per (lamaran, status tujuan) (PR-078).

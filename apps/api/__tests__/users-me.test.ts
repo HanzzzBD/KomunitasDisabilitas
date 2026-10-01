@@ -43,6 +43,10 @@ function rakit(options: { row?: UserProfileRow | null; emailBentrok?: boolean } 
 
   const userRepository: UserProfileRepository = {
     findActiveById: () => Promise.resolve(awal),
+    // Direktori admin (PR-075) milik jalur notifikasi, bukan alur profil.
+    listActiveAdminIds: () => {
+      throw new Error("Alur profil tidak boleh membaca direktori admin");
+    },
     // Jalur ekspor PDP (PR-022) tidak dipakai alur profil; dibuat meledak
     // supaya pemakaian tak sengaja terlihat sebagai kegagalan test.
     findAccountForExport: () => {

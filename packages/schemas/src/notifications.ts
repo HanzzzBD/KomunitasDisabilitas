@@ -66,6 +66,13 @@ export const NOTIFICATION_TYPE = {
   LAMARAN_TERKIRIM: "lamaran.terkirim",
   /** Status lamaran berpindah tahap. */
   LAMARAN_STATUS_BERUBAH: "lamaran.status_berubah",
+  /**
+   * Lamaran baru masuk — untuk ADMIN, bukan pelamar (PR-075). Model operasi
+   * MVP: admin menjembatani perusahaan partner, jadi admin-lah yang harus tahu
+   * ada lamaran yang perlu diteruskan. Tanpa nama pelamar maupun keterangan
+   * disclose: id saja, sesuai aturan peta parameter di bawah.
+   */
+  ADMIN_LAMARAN_BARU: "admin.lamaran_baru",
   /** PDF untuk satu versi CV selesai dibuat. */
   RESUME_PDF_SIAP: "resume.pdf_siap",
   /** Draft CV dari percakapan AI siap direview (PR-067). */
@@ -79,6 +86,7 @@ export const notificationTypeSchema = z
     NOTIFICATION_TYPE.AUTH_SELAMAT_DATANG,
     NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
     NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
+    NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU,
     NOTIFICATION_TYPE.RESUME_PDF_SIAP,
     NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP,
     NOTIFICATION_TYPE.RESUME_DRAFT_AI_GAGAL,
@@ -114,6 +122,7 @@ export const NOTIFICATION_PARAM_SCHEMAS = {
       status: applicationStatusSchema,
     })
     .strict(),
+  "admin.lamaran_baru": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
   "resume.pdf_siap": z.object({ resumeId: idSchema }).strict(),
   "resume.draft_ai_siap": z.object({ resumeId: idSchema }).strict(),
   // `sessionId`, BUKAN kutipan transkrip: klien membuka sesi itu untuk

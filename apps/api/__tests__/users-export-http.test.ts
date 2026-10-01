@@ -218,6 +218,8 @@ async function boot() {
             { bagian: "aiUsage", kumpulkan: async () => [] },
             // U-25 (2026-10-01) — CV.
             { bagian: "resumes", kumpulkan: async () => [] },
+            // PR-075 — lamaran.
+            { bagian: "applications", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -354,6 +356,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "aiChatSessions",
           "aiUsage",
           "resumes",
+          "applications",
         ],
       },
     });

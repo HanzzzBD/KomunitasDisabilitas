@@ -49,6 +49,10 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // U-25, dibayar 2026-10-01 — alasan DITUNDA-nya ("belum ada endpoint yang bisa
   // membuat CV") berhenti benar sejak PR-060.
   resumes: "resumes",
+  // PR-075 — dibayar BERSAMA endpoint pertama yang menulis lamaran (keputusan
+  // owner 2026-10-01), bukan menunggu rekonsiliasi: alasan DITUNDA-nya berhenti
+  // benar di commit yang sama.
+  applications: "applications",
 };
 
 /**
@@ -56,12 +60,11 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * memuat akun, preferensi, profil, CV, lamaran, notifikasi") — dipindahkan dari
  * checklist dokumen ke tempat yang tidak bisa dilewati.
  *
- * YANG TERSISA BENAR-BENAR BELUM BISA ADA. Tabel `applications` sudah ada sejak
- * migrasi 03, tetapi tidak ada endpoint yang menulisnya: pengguna hari ini
- * belum bisa melamar. Jadi ekspor tanpa bagian itu bukan ekspor yang setengah
- * jadi — ia lengkap terhadap data yang benar-benar bisa dimiliki seseorang.
- * (`ai_usage` lunas di PR-066; `resumes` lunas 2026-10-01 — utang U-25, yang
- * alasannya di sini sempat basi sejak PR-060, persis pelajaran di bawah.)
+ * KOSONG SEJAK PR-075. Entri terakhirnya, `applications`, ditahan dengan alasan
+ * "belum ada endpoint yang bisa melamar" — dan dibayar di PR yang melahirkan
+ * endpoint itu. (`ai_usage` lunas di PR-066; `resumes` lunas 2026-10-01 — utang
+ * U-25, yang alasannya di sini sempat basi sejak PR-060, persis pelajaran di
+ * bawah.) Daftarnya dipertahankan sebagai tempat sah bagi tabel berikutnya.
  *
  * PELAJARAN YANG DIBAYAR MAHAL, SENGAJA DITINGGALKAN DI SINI. Sampai 2026-09-05,
  * kalimat pembenar di atas juga dipakai untuk `accessibility_profiles` dan
@@ -80,9 +83,7 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * ia menghapus alasan penundaan di daftar ini. Status utang dilacak di
  * docs/utang-teknis.md.
  */
-const DITUNDA: Readonly<Record<string, string>> = {
-  applications: "modul applications (Phase 12) — belum ada endpoint yang bisa melamar",
-};
+const DITUNDA: Readonly<Record<string, string>> = {};
 
 /**
  * Tidak akan pernah masuk ekspor. Alasannya WAJIB, dan sengaja spesifik: entri

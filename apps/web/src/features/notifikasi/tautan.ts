@@ -46,6 +46,11 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // Menunggu `/lamaran/:id` (Phase 12). Bentuk yang akan dipakai:
       //   return `/lamaran/${String(notifikasi.params.applicationId)}`;
       return null;
+    case NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU:
+      // PR-075 — menunggu halaman lamaran admin (PR-077). Alasan `null` sama
+      // dengan dua tipe lamaran di atas: tautan ke halaman yang belum ada
+      // mengubah "belum bisa" menjadi "rusak".
+      return null;
     case NOTIFICATION_TYPE.RESUME_PDF_SIAP:
       return `/cv/${String(notifikasi.params.resumeId)}`;
     case NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP:

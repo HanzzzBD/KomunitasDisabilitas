@@ -58,6 +58,8 @@ const EKSPOR = {
   aiChatSessions: [],
   aiUsage: [],
   resumes: [],
+  // Bagian `applications` WAJIB sejak PR-075.
+  applications: [],
 };
 
 const PROFIL = {

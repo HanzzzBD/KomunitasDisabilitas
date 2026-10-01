@@ -24,6 +24,7 @@ import { accessibilityProfileSchema } from "./accessibility.js";
 import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
 import { aiChatSessionSchema, aiQuotaFeatureSchema } from "./ai.js";
 import { resumeSchema } from "./resumes.js";
+import { exportApplicationSchema } from "./applications.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -210,6 +211,13 @@ export const dataExportSchema = z
      * keberadaannya).
      */
     resumes: z.array(resumeSchema),
+    /**
+     * Lamaran (PR-075) — ditulis bersama endpoint pertama yang bisa melamar,
+     * bukan menyusul (pelajaran U-03/U-04/U-25, keputusan owner 2026-10-01).
+     * Termasuk SALINAN data disabilitas yang diungkap per lamaran; lihat
+     * `exportApplicationSchema`.
+     */
+    applications: z.array(exportApplicationSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });

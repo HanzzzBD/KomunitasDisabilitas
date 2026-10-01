@@ -175,6 +175,7 @@ describe("kontributor bagian notifications", () => {
       aiChatSessions: [],
       aiUsage: [],
       resumes: [],
+      applications: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);
