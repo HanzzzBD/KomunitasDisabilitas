@@ -680,3 +680,51 @@ halaman detail. Tamu tetap melihat landing.
 
 1. Phase 11 lengkap (PR-069..074) — Exit Criteria menunggu perintah owner untuk `phase-11 → main`.
 2. U-30: jalankan checklist NVDA saat desktop bebas.
+
+---
+
+## Perbaikan gerbang Lighthouse — URL audit + bundel awal (utang U-31)
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai (sebagian U-31) · **Branch:** `perbaikan-lcp-beranda` → `phase-11-matching-engine`
+
+### Kronologi
+
+CI PR U-25 merah di **Lighthouse 3G 0,79** (< 0,80) padahal PR itu tidak menyentuh kode web.
+Diagnosis pertama (PR-074 membuat landing menunggu `/auth/refresh`) **keliru**: petunjuk
+"pernah masuk" di localStorage (dipilih owner atas diagnosis itu) tidak mengubah skor sama
+sekali. Penelusuran berikutnya menemukan sebab sebenarnya: **kedua config Lighthouse menunjuk
+`/index.html`, yang jatuh ke rute 404** — gerbang selama ini mengaudit halaman 404, yang skornya
+naik-turun 0,79/0,80 di ambang. Landing sungguhan terukur **0,73** (dan 0,73–0,75 sebelum PR-074).
+
+### Keputusan owner (AskUserQuestion, 2026-10-01)
+
+1. Petunjuk localStorage **dibuang**; pemindahan katalog feed ke chunk feed **dipertahankan**.
+2. URL audit diperbaiki + optimasi; karena optimasi aman hanya mencapai 0,76: **ambang 3G 0,75
+   sementara** + utang **U-31** (pre-render landing, sebelum Phase 18).
+
+### Scope selesai
+
+* `lighthouserc.json` & `lighthouserc-3g.json` → `http://localhost/`; penjaga
+  `__tests__/lighthouse-url.test.ts` (merah bila URL audit jatuh ke rute `*` — dibuktikan dengan
+  URL lama).
+* `@nawasena/schemas` `"sideEffects": false` — barrel `api-client` → `schemas` tidak lagi menyeret
+  seluruh skema (queue, audit, export, resumes, …) ke bundel awal: **118 → 108 KB gzip**.
+* Rute `/` hanya memuat katalog `beranda`; katalog kartu feed (`lowongan`/`companies`/`profil`)
+  dimuat bersama chunk feed (`lazy()` di `routes/beranda.tsx`) — tamu tidak mengunduhnya.
+* Ambang 3G `0.75` sementara (dicatat di config dan U-31).
+
+### Pengukuran 3G landing `/` (lokal, simulate, 3 run)
+
+| Varian | Skor | FCP | LCP |
+|---|---|---|---|
+| Sebelum PR-074 | 0,73–0,75 | 3,8 dtk | 4,6–4,9 dtk |
+| Tip phase (PR-074) | 0,73 | 3,9 dtk | 4,9 dtk |
+| + `sideEffects` schemas | **0,76** | 3,5 dtk | 4,6 dtk |
+| + tanpa menunggu sesi (eksperimen, dibuang) | 0,75–0,76 | 3,5 dtk | 4,6 dtk |
+| + landing eager (eksperimen, dibuang) | 0,76–0,78 | 3,5 dtk | 4,3–4,6 dtk (bundel awal +12 KB) |
+
+### Next steps
+
+* U-31: PR pre-render landing (ambang kembali 0,8) — tanpa membuat pengguna yang sudah masuk
+  melihat landing sekejap.
+* PR U-25 di-update dari tip phase sesudah PR ini masuk.
