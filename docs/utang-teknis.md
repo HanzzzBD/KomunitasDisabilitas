@@ -389,7 +389,7 @@ termasuk `apps/worker`. Diverifikasi mutasi: menambah satu panggilan `createAiGa
 
 | | |
 |---|---|
-| **Status** | TERBUKA — **laten** |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Pemilik** | PR-044a |
 | **Pemicu** | Subdirektori pertama di `core/ai/prompts/` |
 
@@ -401,6 +401,11 @@ utang ini tidak bisa menggigit hari ini. Ia dicatat sebagai laten dan bukan diha
 karena bentuk kegagalannya adalah yang paling buruk: penjaga yang berhenti menjaring tetap
 hijau, dan tidak ada yang akan curiga.
 
+**PEMBAYARANNYA (2026-10-01).** `prompt-registry.test.ts` kini memindai lewat
+`idBerkasTemplate()` — `readdirSync(..., { recursive: true })`, `id` = basename — ditambah dua
+penjaga: basename unik di seluruh subfolder, dan test atas pemindainya sendiri (folder sementara
+berisi `matching/rerank.v2.ts`) supaya rekursinya tidak bisa hilang diam-diam. Dua penjaga lain
+(`prompt-sensitif-jangkauan`, `prompt-cache-lingkup`) memang sudah rekursif sejak lahir.
 ---
 
 ### U-09 — Nama `OtpSender`/`OtpMessage` sudah tidak akurat

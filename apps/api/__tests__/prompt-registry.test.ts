@@ -16,14 +16,29 @@
 //   definisi sah TANPA `@ts-expect-error`. Tanpa kontrol itu, berkas ini bisa
 //   hijau sambil tidak membuktikan apa-apa.
 import { describe, it, expect, expectTypeOf } from "vitest";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import { z } from "zod";
 import type { SensitiveProfile } from "@nawasena/schemas";
 import { definePrompt, PROMPT_REGISTRY, spesimenV1 } from "../src/core/ai/prompts/index.js";
 import type { TanpaDisabilitas } from "../src/core/ai/prompts/index.js";
 
 const PROMPTS = join(__dirname, "..", "src", "core", "ai", "prompts");
+
+/**
+ * Seluruh berkas template `<nama>.vN.ts` di bawah `akar`, TERMASUK subfolder
+ * (utang U-08, dibayar 2026-10-01). Dikembalikan sebagai BASENAME tanpa `.ts`
+ * — itulah `id` template (`prompts/matching/rerank.v1.ts` → `rerank.v1`).
+ *
+ * Rekursif karena penjaga yang berhenti di level atas tetap HIJAU begitu
+ * template pertama dipindah ke subfolder — kegagalan yang tidak terlihat.
+ */
+function idBerkasTemplate(akar: string): string[] {
+  return readdirSync(akar, { recursive: true, encoding: "utf8" })
+    .filter((f) => /\.v\d+\.ts$/.test(f))
+    .map((f) => basename(f).replace(/\.ts$/, ""));
+}
 
 /** Skema keluaran seadanya — yang diuji berkas ini adalah sisi MASUKAN. */
 const keluaran = z.object({ hasil: z.string() });
@@ -175,14 +190,30 @@ describe("konvensi versi & kelengkapan registry", () => {
   });
 
   it("setiap berkas <nama>.vN.ts terdaftar di PROMPT_REGISTRY", () => {
-    const berkas = readdirSync(PROMPTS)
-      .filter((f) => /\.v\d+\.ts$/.test(f))
-      .map((f) => f.replace(/\.ts$/, ""));
+    const berkas = idBerkasTemplate(PROMPTS);
 
     // Anti-hampa: folder kosong akan membuat perbandingan di bawah hijau tanpa
     // memeriksa satu template pun.
     expect(berkas.length).toBeGreaterThan(0);
     expect(berkas.sort()).toEqual(Object.keys(PROMPT_REGISTRY).sort());
+  });
+
+  it("basename template unik di seluruh subfolder (id = basename)", () => {
+    const berkas = idBerkasTemplate(PROMPTS);
+    expect(new Set(berkas).size).toBe(berkas.length);
+  });
+
+  it("pemindai turun ke subfolder — penjaga atas penjaga (U-08)", () => {
+    const akar = mkdtempSync(join(tmpdir(), "prompt-registry-"));
+    try {
+      writeFileSync(join(akar, "datar.v1.ts"), "");
+      mkdirSync(join(akar, "matching"));
+      writeFileSync(join(akar, "matching", "rerank.v2.ts"), "");
+      writeFileSync(join(akar, "matching", "bukan-template.ts"), "");
+      expect(idBerkasTemplate(akar).sort()).toEqual(["datar.v1", "rerank.v2"]);
+    } finally {
+      rmSync(akar, { recursive: true, force: true });
+    }
   });
 
   it("registry menyimpan identitas, bukan templatenya", () => {

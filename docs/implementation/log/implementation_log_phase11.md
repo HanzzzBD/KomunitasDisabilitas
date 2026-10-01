@@ -741,3 +741,14 @@ naik-turun 0,79/0,80 di ambang. Landing sungguhan terukur **0,73** (dan 0,73–0
 * U-31: PR pre-render landing (ambang kembali 0,8) — tanpa membuat pengguna yang sudah masuk
   melihat landing sekejap.
 * PR U-25 di-update dari tip phase sesudah PR ini masuk.
+
+---
+
+## Utang U-08 — Registry prompt dipindai rekursif
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai · **Branch:** `utang-u08-registry-rekursif` → `phase-11-matching-engine`
+
+`prompt-registry.test.ts` berhenti di level atas `core/ai/prompts/`, jadi template di subfolder
+lolos dari kewajiban "setiap `<nama>.vN.ts` terdaftar". Kini lewat `idBerkasTemplate()`
+(rekursif, `id` = basename) + dua penjaga baru: basename unik lintas subfolder, dan test atas
+pemindainya (folder sementara bersubfolder). Tidak ada perubahan kode produksi.
