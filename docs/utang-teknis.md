@@ -830,7 +830,7 @@ sebelum alat dijalankan — vektor dari dua model berbeda tidak sebanding.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | TERBUKA — harness siap, dua run 2026-10-01 tidak sah |
 | **Jenis** | Verifikasi manual |
 | **Ditemukan** | PR-074 (2026-09-30) |
 | **Pemilik** | Belum ditetapkan (butuh Windows + NVDA dan desktop yang tidak dipakai) |
@@ -843,6 +843,18 @@ Keputusan owner 2026-09-30: dicatat, dijalankan nanti — harness `apps/web/veri
 jendela yang sedang aktif, jadi butuh desktop bebas. Isi:
 [checklist PR-074](implementation/log/pr-074-nvda-checklist.md).
 
+**Percobaan 2026-10-01 (keputusan owner: jalankan sekarang).** Harness otomatis kini ada:
+`apps/web/verifikasi/feed-nvda.verifikasi.ts` — API dipalsukan dengan `palsukanApi` (tanpa stack
+nyata), disajikan dari `dist` (`vite preview --port 4179`), perintah mode jelajah NVDA dikirim di
+tingkat OS lewat `tekanTombolOs`. Dua run TIDAK SAH: run 1 — notifikasi WhatsApp/VS Code merebut
+fokus (ucapan jendela lain ikut terekam; laporan & log dihapus); run 2 — Windows menolak menjadikan
+Chrome uji jendela depan (judul jendela depan kosong), padahal desktop sudah dibersihkan. Sejak
+run 2, ucapan dari langkah yang jendelanya bukan jendela uji DIBUANG dari laporan.
+
+Hasil sah satu-satunya: perintah NVDA `3` membacakan *"main landmark, Daftar lowongan yang cocok
+region, list with 3 items, heading level 3, Penulis Konten Jarak Jauh"* — struktur landmark,
+wilayah, daftar, dan heading kartu benar. Sisa checklist menunggu run di sesi Windows yang tidak
+sedang dipakai (mis. login lokal tanpa terminal/IDE aktif di depan).
 ---
 
 ### U-31 — Landing di 3G 0,76, di bawah AC PR-032 (≥ 0,80)
