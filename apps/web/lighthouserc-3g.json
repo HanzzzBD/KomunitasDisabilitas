@@ -19,13 +19,24 @@
     "angka yang dijanjikan dokumen ini tidak sedang diuji. Angka di bawah adalah",
     "profil 'Regular 3G' Chrome DevTools.",
     "",
+    "URL-NYA '/', BUKAN '/index.html' (diperbaiki 2026-10-01). Alamat lama",
+    "tidak cocok dengan rute mana pun, jadi selama ini yang diukur adalah",
+    "halaman 404 — landing yang sebenarnya tidak pernah diperiksa. Dijaga",
+    "__tests__/lighthouse-url.test.ts.",
+    "",
+    "AMBANG 0.75 SEMENTARA (keputusan owner 2026-10-01), BUKAN 0.8 AC PR-032.",
+    "Landing sungguhan terukur 0.73 saat URL diperbaiki; sideEffects:false di",
+    "@nawasena/schemas membawanya ke 0.76. Sisa jaraknya adalah bundel fondasi",
+    "(react-dom, react-router, zod, TanStack) di 3G tersimulasi — tuasnya",
+    "pre-render HTML landing. Utang U-31: kembalikan ke 0.8 sebelum rilis Phase 18.",
+    "",
     "Skor aksesibilitas TIDAK diturunkan di sini: viewport ponsel adalah tempat",
     "target sentuh paling mudah gagal, jadi justru di sinilah 100 paling berarti."
   ],
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "url": ["http://localhost/index.html"],
+      "url": ["http://localhost/"],
       "numberOfRuns": 3,
       "settings": {
         "formFactor": "mobile",
@@ -51,7 +62,7 @@
     },
     "assert": {
       "assertions": {
-        "categories:performance": ["error", { "minScore": 0.8 }],
+        "categories:performance": ["error", { "minScore": 0.75 }],
         "categories:accessibility": ["error", { "minScore": 1 }]
       }
     },

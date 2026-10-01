@@ -28,18 +28,32 @@ import { Link } from "react-router";
 import { Kartu, WilayahMemuat } from "@nawasena/ui";
 import { feedMatchingAktif } from "../features/job-feed/bendera.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
+import { muatKatalog } from "../shared/i18n/index.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 
 // MALAS, keduanya: landing adalah halaman akuisisi yang diukur Lighthouse pada
 // 3G (AC PR-032). Feed dan halaman cari hanya diunduh oleh yang sudah masuk —
 // tamu tidak membayar satu byte pun untuk isi yang tidak pernah ia lihat.
-const BerandaSeeker = lazy(async () => ({
-  default: (await import("./beranda-seeker.js")).BerandaSeeker,
-}));
-const LowonganBrowse = lazy(async () => ({
-  default: (await import("./lowongan-browse.js")).LowonganBrowse,
-}));
+//
+// Katalog kartu (`lowongan` pesan galat, `companies` jenis/mode kerja, `profil`
+// label akomodasi) dimuat BERSAMA chunk-nya, sebelum komponen tampil — alasan
+// yang sama dengan `lazy:` route: tanpa itu render pertama memakai teks
+// cadangan lalu berkedip berganti.
+const BerandaSeeker = lazy(async () => {
+  const [modul] = await Promise.all([
+    import("./beranda-seeker.js"),
+    muatKatalog("lowongan", "companies", "profil"),
+  ]);
+  return { default: modul.BerandaSeeker };
+});
+const LowonganBrowse = lazy(async () => {
+  const [modul] = await Promise.all([
+    import("./lowongan-browse.js"),
+    muatKatalog("lowongan", "companies", "profil"),
+  ]);
+  return { default: modul.LowonganBrowse };
+});
 
 /**
  * Nilai produk sebagai DATA, bukan tiga blok JSX yang disalin.
