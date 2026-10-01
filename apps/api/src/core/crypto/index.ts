@@ -78,7 +78,10 @@ export function parseFieldKeys(source: NodeJS.ProcessEnv = process.env): FieldKe
     const key = Buffer.from(raw, "base64");
     // Round-trip guard: base64 rusak menghasilkan buffer yang tidak balik sama.
     if (key.length !== KEY_BYTES || key.toString("base64") !== raw.trim()) {
-      issues.push([name, `harus base64 valid dari kunci tepat ${KEY_BYTES} byte (openssl rand -base64 32)`]);
+      issues.push([
+        name,
+        `harus base64 valid dari kunci tepat ${KEY_BYTES} byte (openssl rand -base64 32)`,
+      ]);
       continue;
     }
     keys.set(version, key);
@@ -112,7 +115,8 @@ export interface FieldCrypto {
 export function createFieldCrypto(fieldKeys: FieldKeys): FieldCrypto {
   const { keys, activeVersion } = fieldKeys;
   const activeKey = keys.get(activeVersion);
-  if (activeKey === undefined) throw new FieldKeyError([["FIELD_KEY", "versi aktif tidak ditemukan"]]);
+  if (activeKey === undefined)
+    throw new FieldKeyError([["FIELD_KEY", "versi aktif tidak ditemukan"]]);
 
   function encryptField(plaintext: string): EncryptedField {
     const iv = randomBytes(IV_BYTES);

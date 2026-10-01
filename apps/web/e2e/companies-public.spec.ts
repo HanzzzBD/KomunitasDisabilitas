@@ -40,10 +40,7 @@ test.describe("profil publik perusahaan — keadaan terisi", () => {
     // AC "Daftar lowongan aktif tertaut ke detail".
     const tautan = page.getByRole("link", { name: /Lihat detail lowongan Staf Admin/ });
     await expect(tautan).toBeVisible();
-    await expect(tautan).toHaveAttribute(
-      "href",
-      "/lowongan/01912345-89ab-7def-8123-4567890abd21",
-    );
+    await expect(tautan).toHaveAttribute("href", "/lowongan/01912345-89ab-7def-8123-4567890abd21");
 
     await tungguGayaTenang(page);
     const hasil = await new AxeBuilder({ page }).withTags(TAG).analyze();

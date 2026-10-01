@@ -211,7 +211,13 @@ describe("companies.service — create", () => {
 
     const hasil = await service.create(
       { userId: ADMIN, requestId: REQ },
-      { name: "Toko Baru", description: null, website: null, city: null, accommodationsAvailable: [] },
+      {
+        name: "Toko Baru",
+        description: null,
+        website: null,
+        city: null,
+        accommodationsAvailable: [],
+      },
     );
 
     expect(hasil.inclusivityStatus).toBe("unverified");

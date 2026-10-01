@@ -176,8 +176,5 @@ export {
   createProfilesController,
   type ProfilesController,
 } from "./controllers/profiles.controller.js";
-export {
-  createKarierController,
-  type KarierController,
-} from "./controllers/career.controller.js";
+export { createKarierController, type KarierController } from "./controllers/career.controller.js";
 export { createProfilesRouter, type KarierControllers } from "./routers/index.js";

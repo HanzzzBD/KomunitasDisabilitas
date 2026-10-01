@@ -48,10 +48,10 @@ tempat menuliskan sebab dan pertimbangan lengkap. Yang ada di sini adalah **stat
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: PR khusus format sekali) |
 | **Jenis** | Tooling |
 | **Ditemukan** | PR-047 (2026-09-05) |
-| **Pemilik** | Belum ditetapkan |
+| **Pemilik** | PR utang U-01 (`utang-u01-format-repo`) |
 | **Pemicu** | Siapa pun yang menjalankan `pnpm format` dan mengirim diff-nya |
 
 Menjalankan `pnpm format` pada pohon yang **`pnpm lint` hijau** tetap menulis ulang
@@ -71,6 +71,15 @@ sini akan menjadi alasan basi seperti yang dilarang aturan di atas.
 **Bukan blocker.** `pnpm lint` (yang dijalankan CI) tetap hijau; yang rusak adalah
 perintah `format` manual.
 
+**SEBABNYA (diselidiki 2026-10-01).** Bukan drift versi prettier dan bukan akhir baris (`git ls-files
+--eol`: hanya 7 berkas CRLF di working tree Windows, index seluruhnya LF). Sebabnya sederhana: **CI
+tidak pernah menjalankan `prettier --check`**, dan `pnpm lint` tidak memuat prettier — kode masuk
+tanpa diformat sejak awal, PR demi PR.
+
+**PEMBAYARANNYA.** Satu PR format murni (`pnpm format`: 141 berkas, tanpa perubahan logika — suite
+penuh hijau sesudahnya) + langkah CI baru **`Format (prettier --check)`** di job
+`lint-typecheck-test` (nama job tidak berubah, jadi ruleset tetap mengenalinya). Sejak itu `pnpm
+format` aman dijalankan, dan kode yang tidak diformat membuat CI merah.
 ---
 
 ### U-02 — Bus event in-process bisa kehilangan notifikasi saat proses mati
@@ -138,6 +147,11 @@ sering terjadi di jalur ini.
 
 **Pemicu berikutnya**, karena itu: setiap PR yang membuat notifikasi in-app menjadi
 satu-satunya kabar bagi peristiwa baru — bukan penambahan kanal.
+
+**Pelanggan non-notifikasi pertama (PR-069, embedding).** Handler-nya hanya meng-enqueue
+`ai-embed`, jadi yang bisa hilang saat proses mati hanyalah jarak `emit`→`enqueue` — akibatnya
+vektor basi sampai suntingan berikutnya, bukan informasi yang hilang. Pemulihannya alat
+re-embed massal (U-29).
 
 ---
 
@@ -316,8 +330,8 @@ asinkron, atau retensi yang membuat "seluruh riwayat" tetap berukuran wajar.
 
 | | |
 |---|---|
-| **Status** | **SEBAGIAN LUNAS — PR-066 (2026-09-28)**; sisa: pemanggil `withDegradation` |
-| **Pemilik** | Belum ditetapkan — pemakai alami: **PR-072** (re-rank feed → daftar tanpa peringkat) |
+| **Status** | **LUNAS — PR-066 (2026-09-28) + PR-072 (2026-09-30)** |
+| **Pemilik** | PR-072 (pemanggil `withDegradation` pertama) |
 | **Pemicu** | Endpoint fitur AI pertama |
 | **Sumber** | Log Phase 06 (PR-043b, PR-044b, PR-045, PR-046) |
 
@@ -345,6 +359,12 @@ dicabut, bukan dibiarkan).
 "nilai pengganti" yang bisa dikembalikan di tempat. Fitur pertama yang punya nilai seperti itu
 adalah re-rank feed (PR-072: daftar tanpa peringkat). Bila PR-072 juga tidak memakainya, cabut
 ekspornya di sana.
+
+**PEMBAYARAN PR-072.** `feed-cache.service.ts` memesan jatah `rerank` lewat
+`withDegradation(() => quota.periksaDanPakai(...), null)`: penolakan kuota (`DegradedError`
+`KUOTA_AI_HABIS`) turun menjadi "feed tanpa re-rank" — urutan skor deterministik + penjelasan
+template (PR-073) — sedangkan kegagalan lain (Redis tanpa fail-open, bug) tetap naik apa adanya.
+Keempat bagian utang ini kini punya pemanggil produksi; ekspornya dipertahankan.
 
 ---
 
@@ -378,7 +398,7 @@ termasuk `apps/worker`. Diverifikasi mutasi: menambah satu panggilan `createAiGa
 
 | | |
 |---|---|
-| **Status** | TERBUKA — **laten** |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Pemilik** | PR-044a |
 | **Pemicu** | Subdirektori pertama di `core/ai/prompts/` |
 
@@ -390,13 +410,18 @@ utang ini tidak bisa menggigit hari ini. Ia dicatat sebagai laten dan bukan diha
 karena bentuk kegagalannya adalah yang paling buruk: penjaga yang berhenti menjaring tetap
 hijau, dan tidak ada yang akan curiga.
 
+**PEMBAYARANNYA (2026-10-01).** `prompt-registry.test.ts` kini memindai lewat
+`idBerkasTemplate()` — `readdirSync(..., { recursive: true })`, `id` = basename — ditambah dua
+penjaga: basename unik di seluruh subfolder, dan test atas pemindainya sendiri (folder sementara
+berisi `matching/rerank.v2.ts`) supaya rekursinya tidak bisa hilang diam-diam. Dua penjaga lain
+(`prompt-sensitif-jangkauan`, `prompt-cache-lingkup`) memang sudah rekursif sejak lahir.
 ---
 
 ### U-09 — Nama `OtpSender`/`OtpMessage` sudah tidak akurat
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kosmetik / keterbacaan |
 | **Pemilik** | Belum ditetapkan |
 | **Sumber** | Log Phase 02 (PR-018) |
@@ -408,13 +433,18 @@ menyentuh 78 rujukan di 9 berkas. Diverifikasi 2026-09-05: nama masih dipakai.
 di sana rename-nya berada di jalur perubahan, bukan menjadi diff terpisah yang mengubur
 perubahan sesungguhnya.
 
+**PEMBAYARANNYA (2026-10-01).** Rename murni, tanpa perubahan perilaku: `OtpSender` → `PhoneSender`,
+`OtpMessage` → `PhoneMessage`, `OtpSenderError` → `PhoneSenderError`, `createFallbackOtpSender` /
+`createOtpSenderFromEnv` / `createUnavailableOtpSender` → `…PhoneSender…`; berkas `otp-sender.ts` →
+`phone-sender.ts` (test-nya ikut). `buildOtpMessage` TETAP — dialah satu-satunya bagian yang memang
+khusus OTP. Rujukan di log/dokumen phase lama dibiarkan sebagai riwayat.
 ---
 
 ### U-10 — Jendela toleransi rotasi token di sisi server
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Pemilik** | Belum ditetapkan |
 | **Sumber** | Log Phase 03 (PR-033i) |
 
@@ -422,6 +452,18 @@ Untuk dua celah balapan yang sengaja ditunda: dua tab bersamaan, dan pemulihan b
 refresh 401 di `/masuk/google`. Diverifikasi 2026-09-05: belum ada mekanisme toleransi di
 `session.service.ts`.
 
+**PEMBAYARANNYA (2026-10-01, keputusan owner: "tolak tanpa mencabut", jendela 10 dtk).**
+* Server (`session.service.ts`): token yang dicabut karena `rotated` dan dipakai lagi ≤
+  `AUTH_REFRESH_ROTATION_GRACE_SECONDS` (bawaan 10, maks 60, 0 = mati) dijawab
+  `SESI_SUDAH_DIROTASI` (401) — keluarga TIDAK dicabut, tidak ada token baru, tidak ada audit
+  reuse. Di luar jendela reuse detection berlaku penuh. Yang kalah balapan `rotate()` juga
+  mendapat kode ini.
+* Klien (`refreshSesiToleran`, api-client): kode itu dicoba lagi dengan token/cookie terkini
+  (jeda 0,3 / 1 / 2,5 dtk); dipakai refresher 401 DAN pemulihan boot web.
+* Bukti: unit (dalam/batas/di luar jendela, jendela 0, token logout), PostgreSQL nyata (dua
+  refresh BERSAMAAN: satu menang, yang kalah `SESI_SUDAH_DIROTASI`, token pemenang tetap hidup).
+* Yang dibocorkan kode baru: "token ini baru saja dirotasi" — hanya kepada pemegang token yang
+  sudah tidak berlaku, dan pemutaran ulang dalam jendela tidak menghasilkan sesi.
 ---
 
 ### U-11 — Pemberitahuan pasca-hapus untuk akun Google-only
@@ -622,10 +664,10 @@ Butir 3 (**PR-064**) **LUNAS**: jalur utuh sudah ditempuh lewat UI di stack loka
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Jenis** | Kepatuhan (UU PDP §8.7) |
 | **Ditemukan** | PR-065 (2026-09-28), saat mendaftarkan `ai_chat_sessions` ke penjaga yang sama |
-| **Pemilik** | Belum ditetapkan — PR kecil tersendiri (kontributor ekspor modul `resumes`) |
+| **Pemilik** | PR utang U-25 (`utang-u25-ekspor-cv`) |
 | **Pemicu** | **Sudah menyala** sejak PR-060 merged: pengguna bisa membuat CV lewat `/me/resumes` |
 
 `export-kelengkapan.test.ts` masih menaruh `resumes` di `DITUNDA` dengan alasan *"belum ada
@@ -639,6 +681,13 @@ ekspor sendiri. Cukup kecil untuk PR tersendiri: `createResumesExportContributor
 `resumes.service` (bentuk `Resume` yang sama dengan `GET /me/resumes/:id`), pindahkan barisnya
 `DITUNDA` → `TERDAFTAR`.
 
+
+**PEMBAYARANNYA (2026-10-01).** `createResumesExportContributor` (modul `resumes`) membaca lewat
+service yang SAMA dengan editor CV (`list` + `get`) dan menyumbang bagian `resumes` — larik
+`resumeSchema` lengkap dengan isi — ke `dataExportSchema` (aditif; `EXPORT_FORMAT_VERSION` tetap 1).
+Dirakit di `boot.ts` sesudah `aiUsage`. `export-kelengkapan.test.ts`: `resumes` pindah
+`DITUNDA` → `TERDAFTAR`; yang tersisa di `DITUNDA` hanya `applications` (Phase 12). Berkas PDF
+tidak ikut (artefak turunan dari isi yang sama).
 ---
 
 ### U-26 — Latensi token pertama Gemini (stream) 7–22 detik
@@ -679,7 +728,7 @@ sendiri (0,6 dtk).
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — PR-069 (2026-09-30)** |
 | **Jenis** | Konfigurasi / risiko fitur |
 | **Ditemukan** | Verifikasi manual PR-066 (2026-09-28) |
 | **Pemilik** | **PR-069** (embedding profil, Phase 11) — syarat masuk |
@@ -696,6 +745,15 @@ sama-sama 404 — artinya sejak entah kapan SEMUA jalur AI (termasuk non-stream 
 lingkungan nyata tanpa satu test pun merah. Default chat diganti ke `gemini-3.5-flash-lite` /
 `qwen/qwen3.8-27b` (keputusan owner). `.env` lokal yang masih menyebut model lama tetap menimpa
 default — baris itu harus dihapus manual.
+
+**PEMBAYARANNYA (PR-069, keputusan owner 2026-09-30: `gemini-embedding-001`).** Default
+`GEMINI_EMBED_MODEL` diganti; adapter mengirim `outputDimensionality: 768` (+ `taskType:
+SEMANTIC_SIMILARITY`) dan menormalisasi L2 hasilnya — potongan MRL tidak ternormalisasi, dan
+`<->` pgvector peka panjang vektor. Kolom `vector(768)` dan `AI_EMBED_DIMENSIONS` tidak berubah.
+Diverifikasi NYATA: 768 dimensi, panjang 1,000000; profil "admin gudang/Excel" berkosinus 0,94
+dengan lowongan admin gudang dan 0,77 dengan lowongan koki; proses worker sungguhan menyimpan
+vektornya dan menulis baris `ai_usage` (`embed`/`gemini`). **`.env` lokal yang masih berisi
+`GEMINI_EMBED_MODEL=text-embedding-004` tetap menimpa default — hapus barisnya.**
 
 ---
 
@@ -723,6 +781,108 @@ manusia — sifat yang sama dengan U-24.
 **Masih terbuka:** pintu masuk `/cv`, kuota/degradasi, finalize, putus > 1 menit, tampilan sempit,
 dan aliran bertahap di bawah 3G (tidak teramati lewat throttling CDP). Semuanya ada di
 [checklist PR-068](implementation/log/pr-068-nvda-checklist.md).
+
+---
+
+### U-29 — Vektor untuk data yang lahir SEBELUM pipeline embedding
+
+| | |
+|---|---|
+| **Status** | **LUNAS — PR-069b (2026-09-30)** |
+| **Jenis** | Data / kelengkapan fitur |
+| **Ditemukan** | PR-069 (2026-09-30) |
+| **Pemilik** | **PR-069b** (keputusan owner 2026-09-30) — **syarat masuk PR-070** |
+| **Pemicu** | PR pertama yang MEMBACA vektor (PR-070, query kandidat) |
+
+Pipeline PR-069 hanya bereaksi pada event BARU (`profile.updated`, `job.published`,
+`job.updated`). Semua yang sudah ada sebelumnya tidak punya vektor dan tidak akan pernah
+mendapatkannya sampai disunting: di DB dev hari ini **17 lowongan tayang dan 5 profil, 0 vektor**.
+Lowongan seed juga tidak punya `createdBy`, padahal kurator pembuat adalah pemikul kuota embed
+(keputusan owner) — jadi walaupun disunting, service melewatinya dengan log `error`.
+
+Tanpa pembayaran ini PR-070 akan lulus test (fixture-nya menanam vektor sendiri) sementara feed
+nyata kosong. Yang harus dibawa PR-069b:
+* alat re-embed massal (juga alat "Rollback Strategy" PR-069 — "re-embed massal via job manual",
+  yang sampai kini tidak ada), yang meng-enqueue `ai-embed` untuk entitas tanpa vektor dan
+  **menghormati pagu global kuota** (1.200/hari);
+* `createdBy` pada lowongan seed (admin seed), atau keputusan eksplisit lain atas atribusinya.
+
+Terkait: job yang gagal final (Gemini tumbang 4× / kuota habis) juga meninggalkan entitas tanpa
+vektor BARU sampai suntingan berikutnya — alat yang sama menjadi jalur pemulihannya.
+
+**PEMBAYARANNYA (PR-069b, keputusan owner 2026-09-30).** Skrip CLI
+`pnpm --filter @nawasena/api embed:ulang [--jenis=…] [--maks=N] [--jarak-ms=N] [--kering]`:
+mencari lowongan aktif berkurator dan profil BERISI (akun hidup) tanpa vektor, lalu meng-enqueue
+`ai-embed` dengan kunci coalescing yang SAMA dengan pemicu event. Batas per jalan bawaannya **25%
+pagu global** (300 dari 1.200), lowongan didahulukan, job dijarakkan 1 dtk. Lowongan tanpa kurator
+tidak diantrekan tetapi DIHITUNG dan diperingatkan ke operator. Seed kini menulis `createdBy` =
+admin seed. Diverifikasi NYATA di DB dev: 17 lowongan + 4 profil diantrekan → worker + Gemini →
+**17/17 lowongan tayang dan 5/5 profil bervektor**, 21 baris `ai_usage`; jalan ulang = 0.
+
+Yang TIDAK dibayar di sini, dengan sengaja: vektor yang ADA tetapi basi (model berganti, atau
+event yang hilang di jarak `emit`→`enqueue`). Alat ini hanya melihat vektor yang kosong; bila
+model embedding kelak diganti, vektor lama harus dikosongkan dulu (satu `UPDATE … SET … = NULL`)
+sebelum alat dijalankan — vektor dari dua model berbeda tidak sebanding.
+
+---
+
+### U-30 — AC manual PR-074: NVDA nyata untuk kartu feed matching
+
+| | |
+|---|---|
+| **Status** | TERBUKA — harness siap, dua run 2026-10-01 tidak sah |
+| **Jenis** | Verifikasi manual |
+| **Ditemukan** | PR-074 (2026-09-30) |
+| **Pemilik** | Belum ditetapkan (butuh Windows + NVDA dan desktop yang tidak dipakai) |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18), bersama U-24 dan U-28 |
+
+Testing Checklist PR-074 menyebut "axe + NVDA kartu". axe lulus di jsdom dan Playwright
+(empat keadaan feed); yang tersisa adalah telinga manusia: urutan pembacaan kartu, pengumuman
+banner status AI yang tidak mencuri fokus, dan tombol refresh `aria-disabled` beserta alasannya.
+Keputusan owner 2026-09-30: dicatat, dijalankan nanti — harness `apps/web/verifikasi/` merekam
+jendela yang sedang aktif, jadi butuh desktop bebas. Isi:
+[checklist PR-074](implementation/log/pr-074-nvda-checklist.md).
+
+**Percobaan 2026-10-01 (keputusan owner: jalankan sekarang).** Harness otomatis kini ada:
+`apps/web/verifikasi/feed-nvda.verifikasi.ts` — API dipalsukan dengan `palsukanApi` (tanpa stack
+nyata), disajikan dari `dist` (`vite preview --port 4179`), perintah mode jelajah NVDA dikirim di
+tingkat OS lewat `tekanTombolOs`. Dua run TIDAK SAH: run 1 — notifikasi WhatsApp/VS Code merebut
+fokus (ucapan jendela lain ikut terekam; laporan & log dihapus); run 2 — Windows menolak menjadikan
+Chrome uji jendela depan (judul jendela depan kosong), padahal desktop sudah dibersihkan. Sejak
+run 2, ucapan dari langkah yang jendelanya bukan jendela uji DIBUANG dari laporan.
+
+Hasil sah satu-satunya: perintah NVDA `3` membacakan *"main landmark, Daftar lowongan yang cocok
+region, list with 3 items, heading level 3, Penulis Konten Jarak Jauh"* — struktur landmark,
+wilayah, daftar, dan heading kartu benar. Sisa checklist menunggu run di sesi Windows yang tidak
+sedang dipakai (mis. login lokal tanpa terminal/IDE aktif di depan).
+---
+
+### U-31 — Landing di 3G 0,76, di bawah AC PR-032 (≥ 0,80)
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Performa / AC belum terpenuhi |
+| **Ditemukan** | 2026-10-01 (CI PR U-25 merah; ditelusuri saat itu) |
+| **Pemilik** | Belum ditetapkan — PR "pre-render landing" tersendiri |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18) |
+
+**Gerbang Lighthouse mengukur halaman yang salah sejak PR-031b/PR-032.** Kedua config menunjuk
+`http://localhost/index.html`, yang tidak cocok dengan rute mana pun — yang diaudit adalah
+halaman 404. Skor 3G-nya naik-turun 0,79/0,80 tepat di ambang (CI PR-074 hijau, CI PR U-25
+dengan kode web identik merah). Landing sungguhan, begitu URL dibetulkan ke `/`, terukur
+**0,73** — dan sudah 0,73–0,75 sebelum PR-074, jadi bukan regresi baru.
+
+Dibayar sebagian 2026-10-01: URL dibetulkan + penjaga `__tests__/lighthouse-url.test.ts`;
+`"sideEffects": false` di `@nawasena/schemas` membuang skema tak terpakai dari bundel awal
+(118 → 108 KB gzip, skor **0,76**, FCP 3,8 → 3,5 dtk). Ambang 3G diset **0,75 sementara**.
+
+Yang tersisa adalah bundel fondasi (react-dom, react-router, zod, TanStack Query) yang di
+"Regular 3G" tersimulasi saja sudah memakan FCP ±3,5 dtk. Eksperimen yang TIDAK membantu:
+landing tanpa menunggu pemulihan sesi (0,76), landing eager di bundel awal (0,76–0,78, bundel
+awal +12 KB untuk semua halaman). Tuas besarnya **pre-render HTML landing** saat build — dengan
+syarat pengguna yang sudah masuk tidak melihat landing sekejap sebelum feed (keputusan PR-074,
+persona Dimas). Lunas = ambang kembali `0.8` dan lulus.
 
 ---
 

@@ -107,7 +107,9 @@ function klienPalsu(jejak: Permintaan[], opsi: OpsiKlien = {}): ApiClient {
             ...awal,
             ...kirim,
             consentSensitiveAt:
-              kirim.consentSensitive === true ? "2026-02-01T03:00:00.000Z" : awal.consentSensitiveAt,
+              kirim.consentSensitive === true
+                ? "2026-02-01T03:00:00.000Z"
+                : awal.consentSensitiveAt,
             sensitive: punyaSensitif
               ? {
                   disabilityTypes: kirim.disabilityTypes ?? [],
@@ -281,7 +283,9 @@ describe("AC 2 — simpan per bagian", () => {
       within(bagian(/^Data dasar$/)).getByRole("button", { name: "Simpan bagian ini" }),
     );
     await waitFor(() => {
-      expect(within(bagian(/^Data dasar$/)).getByRole("status")).toHaveTextContent("sudah disimpan");
+      expect(within(bagian(/^Data dasar$/)).getByRole("status")).toHaveTextContent(
+        "sudah disimpan",
+      );
     });
 
     await userEvent.type(screen.getByRole("textbox", { name: /^Kota/ }), "x");
@@ -352,7 +356,9 @@ describe("AC 3 — consent diberikan DAN dicabut dari UI", () => {
     expect(screen.queryByRole("checkbox", { name: "Tuli atau kurang dengar" })).toBeNull();
 
     await userEvent.click(kotak);
-    expect(await screen.findByRole("checkbox", { name: "Tuli atau kurang dengar" })).not.toBeChecked();
+    expect(
+      await screen.findByRole("checkbox", { name: "Tuli atau kurang dengar" }),
+    ).not.toBeChecked();
   });
 
   it("profil BERIZIN menampilkan datanya dan tanggal izinnya, tanpa kotak consent", async () => {
@@ -363,9 +369,7 @@ describe("AC 3 — consent diberikan DAN dicabut dari UI", () => {
     expect(screen.getByText(/Anda memberi izin ini pada 1 Februari 2026/)).toBeInTheDocument();
     // Kotak consent SENGAJA tidak ada lagi: dua jalan menuju pencabutan berarti
     // salah satunya (yang tanpa peringatan) akan tertekan tidak sengaja.
-    expect(
-      screen.queryByRole("checkbox", { name: /mengizinkan Nawasena menyimpan/ }),
-    ).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: /mengizinkan Nawasena menyimpan/ })).toBeNull();
   });
 
   it("pencabutan mengirim consentSensitive:false TANPA data sensitif apa pun", async () => {
@@ -477,8 +481,9 @@ describe("AC 5 — bagian sensitif ditandai dan dijelaskan", () => {
     renderProfil();
     await tungguSiap();
 
-    expect(within(bagian(/Disabilitas dan kebutuhan akomodasi/)).getByText("Data sensitif"))
-      .toBeInTheDocument();
+    expect(
+      within(bagian(/Disabilitas dan kebutuhan akomodasi/)).getByText("Data sensitif"),
+    ).toBeInTheDocument();
   });
 
   it("menyebut siapa yang bisa melihatnya SEBELUM meminta izin", async () => {
@@ -513,11 +518,7 @@ describe("mode teks sederhana (Testing Checklist PR-040)", () => {
     // sederhana justru harus membaca dua gaya kalimat sekaligus.
     renderProfil({ sederhana: true });
 
-    await screen.findByRole(
-      "heading",
-      { name: "Profil kerja saya", level: 1 },
-      { timeout: 5000 },
-    );
+    await screen.findByRole("heading", { name: "Profil kerja saya", level: 1 }, { timeout: 5000 });
 
     expect(screen.getByText(/Kami pakai ini untuk cari kerja yang cocok/)).toBeInTheDocument();
     // `findBy`, bukan `getBy`: judul halaman sudah terpasang sebelum profilnya
@@ -529,6 +530,8 @@ describe("mode teks sederhana (Testing Checklist PR-040)", () => {
         { timeout: 5000 },
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "Riwayat kerja dan sekolah" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Riwayat kerja dan sekolah" }),
+    ).toBeInTheDocument();
   });
 });

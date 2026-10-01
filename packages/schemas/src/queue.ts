@@ -337,6 +337,52 @@ export const aiExtractResumeJobSchema = z
 
 export type AiExtractResumeJob = z.infer<typeof aiExtractResumeJobSchema>;
 
+/**
+ * Payload `ai-embed` (PR-069) — SATU entitas yang vektornya dihitung ulang.
+ *
+ * Hanya referensi, tanpa teks: worker membaca ulang keadaan TERKINI saat job
+ * berjalan. Job yang membawa teks akan meng-embed versi yang sudah basi bila
+ * ia sempat mengendap melewati suntingan berikutnya — dan coalescing (banyak
+ * event → satu job) justru mengandalkan sifat "baca saat jalan" ini.
+ */
+export const aiEmbedJobSchema = z.discriminatedUnion("jenis", [
+  z.object({ jenis: z.literal("profil"), userId: z.string().uuid() }).strict(),
+  z.object({ jenis: z.literal("lowongan"), jobId: z.string().uuid() }).strict(),
+]);
+
+export type AiEmbedJob = z.infer<typeof aiEmbedJobSchema>;
+
+/**
+ * Payload `ai-rerank-feed` (PR-072) — re-rank SATU angkatan feed seorang pengguna.
+ *
+ * Hanya referensi, tanpa daftar lowongan maupun teks profil: worker membaca
+ * top-20 dari `match_scores` milik angkatan `computedAt` itu. Daftar di DB
+ * itulah whitelist-nya — dan angkatan yang sudah diganti (profil disunting,
+ * refresh lain menang) terdeteksi karena `computedAt`-nya tidak lagi ada.
+ *
+ * `reservasi` = jatah `rerank` yang SUDAH dipotong API saat enqueue (pola
+ * `ai-extract-resume`): worker tidak memotong lagi, dan mengembalikannya bila
+ * pengguna akhirnya tidak menerima apa pun.
+ */
+export const aiRerankFeedJobSchema = z
+  .object({
+    userId: z.string().uuid(),
+    /** ISO-8601 `match_scores.computed_at` angkatan yang di-rerank. */
+    computedAt: z.string().datetime(),
+    reservasi: z
+      .object({
+        hari: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        userId: z.string().uuid(),
+        feature: z.literal("rerank"),
+        tercatat: z.boolean(),
+        global: z.boolean(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export type AiRerankFeedJob = z.infer<typeof aiRerankFeedJobSchema>;
+
 /** Hasil internal processor; tidak diekspos sebagai respons HTTP. */
 export const pdfRenderResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("rendered"), key: z.string(), bytes: z.number().int().min(1) }),

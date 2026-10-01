@@ -13,13 +13,7 @@
 // (`/me/export`, sesi sendiri) dan gerbang consent yang sudah ada di
 // `snapshotFor` — bila consent dicabut, `sensitive` bernilai null tanpa
 // ciphertext-nya pernah disentuh.
-import type {
-  Education,
-  Experience,
-  ExportProfile,
-  SeekerProfile,
-  Skill,
-} from "@nawasena/schemas";
+import type { Education, Experience, ExportProfile, SeekerProfile, Skill } from "@nawasena/schemas";
 // Impor LINTAS MODUL yang sah: service → service (aturan boundaries PR-002).
 // Yang dilarang adalah menyentuh repository modul lain; tipe kontributor adalah
 // bagian dari permukaan service `users`, dan justru itu gunanya.

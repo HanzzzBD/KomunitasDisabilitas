@@ -35,9 +35,10 @@ describe("apps/api/.env.example — sinkron dengan skema env", () => {
 
   it("setiap variabel yang dikenali API muncul di template", () => {
     const hilang = ENV_KEYS.filter((nama) => !terdokumentasi(nama));
-    expect(hilang, `Variabel berikut belum ada di apps/api/.env.example: ${hilang.join(", ")}`).toEqual(
-      [],
-    );
+    expect(
+      hilang,
+      `Variabel berikut belum ada di apps/api/.env.example: ${hilang.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("template tidak memuat variabel yang sudah tidak dikenali API", () => {

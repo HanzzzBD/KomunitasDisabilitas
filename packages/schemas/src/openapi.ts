@@ -87,6 +87,11 @@ import {
   resumeResponseSchema,
   updateResumeSchema,
 } from "./resumes.js";
+import {
+  matchesQuerySchema,
+  matchesRefreshQuerySchema,
+  matchesResponseSchema,
+} from "./matching.js";
 import type { ZodTypeAny } from "zod";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
@@ -968,6 +973,46 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           responses: {
             "200": jsonOk("Halaman hasil pencarian", jobSearchResponseSchema),
             "400": errorResponse("`limit` di luar 1–100, atau cursor tidak terbaca"),
+          },
+        },
+      },
+      // Feed AI Job Matching (PR-073). Satu kontrak untuk mode normal & turun:
+      // setiap item selalu berpenjelasan, `meta` selalu lengkap.
+      "/me/matches": {
+        get: {
+          operationId: "listMyMatches",
+          tags: ["matching"],
+          summary: "Feed lowongan yang cocok (milik sendiri)",
+          description:
+            "Top-50 lowongan aktif yang lolos hard filter lokasi & akomodasi wajib, " +
+            "diurutkan re-rank AI bila tersedia (selain itu menurut skor). Cache 24 jam: " +
+            "permintaan tanpa cursor boleh menghitung ulang cache yang kedaluwarsa " +
+            "(memakai 1 jatah `rerank` bila tersisa). `meta.degraded` = disajikan tanpa AI " +
+            "(penjelasan template); `meta.aiMenyusun` = re-rank AI masih berjalan, muat " +
+            "ulang sebentar lagi. Cursor mengikat feed yang sedang dibaca — feed yang sudah " +
+            "diganti membuat cursor ditolak (400, muat ulang dari awal).",
+          requestParams: { query: matchesQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman feed", matchesResponseSchema),
+            "400": errorResponse("`limit` di luar 1–50, atau cursor tidak berlaku lagi"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/matches/refresh": {
+        post: {
+          operationId: "refreshMyMatches",
+          tags: ["matching"],
+          summary: "Segarkan feed (berkuota)",
+          description:
+            "Hitung ulang feed dan antre re-rank AI, memakai 1 jatah `rerank` harian " +
+            "(bawaan 3). Jatah habis → feed yang ada dikembalikan apa adanya dengan " +
+            "`meta.sisaRefresh: 0` — bukan error. Mengembalikan halaman 1.",
+          requestParams: { query: matchesRefreshQuerySchema },
+          responses: {
+            "200": jsonOk("Halaman 1 feed", matchesResponseSchema),
+            "400": errorResponse("`limit` di luar 1–50"),
+            ...responsSesi,
           },
         },
       },

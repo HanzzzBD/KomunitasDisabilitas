@@ -18,7 +18,7 @@
 // mengembalikan fokus ke kartu yang tadi dibuka saat pengguna kembali dari
 // halaman detail, dan membawa `state.dariDaftar` supaya tautan "Kembali" di
 // halaman detail tahu ia boleh memakai riwayat (bukan membuka daftar baru).
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import { Link } from "react-router";
 import type { EmploymentType, JobSearchResult, WorkMode } from "@nawasena/schemas";
 import { Kartu } from "@nawasena/ui";
@@ -52,9 +52,15 @@ export interface KartuLowonganProps {
   refTautan?: Ref<HTMLAnchorElement>;
   /** Dipanggil tepat sebelum berpindah ke halaman detail. */
   onBuka?: () => void;
+  /**
+   * Isi tambahan tepat di bawah judul (PR-074: skor + alasan kecocokan).
+   * Dirender DI DALAM kartu yang sama, sebelum tautan — satu kesatuan bagi
+   * screen reader, dan satu komponen kartu untuk pencarian maupun feed.
+   */
+  pembuka?: ReactNode;
 }
 
-export function KartuLowongan({ lowongan, refTautan, onBuka }: KartuLowonganProps) {
+export function KartuLowongan({ lowongan, refTautan, onBuka, pembuka }: KartuLowonganProps) {
   const t = useTeks();
 
   const lokasi = [lowongan.city, lowongan.province].filter((v): v is string => v !== null);
@@ -85,6 +91,7 @@ export function KartuLowongan({ lowongan, refTautan, onBuka }: KartuLowonganProp
         </Link>
       }
     >
+      {pembuka}
       {/* `<p>` tunggal, bukan `<dl>`: ini metadata ringkas dibaca sebagai satu
           kalimat ("PT Contoh • Purna waktu • Di kantor • Jakarta"), bukan
           daftar istilah yang menuntut navigasi baris-demi-baris. */}

@@ -144,6 +144,9 @@ const BERKAS_UJI = {
       createdAt: "2026-01-15T20:01:00.000Z",
     },
   ],
+  // Bagian `resumes` WAJIB sejak utang U-25 (2026-10-01) — pelajaran komentar
+  // `profile` di atas: bagian wajib yang hilang membuat unduhan gagal diam-diam.
+  resumes: [],
 } as const;
 
 /**
@@ -470,6 +473,48 @@ export function badanSse(
   };
 }
 
+/**
+ * Feed matching uji (PR-074). Kartunya memakai `LOWONGAN_PENCARIAN_UJI` yang
+ * SAMA dengan halaman cari, supaya alur feed → detail → kembali mendarat di
+ * detail yang dikenali pemalsu `GET /jobs/:id`. Keadaan NORMAL (sudah
+ * di-rerank): satu alasan dari AI, satu dari template — gerbang a11y melihat
+ * kedua bentuk kartu. Spec boleh menimpanya (degraded, kuota habis).
+ */
+export function feedUji(meta: Record<string, unknown> = {}) {
+  const [a, b, c] = LOWONGAN_PENCARIAN_UJI;
+  return {
+    data: [
+      {
+        job: b,
+        score: 0.78,
+        explanation: "Cocok karena pekerjaan ini bisa dari rumah dan jamnya fleksibel.",
+        explanationSource: "ai",
+      },
+      {
+        job: a,
+        score: 0.61,
+        explanation: "Cocok: lokasi di Jakarta, menyediakan akses kursi roda.",
+        explanationSource: "template",
+      },
+      {
+        job: c,
+        score: 0.42,
+        explanation: "Cocok dengan profil Anda.",
+        explanationSource: "template",
+      },
+    ],
+    meta: {
+      nextCursor: null,
+      degraded: false,
+      aiMenyusun: false,
+      sisaRefresh: 2,
+      diperbaruiPada: "2026-01-15T20:00:00.000Z",
+      alasanKosong: null,
+      ...meta,
+    },
+  };
+}
+
 export const JAWABAN_CHAT_UJI = "Terima kasih. Berapa lama Anda bekerja di sana?";
 
 export function kuotaUji(sisaChat = 29) {
@@ -629,6 +674,11 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     // profil memuat keempatnya sekaligus, dan yang tidak terjawab akan
     // menampilkan kegagalan — yang lalu terbaca sebagai pelanggaran
     // aksesibilitas oleh gerbang ini.
+    // --- Feed matching (PR-074) — sebelum `/me`, alasan urutan sama di atas.
+    if (jalur.endsWith("/me/matches/refresh")) {
+      return route.fulfill(jsonkan(200, feedUji({ sisaRefresh: 1, aiMenyusun: true })));
+    }
+    if (jalur.endsWith("/me/matches")) return route.fulfill(jsonkan(200, feedUji()));
     if (jalur.endsWith("/me/profile")) {
       // `PUT` MEMANTULKAN badan permintaan, dengan alasan yang sama seperti
       // `/me/accessibility` di atas: jawaban yang tidak mencerminkan yang

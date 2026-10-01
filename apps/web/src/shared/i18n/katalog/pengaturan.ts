@@ -111,7 +111,8 @@ export const katalogPengaturan = {
   },
   "pengaturan.ekspor.penjelasan": {
     id: "Anda berhak mengambil salinan data yang kami simpan. Berkasnya berbentuk JSON dan bisa Anda simpan atau pindahkan ke layanan lain.",
-    "id-simple": "Anda boleh mengambil data Anda kapan saja. Data akan diunduh sebagai satu berkas. Berkas itu milik Anda.",
+    "id-simple":
+      "Anda boleh mengambil data Anda kapan saja. Data akan diunduh sebagai satu berkas. Berkas itu milik Anda.",
   },
   "pengaturan.ekspor.batas": {
     // Batas kuota disebutkan LEBIH DULU, bukan baru muncul sebagai galat.
@@ -159,7 +160,8 @@ export const katalogPengaturan = {
   },
   "pengaturan.hapus.penjelasan": {
     id: "Menghapus akun akan menghentikan seluruh lamaran Anda dan mengeluarkan Anda dari semua perangkat.",
-    "id-simple": "Kalau akun dihapus, semua lamaran Anda berhenti. Anda juga keluar dari semua HP dan komputer.",
+    "id-simple":
+      "Kalau akun dihapus, semua lamaran Anda berhenti. Anda juga keluar dari semua HP dan komputer.",
   },
   "pengaturan.hapus.tombol": {
     id: "Hapus akun saya",
@@ -191,7 +193,8 @@ export const katalogPengaturan = {
     // Angka harinya datang dari kontrak (`HARI_SEBELUM_PURGE`), bukan diketik
     // ulang di sini: yang dijanjikan harus sama dengan yang ditegakkan job purge.
     id: "Data Anda masih bisa dipulihkan dalam {hari} hari. Setelah itu terhapus permanen.",
-    "id-simple": "Dalam {hari} hari, data Anda masih bisa dikembalikan. Lewat itu, hilang selamanya.",
+    "id-simple":
+      "Dalam {hari} hari, data Anda masih bisa dikembalikan. Lewat itu, hilang selamanya.",
   },
   "pengaturan.hapus.akibat.pulihkan": {
     id: "Untuk memulihkan akun dalam masa itu, hubungi kami lewat kanal resmi Nawasena.",
@@ -216,7 +219,8 @@ export const katalogPengaturan = {
     // masuk akan bertanya-tanya kenapa diminta lagi, dan pertanyaan yang tidak
     // dijawab terbaca sebagai aplikasi yang rewel.
     id: "Anda memang sudah masuk, tetapi menghapus akun adalah langkah terakhir. Kami minta kode baru supaya orang lain yang memegang perangkat Anda tidak bisa melakukannya.",
-    "id-simple": "Anda sudah masuk. Tapi ini langkah terakhir. Kami minta kode baru, supaya orang lain tidak bisa menghapus akun Anda.",
+    "id-simple":
+      "Anda sudah masuk. Tapi ini langkah terakhir. Kami minta kode baru, supaya orang lain tidak bisa menghapus akun Anda.",
   },
   "pengaturan.hapus.kode.kirim": {
     id: "Kirim kode ke nomor saya",
@@ -256,7 +260,8 @@ export const katalogPengaturan = {
   },
   "pengaturan.hapus.selesai.penjelasan": {
     id: "Data Anda masih bisa dipulihkan dalam {hari} hari lewat kanal resmi Nawasena. Terima kasih sudah mencoba Nawasena.",
-    "id-simple": "Dalam {hari} hari, data Anda masih bisa dikembalikan. Hubungi kami. Terima kasih sudah memakai Nawasena.",
+    "id-simple":
+      "Dalam {hari} hari, data Anda masih bisa dikembalikan. Hubungi kami. Terima kasih sudah memakai Nawasena.",
   },
   "pengaturan.hapus.selesai.tutup": {
     id: "Kembali ke beranda",
@@ -270,7 +275,8 @@ export const katalogPengaturan = {
   },
   "pengaturan.hapus.google.deskripsi": {
     id: "Anda akan dibawa ke halaman Google untuk masuk sekali lagi. Setelah kembali, kami tanya sekali lagi sebelum menghapus.",
-    "id-simple": "Anda akan dibawa ke halaman Google. Masuk sekali lagi di sana. Setelah kembali, kami tanya lagi.",
+    "id-simple":
+      "Anda akan dibawa ke halaman Google. Masuk sekali lagi di sana. Setelah kembali, kami tanya lagi.",
   },
   "pengaturan.hapus.google.lanjut": {
     id: "Lanjut ke Google",
@@ -292,7 +298,8 @@ export const katalogPengaturan = {
     // — perhatiannya sudah pindah, dan sebagian orang tiba di sini beberapa
     // menit kemudian.
     id: "Anda sudah masuk lewat Google. Menekan tombol di bawah akan menghapus akun Anda, menghentikan seluruh lamaran Anda, dan mengeluarkan Anda dari semua perangkat.",
-    "id-simple": "Google sudah memastikan ini Anda. Kalau tombol di bawah ditekan, akun Anda dihapus. Semua lamaran Anda berhenti.",
+    "id-simple":
+      "Google sudah memastikan ini Anda. Kalau tombol di bawah ditekan, akun Anda dihapus. Semua lamaran Anda berhenti.",
   },
   "pengaturan.hapus.kembali.batal": {
     id: "Batal, jangan hapus akun saya",
@@ -314,7 +321,8 @@ export const katalogPengaturan = {
     // Hampir selalu salah pilih akun di layar Google — bukan serangan. Pesannya
     // menyebut penyebabnya alih-alih menolak dengan "tidak valid" yang buntu.
     id: "Akun Google yang Anda pilih berbeda dengan akun Nawasena ini. Ulangi, lalu pilih akun Google yang biasa Anda pakai untuk masuk.",
-    "id-simple": "Anda memilih akun Google yang lain. Ulangi, lalu pilih akun Google yang biasa Anda pakai.",
+    "id-simple":
+      "Anda memilih akun Google yang lain. Ulangi, lalu pilih akun Google yang biasa Anda pakai.",
   },
   "pengaturan.hapus.galat.kedaluwarsa": {
     id: "Konfirmasi dari Google sudah kedaluwarsa. Ulangi dari halaman pengaturan.",
@@ -327,7 +335,8 @@ export const katalogPengaturan = {
     // Pengguna yang menekan tombol lalu ditolak server akan mengira dirinya
     // yang salah — padahal jalurnya memang belum kami bangun.
     id: "Akun Anda tidak punya nomor HP, dan konfirmasi lewat Google sedang tidak tersedia. Hubungi kami lewat kanal resmi Nawasena untuk dibantu menghapus akun.",
-    "id-simple": "Akun Anda tidak punya nomor HP. Cara lewat Google juga sedang mati. Hubungi kami, nanti kami bantu.",
+    "id-simple":
+      "Akun Anda tidak punya nomor HP. Cara lewat Google juga sedang mati. Hubungi kami, nanti kami bantu.",
   },
 
   // --- Aksesibilitas (PR-036) ---
@@ -357,7 +366,8 @@ export const katalogPengaturan = {
     id: "Pilih cara kami mengabari Anda saat ada perkembangan lamaran. Kabar di dalam aplikasi selalu ada dan tidak bisa dimatikan.",
     // Dipecah menjadi kalimat-kalimat pendek, satu gagasan masing-masing, dan
     // "perkembangan lamaran" → "kabar tentang lamaran Anda".
-    "id-simple": "Pilih cara kami mengabari Anda. Kabar di dalam aplikasi selalu ada. Itu tidak bisa dimatikan.",
+    "id-simple":
+      "Pilih cara kami mengabari Anda. Kabar di dalam aplikasi selalu ada. Itu tidak bisa dimatikan.",
   },
   "pengaturan.notifikasi.legenda": {
     id: "Kabar di luar aplikasi",
@@ -376,7 +386,8 @@ export const katalogPengaturan = {
     // diberi tahu tentang pengecualian ini akan mengira kami mengabaikan
     // pilihannya.
     id: "Mati secara bawaan. Pemberitahuan keamanan akun, seperti kabar bahwa akun Anda dihapus, tetap dikirim ke email meski sakelar ini mati.",
-    "id-simple": "Bawaannya mati. Satu hal tetap kami kirim: kabar penting tentang keamanan akun Anda. Contohnya kalau akun Anda dihapus.",
+    "id-simple":
+      "Bawaannya mati. Satu hal tetap kami kirim: kabar penting tentang keamanan akun Anda. Contohnya kalau akun Anda dihapus.",
   },
   "pengaturan.notifikasi.push": {
     id: "Kirim ke layar ponsel saya",

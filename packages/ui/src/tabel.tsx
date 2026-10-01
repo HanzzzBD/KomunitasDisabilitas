@@ -89,8 +89,13 @@ export function Tabel<T>({
               // `urutan.arah` di bawah meski secara logika keduanya setara.
               const arahAktif: "asc" | "desc" | null =
                 urutan !== undefined && urutan.kunci === k.kunci ? urutan.arah : null;
-              const ariaSort =
-                !k.urut ? undefined : arahAktif === null ? "none" : arahAktif === "asc" ? "ascending" : "descending";
+              const ariaSort = !k.urut
+                ? undefined
+                : arahAktif === null
+                  ? "none"
+                  : arahAktif === "asc"
+                    ? "ascending"
+                    : "descending";
 
               return (
                 <th

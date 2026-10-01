@@ -14,10 +14,7 @@ function actorOf(req: Request): AccountActor {
   };
 }
 
-export function createAccountController(deps: {
-  service: AccountService;
-  cookie: SessionCookie;
-}) {
+export function createAccountController(deps: { service: AccountService; cookie: SessionCookie }) {
   const { service, cookie } = deps;
 
   return {

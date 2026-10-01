@@ -63,7 +63,9 @@ test.describe("cari lowongan — alur sungguhan", () => {
     await expect(page.getByRole("button", { name: "Muat lebih banyak" })).toHaveCount(0);
 
     // Pengumuman jumlah hasil — live region `role="status"`, `sr-only`.
-    await expect(page.locator('[role="status"]', { hasText: "1 lowongan ditemukan." })).toBeAttached();
+    await expect(
+      page.locator('[role="status"]', { hasText: "1 lowongan ditemukan." }),
+    ).toBeAttached();
 
     await tungguGayaTenang(page);
     const hasil = await new AxeBuilder({ page }).withTags(TAG).analyze();
@@ -85,7 +87,9 @@ test.describe("cari lowongan — alur sungguhan", () => {
     // DUA tombol "Hapus semua filter" sah-sah saja di layar ini (satu di
     // panel filter, satu sebagai saran di keadaan kosong — keduanya aksi
     // yang SAMA); locator ini sengaja disempitkan ke wilayah keadaan kosong.
-    const keadaanKosong = page.locator('[role="status"]', { hasText: "Tidak ada lowongan yang cocok" });
+    const keadaanKosong = page.locator('[role="status"]', {
+      hasText: "Tidak ada lowongan yang cocok",
+    });
     const tombolReset = keadaanKosong.getByRole("button", { name: "Hapus semua filter" });
     await expect(tombolReset).toBeVisible();
 
@@ -110,7 +114,9 @@ test.describe("cari lowongan — alur sungguhan", () => {
     await expect(page.getByRole("heading", { name: "Staf Layanan Pelanggan" })).toHaveCount(0);
   });
 
-  test("filter keyboard-only: seluruh form ditempuh dan dikirim tanpa tetikus", async ({ page }) => {
+  test("filter keyboard-only: seluruh form ditempuh dan dikirim tanpa tetikus", async ({
+    page,
+  }) => {
     await palsukanApi(page, HALAMAN);
     await page.goto("/lowongan");
     await page.waitForSelector("h1");

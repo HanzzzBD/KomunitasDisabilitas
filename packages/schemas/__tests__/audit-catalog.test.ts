@@ -13,10 +13,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { AUDIT_ACTION, auditMetaSchemas, type AuditAction } from "../src/audit.js";
 
-const katalog = readFileSync(
-  resolve(__dirname, "../../../docs/audit-action-catalog.md"),
-  "utf8",
-);
+const katalog = readFileSync(resolve(__dirname, "../../../docs/audit-action-catalog.md"), "utf8");
 
 /** Nama action yang muncul sebagai `` `NAMA` `` di kolom pertama tabel. */
 const diDokumen = new Set(
@@ -35,9 +32,10 @@ describe("docs/audit-action-catalog.md — sinkron dengan AUDIT_ACTION", () => {
 
   it("setiap action punya baris di katalog", () => {
     const hilang = semuaAction.filter((a) => !diDokumen.has(a));
-    expect(hilang, `Action berikut belum ada di docs/audit-action-catalog.md: ${hilang.join(", ")}`).toEqual(
-      [],
-    );
+    expect(
+      hilang,
+      `Action berikut belum ada di docs/audit-action-catalog.md: ${hilang.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("katalog tidak memuat action yang sudah tidak ada di kode", () => {

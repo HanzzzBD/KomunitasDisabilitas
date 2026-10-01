@@ -150,7 +150,11 @@ function renderPanel({ ekspor = "ok" as Jawaban, sederhana = false } = {}) {
   const hitung = { n: 0 };
   const router = createMemoryRouter(ruteApp, { initialEntries: ["/pengaturan"] });
   const hasil = render(
-    <Providers queryClient={createQueryClient()} klienApi={klienPalsu(ekspor, hitung)} a11yStore={a11y}>
+    <Providers
+      queryClient={createQueryClient()}
+      klienApi={klienPalsu(ekspor, hitung)}
+      a11yStore={a11y}
+    >
       <RouterProvider router={router} />
     </Providers>,
   );
@@ -160,7 +164,6 @@ function renderPanel({ ekspor = "ok" as Jawaban, sederhana = false } = {}) {
 function tombolUnduh(nama = "Unduh data saya") {
   return screen.findByRole("button", { name: nama }, { timeout: 5000 });
 }
-
 
 /**
  * Live region milik BAGIAN EKSPOR saja.
@@ -254,7 +257,10 @@ describe("ekspor diumumkan, bukan hanya terjadi", () => {
     renderPanel();
     await userEvent.click(await tombolUnduh());
 
-    await waitFor(() => expect(wilayahEkspor()).toHaveTextContent("nawasena-data-saya-2026-01-16.json"), { timeout: 5000 });
+    await waitFor(
+      () => expect(wilayahEkspor()).toHaveTextContent("nawasena-data-saya-2026-01-16.json"),
+      { timeout: 5000 },
+    );
     expect(wilayahEkspor()).toHaveTextContent(/folder unduhan/i);
   });
 

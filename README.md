@@ -1,6 +1,6 @@
 # Nawasena — Masa Depan Karier Tanpa Batas
 
-Nawasena adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka. Kami membangun pengalaman yang optimistis, profesional, dan *accessible by design*, dengan standar **WCAG 2.2 Level AA** end-to-end.
+Nawasena adalah platform karier inklusif berbasis teknologi yang membantu penyandang disabilitas menemukan peluang kerja yang setara, aksesibel, dan sesuai potensi mereka. Kami membangun pengalaman yang optimistis, profesional, dan _accessible by design_, dengan standar **WCAG 2.2 Level AA** end-to-end.
 
 Dokumen produk & teknis: [PRD.md](./PRD.md) · [SDD.md](./SDD.md) · [DESIGN.md](./DESIGN.md) · [ADR](./docs/adr/) · [Rencana implementasi](./docs/implementation/README.md)
 

@@ -67,6 +67,17 @@ describe("seed — 20 jobs variasi matching (AC)", () => {
     // welcomed_disability_types terisi di sebagian lowongan (sinyal matching).
     expect(jobs.some((j) => j.welcomedDisabilityTypes.length > 0)).toBe(true);
   });
+
+  it("PR-069b (U-29): setiap lowongan seed berkurator admin seed — pemikul kuota embed", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const jobs = await prisma.job.findMany({ where: { id: { in: Object.values(FIXTURE.jobs) } } });
+    const admin = await prisma.user.findFirst({
+      where: { phone: process.env.SEED_ADMIN_PHONE ?? "+620000000001", deletedAt: null },
+    });
+
+    expect(admin?.role).toBe("admin");
+    expect(new Set(jobs.map((j) => j.createdBy))).toEqual(new Set([admin?.id]));
+  });
 });
 
 describe("seed — persona PRD §4 (AC)", () => {

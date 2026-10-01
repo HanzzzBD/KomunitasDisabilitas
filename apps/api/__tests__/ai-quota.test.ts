@@ -570,9 +570,7 @@ describe("kegagalan Redis pada INCR ITU SENDIRI — jatah TIDAK boleh dikembalik
     const redis: RedisKuotaPalsu = {
       ...dasar,
       incr: (key) =>
-        key === kunciGlobal
-          ? Promise.reject(new Error("INCR global gagal"))
-          : dasar.incr(key),
+        key === kunciGlobal ? Promise.reject(new Error("INCR global gagal")) : dasar.incr(key),
     };
     const quota = createAiQuota({
       redis,

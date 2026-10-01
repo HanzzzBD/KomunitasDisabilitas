@@ -10,8 +10,54 @@
 //
 // Karena itu: satu panggilan refresh yang sedang berjalan dipakai bersama oleh
 // semua pemanggil yang datang saat itu.
+import type { RefreshSessionResponse } from "@nawasena/schemas";
 import type { ApiClient } from "./client.js";
 import { refreshSession } from "./endpoints/auth.js";
+import { ApiError } from "./errors.js";
+
+/**
+ * Jeda sebelum mencoba lagi saat server menjawab `SESI_SUDAH_DIROTASI`
+ * (utang U-10). Totalnya 3,8 detik — di dalam jendela toleransi server
+ * (bawaan 10 detik), dan cukup untuk jawaban PEMENANG balapan tiba lebih dulu
+ * sehingga cookie (web) atau penyimpanan token (mobile) sudah memegang token
+ * terbarunya.
+ */
+export const JEDA_COBA_ULANG_ROTASI_MS = [300, 1000, 2500] as const;
+
+export interface OpsiRefreshToleran {
+  /** Ambil refresh token TERKINI tiap percobaan — mobile; web: undefined (cookie). */
+  getRefreshToken?: () => string | null | Promise<string | null>;
+  /** Disuntik test; bawaan `setTimeout`. */
+  tunggu?: (ms: number) => Promise<void>;
+}
+
+/**
+ * `POST /auth/refresh` yang tahan balapan rotasi (utang U-10).
+ *
+ * Dua tab, atau pemulihan boot yang berlomba dengan refresh yang dipicu 401,
+ * mengirim token yang SAMA. Yang kalah dijawab `SESI_SUDAH_DIROTASI` — bukan
+ * "sesi habis" — dan cukup mencoba lagi sesudah pemenangnya memperbarui
+ * cookie/token. Kode lain dilempar apa adanya: tidak ada percobaan ulang untuk
+ * sesi yang memang berakhir.
+ */
+export async function refreshSesiToleran(
+  client: ApiClient,
+  opsi: OpsiRefreshToleran = {},
+): Promise<RefreshSessionResponse> {
+  const tunggu = opsi.tunggu ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let percobaan = 0; ; percobaan++) {
+    try {
+      const refreshToken = (await opsi.getRefreshToken?.()) ?? undefined;
+      return await refreshSession(client, refreshToken === undefined ? {} : { refreshToken });
+    } catch (err) {
+      const jeda = JEDA_COBA_ULANG_ROTASI_MS[percobaan];
+      if (!(err instanceof ApiError && err.code === "SESI_SUDAH_DIROTASI") || jeda === undefined) {
+        throw err;
+      }
+      await tunggu(jeda);
+    }
+  }
+}
 
 export interface SessionRefresherOptions {
   client: ApiClient;
@@ -30,6 +76,8 @@ export interface SessionRefresherOptions {
   onRefreshToken?: (refreshToken: string) => void | Promise<void>;
   /** Sesi habis (refresh ditolak) → aplikasi mengarahkan ke halaman masuk. */
   onSessionEnded?: () => void | Promise<void>;
+  /** Disuntik test (jeda coba ulang balapan rotasi). */
+  tunggu?: (ms: number) => Promise<void>;
 }
 
 /**
@@ -44,8 +92,12 @@ export function createSessionRefresher(options: SessionRefresherOptions): () => 
 
   async function jalankan(): Promise<boolean> {
     try {
-      const refreshToken = (await getRefreshToken?.()) ?? undefined;
-      const { data } = await refreshSession(client, refreshToken === null ? {} : { refreshToken });
+      // Tahan balapan rotasi (utang U-10): `SESI_SUDAH_DIROTASI` dicoba lagi
+      // dengan token TERKINI, bukan dibaca sebagai "sesi habis".
+      const { data } = await refreshSesiToleran(client, {
+        ...(getRefreshToken === undefined ? {} : { getRefreshToken }),
+        ...(options.tunggu === undefined ? {} : { tunggu: options.tunggu }),
+      });
 
       await onAccessToken(data.accessToken);
       // Hanya mobile yang menerima refresh baru di body; web mendapat cookie.

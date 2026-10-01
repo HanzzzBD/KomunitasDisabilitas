@@ -72,7 +72,8 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil, profil: Partial<typeof PROFIL>
           meta: { nextCursor: null, unreadCount: 0 },
         }) as Promise<never>;
       }
-      if (path === "/me") return Promise.resolve({ data: { ...PROFIL, ...profil } }) as Promise<never>;
+      if (path === "/me")
+        return Promise.resolve({ data: { ...PROFIL, ...profil } }) as Promise<never>;
 
       jejak.push({ path, body: opsi?.body });
 
@@ -460,7 +461,11 @@ describe("akun tanpa nomor HP (masuk lewat Google)", () => {
     renderPanel({ profil: { phone: null } });
 
     expect(
-      await screen.findByText(/konfirmasi lewat Google sedang tidak tersedia/i, {}, { timeout: 5000 }),
+      await screen.findByText(
+        /konfirmasi lewat Google sedang tidak tersedia/i,
+        {},
+        { timeout: 5000 },
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hapus akun saya" })).toBeNull();
   });

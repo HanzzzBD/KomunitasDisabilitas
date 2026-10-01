@@ -106,7 +106,15 @@ function fakePrisma(rows: BarisCompany[]) {
       const found = ambil(where.id);
       return Promise.resolve(found === undefined ? null : { ...found });
     },
-    create: ({ data }: { data: Omit<BarisCompany, "inclusivityStatus" | "verifiedBy" | "verifiedAt" | "createdAt" | "updatedAt"> & Partial<BarisCompany> }) => {
+    create: ({
+      data,
+    }: {
+      data: Omit<
+        BarisCompany,
+        "inclusivityStatus" | "verifiedBy" | "verifiedAt" | "createdAt" | "updatedAt"
+      > &
+        Partial<BarisCompany>;
+    }) => {
       const baris = barisBaru({ ...data });
       rows.push(baris);
       return Promise.resolve({ ...baris });
@@ -449,9 +457,7 @@ describe("PUT /api/v1/admin/companies/:id — update & un-verify (AC-5)", () => 
 
     expect(res.status).toBe(200);
     expect((await badan(res)).data).toMatchObject({ name: "Nama Baru" });
-    expect(audit).toEqual([
-      expect.objectContaining({ meta: { operation: "update" } }),
-    ]);
+    expect(audit).toEqual([expect.objectContaining({ meta: { operation: "update" } })]);
   });
 
   it("id tidak ada → 404 PERUSAHAAN_TIDAK_DITEMUKAN", async () => {
@@ -528,7 +534,12 @@ describe("POST /api/v1/admin/companies/:id/verify — verifikasi (AC-2)", () => 
 
   it("id tidak ada → 404, tanpa audit/event", async () => {
     const { base, audit, eventsDiterima } = await boot();
-    const res = await panggil(base, "POST", `/admin/companies/${TAK_ADA}/verify`, await tokenUntuk(ADMIN));
+    const res = await panggil(
+      base,
+      "POST",
+      `/admin/companies/${TAK_ADA}/verify`,
+      await tokenUntuk(ADMIN),
+    );
 
     expect(res.status).toBe(404);
     expect(audit).toHaveLength(0);
@@ -560,7 +571,10 @@ describe("GET /api/v1/admin/companies — daftar admin", () => {
     const res = await panggil(base, "GET", "/admin/companies", await tokenUntuk(ADMIN));
     const body = await badan(res);
 
-    expect((body.data as { name: string }[]).map((c) => c.name)).toEqual(["Awal Corp", "Zebra Corp"]);
+    expect((body.data as { name: string }[]).map((c) => c.name)).toEqual([
+      "Awal Corp",
+      "Zebra Corp",
+    ]);
     expect((body.data as Record<string, unknown>[])[0]).toHaveProperty("verifiedBy");
   });
 });

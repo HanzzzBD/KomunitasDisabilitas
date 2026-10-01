@@ -2,7 +2,7 @@
 //
 // Dipakai hanya bila Fonnte gagal: SMS lebih mahal, tetapi tidak menuntut
 // pengguna punya WhatsApp aktif — penting untuk pengguna di jaringan lemah.
-import { OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { PhoneSenderError, type PhoneSender } from "./phone-sender.js";
 import type { FetchLike } from "./fonnte.sender.js";
 
 export interface TwilioConfig {
@@ -30,7 +30,7 @@ function bacaPesan(body: unknown): string {
   return teks === "" ? "tanpa keterangan" : `${kode}${teks}`.slice(0, 120);
 }
 
-export function createTwilioSender(config: TwilioConfig, fetchImpl?: FetchLike): OtpSender {
+export function createTwilioSender(config: TwilioConfig, fetchImpl?: FetchLike): PhoneSender {
   const kirim: FetchLike = fetchImpl ?? ((input, init) => fetch(input, init));
   // Basic auth dihitung sekali; nilainya rahasia — jangan pernah di-log.
   const basic = Buffer.from(`${config.accountSid}:${config.authToken}`, "utf8").toString("base64");
@@ -57,13 +57,13 @@ export function createTwilioSender(config: TwilioConfig, fetchImpl?: FetchLike):
         });
       } catch (err) {
         const jenis = err instanceof Error ? err.name : "Error";
-        throw new OtpSenderError(TWILIO_PROVIDER, `gagal menghubungi Twilio (${jenis})`);
+        throw new PhoneSenderError(TWILIO_PROVIDER, `gagal menghubungi Twilio (${jenis})`);
       }
 
       // Twilio membalas 201 saat pesan diterima antreannya.
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
-        throw new OtpSenderError(
+        throw new PhoneSenderError(
           TWILIO_PROVIDER,
           `Twilio menolak permintaan (HTTP ${response.status}): ${bacaPesan(body)}`,
         );

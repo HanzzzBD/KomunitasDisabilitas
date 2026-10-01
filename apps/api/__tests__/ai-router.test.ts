@@ -25,7 +25,7 @@ const KONFIG_GEMINI = {
   apiKey: "kunci-gemini",
   baseUrl: "https://ai.contoh.invalid",
   chatModel: "gemini-2.0-flash",
-  embedModel: "text-embedding-004",
+  embedModel: "gemini-embedding-001",
   timeoutMs: 2_000,
 };
 const KONFIG_GROQ = {

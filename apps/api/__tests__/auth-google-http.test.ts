@@ -41,7 +41,12 @@ let formDiterima: URLSearchParams | null = null;
 
 beforeAll(async () => {
   kunci = await generateKeyPair("RS256");
-  const jwk: JWK = { ...(await exportJWK(kunci.publicKey)), kid: "uji-1", alg: "RS256", use: "sig" };
+  const jwk: JWK = {
+    ...(await exportJWK(kunci.publicKey)),
+    kid: "uji-1",
+    alg: "RS256",
+    use: "sig",
+  };
 
   googlePalsu = createHttpServer((req, res) => {
     if (req.url?.startsWith("/certs") === true) {
@@ -266,7 +271,10 @@ async function boot(options: BootOptions = {}) {
   return { base: `http://127.0.0.1:${port}/api/v1`, users, audit, baris };
 }
 
-const masuk = (base: string, body: unknown = { code: CODE, codeVerifier: VERIFIER, redirectUri: REDIRECT_URI }) =>
+const masuk = (
+  base: string,
+  body: unknown = { code: CODE, codeVerifier: VERIFIER, redirectUri: REDIRECT_URI },
+) =>
   fetch(`${base}/auth/google`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -433,7 +441,10 @@ describe("POST /api/v1/auth/google — jalur ditolak", () => {
 
   it.each([
     ["verifier terlalu pendek", { code: CODE, codeVerifier: "pendek", redirectUri: REDIRECT_URI }],
-    ["verifier berisi karakter terlarang", { code: CODE, codeVerifier: `${"a".repeat(50)} spasi`, redirectUri: REDIRECT_URI }],
+    [
+      "verifier berisi karakter terlarang",
+      { code: CODE, codeVerifier: `${"a".repeat(50)} spasi`, redirectUri: REDIRECT_URI },
+    ],
     ["code kosong", { code: "", codeVerifier: VERIFIER, redirectUri: REDIRECT_URI }],
     ["redirectUri bukan URL", { code: CODE, codeVerifier: VERIFIER, redirectUri: "bukan-url" }],
     ["body kosong", {}],

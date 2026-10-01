@@ -14,7 +14,7 @@ import {
   generateOtpCode,
   OTP_POLICY,
 } from "../src/modules/auth/services/otp.service.js";
-import { OtpSenderError, type OtpSender } from "../src/modules/auth/services/otp-sender.js";
+import { PhoneSenderError, type PhoneSender } from "../src/modules/auth/services/phone-sender.js";
 import type { AuthUserRepository } from "../src/modules/auth/repositories/user.repository.js";
 
 const PHONE = "+6281234567890";
@@ -122,7 +122,7 @@ const kodeDari = (text: string): string => /\b(\d{6})\b/.exec(text)?.[1] ?? "";
 /** Sender penangkap: menyimpan pesan agar test bisa "membaca WhatsApp". */
 function createCapturingSender() {
   const terkirim: Array<{ phone: string; text: string }> = [];
-  const sender: OtpSender = {
+  const sender: PhoneSender = {
     name: "uji",
     async send(message) {
       terkirim.push({ ...message });
@@ -131,7 +131,7 @@ function createCapturingSender() {
   return { sender, terkirim };
 }
 
-function setup(options: { sender?: OtpSender; userId?: string | null } = {}) {
+function setup(options: { sender?: PhoneSender; userId?: string | null } = {}) {
   const { redis, nilai } = createFakeRedis();
   const penangkap = createCapturingSender();
   const auditLog = vi.fn();
@@ -271,7 +271,10 @@ describe("verify", () => {
 
   it("verify menerbitkan pasangan token (PR-018b)", async () => {
     await ctx.service.request({ phone: PHONE }, ACTOR);
-    const hasil = await ctx.service.verify({ phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) }, ACTOR);
+    const hasil = await ctx.service.verify(
+      { phone: PHONE, code: kodeDari(ctx.terkirim[0]!.text) },
+      ACTOR,
+    );
 
     expect(ctx.sessionIssue).toHaveBeenCalledWith(hasil.userId);
     expect(hasil.tokens.accessToken).toBe("access-uji");
@@ -428,9 +431,9 @@ describe("lockout progresif (AC: percobaan ke-6 → OTP hangus + audit)", () => 
 
 describe("kegagalan pengirim", () => {
   it("sender gagal → 503 dan kode dihanguskan (tidak menggantung)", async () => {
-    const gagal: OtpSender = {
+    const gagal: PhoneSender = {
       name: "gagal",
-      send: () => Promise.reject(new OtpSenderError("gagal", "provider mati")),
+      send: () => Promise.reject(new PhoneSenderError("gagal", "provider mati")),
     };
     const lokal = setup({ sender: gagal });
 

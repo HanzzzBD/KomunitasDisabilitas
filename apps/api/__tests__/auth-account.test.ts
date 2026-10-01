@@ -13,7 +13,7 @@ import {
   createAccountService,
   HARI_SEBELUM_PURGE,
 } from "../src/modules/auth/index.js";
-import type { OtpSender } from "../src/modules/auth/services/otp-sender.js";
+import type { PhoneSender } from "../src/modules/auth/services/phone-sender.js";
 import type { AuthUserRepository } from "../src/modules/auth/repositories/user.repository.js";
 
 const USER_ID = "01912345-89ab-7def-8123-000000000001";
@@ -110,7 +110,10 @@ describe("hapus akun — jalur kode OTP", () => {
   });
 
   it("mencatat requested lalu completed, dengan jumlah sesi yang dicabut", async () => {
-    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null }, { revokedCount: 2 });
+    const { repository } = fakeUserRepository(
+      { phone: PHONE, googleId: null },
+      { revokedCount: 2 },
+    );
     const audit = fakeAudit();
     const service = createAccountService({
       userRepository: repository,
@@ -302,7 +305,7 @@ describe("hapus akun — keadaan akun", () => {
 /** Sender penangkap; `gagal: true` meniru provider yang mati. */
 function fakeSender(opsi: { gagal?: boolean } = {}) {
   const terkirim: Array<{ phone: string; text: string }> = [];
-  const sender: OtpSender = {
+  const sender: PhoneSender = {
     name: "uji",
     async send(pesan) {
       if (opsi.gagal === true) throw new Error("provider mati");
@@ -343,7 +346,10 @@ describe("pemberitahuan pasca-hapus", () => {
   });
 
   it("terkirim ke nomor akun setelah penghapusan berhasil", async () => {
-    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null }, { revokedCount: 1 });
+    const { repository } = fakeUserRepository(
+      { phone: PHONE, googleId: null },
+      { revokedCount: 1 },
+    );
     const { sender, terkirim } = fakeSender();
     const service = createAccountService({
       userRepository: repository,
@@ -556,7 +562,10 @@ describe("gerbang U-02 — kabar pasca-hapus lahir dari ANTREAN", () => {
     // Dua kabar untuk satu peristiwa bukan ketelitian melainkan kebisingan, dan
     // nomor HP adalah kanal yang sudah TERBUKTI miliknya (setiap akun bernomor
     // pernah menerima kode OTP di sana).
-    const { repository } = fakeUserRepository({ phone: PHONE, googleId: null }, { revokedCount: 1 });
+    const { repository } = fakeUserRepository(
+      { phone: PHONE, googleId: null },
+      { revokedCount: 1 },
+    );
     const { sender, terkirim } = fakeSender();
     const { queues, diantre } = fakeQueues();
     const service = createAccountService({

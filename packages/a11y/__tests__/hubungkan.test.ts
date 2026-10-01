@@ -119,7 +119,12 @@ describe("hubungkanKeDom — perubahan setelan OS di tengah sesi", () => {
 
     // Pengguna menyalakan "kurangi gerak" di setelan sistem.
     (jendela as unknown as { matchMedia: (k: string) => MediaQueryList }).matchMedia = (k) =>
-      ({ media: k, matches: k === KUERI_OS.reduceMotion, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList;
+      ({
+        media: k,
+        matches: k === KUERI_OS.reduceMotion,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList;
     pemicu.get(KUERI_OS.reduceMotion)?.forEach((cb) => cb());
 
     expect(store.getState().os.reduceMotion).toBe(true);

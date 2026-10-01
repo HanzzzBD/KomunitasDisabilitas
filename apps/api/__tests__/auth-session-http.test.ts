@@ -234,7 +234,9 @@ describe("POST /auth/refresh — klien web (cookie)", () => {
     // pola yang menuntut minimal satu karakter tidak akan pernah cocok dengan
     // cookie yang DIKOSONGKAN, sehingga asersinya lolos justru pada keadaan
     // yang ingin dijaga.
-    const tokenMenang = /nawasena_refresh=([^;]*)/.exec(menang.headers.get("set-cookie") ?? "")?.[1];
+    const tokenMenang = /nawasena_refresh=([^;]*)/.exec(
+      menang.headers.get("set-cookie") ?? "",
+    )?.[1];
     expect(tokenMenang).toBeTruthy();
     expect(tokenMenang).not.toBe(awal.refreshToken);
 

@@ -37,7 +37,12 @@ function ratakan(rute: readonly RouteObject[]): RouteObject[] {
 function resolusi(dariBerkas: string, spesifier: string): string | null {
   if (!spesifier.startsWith(".")) return null;
   const dasar = resolve(dirname(dariBerkas), spesifier).replace(/\.js$/, "");
-  const kandidat = [`${dasar}.ts`, `${dasar}.tsx`, join(dasar, "index.ts"), join(dasar, "index.tsx")];
+  const kandidat = [
+    `${dasar}.ts`,
+    `${dasar}.tsx`,
+    join(dasar, "index.ts"),
+    join(dasar, "index.tsx"),
+  ];
   for (const berkas of kandidat) {
     try {
       if (statSync(berkas).isFile()) return berkas;
@@ -98,7 +103,9 @@ function fiturYangDisebut(berkasBerkas: readonly string[]): Set<FiturMalas> {
     // Katalog & registri sendiri menyebut SEMUA nama fitur; membacanya membuat
     // setiap rute tampak membutuhkan segalanya.
     if (berkas.includes(join("shared", "i18n"))) continue;
-    for (const cocok of tanpaKomentar(readFileSync(berkas, "utf8")).matchAll(/["'`]([a-zA-Z]+)\./g)) {
+    for (const cocok of tanpaKomentar(readFileSync(berkas, "utf8")).matchAll(
+      /["'`]([a-zA-Z]+)\./g,
+    )) {
       const fitur = FITUR_MALAS.find((f) => f === cocok[1]);
       if (fitur !== undefined) hasil.add(fitur);
     }

@@ -53,6 +53,10 @@ export const ruteApp: RouteObject[] = [
         lazy: async () => {
           const [{ Beranda }] = await Promise.all([
             import("../routes/beranda.js"),
+            // HANYA `beranda`. Katalog kartu feed (`lowongan`/`companies`/
+            // `profil`) dimuat bersama chunk feed di `routes/beranda.tsx` —
+            // tamu yang hanya melihat landing tidak menunggu ketiganya
+            // (Lighthouse 3G, AC PR-032).
             muatKatalog("beranda"),
           ]);
           return { Component: Beranda };

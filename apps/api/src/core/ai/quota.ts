@@ -177,9 +177,7 @@ export interface AiQuota {
  */
 export function isKuotaHabis(err: unknown): boolean {
   return (
-    typeof err === "object" &&
-    err !== null &&
-    (err as { code?: unknown }).code === KODE_KUOTA_HABIS
+    typeof err === "object" && err !== null && (err as { code?: unknown }).code === KODE_KUOTA_HABIS
   );
 }
 
@@ -250,7 +248,10 @@ function tolak(
  * — satu unit jatah cuma-cuma, persis pada saat Redis sedang sakit.
  */
 class KenaikanTerpasang extends Error {
-  constructor(readonly nilai: number, override readonly cause: unknown) {
+  constructor(
+    readonly nilai: number,
+    override readonly cause: unknown,
+  ) {
     super("Kenaikan kuota AI mendarat, penyetelan TTL gagal");
     this.name = "KenaikanTerpasang";
   }
@@ -312,10 +313,7 @@ export function createAiQuota(deps: AiQuotaDeps): AiQuota {
   }
 
   /** Redis tak terjangkau: tolak (baku) atau lewatkan (tuas operator). */
-  function saatRedisGagal(
-    err: unknown,
-    reservasiKosong: AiQuotaReservasi,
-  ): AiQuotaReservasi {
+  function saatRedisGagal(err: unknown, reservasiKosong: AiQuotaReservasi): AiQuotaReservasi {
     if (failOpen) {
       logger.warn(
         { err, failOpen: true },

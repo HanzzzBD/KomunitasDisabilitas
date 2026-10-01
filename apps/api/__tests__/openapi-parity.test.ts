@@ -33,13 +33,14 @@ import { createInternalModule } from "../src/modules/internal/index.js";
 import { createCompaniesModule } from "../src/modules/companies/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
+import { BOBOT_SKOR_SDD, createMatchingFeedModule } from "../src/modules/matching/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
 
 const PREFIX = "/api/v1";
 
 /** Semua factory modul di bawah MURNI konstruksi — tidak satu pun menyentuh I/O. */
-const stub = <T,>(): T => ({}) as T;
+const stub = <T>(): T => ({}) as T;
 
 const logger = createLogger(
   { LOG_LEVEL: "fatal" },
@@ -133,6 +134,20 @@ function routeNyata(): { method: string; path: string }[] {
     auditLog: auditLog as never,
     events,
     jobsService: jobs.service,
+  });
+
+  createMatchingFeedModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    queues: stub(),
+    quota: stub(),
+    redis: stub(),
+    logger,
+    sensitiveAccess: stub(),
+    bacaProfil: stub(),
+    bacaKeahlian: stub(),
+    bacaLowongan: stub(),
+    config: { efSearch: 100, bobot: BOBOT_SKOR_SDD, paruhKebaruanHari: 14, rerankAktif: true },
   });
 
   // Permukaan operasional — ikut dirakit supaya test terakhir benar-benar

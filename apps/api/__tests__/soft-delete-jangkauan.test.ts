@@ -118,7 +118,10 @@ export function cariRawSqlUsers(kode: string): Temuan[] {
 
     if (!/\busers\b/i.test(sql)) continue;
     if (/\bdeleted_at\b/i.test(sql)) continue;
-    temuan.push({ baris: nomorBaris(bersih, mulai), kutipan: sql.slice(0, 60).replace(/\s+/g, " ") });
+    temuan.push({
+      baris: nomorBaris(bersih, mulai),
+      kutipan: sql.slice(0, 60).replace(/\s+/g, " "),
+    });
   }
   return temuan;
 }
@@ -147,7 +150,10 @@ function berkasSumber(dir: string): string[] {
 
 /** `apps/api/src` + `apps/worker/src`, dengan label yang menyebut app-nya. */
 const sumber = [
-  ...berkasSumber(SRC).map((file) => ({ relatif: relative(SRC, file), isi: readFileSync(file, "utf8") })),
+  ...berkasSumber(SRC).map((file) => ({
+    relatif: relative(SRC, file),
+    isi: readFileSync(file, "utf8"),
+  })),
   ...(existsSync(WORKER_SRC) ? berkasSumber(WORKER_SRC) : []).map((file) => ({
     relatif: join("..", "worker", "src", relative(WORKER_SRC, file)),
     isi: readFileSync(file, "utf8"),
@@ -267,8 +273,9 @@ describe("jangkauan soft delete — apps/api/src", () => {
       return file === undefined || cariRelasiUser(file.isi).length === 0;
     }).map((e) => e.file);
 
-    expect(basi, `Entri berikut sudah tidak melanggar, hapus dari daftar: ${basi.join(", ")}`).toEqual(
-      [],
-    );
+    expect(
+      basi,
+      `Entri berikut sudah tidak melanggar, hapus dari daftar: ${basi.join(", ")}`,
+    ).toEqual([]);
   });
 });

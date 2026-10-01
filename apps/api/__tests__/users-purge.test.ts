@@ -85,7 +85,8 @@ function fakePrisma(opsi: OpsiFake = {}) {
 }
 
 function fakeAudit() {
-  const entri: Array<{ action: string; entityId: string | null; meta: Record<string, unknown> }> = [];
+  const entri: Array<{ action: string; entityId: string | null; meta: Record<string, unknown> }> =
+    [];
   const auditLog = vi.fn((_a, action, _e, entityId, meta) => {
     entri.push({ action: action as string, entityId, meta: meta as Record<string, unknown> });
   });

@@ -144,11 +144,7 @@ const persyaratanSchema = z
   .max(3000, { message: "Persyaratan maksimal 3000 karakter" })
   .nullable();
 
-const wilayahSchema = z
-  .string()
-  .trim()
-  .max(100, { message: "Maksimal 100 karakter" })
-  .nullable();
+const wilayahSchema = z.string().trim().max(100, { message: "Maksimal 100 karakter" }).nullable();
 
 /** Rupiah per bulan — bukan sen, bukan mata uang lain (skala pilot Indonesia). */
 const gajiSchema = z
@@ -163,7 +159,9 @@ const akomodasiLowonganSchema = z
 
 const disabilitasDisambutSchema = z
   .array(disabilityTypeSchema)
-  .max(disabilityTypeSchema.options.length, { message: "Terlalu banyak ragam disabilitas dipilih" });
+  .max(disabilityTypeSchema.options.length, {
+    message: "Terlalu banyak ragam disabilitas dipilih",
+  });
 
 /**
  * `salaryMin` ≤ `salaryMax` bila keduanya diisi — dipasang sekali di sini,
@@ -174,11 +172,7 @@ function periksaRentangGaji(
   nilai: { salaryMin?: number | null; salaryMax?: number | null },
   ctx: z.RefinementCtx,
 ): void {
-  if (
-    nilai.salaryMin != null &&
-    nilai.salaryMax != null &&
-    nilai.salaryMin > nilai.salaryMax
-  ) {
+  if (nilai.salaryMin != null && nilai.salaryMax != null && nilai.salaryMin > nilai.salaryMax) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Gaji minimum tidak boleh lebih besar dari gaji maksimum",
@@ -341,6 +335,24 @@ export const jobPublishedEventSchema = z.object({
 });
 
 export type JobPublishedEvent = z.infer<typeof jobPublishedEventSchema>;
+
+/**
+ * Event domain `job.updated` (PR-069) — isi lowongan yang SUDAH `published`
+ * disunting admin. Lowongan draft tidak menerbitkannya: belum ada pembaca yang
+ * peduli, dan `job.published` nanti membawa keadaan terbarunya sendiri.
+ *
+ * Lahir karena tanpa event ini vektor lowongan membeku pada isi saat publish,
+ * sementara judul/deskripsinya berubah — pencocokan diam-diam memakai lowongan
+ * yang sudah tidak ada. Bentuknya sengaja sama dengan `job.published`: hanya
+ * referensi, bukan salinan isi.
+ */
+export const jobUpdatedEventSchema = z.object({
+  jobId: idSchema,
+  companyId: idSchema,
+  updatedAt: timestampSchema,
+});
+
+export type JobUpdatedEvent = z.infer<typeof jobUpdatedEventSchema>;
 
 // ============================================================================
 // PR-056 — Jobs BE: Search FTS + Filter Faceted (ADR-018)

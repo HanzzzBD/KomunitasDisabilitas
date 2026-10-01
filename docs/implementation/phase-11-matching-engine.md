@@ -74,11 +74,11 @@ Bisnis: matching selalu memakai data terbaru. Teknis: processor `ai:embed` (Gemi
 
 **Testing Checklist:**
 
-* [ ] Unit Test (text builder)
-* [ ] Integration Test (event→vector, invalidasi)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (staging embed nyata)
+* [x] Unit Test (text builder) — `matching-embedding.test.ts`
+* [x] Integration Test (event→vector, invalidasi) — `matching-embedding-db.test.ts` (PostgreSQL + Redis nyata)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (staging embed nyata) — belum ada staging; dibuktikan di lokal dengan Gemini NYATA + proses worker sungguhan (log PR-069)
 
 **Deliverables:**
 
@@ -94,11 +94,11 @@ RB-Std; re-embed massal via job manual bila perlu.
 
 #### Acceptance Criteria
 
-* [ ] `job.published` → job_embedding terisi (integrasi).
-* [ ] `profile.updated` → profile_embedding diperbarui + match_scores user itu terhapus.
-* [ ] Teks embed tidak memuat data sensitif (test builder).
-* [ ] Gemini down → retry teratur, tidak ada fallback keliru.
-* [ ] Batch bekerja saat 50 event beruntun.
+* [x] `job.published` → job_embedding terisi (integrasi).
+* [x] `profile.updated` → profile_embedding diperbarui + match_scores user itu terhapus.
+* [x] Teks embed tidak memuat data sensitif (test builder).
+* [x] Gemini down → retry teratur, tidak ada fallback keliru. — service melempar; queue `ai-embed` 4 percobaan, backoff eksponensial 10 dtk, lalu DLQ; router tidak pernah mengalihkan `embed`
+* [x] Batch bekerja saat 50 event beruntun. — keputusan owner: *coalescing* per entitas (50 event = 1 job = 1 panggilan embed)
 
 #### Dependencies
 
@@ -152,11 +152,11 @@ Bisnis: kandidat relevan dalam <100 ms. Teknis: `$queryRaw` pgvector (satu-satun
 
 **Testing Checklist:**
 
-* [ ] Unit Test (builder param)
-* [ ] Integration Test (pgvector nyata di CI)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (EXPLAIN ANALYZE)
+* [x] Unit Test (builder param) — `matching-kandidat.test.ts`
+* [x] Integration Test (pgvector nyata di CI) — `matching-kandidat-db.test.ts` (1.059 lowongan)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (EXPLAIN ANALYZE) — 1k & 10k baris + data dev persona (log PR-070)
 
 **Deliverables:**
 
@@ -172,15 +172,19 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] EXPLAIN memakai HNSW (bukti PR).
-* [ ] Hanya published & belum expired lolos.
-* [ ] Filter work_mode sesuai preferensi user (remote-only → remote/hybrid).
-* [ ] p95 < 100 ms pada 1.000 jobs seed.
-* [ ] Injection attempt gagal (test).
+* [x] EXPLAIN memakai HNSW (bukti PR). — keputusan owner: planner bebas (±1k baris = Seq Scan eksak; 10k = HNSW alami, terukur manual); test membuktikan indeks DAPAT dipakai query yang persis sama (`enable_sort=off`), diverifikasi mutasi `<=>`→`<->`
+* [x] Hanya published & belum expired lolos.
+* [x] Filter work_mode sesuai preferensi user (remote-only → remote/hybrid). — profil belum punya preferensi "remote-only"; keputusan owner: SDD §7.2 harfiah (remote ATAU provinsi sama ATAU lowongan tanpa provinsi), `openToRemote` tidak menyaring; SQL menerima daftar mode kerja sebagai parameter
+* [x] p95 < 100 ms pada 1.000 jobs seed. — 1.059 lowongan: p95 12–64 ms (lokal, beberapa jalan)
+* [x] Injection attempt gagal (test).
 
 #### Dependencies
 
 * PR-069
+* **Gate masuk: utang [U-29](../utang-teknis.md) dibayar PR-069b** — ✅ LUNAS 2026-09-30. Data
+  yang lahir sebelum pipeline embedding kini bisa diisi lewat `pnpm --filter @nawasena/api
+  embed:ulang`; jalankan sesudah `db:seed`/`migrate reset` (worker harus menyala) agar feed dev
+  tidak kosong.
 
 #### Risks
 
@@ -228,11 +232,11 @@ Bisnis: inti USP — akomodasi wajib user tidak pernah dilanggar feed. Teknis: `
 
 **Testing Checklist:**
 
-* [ ] Unit Test (per komponen + property)
-* [ ] Integration Test (dengan profil terenkripsi nyata)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kasus persona seed)
+* [x] Unit Test (per komponen + property) — `matching-skor.test.ts` (fast-check)
+* [x] Integration Test (dengan profil terenkripsi nyata) — `matching-skor-db.test.ts`
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (kasus persona seed) — log PR-071
 
 **Deliverables:**
 
@@ -248,11 +252,11 @@ RB-Std; bobot revert via env.
 
 #### Acceptance Criteria
 
-* [ ] Lowongan tanpa akomodasi wajib user TIDAK pernah lolos (property test).
-* [ ] Tiap komponen skor teruji unit terpisah.
-* [ ] Bobot berubah via config tanpa deploy kode (env).
-* [ ] User tanpa data akomodasi → fit dianggap netral (tidak menghukum).
-* [ ] Deterministik (input sama → skor sama).
+* [x] Lowongan tanpa akomodasi wajib user TIDAK pernah lolos (property test). — 1.000 kasus fast-check; mutasi `every`→`some` ditemukan dengan contoh balik minimal
+* [x] Tiap komponen skor teruji unit terpisah.
+* [x] Bobot berubah via config tanpa deploy kode (env). — `MATCHING_WEIGHT_*`, jumlah wajib 1 (boot gagal bila tidak)
+* [x] User tanpa data akomodasi → fit dianggap netral (tidak menghukum). — keputusan owner: fit = keluasan akomodasi lowongan (tidak menyentuh data user) → skor identik user dengan/tanpa kebutuhan (property)
+* [x] Deterministik (input sama → skor sama). — "sekarang" argumen; urutan stabil (pemecah seri `jobId`)
 
 #### Dependencies
 
@@ -293,7 +297,7 @@ Bisnis: feed yang menjelaskan dirinya ("cocok karena…") — kepercayaan penggu
 
 **Database Changes:**
 
-* Tidak ada (match_scores dari PR-011).
+* Migrasi 19 `match_scores.rank SMALLINT NULL` (+ CHECK `rank >= 1`) — urutan hasil LLM disimpan terpisah dari `score` deterministik (keputusan owner 2026-09-30; aditif, `down.sql` tersedia).
 
 **API Changes:**
 
@@ -305,11 +309,11 @@ Bisnis: feed yang menjelaskan dirinya ("cocok karena…") — kepercayaan penggu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (parser hasil)
-* [ ] Integration Test (cache + kuota + whitelist)
-* [ ] E2E Test (N/A)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (kualitas penjelasan di staging)
+* [x] Unit Test (parser hasil) — `matching-rerank.test.ts` (fast-check)
+* [x] Integration Test (cache + kuota + whitelist) — `matching-rerank-service.test.ts` (kuota + `AiClient` asli) & `matching-rerank-db.test.ts` (PostgreSQL nyata)
+* [x] E2E Test (N/A)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (kualitas penjelasan di staging) — belum ada staging; Gemini NYATA atas data dev, 3 persona (log PR-072)
 
 **Deliverables:**
 
@@ -325,11 +329,11 @@ RB-Std; rerank dapat dimatikan via flag → template deterministik (PR-073).
 
 #### Acceptance Criteria
 
-* [ ] Request kedua dalam 24 jam → tanpa panggilan LLM (mock counter).
-* [ ] Penjelasan ≤ 1 kalimat, bahasa sederhana (validasi panjang + review sampel).
-* [ ] Refresh ke-4 dalam sehari → pakai cache + info kuota.
-* [ ] Payload prompt diverifikasi bebas field sensitif (test inspeksi).
-* [ ] Urutan LLM tidak dapat memasukkan lowongan di luar kandidat (whitelist ID).
+* [x] Request kedua dalam 24 jam → tanpa panggilan LLM (mock counter). — keputusan owner: re-rank ASINKRON via worker `ai-rerank-feed`; muat pertama = urutan skor, hasil LLM tampil pada muat berikutnya
+* [x] Penjelasan ≤ 1 kalimat, bahasa sederhana (validasi panjang + review sampel). — `rapikanPenjelasan`: ≤ 160 karakter, tepat satu kalimat, tanpa istilah kondisi; sampel Gemini 33/33 sah
+* [x] Refresh ke-4 dalam sehari → pakai cache + info kuota. — keputusan owner: SETIAP panggilan LLM memotong 1 jatah; jatah diperiksa sebelum cache disentuh
+* [x] Payload prompt diverifikasi bebas field sensitif (test inspeksi). — keputusan owner: profil terstruktur saja (tanpa teks bebas); `welcomedDisabilityTypes` lowongan juga tidak dikirim
+* [x] Urutan LLM tidak dapat memasukkan lowongan di luar kandidat (whitelist ID). — model hanya melihat `ref` 1..N; property test 500 kasus
 
 #### Dependencies
 
@@ -375,6 +379,7 @@ Bisnis: feed tetap bermakna walau AI mati total (janji degradasi). Teknis: orkes
 **API Changes:**
 
 * GET /api/v1/me/matches
+* POST /api/v1/me/matches/refresh — keputusan owner 2026-09-30: refresh berkuota dipisah dari GET supaya retry/prefetch tidak membakar jatah
 
 **Security Considerations:**
 
@@ -382,11 +387,11 @@ Bisnis: feed tetap bermakna walau AI mati total (janji degradasi). Teknis: orkes
 
 **Testing Checklist:**
 
-* [ ] Unit Test (template)
-* [ ] Integration Test (kedua mode)
+* [x] Unit Test (template) — `matching-template.test.ts` (fast-check)
+* [x] Integration Test (kedua mode) — `matching-feed-http.test.ts` (HTTP + kuota + worker re-rank asli) & `matching-feed-db.test.ts` (PostgreSQL + pgvector nyata)
 * [ ] E2E Test (via PR-074)
-* [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (matikan AI di staging)
+* [x] Accessibility Test (N/A)
+* [x] Manual Verification (matikan AI di staging) — belum ada staging; mode turun dibuktikan lewat flag `MATCHING_RERANK_ENABLED=false` + LLM gagal di test HTTP
 
 **Deliverables:**
 
@@ -402,11 +407,11 @@ RB-Std; flag paksa mode degradasi tersedia.
 
 #### Acceptance Criteria
 
-* [ ] Mode normal & degraded menghasilkan kontrak response identik (golden test).
-* [ ] Gateway dimatikan → feed valid + template ("Cocok: remote, sesuai keterampilan X").
-* [ ] Penjelasan tidak pernah menyebut disabilitas user (review + test string).
-* [ ] Pagination/limit stabil.
-* [ ] p95 endpoint < 800 ms (cache hangat).
+* [x] Mode normal & degraded menghasilkan kontrak response identik (golden test). — bentuk struktural rekursif sama + keduanya lolos `matchesResponseSchema`; keputusan owner: `meta.degraded` (tanpa AI) dipisah dari `meta.aiMenyusun` (re-rank masih berjalan)
+* [x] Gateway dimatikan → feed valid + template ("Cocok: remote, sesuai keterampilan X"). — "Cocok: bisa kerja dari rumah (remote), sesuai keahlian Excel."; keputusan owner: nama keahlian dicocokkan ke teks lowongan
+* [x] Penjelasan tidak pernah menyebut disabilitas user (review + test string). — property 500 kasus (template) + keahlian "Tuli" & alasan LLM "yang Tuli" di test HTTP
+* [x] Pagination/limit stabil. — cursor mengikat angkatan + basis urutan halaman 1; re-rank selesai di antara halaman tidak mengacak urutan
+* [x] p95 endpoint < 800 ms (cache hangat). — 32,5 ms (HTTP, PostgreSQL lokal, 30 permintaan)
 
 #### Dependencies
 
@@ -454,11 +459,11 @@ Bisnis: US-07 — pengalaman "platform ini mengerti saya". Teknis: kartu (skor t
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu + jest-axe)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (normal + degraded mock)
-* [ ] Accessibility Test (axe + NVDA kartu)
-* [ ] Manual Verification (kombinasi preferensi a11y)
+* [x] Unit Test (kartu + jest-axe) — `beranda-feed.test.tsx` (lewat `ruteApp` produksi, `harusLolosAksesibilitas`)
+* [x] Integration Test (N/A)
+* [x] E2E Test (normal + degraded mock) — `beranda-feed.spec.ts` (+ AI menyusun, kuota habis, feed→detail→kembali) & registry "beranda — feed seeker"
+* [ ] Accessibility Test (axe + NVDA kartu) — axe ✅ (jsdom + Playwright); NVDA nyata = utang [U-30](../utang-teknis.md), checklist `log/pr-074-nvda-checklist.md`
+* [ ] Manual Verification (kombinasi preferensi a11y) — mode teks sederhana teruji otomatis; sisanya di checklist U-30
 
 **Deliverables:**
 
@@ -474,11 +479,11 @@ RB-Std; fallback beranda = browse (PR-058) via flag.
 
 #### Acceptance Criteria
 
-* [ ] Kartu satu kesatuan bagi SR (skor+alasan+akomodasi terbaca utuh).
-* [ ] Skor bukan warna-saja (angka + label tekstual).
-* [ ] Degraded → banner informatif; fitur tetap lengkap; tanpa UI rusak.
-* [ ] Feed→detail→kembali: fokus & scroll pulih.
-* [ ] Refresh menampilkan sisa kuota; habis → tombol nonaktif dengan alasan.
+* [x] Kartu satu kesatuan bagi SR (skor+alasan+akomodasi terbaca utuh). — satu `KartuLowongan` (slot `pembuka`), satu tautan di akhir; urutan DOM diuji; pembacaan NVDA nyata di U-30
+* [x] Skor bukan warna-saja (angka + label tekstual). — "Kecocokan 73% — sangat cocok"; bar SVG dekoratif `aria-hidden`
+* [x] Degraded → banner informatif; fitur tetap lengkap; tanpa UI rusak. — `role="status"` selalu terpasang; axe lulus di keadaan degraded & AI menyusun
+* [x] Feed→detail→kembali: fokus & scroll pulih. — Playwright, viewport 390×600
+* [x] Refresh menampilkan sisa kuota; habis → tombol nonaktif dengan alasan. — `aria-disabled` + `aria-describedby` (tetap tercapai keyboard; fokus tidak hilang)
 
 #### Dependencies
 

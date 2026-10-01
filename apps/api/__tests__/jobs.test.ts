@@ -74,6 +74,17 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
       return Promise.resolve(hasil.map((r) => ({ ...r })));
     },
 
+    listActiveByIds: (ids) => {
+      const saatIni = new Date();
+      const hasil = rows.filter(
+        (r) =>
+          ids.includes(r.id) &&
+          r.status === "published" &&
+          (r.expiresAt === null || r.expiresAt > saatIni),
+      );
+      return Promise.resolve(hasil.map((r) => ({ ...r, companyName: "PT Uji" })));
+    },
+
     create: (id, data): Promise<JobCreateResult> => {
       if (!perusahaanValid.has(data.companyId)) return Promise.resolve("perusahaan-tidak-ada");
       const row = barisBaru({ ...data, id, status: "draft", source: "admin_curated" });
@@ -186,9 +197,9 @@ describe("jobs.service — getPublic", () => {
 
   it("tidak ada sama sekali → 404", async () => {
     const { service } = boot([]);
-    await expect(
-      service.getPublic("018f4c1e-0000-7000-8000-00000000dead"),
-    ).rejects.toMatchObject({ code: "LOWONGAN_TIDAK_DITEMUKAN" } satisfies Partial<AppError>);
+    await expect(service.getPublic("018f4c1e-0000-7000-8000-00000000dead")).rejects.toMatchObject({
+      code: "LOWONGAN_TIDAK_DITEMUKAN",
+    } satisfies Partial<AppError>);
   });
 
   it("salaryVisible=false → salaryMin/salaryMax disembunyikan (null)", async () => {
@@ -207,7 +218,12 @@ describe("jobs.service — getPublic", () => {
 
   it("salaryVisible=true → salaryMin/salaryMax tampil apa adanya", async () => {
     const { service } = boot([
-      barisBaru({ status: "published", salaryVisible: true, salaryMin: 5_000_000, salaryMax: 8_000_000 }),
+      barisBaru({
+        status: "published",
+        salaryVisible: true,
+        salaryMin: 5_000_000,
+        salaryMax: 8_000_000,
+      }),
     ]);
     const hasil = await service.getPublic(barisBaru().id);
     expect(hasil.salaryMin).toBe(5_000_000);
@@ -231,9 +247,44 @@ describe("jobs.service — listActiveByCompany (dipakai modul companies)", () =>
       barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "draft" }),
     ]);
     const hasil = await service.listActiveByCompany(PERUSAHAAN_ID);
-    expect(hasil).toEqual([
-      expect.objectContaining({ id: barisBaru().id, title: "Staf Admin" }),
+    expect(hasil).toEqual([expect.objectContaining({ id: barisBaru().id, title: "Staf Admin" })]);
+  });
+});
+
+describe("jobs.service — bacaUntukRerank (dipakai modul matching, PR-072)", () => {
+  it("hanya lowongan aktif, tanpa welcomedDisabilityTypes", async () => {
+    const { service } = boot([
+      barisBaru({ status: "published", welcomedDisabilityTypes: ["tuli"] }),
+      barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "draft" }),
     ]);
+    const hasil = await service.bacaUntukRerank([
+      barisBaru().id,
+      "018f4c1e-0000-7000-8000-000000000j02",
+    ]);
+    expect(hasil.map((j) => j.id)).toEqual([barisBaru().id]);
+    expect(hasil[0]).not.toHaveProperty("welcomedDisabilityTypes");
+    expect(hasil[0]).toMatchObject({ title: "Staf Admin", workMode: expect.any(String) });
+  });
+});
+
+describe("jobs.service — bacaUntukFeed (kartu feed matching, PR-073)", () => {
+  it("kartu = bentuk hasil pencarian + teks untuk pencocokan keahlian; hanya yang aktif", async () => {
+    const { service } = boot([
+      barisBaru({ status: "published", publishedAt: new Date("2026-08-10T00:00:00Z") }),
+      barisBaru({ id: "018f4c1e-0000-7000-8000-000000000j02", status: "closed" }),
+    ]);
+    const hasil = await service.bacaUntukFeed([
+      barisBaru().id,
+      "018f4c1e-0000-7000-8000-000000000j02",
+    ]);
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0]?.kartu).toMatchObject({
+      id: barisBaru().id,
+      companyName: "PT Uji",
+      publishedAt: "2026-08-10T00:00:00.000Z",
+    });
+    expect(hasil[0]?.kartu).not.toHaveProperty("welcomedDisabilityTypes");
+    expect(hasil[0]).toHaveProperty("description");
   });
 });
 
@@ -329,6 +380,68 @@ describe("jobs.service — update", () => {
       }),
     ).rejects.toMatchObject({ code: "LOWONGAN_TIDAK_DITEMUKAN" });
   });
+
+  it("PR-069: lowongan PUBLISHED disunting → event job.updated (vektornya harus ikut)", async () => {
+    const { service, events } = boot([barisBaru({ status: "published" })]);
+    const diterima: unknown[] = [];
+    events.on("job.updated", (p) => {
+      diterima.push(p);
+    });
+
+    await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
+
+    expect(diterima).toEqual([
+      { jobId: barisBaru().id, companyId: PERUSAHAAN_ID, updatedAt: "2026-08-01T00:00:00.000Z" },
+    ]);
+  });
+
+  it.each(["draft", "closed"] as const)(
+    "lowongan %s disunting → TANPA job.updated",
+    async (status) => {
+      const { service, events } = boot([barisBaru({ status })]);
+      let jumlah = 0;
+      events.on("job.updated", () => {
+        jumlah += 1;
+      });
+
+      await service.update({ userId: ADMIN, requestId: REQ }, barisBaru().id, { title: "Baru" });
+      expect(jumlah).toBe(0);
+    },
+  );
+});
+
+describe("jobs.service — bacaUntukEmbedding (PR-069, dipakai modul matching)", () => {
+  it("lowongan aktif → teks semantik + createdBy SAJA (tanpa akomodasi/lokasi)", async () => {
+    const { service } = boot([
+      barisBaru({
+        status: "published",
+        createdBy: ADMIN,
+        requirements: "Teliti",
+        accommodations: ["ramah_screen_reader"],
+        welcomedDisabilityTypes: ["netra"],
+      }),
+    ]);
+
+    expect(await service.bacaUntukEmbedding(barisBaru().id)).toEqual({
+      id: barisBaru().id,
+      title: "Staf Admin",
+      description: "Deskripsi lowongan",
+      requirements: "Teliti",
+      createdBy: ADMIN,
+    });
+  });
+
+  it.each([
+    ["draft", barisBaru({ status: "draft" })],
+    ["closed", barisBaru({ status: "closed" })],
+    [
+      "lewat tenggat",
+      barisBaru({ status: "published", expiresAt: new Date("2026-08-20T00:00:00Z") }),
+    ],
+  ])("%s → null (tidak akan pernah dicocokkan, jangan bakar kuota)", async (_label, row) => {
+    const { service } = boot([row]);
+    expect(await service.bacaUntukEmbedding(row.id)).toBeNull();
+  });
 });
 
 describe("jobs.service — publish", () => {
@@ -337,7 +450,9 @@ describe("jobs.service — publish", () => {
       barisBaru({ status: "draft", accommodations: ["akses_kursi_roda"] }),
     ]);
     const diterima: unknown[] = [];
-    events.on("job.published", (p) => { diterima.push(p); });
+    events.on("job.published", (p) => {
+      diterima.push(p);
+    });
 
     const hasil = await service.publish({ userId: ADMIN, requestId: REQ }, barisBaru().id);
 
@@ -356,7 +471,9 @@ describe("jobs.service — publish", () => {
   it("draft TANPA akomodasi → 422 AKOMODASI_LOWONGAN_KOSONG, tanpa audit/event", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "draft", accommodations: [] })]);
     const diterima: unknown[] = [];
-    events.on("job.published", (p) => { diterima.push(p); });
+    events.on("job.published", (p) => {
+      diterima.push(p);
+    });
 
     await expect(
       service.publish({ userId: ADMIN, requestId: REQ }, barisBaru().id),
@@ -396,7 +513,9 @@ describe("jobs.service — close", () => {
   it("published → closed, audit, event job.closed reason=closed_by_admin", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "published" })]);
     const diterima: unknown[] = [];
-    events.on("job.closed", (p) => { diterima.push(p); });
+    events.on("job.closed", (p) => {
+      diterima.push(p);
+    });
 
     const hasil = await service.close({ userId: ADMIN, requestId: REQ }, barisBaru().id);
 
@@ -414,7 +533,9 @@ describe("jobs.service — close", () => {
   it("draft → 409 TRANSISI_STATUS_TIDAK_VALID, tanpa audit/event", async () => {
     const { service, audit, events } = boot([barisBaru({ status: "draft" })]);
     const diterima: unknown[] = [];
-    events.on("job.closed", (p) => { diterima.push(p); });
+    events.on("job.closed", (p) => {
+      diterima.push(p);
+    });
 
     await expect(
       service.close({ userId: ADMIN, requestId: REQ }, barisBaru().id),

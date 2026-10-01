@@ -153,10 +153,7 @@ export function createUserProfileRepository(prisma: AppPrisma) {
         });
         return { prefs: row.notificationPrefs };
       } catch (err) {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === RECORD_NOT_FOUND
-        ) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === RECORD_NOT_FOUND) {
           return null;
         }
         throw err;

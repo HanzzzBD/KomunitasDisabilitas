@@ -1,7 +1,12 @@
 // Hook refresh api-client (PR-018b).
 // AC: "api-client 401→refresh→retry bekerja end-to-end (mock)".
 import { describe, it, expect, vi } from "vitest";
-import { createApiClient, createSessionRefresher } from "../src/index.js";
+import {
+  createApiClient,
+  createSessionRefresher,
+  JEDA_COBA_ULANG_ROTASI_MS,
+  refreshSesiToleran,
+} from "../src/index.js";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -136,9 +141,7 @@ describe("single-flight (refresh ROTATING)", () => {
 
     await Promise.all([client.request("/a"), client.request("/b"), client.request("/c")]);
 
-    const panggilanRefresh = fetch.mock.calls.filter((c) =>
-      String(c[0]).endsWith("/auth/refresh"),
-    );
+    const panggilanRefresh = fetch.mock.calls.filter((c) => String(c[0]).endsWith("/auth/refresh"));
     expect(panggilanRefresh).toHaveLength(1);
   });
 
@@ -192,9 +195,9 @@ describe("mobile (refresh token di body)", () => {
 
     await client.request("/me");
 
-    const bodyRefresh = JSON.parse(
-      String((fetch.mock.calls[1]?.[1] as { body: string }).body),
-    ) as { refreshToken: string };
+    const bodyRefresh = JSON.parse(String((fetch.mock.calls[1]?.[1] as { body: string }).body)) as {
+      refreshToken: string;
+    };
     expect(bodyRefresh.refreshToken).toBe("refresh-lama");
     expect(refreshTersimpan).toEqual(["refresh-baru"]);
   });
@@ -211,5 +214,87 @@ describe("mobile (refresh token di body)", () => {
 
     const bodyRefresh = String((fetch.mock.calls[1]?.[1] as { body: string }).body);
     expect(JSON.parse(bodyRefresh)).toEqual({});
+  });
+});
+
+// --- Utang U-10: balapan rotasi -------------------------------------------------
+
+const sudahDirotasi = () =>
+  jsonResponse(401, { code: "SESI_SUDAH_DIROTASI", message: "Sesi Anda sedang diperbarui" });
+
+describe("refreshSesiToleran (utang U-10)", () => {
+  function klien(fetch: ReturnType<typeof vi.fn>) {
+    return createApiClient({
+      baseUrl: "https://x/api/v1",
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+  }
+
+  it("SESI_SUDAH_DIROTASI → menunggu lalu mencoba lagi dengan token TERKINI", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(sudahDirotasi())
+      .mockResolvedValueOnce(sesiBaru("2"));
+    const tunggu = vi.fn(() => Promise.resolve());
+    const token = ["token-lama", "token-pemenang"];
+    let i = 0;
+    const hasil = await refreshSesiToleran(klien(fetch), {
+      tunggu,
+      getRefreshToken: () => token[i++] ?? null,
+    });
+    expect(hasil.data.accessToken).toBe("access-2");
+    expect(tunggu).toHaveBeenCalledWith(JEDA_COBA_ULANG_ROTASI_MS[0]);
+    const badan = fetch.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)));
+    expect(badan).toEqual([{ refreshToken: "token-lama" }, { refreshToken: "token-pemenang" }]);
+  });
+
+  it("menyerah sesudah seluruh jeda habis — tetap melempar SESI_SUDAH_DIROTASI", async () => {
+    const fetch = vi.fn(() => Promise.resolve(sudahDirotasi()));
+    const tunggu = vi.fn(() => Promise.resolve());
+    await expect(refreshSesiToleran(klien(fetch), { tunggu })).rejects.toMatchObject({
+      code: "SESI_SUDAH_DIROTASI",
+    });
+    expect(fetch).toHaveBeenCalledTimes(JEDA_COBA_ULANG_ROTASI_MS.length + 1);
+  });
+
+  it("sesi yang memang habis TIDAK dicoba ulang", async () => {
+    const fetch = vi.fn(() => Promise.resolve(sesiHabis()));
+    const tunggu = vi.fn(() => Promise.resolve());
+    await expect(refreshSesiToleran(klien(fetch), { tunggu })).rejects.toMatchObject({
+      code: "SESI_TIDAK_VALID",
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(tunggu).not.toHaveBeenCalled();
+  });
+});
+
+describe("refresher 401 memakai toleransi rotasi (utang U-10)", () => {
+  it("kalah balapan rotasi tidak mengakhiri sesi", async () => {
+    let accessToken: string | null = "access-lama";
+    const berakhir = vi.fn();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { code: "SESI_TIDAK_VALID", message: "x" }))
+      .mockResolvedValueOnce(sudahDirotasi())
+      .mockResolvedValueOnce(sesiBaru("3"))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { ok: true } }));
+    const client = createApiClient({
+      baseUrl: "https://x/api/v1",
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      getAccessToken: () => accessToken,
+      refresh: () => refresher(),
+    });
+    const refresher = createSessionRefresher({
+      client,
+      onAccessToken: (t) => {
+        accessToken = t;
+      },
+      onSessionEnded: berakhir,
+      tunggu: () => Promise.resolve(),
+    });
+
+    await client.request("/me");
+    expect(accessToken).toBe("access-3");
+    expect(berakhir).not.toHaveBeenCalled();
   });
 });

@@ -18,7 +18,11 @@ import { AUDIT_ACTION } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
-import { SESSION_POLICY, type RefreshMaterial, type TokenService } from "../../../core/auth/index.js";
+import {
+  SESSION_POLICY,
+  type RefreshMaterial,
+  type TokenService,
+} from "../../../core/auth/index.js";
 import type { AuthUserRepository } from "../repositories/user.repository.js";
 import type { RefreshTokenRepository } from "../repositories/refresh-token.repository.js";
 
@@ -46,6 +50,13 @@ export interface SessionServiceDeps {
   userRepository: AuthUserRepository;
   refreshTokenRepository: RefreshTokenRepository;
   auditLog: AuditLog;
+  /**
+   * Jendela toleransi rotasi (utang U-10), milidetik. Token yang dicabut karena
+   * ROTASI dan dipakai lagi dalam jendela ini dibaca sebagai balapan — ditolak
+   * `SESI_SUDAH_DIROTASI` TANPA mencabut keluarga. 0 = perilaku lama (setiap
+   * pemakaian ulang = reuse). Bawaan: `env.AUTH_REFRESH_ROTATION_GRACE_SECONDS`.
+   */
+  toleransiRotasiMs?: number;
   /** Sumber waktu; disuntik test. */
   clock?: () => Date;
 }
@@ -53,6 +64,7 @@ export interface SessionServiceDeps {
 export function createSessionService(deps: SessionServiceDeps) {
   const { tokenService, userRepository, refreshTokenRepository, auditLog } = deps;
   const now = deps.clock ?? (() => new Date());
+  const toleransiRotasiMs = deps.toleransiRotasiMs ?? 0;
 
   /** Tanda tangani access + terbitkan refresh; penyimpanan urusan pemanggil. */
   async function terbitkan(user: {
@@ -130,6 +142,27 @@ export function createSessionService(deps: SessionServiceDeps) {
         const karenaRotasi = row.revokedReason === null || row.revokedReason === "rotated";
         if (!karenaRotasi) throw appError("SESI_TIDAK_VALID");
 
+        // JENDELA TOLERANSI (utang U-10, keputusan owner 2026-10-01). Rotasi
+        // yang terjadi beberapa detik lalu, lalu token lamanya muncul lagi,
+        // hampir selalu balapan sah: dua tab yang menyegarkan bersamaan, atau
+        // pemulihan boot yang berlomba dengan refresh yang dipicu 401. Dulu
+        // keduanya mencabut seluruh keluarga — termasuk token segar milik
+        // pemenang — dan pengguna terlempar keluar tanpa sebab.
+        //
+        // Yang dilonggarkan HANYA alarmnya, bukan aksesnya: tidak ada token
+        // yang diterbitkan untuk token lama ini. Pencuri yang memutar ulang
+        // token curian dalam jendela pulang tanpa apa pun; di luar jendela,
+        // reuse detection berlaku penuh seperti sebelumnya. Hanya `rotated`
+        // yang eksplisit (bukan NULL warisan): waktu pencabutannya memang
+        // waktu rotasi.
+        if (
+          toleransiRotasiMs > 0 &&
+          row.revokedReason === "rotated" &&
+          saatIni.getTime() - row.revokedAt.getTime() <= toleransiRotasiMs
+        ) {
+          throw appError("SESI_SUDAH_DIROTASI");
+        }
+
         // Baris pemicu ditandai juga: ia bukti paling langsung dari insiden,
         // dan retensi (PR-024) memakai `reuse` untuk menyimpannya 2 tahun.
         await refreshTokenRepository.markReuse(row.id);
@@ -167,7 +200,9 @@ export function createSessionService(deps: SessionServiceDeps) {
       // token yang sudah ditandatangani di atas TIDAK dikembalikan: sesi ini
       // kalah balapan, dan menyerahkan separuh pasangan hanya membuat klien
       // memegang access token tanpa refresh yang mendampinginya.
-      if (rotated === null) throw appError("SESI_TIDAK_VALID");
+      // Pemenangnya baru saja merotasi baris yang sama — balapan yang sama
+      // dengan jendela toleransi di atas: klien boleh mencoba lagi.
+      if (rotated === null) throw appError("SESI_SUDAH_DIROTASI");
 
       return tokens;
     },

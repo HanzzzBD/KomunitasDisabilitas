@@ -15,8 +15,10 @@ import type { ZodType } from "zod";
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 /**
- * Dimensi vektor embedding yang dijanjikan ADR-005 (text-embedding-004) dan
- * dipakai kolom `vector(768)` di Postgres. Vektor berpanjang lain BUKAN
+ * Dimensi vektor embedding yang dijanjikan ADR-005 dan dipakai kolom
+ * `vector(768)` di Postgres. Sejak PR-069 (U-27) modelnya `gemini-embedding-001`
+ * yang diminta 768 dimensi lewat `outputDimensionality` — angkanya tetap,
+ * modelnya yang berganti. Vektor berpanjang lain BUKAN
  * "hampir benar": ia gagal masuk kolomnya, atau lebih buruk, diam-diam
  * dibandingkan dengan vektor yang tidak sebanding.
  */
@@ -52,7 +54,7 @@ export const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
 };
 
 /**
- * Kegagalan di sisi provider. Pola `OtpSenderError`: pemanggil memutuskan
+ * Kegagalan di sisi provider. Pola `PhoneSenderError`: pemanggil memutuskan
  * fallback/menyerah, bukan berkas ini.
  *
  * ATURAN KERAS (Security Considerations PR-041): `message` HANYA boleh

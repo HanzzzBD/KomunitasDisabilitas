@@ -10,10 +10,15 @@ import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { CompaniesController } from "../controllers/companies.controller.js";
 
-export function createCompaniesRouter(controller: CompaniesController, routes: RouteRegistrar): Router {
+export function createCompaniesRouter(
+  controller: CompaniesController,
+  routes: RouteRegistrar,
+): Router {
   routes.get(
     "/companies/:id",
-    access.public("Profil inklusivitas perusahaan dilihat kandidat sebelum melamar, sering tanpa sesi"),
+    access.public(
+      "Profil inklusivitas perusahaan dilihat kandidat sebelum melamar, sering tanpa sesi",
+    ),
     validate({ params: companyIdParamsSchema }),
     asyncHandler(controller.getPublic),
   );

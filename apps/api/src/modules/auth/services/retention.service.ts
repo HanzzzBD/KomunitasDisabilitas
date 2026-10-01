@@ -47,18 +47,11 @@ export function createRefreshTokenPolicies(deps: {
 }): RetentionPolicy[] {
   const { repository, days } = deps;
 
-  const buat = (
-    kategori: "expired" | "revoked" | "reuse",
-    hari: number,
-  ): RetentionPolicy => ({
+  const buat = (kategori: "expired" | "revoked" | "reuse", hari: number): RetentionPolicy => ({
     nama: `refresh_tokens.${kategori}`,
     hitung: (now) => repository.countRetention(kategori, cutoff(now, hari)),
     hapus: (now, batas) => repository.deleteRetentionBatch(kategori, cutoff(now, hari), batas),
   });
 
-  return [
-    buat("expired", days.expired),
-    buat("revoked", days.revoked),
-    buat("reuse", days.reuse),
-  ];
+  return [buat("expired", days.expired), buat("revoked", days.revoked), buat("reuse", days.reuse)];
 }

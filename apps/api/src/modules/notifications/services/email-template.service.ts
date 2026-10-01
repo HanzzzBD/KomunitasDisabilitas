@@ -34,7 +34,11 @@
 // phishing. Alasan yang sama sudah ditulis di `account.service.ts` (PR-021) untuk
 // pesan SMS-nya, dan berlaku lebih kuat di sini: email jauh lebih mudah
 // dipalsukan daripada SMS.
-import { HARI_SEBELUM_PURGE, type NotificationText, type NotifyEmailJenis } from "@nawasena/schemas";
+import {
+  HARI_SEBELUM_PURGE,
+  type NotificationText,
+  type NotifyEmailJenis,
+} from "@nawasena/schemas";
 import type { TeksNotifikasi } from "./template.service.js";
 
 /**
@@ -103,7 +107,8 @@ export const EMAIL_TEMPLATE = {
     paragraf: [
       {
         id: "Kami menerima permintaan penghapusan akun Nawasena Anda, dan akun itu sudah dihapus.",
-        "id-simple": "Ada permintaan untuk menghapus akun Nawasena Anda. Akun itu sudah kami hapus.",
+        "id-simple":
+          "Ada permintaan untuk menghapus akun Nawasena Anda. Akun itu sudah kami hapus.",
       },
       {
         id: `Data Anda masih bisa dipulihkan dalam ${HARI_SEBELUM_PURGE} hari sejak email ini. Setelah itu data Anda dihapus permanen dan tidak bisa dikembalikan.`,

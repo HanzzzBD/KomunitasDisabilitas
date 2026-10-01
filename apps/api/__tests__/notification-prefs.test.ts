@@ -24,8 +24,7 @@ function rakit(awal: unknown, opsi: { hilang?: boolean } = {}) {
 
   const service = createNotificationPrefsService({
     userRepository: {
-      findNotificationPrefs: async () =>
-        opsi.hilang === true ? null : { prefs: tersimpan },
+      findNotificationPrefs: async () => (opsi.hilang === true ? null : { prefs: tersimpan }),
       updateNotificationPrefs: async (_id, prefs) => {
         if (opsi.hilang === true) return null;
         tulisan.push(prefs);

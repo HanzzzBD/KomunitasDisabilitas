@@ -20,7 +20,10 @@ import {
 } from "../src/core/queue/index.js";
 
 /** Queue palsu: registry teruji penuh tanpa Redis (pola injeksi core/audit). */
-function fakeQueue(): QueueLike & { add: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } {
+function fakeQueue(): QueueLike & {
+  add: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+} {
   const add = vi.fn((_jobName: string, _payload: unknown) => Promise.resolve({ id: "job-1" }));
   const close = vi.fn(() => Promise.resolve());
   return { add, close } as unknown as QueueLike & {
@@ -151,7 +154,9 @@ describe("loadQueueConfigs — config dari env, bukan hardcode", () => {
     expect(configs[QUEUE_NAME.AI_EMBED].concurrency).toBe(8);
     expect(configs[QUEUE_NAME.PDF_RENDER].timeoutMs).toBe(120_000);
     // field lain pada queue yang sama tetap default
-    expect(configs[QUEUE_NAME.AI_EMBED].attempts).toBe(QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED].attempts);
+    expect(configs[QUEUE_NAME.AI_EMBED].attempts).toBe(
+      QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED].attempts,
+    );
     // queue lain tidak tersentuh
     expect(configs[QUEUE_NAME.NOTIFY_PUSH]).toEqual(QUEUE_DEFAULTS[QUEUE_NAME.NOTIFY_PUSH]);
   });
@@ -166,7 +171,10 @@ describe("loadQueueConfigs — config dari env, bukan hardcode", () => {
       expect.unreachable("seharusnya melempar EnvError");
     } catch (error) {
       expect(error).toBeInstanceOf(EnvError);
-      expect((error as EnvError).issues).toContainEqual(["QUEUE_AI_EMBED_CONCURRENCY", "harus angka"]);
+      expect((error as EnvError).issues).toContainEqual([
+        "QUEUE_AI_EMBED_CONCURRENCY",
+        "harus angka",
+      ]);
     }
   });
 
@@ -252,6 +260,17 @@ describe("jobOptionsFor — kebijakan SDD §16 melekat pada setiap job", () => {
     });
     expect(dengan).toMatchObject({ jobId: "embed-1", delay: 250 });
   });
+
+  it("coalesceId → deduplikasi keepLastIfActive, BUKAN jobId (PR-069)", () => {
+    // jobId akan menolak perubahan berikutnya selama job lama masih tersimpan
+    // di retensi `removeOnComplete` — vektor membeku tanpa satu pun error.
+    const opsi = jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED], {
+      coalesceId: "embed-profil-x",
+    });
+    expect(opsi).not.toHaveProperty("jobId");
+    expect(opsi.deduplication).toEqual({ id: "embed-profil-x", keepLastIfActive: true });
+    expect(jobOptionsFor(QUEUE_DEFAULTS[QUEUE_NAME.AI_EMBED])).not.toHaveProperty("deduplication");
+  });
 });
 
 describe("createQueueRegistry", () => {
@@ -262,7 +281,11 @@ describe("createQueueRegistry", () => {
       factory: () => queue,
     });
 
-    await registry.enqueue(QUEUE_NAME.NOTIFY_EMAIL, { notificationId: "n-1" }, { jobId: "notif-1" });
+    await registry.enqueue(
+      QUEUE_NAME.NOTIFY_EMAIL,
+      { notificationId: "n-1" },
+      { jobId: "notif-1" },
+    );
 
     expect(queue.add).toHaveBeenCalledWith(
       QUEUE_NAME.NOTIFY_EMAIL,

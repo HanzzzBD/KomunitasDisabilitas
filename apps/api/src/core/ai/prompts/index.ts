@@ -18,6 +18,7 @@
 // lain — keputusan PR fitur, bukan keputusan berkas ini.
 import { cvExtractorV1 } from "./cv-extractor.v1.js";
 import { cvInterviewerV1 } from "./cv-interviewer.v1.js";
+import { rerankV1 } from "./rerank.v1.js";
 import { spesimenV1 } from "./spesimen.v1.js";
 import type { PromptMeta } from "./tipe.js";
 
@@ -43,6 +44,13 @@ export {
 export { cvInterviewerV1 } from "./cv-interviewer.v1.js";
 export { cvExtractorV1, type CvExtractorInput } from "./cv-extractor.v1.js";
 export {
+  rerankKeluaranSchema,
+  rerankV1,
+  type RerankInput,
+  type RerankKeluaran,
+  type RerankLowonganInput,
+} from "./rerank.v1.js";
+export {
   spesimenKeluaranSchema,
   spesimenV1,
   type SpesimenInput,
@@ -50,7 +58,7 @@ export {
 } from "./spesimen.v1.js";
 
 /** Semua template yang hidup di folder ini — sumber tunggal bagi registry. */
-const SEMUA: readonly PromptMeta[] = [spesimenV1, cvInterviewerV1, cvExtractorV1];
+const SEMUA: readonly PromptMeta[] = [spesimenV1, cvInterviewerV1, cvExtractorV1, rerankV1];
 
 /**
  * Peta `id → identitas`. `id` inilah yang muncul di `ai_usage.prompt_version`

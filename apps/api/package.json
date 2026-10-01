@@ -21,7 +21,9 @@
     "./modules/ai": "./src/modules/ai/index.ts",
     "./modules/notifications": "./src/modules/notifications/index.ts",
     "./modules/accessibility": "./src/modules/accessibility/index.ts",
-    "./modules/resumes": "./src/modules/resumes/index.ts"
+    "./modules/resumes": "./src/modules/resumes/index.ts",
+    "./modules/profiles": "./src/modules/profiles/index.ts",
+    "./modules/matching": "./src/modules/matching/index.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
@@ -32,7 +34,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx prisma/seed.ts",
-    "storage:siapkan-bucket": "tsx --env-file-if-exists=.env scripts/siapkan-bucket-dev.ts"
+    "storage:siapkan-bucket": "tsx --env-file-if-exists=.env scripts/siapkan-bucket-dev.ts",
+    "embed:ulang": "tsx --env-file-if-exists=.env scripts/embed-ulang.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -61,6 +64,7 @@
     "@types/node": "22.10.2",
     "@types/pg": "8.11.10",
     "eslint": "8.57.1",
+    "fast-check": "4.10.2",
     "pino-pretty": "13.0.0",
     "prisma": "5.22.0",
     "tsx": "4.19.2",

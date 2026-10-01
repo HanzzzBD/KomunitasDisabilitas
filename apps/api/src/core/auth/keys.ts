@@ -66,14 +66,18 @@ export function parseSessionKeys(source: NodeJS.ProcessEnv = process.env): Sessi
   if (privateRaw === undefined && publicRaw === undefined) return undefined;
 
   const issues: Array<readonly [string, string]> = [];
-  if (privateRaw === undefined) issues.push(["JWT_PRIVATE_KEY", "wajib diisi bila JWT_PUBLIC_KEY di-set"]);
-  if (publicRaw === undefined) issues.push(["JWT_PUBLIC_KEY", "wajib diisi bila JWT_PRIVATE_KEY di-set"]);
+  if (privateRaw === undefined)
+    issues.push(["JWT_PRIVATE_KEY", "wajib diisi bila JWT_PUBLIC_KEY di-set"]);
+  if (publicRaw === undefined)
+    issues.push(["JWT_PUBLIC_KEY", "wajib diisi bila JWT_PRIVATE_KEY di-set"]);
   if (issues.length > 0) throw new SessionKeyError(issues);
 
   const privatePem = decodePem(privateRaw as string);
   const publicPem = decodePem(publicRaw as string);
-  if (privatePem === null) issues.push(["JWT_PRIVATE_KEY", "harus base64 valid dari PEM kunci privat"]);
-  if (publicPem === null) issues.push(["JWT_PUBLIC_KEY", "harus base64 valid dari PEM kunci publik"]);
+  if (privatePem === null)
+    issues.push(["JWT_PRIVATE_KEY", "harus base64 valid dari PEM kunci privat"]);
+  if (publicPem === null)
+    issues.push(["JWT_PUBLIC_KEY", "harus base64 valid dari PEM kunci publik"]);
   if (issues.length > 0) throw new SessionKeyError(issues);
 
   let privateKey: KeyObject;
@@ -91,14 +95,23 @@ export function parseSessionKeys(source: NodeJS.ProcessEnv = process.env): Sessi
   }
 
   if (privateKey.asymmetricKeyType !== "rsa") {
-    issues.push(["JWT_PRIVATE_KEY", "harus kunci RSA (RS256) — kunci EC/Ed25519 tidak dipakai di sini"]);
+    issues.push([
+      "JWT_PRIVATE_KEY",
+      "harus kunci RSA (RS256) — kunci EC/Ed25519 tidak dipakai di sini",
+    ]);
   }
   if (publicKey.asymmetricKeyType !== "rsa") {
-    issues.push(["JWT_PUBLIC_KEY", "harus kunci RSA (RS256) — kunci EC/Ed25519 tidak dipakai di sini"]);
+    issues.push([
+      "JWT_PUBLIC_KEY",
+      "harus kunci RSA (RS256) — kunci EC/Ed25519 tidak dipakai di sini",
+    ]);
   }
   const bits = privateKey.asymmetricKeyDetails?.modulusLength ?? 0;
   if (privateKey.asymmetricKeyType === "rsa" && bits < MIN_MODULUS_BITS) {
-    issues.push(["JWT_PRIVATE_KEY", `modulus ${bits} bit terlalu pendek, minimal ${MIN_MODULUS_BITS} bit`]);
+    issues.push([
+      "JWT_PRIVATE_KEY",
+      `modulus ${bits} bit terlalu pendek, minimal ${MIN_MODULUS_BITS} bit`,
+    ]);
   }
   if (issues.length > 0) throw new SessionKeyError(issues);
 
@@ -111,7 +124,10 @@ export function parseSessionKeys(source: NodeJS.ProcessEnv = process.env): Sessi
       publicKey.export({ type: "spki", format: "pem" }).toString()
   ) {
     throw new SessionKeyError([
-      ["JWT_PUBLIC_KEY", "bukan pasangan dari JWT_PRIVATE_KEY (token akan ditolak verifikasinya sendiri)"],
+      [
+        "JWT_PUBLIC_KEY",
+        "bukan pasangan dari JWT_PRIVATE_KEY (token akan ditolak verifikasinya sendiri)",
+      ],
     ]);
   }
 

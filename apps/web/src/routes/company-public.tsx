@@ -37,12 +37,12 @@ export function ProfilPerusahaanPublik() {
     // selama dua putaran backoff (≈3 detik) sebelum akhirnya menampilkan
     // pesan yang sudah pasti sejak percobaan pertama.
     retry: (jumlahGagal, galat) =>
-      galat instanceof ApiError && galat.code === "PERUSAHAAN_TIDAK_DITEMUKAN" ? false : jumlahGagal < 2,
+      galat instanceof ApiError && galat.code === "PERUSAHAAN_TIDAK_DITEMUKAN"
+        ? false
+        : jumlahGagal < 2,
   });
 
-  useJudulHalaman(
-    t("shell.judulDokumen", { halaman: profil.data?.name ?? t("companies.memuat") }),
-  );
+  useJudulHalaman(t("shell.judulDokumen", { halaman: profil.data?.name ?? t("companies.memuat") }));
 
   const tidakDitemukan =
     profil.error instanceof ApiError && profil.error.code === "PERUSAHAAN_TIDAK_DITEMUKAN";

@@ -54,6 +54,9 @@ export {
   AUDIT_ENTITY,
   createJobsService,
   type JobsActor,
+  type JobUntukEmbedding,
+  type JobUntukFeed,
+  type JobUntukRerank,
   type JobsService,
   type JobsServiceDeps,
 } from "./services/jobs.service.js";

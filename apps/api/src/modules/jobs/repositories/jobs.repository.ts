@@ -51,6 +51,9 @@ export interface JobRow {
   updatedAt: Date;
 }
 
+/** `JobRow` + nama perusahaan — bahan kartu feed matching (PR-073). */
+export type JobRowBerperusahaan = JobRow & { companyName: string };
+
 /** POST /admin/jobs — `status`/`source` TIDAK di sini, keduanya bawaan kolom Prisma. */
 export interface JobCreateData {
   companyId: string;
@@ -218,6 +221,11 @@ export interface JobsRepository {
   findById(id: string): Promise<JobRow | null>;
   /** Lowongan `published` DAN belum `expiresAt` (atau tanpa tenggat) milik satu perusahaan. */
   listActiveByCompany(companyId: string): Promise<JobRow[]>;
+  /**
+   * Lowongan `published` DAN belum lewat tenggat di antara `ids` (PR-072), berikut
+   * nama perusahaannya (kartu feed PR-073); urutan tak dijamin.
+   */
+  listActiveByIds(ids: readonly string[]): Promise<JobRowBerperusahaan[]>;
   create(id: string, data: JobCreateData): Promise<JobCreateResult>;
   /** null bila `id` tidak ada. */
   update(id: string, patch: JobUpdatePatch): Promise<JobRow | null>;
@@ -258,12 +266,28 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
       return rows.map(keRow);
     },
 
+    listActiveByIds: async (ids) => {
+      if (ids.length === 0) return [];
+      const rows = await prisma.job.findMany({
+        where: {
+          id: { in: [...ids] },
+          status: "published",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { ...KOLOM, company: { select: { name: true } } },
+      });
+      return rows.map(({ company, ...baris }) => ({ ...keRow(baris), companyName: company.name }));
+    },
+
     create: async (id, data) => {
       try {
         const row = await prisma.job.create({ data: { id, ...data }, select: KOLOM });
         return keRow(row);
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === FOREIGN_KEY_VIOLATION) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === FOREIGN_KEY_VIOLATION
+        ) {
           return "perusahaan-tidak-ada";
         }
         throw err;
@@ -336,7 +360,9 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
         kondisi.push(Prisma.sql`j."work_mode" = ${filter.workMode}::"WorkMode"`);
       }
       if (filter.accommodations !== undefined && filter.accommodations.length > 0) {
-        kondisi.push(Prisma.sql`j."accommodations" @> ${JSON.stringify(filter.accommodations)}::jsonb`);
+        kondisi.push(
+          Prisma.sql`j."accommodations" @> ${JSON.stringify(filter.accommodations)}::jsonb`,
+        );
       }
       if (filter.query !== undefined) {
         // FTS (indeks `jobs_fts_gin`) ATAU KEMIRIPAN KATA trigram (indeks

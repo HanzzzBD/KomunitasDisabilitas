@@ -13,4 +13,10 @@ export {
   type NamaFitur,
 } from "./registri.js";
 export { terjemah, interpolasi, type HasilTerjemah } from "./terjemah.js";
-export { MODE_BAHASA, type ModeBahasa, type EntriTeks, type KatalogFitur, type ParamTeks } from "./tipe.js";
+export {
+  MODE_BAHASA,
+  type ModeBahasa,
+  type EntriTeks,
+  type KatalogFitur,
+  type ParamTeks,
+} from "./tipe.js";

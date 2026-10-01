@@ -203,7 +203,10 @@ async function boot() {
             },
             // Dua bagian WAJIB sejak 2026-09-05 (U-03 & U-04) — penampung
             // kosong, dengan alasan yang sama seperti `profile` di atas.
-            { bagian: "accessibility", kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }) },
+            {
+              bagian: "accessibility",
+              kumpulkan: async () => ({ ...ACCESSIBILITY_PROFILE_KOSONG }),
+            },
             {
               bagian: "notificationChannels",
               kumpulkan: async () => ({ email: null, push: null }),
@@ -213,6 +216,8 @@ async function boot() {
             { bagian: "aiChatSessions", kumpulkan: async () => [] },
             // U-05 (PR-066) — wajib sejak `ai_usage` punya penulis.
             { bagian: "aiUsage", kumpulkan: async () => [] },
+            // U-25 (2026-10-01) — CV.
+            { bagian: "resumes", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -348,6 +353,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "notifications",
           "aiChatSessions",
           "aiUsage",
+          "resumes",
         ],
       },
     });

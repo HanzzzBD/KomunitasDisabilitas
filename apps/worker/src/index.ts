@@ -4,8 +4,7 @@
 // request. Codebase sama dengan api (core/queue diimpor lewat @nawasena/api),
 // hanya entry-nya berbeda.
 //
-// Processor fitur (ekstraksi CV, embedding, render PDF, notifikasi) belum ada
-// di Phase 1 — masing-masing didaftarkan oleh PR fiturnya di PROCESSORS.
+// Processor fitur didaftarkan oleh PR fiturnya masing-masing di PROCESSORS.
 /* eslint-disable no-console -- sebelum logger siap, satu-satunya saluran adalah console */
 import { QUEUE_NAME } from "@nawasena/schemas";
 import { loadEnv, EnvError } from "@nawasena/api/core/config";
@@ -54,6 +53,24 @@ import { createPushProcessor } from "./processors/push.js";
 import { createEmailProcessor } from "./processors/email.js";
 import { createPdfRenderProcessor } from "./processors/pdf-render.js";
 import { createAiExtractResumeProcessor } from "./processors/ai-extract-resume.js";
+import { createAiEmbedProcessor } from "./processors/ai-embed.js";
+import { createAiRerankFeedProcessor } from "./processors/ai-rerank-feed.js";
+import { createJobsRepository, createJobsService } from "@nawasena/api/modules/jobs";
+import {
+  createEducationRepository,
+  createEducationsService,
+  createExperienceRepository,
+  createExperiencesService,
+  createProfileRepository,
+  createSkillRepository,
+  createSkillsService,
+} from "@nawasena/api/modules/profiles";
+import {
+  createEmbeddingService,
+  createEmbeddingsRepository,
+  createMatchScoresRepository,
+  createRerankService,
+} from "@nawasena/api/modules/matching";
 import { createRedisClients } from "@nawasena/api/core/redis";
 import {
   createAiQuota,
@@ -224,6 +241,64 @@ const cvEkstraksi = createCvEkstraksiService({
   logger,
 });
 
+// Jalur embedding (PR-069). Pembaca profil/lowongan dirakit DI SINI dari
+// potongan modul `profiles` dan `jobs` lalu disuntik sebagai port — modul
+// matching tidak pernah menyentuh repository modul lain (ADR-001).
+//
+// Profil dibaca lewat `findSafeByUserId`: jalur yang kolom disabilitasnya
+// bahkan tidak pernah meninggalkan PostgreSQL (PR-039). Tidak ada kunci
+// enkripsi di proses ini untuk embedding, dan memang tidak perlu ada.
+const profileRepository = createProfileRepository(prisma);
+const karier = { events };
+const pengalaman = createExperiencesService(createExperienceRepository(prisma), karier);
+const pendidikan = createEducationsService(createEducationRepository(prisma), karier);
+const keahlian = createSkillsService(createSkillRepository(prisma), karier);
+const jobsService = createJobsService({
+  jobsRepository: createJobsRepository(prisma),
+  auditLog,
+  events,
+});
+const embeddingService = createEmbeddingService({
+  repo: createEmbeddingsRepository(prisma),
+  ai: aiClient,
+  async bacaProfil(userId) {
+    const profil = await profileRepository.findSafeByUserId(userId);
+    if (profil === null) return null;
+    const [exp, edu, skill] = await Promise.all([
+      pengalaman.listFor(userId),
+      pendidikan.listFor(userId),
+      keahlian.listFor(userId),
+    ]);
+    return { profil, pengalaman: exp, pendidikan: edu, keahlian: skill };
+  },
+  bacaLowongan: (jobId) => jobsService.bacaUntukEmbedding(jobId),
+  logger,
+});
+
+// Jalur re-rank feed (PR-072). Profil lewat jalur AMAN yang sama dengan
+// embedding — hanya bagian terstruktur (headline, lokasi, nama keahlian, judul
+// posisi) yang dipakai; teks bebas tidak dibaca (keputusan owner 2026-09-30).
+const rerankService = createRerankService({
+  repo: createMatchScoresRepository(prisma),
+  ai: aiClient,
+  quota: aiQuota,
+  async bacaProfil(userId) {
+    const profil = await profileRepository.findSafeByUserId(userId);
+    if (profil === null) return null;
+    const [exp, skill] = await Promise.all([pengalaman.listFor(userId), keahlian.listFor(userId)]);
+    return {
+      headline: profil.headline,
+      city: profil.city,
+      province: profil.province,
+      openToRemote: profil.openToRemote,
+      keahlian: skill,
+      pengalaman: exp,
+    };
+  },
+  bacaLowongan: (ids) => jobsService.bacaUntukRerank(ids),
+  logger,
+});
+
 // Jalur PDF (PR-063). Seluruh dependensi eksternal dirakit di composition root:
 // repository CV, R2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
 // menjatuhkan processor lain, tetapi berisik dan queue pdf-render tidak dibaca.
@@ -277,6 +352,14 @@ const PROCESSORS: ProcessorMap = {
   [QUEUE_NAME.AI_EXTRACT_RESUME]: createAiExtractResumeProcessor({
     ekstraksi: cvEkstraksi,
     attempts: queueConfigs[QUEUE_NAME.AI_EXTRACT_RESUME].attempts,
+    logger,
+  }),
+  // PR-069. Event-driven — produsernya modul matching di proses API.
+  [QUEUE_NAME.AI_EMBED]: createAiEmbedProcessor({ embedding: embeddingService, logger }),
+  // PR-072. Event-driven — produsernya kebijakan cache feed di proses API.
+  [QUEUE_NAME.AI_RERANK_FEED]: createAiRerankFeedProcessor({
+    rerank: rerankService,
+    attempts: queueConfigs[QUEUE_NAME.AI_RERANK_FEED].attempts,
     logger,
   }),
 };

@@ -12,6 +12,7 @@ import { appError } from "../../core/http/index.js";
 import type { ObjectStorage } from "../../core/storage/index.js";
 import { createResumesRepository } from "./repositories/resumes.repository.js";
 import { createResumesService } from "./services/resumes.service.js";
+import { createResumesExportContributor } from "./services/resume-export.service.js";
 import { createResumesController } from "./controllers/resumes.controller.js";
 import { createResumesRouter } from "./routers/index.js";
 import {
@@ -49,6 +50,11 @@ export interface ResumesModule {
    * terjadwal.
    */
   service: ReturnType<typeof createResumesService>;
+  /**
+   * Bagian `resumes` berkas ekspor PDP (utang U-25). Dikembalikan, tidak
+   * didaftarkan sendiri — agregatornya milik modul `users` (pola `profiles`).
+   */
+  exportContributor: ReturnType<typeof createResumesExportContributor>;
 }
 
 export function createResumesModule(deps: ResumesModuleDeps): ResumesModule {
@@ -67,6 +73,8 @@ export function createResumesModule(deps: ResumesModuleDeps): ResumesModule {
   return {
     router: createResumesRouter(createResumesController(service, pdf), deps.routes),
     service,
+    // Service yang SAMA dengan yang melayani editor CV — bukan salinan kedua.
+    exportContributor: createResumesExportContributor({ resumes: service }),
   };
 }
 
@@ -80,6 +88,7 @@ export {
   type ResumeUpdatePatch,
   type ResumesRepository,
 } from "./repositories/resumes.repository.js";
+export { createResumesExportContributor } from "./services/resume-export.service.js";
 export {
   createResumesService,
   type OpsiBuatCv,

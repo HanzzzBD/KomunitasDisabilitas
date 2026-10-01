@@ -79,7 +79,11 @@ export {
   type ExportQuotaRepository,
   type ExportRedisLike,
 } from "./repositories/export-quota.repository.js";
-export { createUsersService, type UsersActor, type UsersService } from "./services/users.service.js";
+export {
+  createUsersService,
+  type UsersActor,
+  type UsersService,
+} from "./services/users.service.js";
 export {
   createAccountContributor,
   createExportService,

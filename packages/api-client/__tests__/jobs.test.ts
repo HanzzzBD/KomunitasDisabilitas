@@ -384,14 +384,12 @@ describe("getJobPublic", () => {
   });
 
   it("404 diteruskan sebagai ApiError berkode LOWONGAN_TIDAK_DITEMUKAN", async () => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValue(
-        jsonResponse(404, {
-          code: "LOWONGAN_TIDAK_DITEMUKAN",
-          message: "Lowongan tidak ditemukan",
-        }),
-      );
+    const fetch = vi.fn().mockResolvedValue(
+      jsonResponse(404, {
+        code: "LOWONGAN_TIDAK_DITEMUKAN",
+        message: "Lowongan tidak ditemukan",
+      }),
+    );
 
     await expect(getJobPublic(klien(fetch), DETAIL_LOWONGAN.id)).rejects.toMatchObject({
       code: "LOWONGAN_TIDAK_DITEMUKAN",

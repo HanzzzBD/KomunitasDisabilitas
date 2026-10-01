@@ -168,6 +168,31 @@ interface JobSpec {
   salary?: [number, number];
 }
 
+/**
+ * Lokasi lowongan onsite/hybrid (PR-070). Sebelumnya SEMUA lowongan seed tanpa
+ * kota/provinsi, sehingga filter lokasi matching ("provinsi sama ATAU remote",
+ * SDD §7.2) tidak pernah teruji di data dev. Sebarannya disengaja:
+ *   - DKI Jakarta / Jawa Barat / DI Yogyakarta — provinsi persona, jadi tiap
+ *     persona punya lowongan yang lolos DAN yang tersaring;
+ *   - Jawa Timur — provinsi tanpa persona, selalu tersaring bagi mereka;
+ *   - j17 (onsite, TAYANG) SENGAJA tanpa lokasi: lowongan onsite tanpa
+ *     provinsi tetap LOLOS filter untuk semua persona (keputusan owner
+ *     2026-09-30 — kelalaian data admin tidak boleh diam-diam menghapus
+ *     lowongan dari feed). Bukan j18: j18 draft, jadi kasusnya tak terlihat.
+ * Lowongan remote tidak diberi lokasi: filter lokasi tidak berlaku baginya.
+ */
+const LOKASI_JOB: Readonly<Record<string, { city: string; province: string }>> = {
+  j01: { city: "Jakarta", province: "DKI Jakarta" },
+  j02: { city: "Bandung", province: "Jawa Barat" },
+  j07: { city: "Yogyakarta", province: "DI Yogyakarta" },
+  j08: { city: "Jakarta", province: "DKI Jakarta" },
+  j10: { city: "Surabaya", province: "Jawa Timur" },
+  j11: { city: "Bekasi", province: "Jawa Barat" },
+  j12: { city: "Surabaya", province: "Jawa Timur" },
+  j16: { city: "Sleman", province: "DI Yogyakarta" },
+  j19: { city: "Bogor", province: "Jawa Barat" },
+};
+
 /// 20 jobs — matriks variasi work_mode × akomodasi × status untuk test matching.
 const JOBS: JobSpec[] = [
   // Kreatif (relevan Rina)
@@ -383,9 +408,9 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
 
   // --- Admin (PR-009; ID by-phone karena sudah ada sebelum fixtures) ---
   const adminPhone = process.env.SEED_ADMIN_PHONE ?? "+620000000001";
-  const admin = await prisma.user.findFirst({ where: { phone: adminPhone, deletedAt: null } });
+  let admin = await prisma.user.findFirst({ where: { phone: adminPhone, deletedAt: null } });
   if (admin === null) {
-    await prisma.user.create({
+    admin = await prisma.user.create({
       data: {
         id: uuidV7(),
         phone: adminPhone,
@@ -536,6 +561,8 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
       description: j.description,
       employmentType: j.employmentType,
       workMode: j.workMode,
+      city: LOKASI_JOB[j.key]?.city ?? null,
+      province: LOKASI_JOB[j.key]?.province ?? null,
       accommodations: j.accommodations,
       welcomedDisabilityTypes: j.welcomed ?? [],
       status,
@@ -543,6 +570,10 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
       salaryMax: j.salary?.[1] ?? null,
       publishedAt: status === "draft" ? null : new Date("2026-07-01T00:00:00Z"),
       source: "admin_curated" as const,
+      // PR-069b (U-29): kurator = admin seed. Tanpa ini tidak ada yang memikul
+      // kuota embed lowongan (keputusan owner 2026-09-30), sehingga lowongan
+      // seed tidak pernah punya vektor dan feed matching dev selalu kosong.
+      createdBy: admin.id,
     };
     await prisma.job.upsert({ where: { id }, create: { id, ...data }, update: data });
   }

@@ -17,6 +17,22 @@ const hariRetensi = (bawaan: number) =>
     .min(1, { message: "minimal 1 hari — nilai 0 akan mengosongkan tabel" })
     .default(bawaan);
 
+/** Satu bobot skor matching (PR-071): pecahan 0..1. */
+const bobotSkor = (bawaan: number) =>
+  z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .min(0, { message: "minimal 0" })
+    .max(1, { message: "maksimal 1" })
+    .default(bawaan);
+
+/** Variabel bobot skor matching — jumlahnya wajib 1. */
+export const VARIABEL_BOBOT_MATCHING = [
+  "MATCHING_WEIGHT_SIMILARITY",
+  "MATCHING_WEIGHT_ACCOMMODATION",
+  "MATCHING_WEIGHT_LOCATION",
+  "MATCHING_WEIGHT_RECENCY",
+] as const;
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"], {
@@ -65,6 +81,16 @@ const envSchema = z.object({
     .string()
     .min(32, { message: "minimal 32 karakter (mis. hasil `openssl rand -base64 32`)" })
     .optional(),
+  // Jendela toleransi rotasi refresh token (utang U-10, keputusan owner
+  // 2026-10-01): token yang dirotasi ≤ N detik lalu dan dipakai lagi dibaca
+  // sebagai balapan (dua tab, boot vs 401) — ditolak tanpa mencabut keluarga.
+  // 0 = mematikan toleransi (setiap pemakaian ulang = reuse). Maks 60.
+  AUTH_REFRESH_ROTATION_GRACE_SECONDS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(0, { message: "minimal 0" })
+    .max(60, { message: "maksimal 60 detik — jendela lebih lebar melemahkan reuse detection" })
+    .default(10),
   // --- Provider pengiriman OTP (PR-016b) ---
   // Semua OPSIONAL: tanpa satu pun provider, endpoint OTP tetap ada tetapi
   // menjawab 503 (deny-by-default). Kredensial yang setengah terisi ditolak
@@ -173,7 +199,10 @@ const envSchema = z.object({
   GEMINI_EMBED_MODEL: z
     .string()
     .min(1, { message: "tidak boleh kosong bila diisi" })
-    .default("text-embedding-004"),
+    // Diganti 2026-09-30 (PR-069, utang U-27): `text-embedding-004` sudah tidak
+    // ada di katalog. Model ini berdimensi bawaan 3072; adapter meminta 768
+    // lewat `outputDimensionality`, jadi kolom vector(768) tidak berubah.
+    .default("gemini-embedding-001"),
   /** Base URL hanya diganti untuk test/staging; default sudah benar. */
   GEMINI_BASE_URL: z
     .string()
@@ -382,6 +411,44 @@ const envSchema = z.object({
     .min(1, { message: "minimal 1 — nilai 0 membuat CV tidak bisa dibuat sama sekali" })
     .max(50, { message: "maksimal 50" })
     .default(5),
+  // --- Matching (PR-070) ---
+  // `hnsw.ef_search` untuk query kandidat: lebar daftar kandidat yang ditelusuri
+  // indeks HNSW. Tuas recall ↔ kecepatan (risiko PR-070). BATAS BAWAHNYA 50 dan
+  // itu bukan selera: HNSW mengembalikan paling banyak `ef_search` baris, jadi
+  // nilai di bawah jumlah kandidat (50, SDD §7.2) diam-diam memotong feed.
+  // Bawaan pgvector (40) karena itu justru SALAH untuk query ini.
+  MATCHING_HNSW_EF_SEARCH: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(50, { message: "minimal 50 — di bawahnya kandidat top-50 terpotong" })
+    .max(1000, { message: "maksimal 1000" })
+    .default(100),
+  // --- Skor matching (PR-071, SDD §7.2 langkah 3) ---
+  // score = SIMILARITY·cos + ACCOMMODATION·fit + LOCATION·loc + RECENCY·recency.
+  // Bawaan = angka SDD. Diubah lewat env TANPA deploy kode (AC PR-071) — itulah
+  // tuas evaluasi dengan data pilot. Jumlah keempatnya WAJIB 1 (diperiksa di
+  // `envSchemaLengkap`): bobot yang tidak berjumlah 1 membuat skor keluar dari
+  // rentang [0, 1] dan persentase "kecocokan" di layar menjadi tak bermakna.
+  MATCHING_WEIGHT_SIMILARITY: bobotSkor(0.55),
+  MATCHING_WEIGHT_ACCOMMODATION: bobotSkor(0.25),
+  MATCHING_WEIGHT_LOCATION: bobotSkor(0.1),
+  MATCHING_WEIGHT_RECENCY: bobotSkor(0.1),
+  // Waktu paruh komponen kebaruan (hari): lowongan setua ini bernilai 0,5.
+  MATCHING_RECENCY_HALF_LIFE_DAYS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(1, { message: "minimal 1 hari" })
+    .max(365, { message: "maksimal 365 hari" })
+    .default(14),
+  // Tuas rollback re-rank LLM feed (PR-072): `false` = feed tetap dihitung dan
+  // di-cache, tetapi TANPA panggilan LLM dan tanpa memotong jatah `rerank` —
+  // urutan skor deterministik + penjelasan template (PR-073).
+  MATCHING_RERANK_ENABLED: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("true")
+    .transform((nilai) => nilai === "true"),
 });
 
 /**
@@ -432,6 +499,18 @@ const GRUP_KREDENSIAL = [
 ] as const satisfies ReadonlyArray<{ label: string; vars: ReadonlyArray<keyof Env> }>;
 
 const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
+  // Toleransi 0,001: "0.55 + 0.25 + 0.1 + 0.1" tidak persis 1 dalam biner.
+  const jumlahBobot = VARIABEL_BOBOT_MATCHING.reduce((jumlah, nama) => jumlah + env[nama], 0);
+  if (Math.abs(jumlahBobot - 1) > 0.001) {
+    for (const nama of VARIABEL_BOBOT_MATCHING) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [nama],
+        message: `jumlah keempat bobot matching harus 1 (sekarang ${jumlahBobot.toFixed(3)})`,
+      });
+    }
+  }
+
   for (const { label, vars } of GRUP_KREDENSIAL) {
     const terisi = vars.filter((nama) => env[nama] !== undefined);
     if (terisi.length === 0 || terisi.length === vars.length) continue;

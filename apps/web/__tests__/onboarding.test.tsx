@@ -81,6 +81,14 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil): ApiClient {
           meta: { nextCursor: null, unreadCount: 0 },
         }) as Promise<never>;
       }
+      // Sejak PR-074 tujuan sesudah wizard ("/") adalah BERANDA SEEKER, yang
+      // membaca feed (`GET /me/matches`) dan profil (`GET /me/profile`). Dua
+      // bacaan itu milik halaman tujuan, bukan wizard, dan tidak membawa satu
+      // byte pun data pengguna — dibiarkan menggantung dan TIDAK dicatat,
+      // perlakuan sama dengan infrastruktur di atas.
+      if ((opsi?.method ?? "GET") === "GET" && /^\/me\/(matches|profile)(\?|$)/.test(path)) {
+        return new Promise(() => {}) as Promise<never>;
+      }
 
       jejak.push({ path, method: opsi?.method ?? "GET", body: opsi?.body });
 

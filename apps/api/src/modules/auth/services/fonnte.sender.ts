@@ -4,7 +4,7 @@
 // sebagai HTTP 200 dengan body `{"status": false, "reason": "..."}`. Memeriksa
 // status HTTP saja akan menganggap pesan terkirim padahal tidak — dan pengguna
 // menunggu kode yang tidak pernah datang.
-import { OtpSenderError, type OtpSender } from "./otp-sender.js";
+import { PhoneSenderError, type PhoneSender } from "./phone-sender.js";
 
 /** Bagian `fetch` yang dipakai adapter — memudahkan injeksi di test. */
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -31,7 +31,7 @@ function bacaAlasan(body: unknown): string {
     : "tanpa keterangan";
 }
 
-export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike): OtpSender {
+export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike): PhoneSender {
   const kirim: FetchLike = fetchImpl ?? ((input, init) => fetch(input, init));
 
   return {
@@ -58,16 +58,19 @@ export function createFonnteSender(config: FonnteConfig, fetchImpl?: FetchLike):
         // Jaringan mati / timeout. Pesan error asli TIDAK disertakan mentah:
         // ia bisa memuat URL berisi parameter. Cukup jenis kegagalannya.
         const jenis = err instanceof Error ? err.name : "Error";
-        throw new OtpSenderError(FONNTE_PROVIDER, `gagal menghubungi Fonnte (${jenis})`);
+        throw new PhoneSenderError(FONNTE_PROVIDER, `gagal menghubungi Fonnte (${jenis})`);
       }
 
       if (!response.ok) {
-        throw new OtpSenderError(FONNTE_PROVIDER, `Fonnte menolak permintaan (HTTP ${response.status})`);
+        throw new PhoneSenderError(
+          FONNTE_PROVIDER,
+          `Fonnte menolak permintaan (HTTP ${response.status})`,
+        );
       }
 
       const body: unknown = await response.json().catch(() => null);
       if (typeof body !== "object" || body === null || (body as FonnteBody).status !== true) {
-        throw new OtpSenderError(FONNTE_PROVIDER, `Fonnte gagal mengirim: ${bacaAlasan(body)}`);
+        throw new PhoneSenderError(FONNTE_PROVIDER, `Fonnte gagal mengirim: ${bacaAlasan(body)}`);
       }
     },
   };

@@ -119,7 +119,10 @@ describe("gabungkanDariServer — semantik null", () => {
   // dibedakan dari bawaan, jadi ia kalah oleh sinyal OS yang bertentangan dan
   // reset `true → false` di perangkat A tidak pernah mendarat di perangkat B.
   it("false yang DIPILIH pengguna tetap ditulis, bukan disamakan dengan belum-diatur", () => {
-    const dariServer: AccessibilityProfile = { ...ACCESSIBILITY_PROFILE_KOSONG, highContrast: false };
+    const dariServer: AccessibilityProfile = {
+      ...ACCESSIBILITY_PROFILE_KOSONG,
+      highContrast: false,
+    };
     const hasil = gabungkanDariServer(dariServer, {}, {});
 
     expect(hasil.highContrast).toBe(false);
@@ -386,11 +389,7 @@ describe("cuplikan awal diambil sekali per masuk, bukan per percobaan", () => {
 
     const tertahan = klienGagalLalu(1);
     render(
-      <Providers
-        queryClient={createQueryClient()}
-        klienApi={tertahan.klien}
-        a11yStore={store}
-      >
+      <Providers queryClient={createQueryClient()} klienApi={tertahan.klien} a11yStore={store}>
         <Pengintip store={store} />
       </Providers>,
     );

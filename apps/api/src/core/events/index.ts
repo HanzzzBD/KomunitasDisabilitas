@@ -27,6 +27,7 @@ import type {
   CompanyVerifiedEvent,
   JobClosedEvent,
   JobPublishedEvent,
+  JobUpdatedEvent,
   ProfileUpdatedEvent,
   UserRegisteredEvent,
 } from "@nawasena/schemas";
@@ -47,14 +48,13 @@ export interface DomainEvents {
   "auth.user_registered": UserRegisteredEvent;
   /**
    * Profil karier atau salah satu sub-entitasnya berubah (PR-038). Penerbitnya
-   * modul profiles, DI PROSES API. Pelanggan pertamanya belum lahir: perhitungan
-   * ulang embedding profil ada di PR-069.
+   * modul profiles, DI PROSES API. Pelanggannya (PR-069) modul `matching`:
+   * handler-nya HANYA meng-enqueue job `ai-embed` — perhitungannya di worker.
    *
-   * Ketika pelanggan itu lahir, batas 2 di atas menjadi penting — event yang
-   * hilang saat proses mati berarti embedding yang tidak pernah dihitung ulang,
-   * dan tidak ada yang akan mencobanya lagi. Konsumen PR-069 karena itu harus
-   * berupa job antrean yang DIPICU event ini, bukan pekerjaan yang dilakukan di
-   * dalam handler-nya.
+   * Batas 2 di atas tetap berlaku pada jarak sempit antara `emit` dan
+   * `enqueue`: proses yang mati di sana berarti embedding yang tidak dihitung
+   * ulang sampai suntingan berikutnya. Itulah alasan handler-nya tidak memanggil
+   * AI sendiri — jendela kehilangannya dipersempit menjadi satu panggilan Redis.
    */
   "profile.updated": ProfileUpdatedEvent;
   /**
@@ -95,14 +95,18 @@ export interface DomainEvents {
   /**
    * Lowongan diterbitkan admin, draft → published (PR-055, AC eksplisit
    * "Publish → event job.published (assert)"). Penerbitnya modul `jobs`, DI
-   * PROSES API — endpoint publish berjalan lewat HTTP. Belum ada pelanggan:
-   * kandidat pengonsumsinya adalah notifikasi "lowongan baru cocok"
-   * (matching, Phase 10) dan cache/feed pencarian (PR-056), keduanya belum
-   * ada di backlog yang sudah dieksekusi.
+   * PROSES API — endpoint publish berjalan lewat HTTP. Pelanggan pertamanya
+   * PR-069: modul `matching` meng-enqueue embedding lowongan.
    *
    * TIDAK memuat isi lowongan — pola yang sama dengan `job.closed` di atas.
    */
   "job.published": JobPublishedEvent;
+  /**
+   * Lowongan yang SUDAH published disunting (PR-069). Penerbitnya modul `jobs`
+   * di PROSES API; pelanggannya modul `matching` (embedding ulang + buang skor
+   * lowongan itu). Draft yang disunting tidak menerbitkannya.
+   */
+  "job.updated": JobUpdatedEvent;
 }
 
 export type DomainEventName = keyof DomainEvents;

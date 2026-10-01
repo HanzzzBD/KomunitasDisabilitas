@@ -179,7 +179,10 @@ describe("formulir — tambah (AC: buat→edit→verifikasi)", () => {
     // formulir selesai dimuat.
     await screen.findByRole("textbox", { name: /Nama perusahaan/ });
 
-    await userEvent.type(screen.getByRole("textbox", { name: /Nama perusahaan/ }), "PT Baru Fiktif");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /Nama perusahaan/ }),
+      "PT Baru Fiktif",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
@@ -237,7 +240,9 @@ describe("formulir — ubah", () => {
     await waitFor(() => expect(jejak.some((j) => j.method === "PUT")).toBe(true));
     const badan = jejak.find((j) => j.method === "PUT")?.body as { name: string };
     expect(badan.name).toBe("PT Baru Namanya");
-    expect(await screen.findByText(/Perubahan pada PT Baru Namanya sudah tersimpan/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Perubahan pada PT Baru Namanya sudah tersimpan/),
+    ).toBeInTheDocument();
   });
 });
 
@@ -256,9 +261,7 @@ describe("verifikasi (AC: badge status jelas + konfirmasi eksplisit)", () => {
 
   it("konfirmasi 'Ya, verifikasi' → POST verify, badge berubah, tombol hilang", async () => {
     renderDi("/admin/companies/id-1", [perusahaan({ id: "id-1", name: "PT Verifikasi" })]);
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Verifikasi perusahaan ini" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Verifikasi perusahaan ini" }));
     await userEvent.click(screen.getByRole("button", { name: "Ya, verifikasi" }));
 
     expect(await screen.findByText("Terverifikasi", { exact: true })).toBeInTheDocument();
@@ -269,9 +272,7 @@ describe("verifikasi (AC: badge status jelas + konfirmasi eksplisit)", () => {
     const { jejak } = renderDi("/admin/companies/id-1", [
       perusahaan({ id: "id-1", name: "PT Verifikasi" }),
     ]);
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Verifikasi perusahaan ini" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Verifikasi perusahaan ini" }));
 
     // DUA tombol bernama "Batal" di dalam dialog: tombol tutup (×, pojok) DAN
     // tombol aksi di footer — keduanya sah-sah saja punya nama sama secara

@@ -1,5 +1,17 @@
-// Halaman "/" — landing publik (PR-032a). Menutup AC PR-032 nomor 2, 3, dan
-// bagian ke-032a dari nomor 1 & 5.
+// Halaman "/" — landing publik (PR-032a) ATAU beranda seeker (PR-074).
+//
+// SATU ALAMAT, DUA ISI (keputusan owner 2026-09-30): pengunjung yang belum
+// masuk melihat landing; pengguna yang sudah masuk melihat feed matching
+// (`beranda-seeker.tsx`) — tanpa mengubah tujuan pengalihan sesudah login,
+// yang sejak PR-030 memang "/". Flag `VITE_MATCHING_FEED_ENABLED=false`
+// mengganti feed dengan halaman cari lowongan (Rollback Strategy PR-074).
+//
+// SELAMA SESI DIPULIHKAN, TIDAK ADA YANG DITEBAK. Menampilkan landing lalu
+// menggantinya dengan feed begitu jawaban `/auth/refresh` tiba adalah
+// pergantian seluruh halaman tanpa diminta — tepat perubahan mendadak yang
+// paling mengganggu (persona Dimas). Pola sama `Terlindungi`.
+//
+// Landing: menutup AC PR-032 nomor 2, 3, dan bagian ke-032a dari nomor 1 & 5.
 //
 // TANPA GAMBAR, dan itu keputusan, bukan kekurangan. AC 1 menuntut Lighthouse
 // perf ≥ 80 pada throttling 3G — dan pada 3G, satu foto hero adalah selisih
@@ -11,10 +23,37 @@
 //
 // `<main>` TIDAK ditulis di sini: landmark utama milik `TataLetak`, satu untuk
 // seluruh aplikasi.
+import { lazy, Suspense } from "react";
 import { Link } from "react-router";
-import { Kartu } from "@nawasena/ui";
+import { Kartu, WilayahMemuat } from "@nawasena/ui";
+import { feedMatchingAktif } from "../features/job-feed/bendera.js";
+import { useStoreSesi } from "../shared/sesi/store.js";
+import { muatKatalog } from "../shared/i18n/index.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
+
+// MALAS, keduanya: landing adalah halaman akuisisi yang diukur Lighthouse pada
+// 3G (AC PR-032). Feed dan halaman cari hanya diunduh oleh yang sudah masuk —
+// tamu tidak membayar satu byte pun untuk isi yang tidak pernah ia lihat.
+//
+// Katalog kartu (`lowongan` pesan galat, `companies` jenis/mode kerja, `profil`
+// label akomodasi) dimuat BERSAMA chunk-nya, sebelum komponen tampil — alasan
+// yang sama dengan `lazy:` route: tanpa itu render pertama memakai teks
+// cadangan lalu berkedip berganti.
+const BerandaSeeker = lazy(async () => {
+  const [modul] = await Promise.all([
+    import("./beranda-seeker.js"),
+    muatKatalog("lowongan", "companies", "profil"),
+  ]);
+  return { default: modul.BerandaSeeker };
+});
+const LowonganBrowse = lazy(async () => {
+  const [modul] = await Promise.all([
+    import("./lowongan-browse.js"),
+    muatKatalog("lowongan", "companies", "profil"),
+  ]);
+  return { default: modul.LowonganBrowse };
+});
 
 /**
  * Nilai produk sebagai DATA, bukan tiga blok JSX yang disalin.
@@ -23,15 +62,32 @@ import { useJudulHalaman } from "../shared/judul-halaman.js";
  * kelas yang sedikit berbeda, dan tidak ada yang menyadarinya karena ketiganya
  * tampak "kurang lebih sama".
  */
-const NILAI = [
-  { kunci: "cocok" },
-  { kunci: "terbuka" },
-  { kunci: "menyesuaikan" },
-] as const;
+const NILAI = [{ kunci: "cocok" }, { kunci: "terbuka" }, { kunci: "menyesuaikan" }] as const;
 
 const LANGKAH = ["beranda.cara.satu", "beranda.cara.dua", "beranda.cara.tiga"] as const;
 
 export function Beranda() {
+  const t = useTeks();
+  // Berlangganan HANYA `status` — alasan sama `Terlindungi`.
+  const status = useStoreSesi((s) => s.status);
+
+  const memuat = (
+    <WilayahMemuat memuat label={t("shell.sesi.memulihkan")}>
+      {null}
+    </WilayahMemuat>
+  );
+  if (status === "memulihkan") return memuat;
+  if (status === "masuk") {
+    return (
+      <Suspense fallback={memuat}>
+        {feedMatchingAktif() ? <BerandaSeeker /> : <LowonganBrowse />}
+      </Suspense>
+    );
+  }
+  return <BerandaPublik />;
+}
+
+function BerandaPublik() {
   const t = useTeks();
 
   useJudulHalaman(t("shell.judulDokumen", { halaman: t("beranda.hero.judul") }));

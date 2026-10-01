@@ -103,6 +103,121 @@ export const katalogBeranda = {
     "id-simple": "Daftar atau masuk",
   },
 
+  // --- Feed matching untuk pengguna yang sudah masuk (PR-074) ---
+  //
+  // Satu katalog dengan landing karena satu alamat ("/"): yang sudah masuk
+  // melihat feed, yang belum melihat landing. Taksonomi kartu (jenis/mode
+  // kerja, akomodasi) TIDAK diulang — dipinjam dari `companies`/`profil`
+  // lewat `KartuLowongan`/`DaftarAkomodasi`, pola sama halaman cari lowongan.
+  "beranda.feed.judul": {
+    id: "Lowongan untuk Anda",
+    "id-simple": "Lowongan yang cocok untuk Anda",
+  },
+  "beranda.feed.penjelasan": {
+    id: "Diurutkan dari yang paling cocok dengan keahlian, lokasi, dan kebutuhan akomodasi Anda.",
+    "id-simple": "Lowongan yang paling cocok ada di paling atas.",
+  },
+  "beranda.feed.daftarJudul": {
+    id: "Daftar lowongan yang cocok",
+    "id-simple": "Daftar lowongan",
+  },
+  "beranda.feed.memuat": {
+    id: "Memuat lowongan untuk Anda…",
+    "id-simple": "Sebentar, kami sedang mencari lowongan untuk Anda…",
+  },
+  "beranda.feed.gagalMuat": {
+    id: "Rekomendasi lowongan gagal dimuat.",
+    "id-simple": "Daftar lowongan tidak bisa dibuka.",
+  },
+  "beranda.feed.cobaLagi": {
+    id: "Coba lagi",
+    "id-simple": "Coba buka lagi",
+  },
+  "beranda.feed.status.menyusun": {
+    id: "Urutan dan alasan dari AI sedang disusun. Untuk sementara, lowongan diurutkan menurut skor kecocokan.",
+    "id-simple": "AI sedang menyusun daftar ini. Sementara itu, kami tampilkan urutan biasa.",
+  },
+  "beranda.feed.status.tampilkanTerbaru": {
+    id: "Tampilkan urutan terbaru",
+    "id-simple": "Lihat urutan yang baru",
+  },
+  "beranda.feed.status.turun": {
+    id: "Rekomendasi AI sedang tidak tersedia. Lowongan tetap diurutkan menurut kecocokan dengan profil Anda.",
+    "id-simple": "AI sedang tidak bisa dipakai. Daftar ini tetap diurutkan dari yang paling cocok.",
+  },
+  "beranda.feed.refresh.tombol": {
+    id: "Segarkan rekomendasi",
+    "id-simple": "Perbarui daftar",
+  },
+  "beranda.feed.refresh.sisa": {
+    id: "Bisa disegarkan {jumlah} kali lagi hari ini.",
+    "id-simple": "Hari ini masih bisa diperbarui {jumlah} kali.",
+  },
+  "beranda.feed.refresh.habis": {
+    id: "Kesempatan menyegarkan hari ini sudah habis. Coba lagi besok.",
+    "id-simple": "Hari ini daftar tidak bisa diperbarui lagi. Coba lagi besok.",
+  },
+  "beranda.feed.refresh.berhasil": {
+    id: "Rekomendasi diperbarui.",
+    "id-simple": "Daftar sudah diperbarui.",
+  },
+  "beranda.feed.refresh.gagal": {
+    id: "Rekomendasi gagal disegarkan. Daftar yang lama tetap ditampilkan.",
+    "id-simple": "Daftar tidak bisa diperbarui. Daftar lama masih bisa Anda lihat.",
+  },
+  "beranda.feed.kartu.skor": {
+    id: "Kecocokan {persen}% — {tingkat}",
+    "id-simple": "{tingkat} ({persen}%)",
+  },
+  "beranda.feed.kartu.tingkat.tinggi": {
+    id: "sangat cocok",
+    "id-simple": "Sangat cocok",
+  },
+  "beranda.feed.kartu.tingkat.sedang": {
+    id: "cocok",
+    "id-simple": "Cocok",
+  },
+  "beranda.feed.kartu.tingkat.rendah": {
+    id: "mungkin cocok",
+    "id-simple": "Mungkin cocok",
+  },
+  "beranda.feed.kartu.alasanLabel": {
+    id: "Kenapa cocok:",
+    "id-simple": "Alasannya:",
+  },
+  "beranda.feed.kartu.dariAi": {
+    id: "Alasan disusun AI",
+    "id-simple": "Alasan ini ditulis AI",
+  },
+  "beranda.feed.muatLagi": {
+    id: "Muat lebih banyak",
+    "id-simple": "Tampilkan lebih banyak",
+  },
+  "beranda.feed.kosong.profil.judul": {
+    id: "Lengkapi profil untuk mendapat rekomendasi",
+    "id-simple": "Isi profil Anda dulu",
+  },
+  "beranda.feed.kosong.profil.isi": {
+    id: "Kami mencocokkan lowongan dari keahlian dan pengalaman di profil Anda.",
+    "id-simple": "Kami perlu tahu keahlian dan pengalaman Anda untuk mencarikan lowongan.",
+  },
+  "beranda.feed.kosong.profil.aksi": {
+    id: "Lengkapi profil",
+    "id-simple": "Isi profil",
+  },
+  "beranda.feed.kosong.tanpa.judul": {
+    id: "Belum ada lowongan yang cocok",
+    "id-simple": "Belum ada lowongan yang cocok untuk Anda",
+  },
+  "beranda.feed.kosong.tanpa.isi": {
+    id: "Lowongan baru terus ditambahkan. Sementara itu, Anda bisa mencari lowongan sendiri.",
+    "id-simple": "Nanti akan ada lowongan baru. Anda juga bisa mencari lowongan sendiri.",
+  },
+  "beranda.feed.cariLain": {
+    id: "Cari lowongan lain",
+    "id-simple": "Cari lowongan sendiri",
+  },
+
   // Judul dokumen SENGAJA memakai `beranda.hero.judul` yang sudah ada, bukan
   // kunci `beranda.meta.judul` tersendiri. Judul tab dan judul besar di layar
   // yang boleh berbeda akan berbeda — lalu pengguna yang mencari kembali

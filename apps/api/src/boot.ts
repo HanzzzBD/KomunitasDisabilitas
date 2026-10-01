@@ -20,7 +20,7 @@ import { createInternalAuth, createInternalModule } from "./modules/internal/ind
 import {
   createAuthModule,
   createGoogleConfigFromEnv,
-  createOtpSenderFromEnv,
+  createPhoneSenderFromEnv,
   createSessionUserSource,
 } from "./modules/auth/index.js";
 import {
@@ -31,9 +31,19 @@ import {
 } from "./modules/users/index.js";
 import { createAccessibilityModule } from "./modules/accessibility/index.js";
 import { createNotificationsModule } from "./modules/notifications/index.js";
-import { createProfilesModule } from "./modules/profiles/index.js";
+import {
+  createProfileRepository,
+  createProfilesModule,
+  createSkillRepository,
+  createSkillsService,
+} from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
+import {
+  bobotDariEnv,
+  createMatchingFeedModule,
+  createMatchingModule,
+} from "./modules/matching/index.js";
 import { createResumePdfJobs, createResumesModule } from "./modules/resumes/index.js";
 import {
   StorageNotConfiguredError,
@@ -164,9 +174,15 @@ export async function startApi(options: BootOptions): Promise<void> {
     // pernah membaca env sendiri (ADR-007, ADR-015).
     fieldKeys,
     auditLog,
-    // Penerbit `profile.updated` (PR-038); pelanggannya lahir di PR-069.
+    // Penerbit `profile.updated` (PR-038); pelanggannya modul matching di bawah.
     events,
   });
+
+  // Pemicu embedding (PR-069): pelanggan `profile.updated`, `job.published`,
+  // dan `job.updated` di bus PROSES INI — penerbit ketiganya hidup di sini
+  // (modul profiles & jobs, lewat HTTP). Handler-nya hanya meng-enqueue
+  // `ai-embed`; perhitungan vektornya di apps/worker.
+  createMatchingModule({ events, queues });
 
   // Sama seperti `profiles` di atas, dan alasannya persis sama: modul `users`
   // membutuhkan bagian ekspor PDP keduanya (utang U-03 & U-04, dibayar
@@ -296,8 +312,11 @@ export async function startApi(options: BootOptions): Promise<void> {
           sessionKeys,
           // `Secure` dilepas HANYA di dev, tempat API berjalan di http localhost.
           cookieSecure: env.NODE_ENV !== "development",
+          // Utang U-10: balapan rotasi (dua tab, boot vs 401) tidak lagi
+          // mencabut keluarga sesi milik pemenangnya.
+          toleransiRotasiDetik: env.AUTH_REFRESH_ROTATION_GRACE_SECONDS,
           // Fonnte primer → Twilio SMS cadangan; keduanya opsional (SDD §8.1).
-          sender: createOtpSenderFromEnv(env, logger),
+          sender: createPhoneSenderFromEnv(env, logger),
           // Produser `notify:email` (PR-049a): pemberitahuan pasca-hapus bagi
           // akun tanpa nomor HP. Lewat antrean, bukan panggilan langsung —
           // gerbang U-02, alasannya di account.service.ts.
@@ -343,6 +362,8 @@ export async function startApi(options: BootOptions): Promise<void> {
             ai.exportContributor,
             // U-05 (PR-066): jejak pemakaian AI — metadata biaya saja.
             ai.usageExportContributor,
+            // U-25 (2026-10-01): CV — pemicunya menyala sejak PR-060.
+            resumes.exportContributor,
           ],
         }),
       );
@@ -355,7 +376,8 @@ export async function startApi(options: BootOptions): Promise<void> {
       // Dirakit SEBELUM `companies`: companies butuh `jobs.service` untuk
       // `GET /companies/:id/jobs` (PR-054/055, komunikasi antar-modul lewat
       // lapisan service — CLAUDE.md §3.2). Penerbit `job.published` +
-      // `job.closed` (reason `closed_by_admin`); `job.closed` sudah punya
+      // `job.updated` (pelanggannya matching, PR-069) + `job.closed` (reason
+      // `closed_by_admin`); `job.closed` sudah punya
       // pelanggan SISTEM sejak PR-024b (worker retention), tetapi lewat
       // proses TERPISAH (bus ini in-process, lihat core/events) — jadi tetap
       // belum ada pelanggan DI PROSES API ini.
@@ -366,6 +388,43 @@ export async function startApi(options: BootOptions): Promise<void> {
         events,
       });
       app.use(jobs.router);
+      // Feed AI Job Matching (PR-073) — SESUDAH `jobs` (kartu lowongan lewat
+      // service-nya). Profil dibaca lewat jalur AMAN (`findSafeByUserId`, kolom
+      // sensitif tidak meninggalkan PostgreSQL); satu-satunya bacaan sensitif
+      // adalah hard filter akomodasi lewat `sensitiveAccess` ber-audit (PR-071).
+      const profilAman = createProfileRepository(prisma);
+      const keahlian = createSkillsService(createSkillRepository(prisma), { events });
+      const matching = createMatchingFeedModule({
+        prisma,
+        routes: routeRegistry.forModule("/api/v1"),
+        queues,
+        quota: aiQuota,
+        // Penanda nasib re-rank — cache, boleh hilang (dibaca "tanpa AI").
+        redis: redis.cache,
+        logger,
+        sensitiveAccess: profiles.sensitiveAccess,
+        bacaProfil: async (userId) => {
+          const profil = await profilAman.findSafeByUserId(userId);
+          return profil === null
+            ? null
+            : { city: profil.city, province: profil.province, openToRemote: profil.openToRemote };
+        },
+        bacaKeahlian: (userId) => keahlian.listFor(userId),
+        bacaLowongan: (ids) => jobs.service.bacaUntukFeed(ids),
+        config: {
+          efSearch: env.MATCHING_HNSW_EF_SEARCH,
+          bobot: bobotDariEnv(env),
+          paruhKebaruanHari: env.MATCHING_RECENCY_HALF_LIFE_DAYS,
+          rerankAktif: env.MATCHING_RERANK_ENABLED,
+        },
+      });
+      app.use(matching.router);
+      if (!env.MATCHING_RERANK_ENABLED) {
+        logger.warn(
+          { fitur: "rerank" },
+          "MATCHING_RERANK_ENABLED=false — feed memakai urutan skor + penjelasan template",
+        );
+      }
       // Admin-only PERTAMA di repo (PR-051) — `/companies/:id` di dalamnya
       // tetap publik (US-09); lihat komentar router modul untuk alasannya.
       app.use(

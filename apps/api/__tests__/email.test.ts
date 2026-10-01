@@ -40,9 +40,7 @@ function rakit(opsi: Opsi = {}) {
     tersedia: opsi.tersedia ?? true,
     async kirim(pesan) {
       terkirim.push(pesan);
-      return opsi.jawab === undefined
-        ? { hasil: "terkirim", id: "re_1" }
-        : await opsi.jawab(pesan);
+      return opsi.jawab === undefined ? { hasil: "terkirim", id: "re_1" } : await opsi.jawab(pesan);
     },
   };
 
@@ -107,7 +105,9 @@ describe("pengiriman kabar pasca-hapus (AC-1)", () => {
     // Payload job mengendap di Redis (AOF, `noeviction`) di luar jangkauan
     // enkripsi kolom ADR-007, dan alamat email adalah PII. Aturan yang sama
     // dengan `notify:push` yang membawa notificationId alih-alih token.
-    const { service, terkirim } = rakit({ baris: { email: "lain@contoh.id", emailVerified: true } });
+    const { service, terkirim } = rakit({
+      baris: { email: "lain@contoh.id", emailVerified: true },
+    });
 
     await service.kirim(JOB);
 

@@ -65,7 +65,12 @@ export function galatPerKolom(galat: z.ZodError): GalatKolom {
  */
 export type HasilPeriksa<T> = { ok: true; nilai: T } | { ok: false; galat: GalatKolom };
 
-export function periksa<T>(skema: z.ZodType<T, z.ZodTypeDef, unknown>, nilai: unknown): HasilPeriksa<T> {
+export function periksa<T>(
+  skema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  nilai: unknown,
+): HasilPeriksa<T> {
   const hasil = skema.safeParse(nilai);
-  return hasil.success ? { ok: true, nilai: hasil.data } : { ok: false, galat: galatPerKolom(hasil.error) };
+  return hasil.success
+    ? { ok: true, nilai: hasil.data }
+    : { ok: false, galat: galatPerKolom(hasil.error) };
 }
