@@ -213,6 +213,8 @@ async function boot() {
             { bagian: "aiChatSessions", kumpulkan: async () => [] },
             // U-05 (PR-066) — wajib sejak `ai_usage` punya penulis.
             { bagian: "aiUsage", kumpulkan: async () => [] },
+            // U-25 (2026-10-01) — CV.
+            { bagian: "resumes", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -348,6 +350,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "notifications",
           "aiChatSessions",
           "aiUsage",
+          "resumes",
         ],
       },
     });

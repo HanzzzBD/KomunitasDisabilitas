@@ -98,7 +98,13 @@ const kontributorPemakaianAi: ExportContributor = {
   kumpulkan: async () => [],
 };
 
-/** Keenam kontributor modul lain — urutannya sama dengan boot.ts. */
+/** CV (utang U-25, 2026-10-01). */
+const kontributorCv: ExportContributor = {
+  bagian: "resumes",
+  kumpulkan: async () => [],
+};
+
+/** Ketujuh kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
@@ -106,6 +112,7 @@ const KONTRIBUTOR_MODUL = [
   kontributorNotifikasi,
   kontributorChatAi,
   kontributorPemakaianAi,
+  kontributorCv,
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
@@ -264,6 +271,7 @@ describe("agregator ekspor", () => {
       "notifications",
       "aiChatSessions",
       "aiUsage",
+      "resumes",
     ]);
   });
 });
@@ -289,6 +297,7 @@ describe("audit ekspor", () => {
           "notifications",
           "aiChatSessions",
           "aiUsage",
+          "resumes",
         ],
       },
     });

@@ -23,6 +23,7 @@ import {
 import { accessibilityProfileSchema } from "./accessibility.js";
 import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
 import { aiChatSessionSchema, aiQuotaFeatureSchema } from "./ai.js";
+import { resumeSchema } from "./resumes.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -198,6 +199,17 @@ export const dataExportSchema = z
      * identitas siapa pun — jadi memang bukan data milik orang ini.
      */
     aiUsage: z.array(exportAiUsageSchema),
+    /**
+     * CV milik pengguna (utang U-25, dibayar 2026-10-01). Pemicunya menyala sejak
+     * PR-060 (pengguna bisa membuat CV), dan selama itu CV tidak ikut berkas ini
+     * tanpa satu pun penjaga menyalak — pola U-03/U-04 yang sama.
+     *
+     * Bentuknya dipakai ULANG dari `resumeSchema`: yang diunduh sama persis
+     * dengan yang dilayani `GET /me/resumes/:id`, termasuk isinya. Berkas PDF
+     * sendiri TIDAK ikut (artefak turunan dari isi yang sama; `pdfUrl` menunjuk
+     * keberadaannya).
+     */
+    resumes: z.array(resumeSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });

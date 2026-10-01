@@ -4938,6 +4938,12 @@
             "items": {
               "$ref": "#/components/schemas/ExportAiUsage"
             }
+          },
+          "resumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Resume"
+            }
           }
         },
         "required": [
@@ -4949,7 +4955,8 @@
           "notificationChannels",
           "notifications",
           "aiChatSessions",
-          "aiUsage"
+          "aiUsage",
+          "resumes"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -5642,6 +5649,414 @@
         ],
         "additionalProperties": false,
         "description": "Satu catatan pemakaian fitur AI"
+      },
+      "ResumeSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "pdfUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdVia": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "ai_chat"
+            ],
+            "description": "Jalur pembuatan CV: manual (PR-061) atau percakapan AI (PR-066)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pdfUrl",
+          "createdVia",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Ringkasan satu CV (tanpa isi)"
+      },
+      "Resume": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResumeSummary"
+          }
+        ],
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/ResumeContent"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "description": "Satu CV beserta isinya"
+      },
+      "ResumeContent": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1,
+            "description": "Versi kontrak isi CV"
+          },
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ResumeContact"
+          },
+          "experiences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeExperience"
+            },
+            "maxItems": 30
+          },
+          "educations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeEducation"
+            },
+            "maxItems": 20
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeSkill"
+            },
+            "maxItems": 60
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeCertification"
+            },
+            "maxItems": 30
+          },
+          "organizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeOrganization"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "headline",
+          "summary",
+          "contact",
+          "experiences",
+          "educations",
+          "skills",
+          "certifications",
+          "organizations"
+        ],
+        "additionalProperties": false,
+        "description": "Isi CV terstruktur — kontrak tunggal jalur manual (PR-061) dan ekstraksi AI (PR-067). Tidak memuat field disabilitas apa pun dengan sengaja."
+      },
+      "ResumeContact": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 160
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 32
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "province": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumeLink"
+            },
+            "maxItems": 5
+          }
+        },
+        "required": [
+          "email",
+          "phone",
+          "city",
+          "province",
+          "links"
+        ],
+        "additionalProperties": false,
+        "description": "Bagian kontak CV (salinan, bukan rujukan)"
+      },
+      "ResumeLink": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "label",
+          "url"
+        ],
+        "additionalProperties": false,
+        "description": "Satu tautan pada bagian kontak CV"
+      },
+      "ResumeExperience": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "title",
+          "company",
+          "startDate",
+          "endDate",
+          "description"
+        ],
+        "additionalProperties": false,
+        "description": "Satu riwayat kerja di dalam CV"
+      },
+      "ResumeEducation": {
+        "type": "object",
+        "properties": {
+          "institution": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "degree": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1950,
+            "maximum": 2036
+          }
+        },
+        "required": [
+          "institution",
+          "degree",
+          "field",
+          "year"
+        ],
+        "additionalProperties": false,
+        "description": "Satu riwayat pendidikan di dalam CV"
+      },
+      "ResumeSkill": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "name",
+          "level"
+        ],
+        "additionalProperties": false,
+        "description": "Satu keahlian di dalam CV"
+      },
+      "ResumeCertification": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1950,
+            "maximum": 2036
+          }
+        },
+        "required": [
+          "name",
+          "issuer",
+          "year"
+        ],
+        "additionalProperties": false,
+        "description": "Satu sertifikasi atau pelatihan"
+      },
+      "ResumeOrganization": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tanggal YYYY-MM-DD",
+            "example": "2020-01-15"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "startDate",
+          "endDate",
+          "description"
+        ],
+        "additionalProperties": false,
+        "description": "Satu pengalaman organisasi"
       },
       "AccessibilityResponse": {
         "type": "object",
@@ -7599,55 +8014,6 @@
           "data"
         ]
       },
-      "ResumeSummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "UUID",
-            "example": "01912345-89ab-7def-8123-456789abcdef"
-          },
-          "title": {
-            "type": "string"
-          },
-          "pdfUrl": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdVia": {
-            "type": "string",
-            "enum": [
-              "manual",
-              "ai_chat"
-            ],
-            "description": "Jalur pembuatan CV: manual (PR-061) atau percakapan AI (PR-066)"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Waktu ISO 8601 dengan offset",
-            "example": "2026-07-18T09:00:00+07:00"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Waktu ISO 8601 dengan offset",
-            "example": "2026-07-18T09:00:00+07:00"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "pdfUrl",
-          "createdVia",
-          "createdAt",
-          "updatedAt"
-        ],
-        "description": "Ringkasan satu CV (tanpa isi)"
-      },
       "CreateResume": {
         "type": "object",
         "properties": {
@@ -7816,27 +8182,6 @@
         },
         "additionalProperties": false,
         "description": "Bagian kontak CV yang dikirim klien"
-      },
-      "ResumeLink": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 60
-          },
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "maxLength": 300
-          }
-        },
-        "required": [
-          "label",
-          "url"
-        ],
-        "additionalProperties": false,
-        "description": "Satu tautan pada bagian kontak CV"
       },
       "ResumeExperienceInput": {
         "type": "object",
@@ -8045,344 +8390,6 @@
         "required": [
           "data"
         ]
-      },
-      "Resume": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ResumeSummary"
-          }
-        ],
-        "properties": {
-          "content": {
-            "$ref": "#/components/schemas/ResumeContent"
-          }
-        },
-        "required": [
-          "content"
-        ],
-        "description": "Satu CV beserta isinya"
-      },
-      "ResumeContent": {
-        "type": "object",
-        "properties": {
-          "schemaVersion": {
-            "type": "number",
-            "const": 1,
-            "description": "Versi kontrak isi CV"
-          },
-          "headline": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 160
-          },
-          "summary": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 2000
-          },
-          "contact": {
-            "$ref": "#/components/schemas/ResumeContact"
-          },
-          "experiences": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeExperience"
-            },
-            "maxItems": 30
-          },
-          "educations": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeEducation"
-            },
-            "maxItems": 20
-          },
-          "skills": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeSkill"
-            },
-            "maxItems": 60
-          },
-          "certifications": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeCertification"
-            },
-            "maxItems": 30
-          },
-          "organizations": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeOrganization"
-            },
-            "maxItems": 20
-          }
-        },
-        "required": [
-          "schemaVersion",
-          "headline",
-          "summary",
-          "contact",
-          "experiences",
-          "educations",
-          "skills",
-          "certifications",
-          "organizations"
-        ],
-        "additionalProperties": false,
-        "description": "Isi CV terstruktur — kontrak tunggal jalur manual (PR-061) dan ekstraksi AI (PR-067). Tidak memuat field disabilitas apa pun dengan sengaja."
-      },
-      "ResumeContact": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "email",
-            "maxLength": 160
-          },
-          "phone": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 32
-          },
-          "city": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 80
-          },
-          "province": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 80
-          },
-          "links": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResumeLink"
-            },
-            "maxItems": 5
-          }
-        },
-        "required": [
-          "email",
-          "phone",
-          "city",
-          "province",
-          "links"
-        ],
-        "additionalProperties": false,
-        "description": "Bagian kontak CV (salinan, bukan rujukan)"
-      },
-      "ResumeExperience": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "company": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 120
-          },
-          "startDate": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "description": "Tanggal YYYY-MM-DD",
-            "example": "2020-01-15"
-          },
-          "endDate": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "description": "Tanggal YYYY-MM-DD",
-            "example": "2020-01-15"
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 2000
-          }
-        },
-        "required": [
-          "title",
-          "company",
-          "startDate",
-          "endDate",
-          "description"
-        ],
-        "additionalProperties": false,
-        "description": "Satu riwayat kerja di dalam CV"
-      },
-      "ResumeEducation": {
-        "type": "object",
-        "properties": {
-          "institution": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 160
-          },
-          "degree": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 120
-          },
-          "field": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 120
-          },
-          "year": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 1950,
-            "maximum": 2036
-          }
-        },
-        "required": [
-          "institution",
-          "degree",
-          "field",
-          "year"
-        ],
-        "additionalProperties": false,
-        "description": "Satu riwayat pendidikan di dalam CV"
-      },
-      "ResumeSkill": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 80
-          },
-          "level": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 40
-          }
-        },
-        "required": [
-          "name",
-          "level"
-        ],
-        "additionalProperties": false,
-        "description": "Satu keahlian di dalam CV"
-      },
-      "ResumeCertification": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 160
-          },
-          "issuer": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 160
-          },
-          "year": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 1950,
-            "maximum": 2036
-          }
-        },
-        "required": [
-          "name",
-          "issuer",
-          "year"
-        ],
-        "additionalProperties": false,
-        "description": "Satu sertifikasi atau pelatihan"
-      },
-      "ResumeOrganization": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 160
-          },
-          "role": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 120
-          },
-          "startDate": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "description": "Tanggal YYYY-MM-DD",
-            "example": "2020-01-15"
-          },
-          "endDate": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "description": "Tanggal YYYY-MM-DD",
-            "example": "2020-01-15"
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 1000
-          }
-        },
-        "required": [
-          "name",
-          "role",
-          "startDate",
-          "endDate",
-          "description"
-        ],
-        "additionalProperties": false,
-        "description": "Satu pengalaman organisasi"
       },
       "UpdateResume": {
         "type": "object",

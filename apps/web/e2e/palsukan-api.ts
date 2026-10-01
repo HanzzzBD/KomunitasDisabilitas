@@ -144,6 +144,9 @@ const BERKAS_UJI = {
       createdAt: "2026-01-15T20:01:00.000Z",
     },
   ],
+  // Bagian `resumes` WAJIB sejak utang U-25 (2026-10-01) — pelajaran komentar
+  // `profile` di atas: bagian wajib yang hilang membuat unduhan gagal diam-diam.
+  resumes: [],
 } as const;
 
 /**

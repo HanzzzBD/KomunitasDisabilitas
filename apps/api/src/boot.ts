@@ -359,6 +359,8 @@ export async function startApi(options: BootOptions): Promise<void> {
             ai.exportContributor,
             // U-05 (PR-066): jejak pemakaian AI — metadata biaya saja.
             ai.usageExportContributor,
+            // U-25 (2026-10-01): CV — pemicunya menyala sejak PR-060.
+            resumes.exportContributor,
           ],
         }),
       );

@@ -57,6 +57,7 @@ const EKSPOR = {
   // Bagian `aiChatSessions` WAJIB sejak PR-065 (transkrip AI CV Builder).
   aiChatSessions: [],
   aiUsage: [],
+  resumes: [],
 };
 
 const PROFIL = {
