@@ -803,3 +803,19 @@ lint` tidak memuat prettier), jadi kode masuk tanpa diformat. Bukan soal versi m
 (index seluruhnya LF). Dibayar dengan `pnpm format` sekali (141 berkas, format murni) + langkah CI
 `Format (prettier --check)` di job `lint-typecheck-test`. Dokumen di `docs/` dan dokumen produk
 tetap dikecualikan `.prettierignore` seperti sebelumnya.
+
+---
+
+## Utang U-30 — harness NVDA feed (verifikasi belum sah)
+
+> **Tanggal:** 2026-10-01 · **Status:** U-30 tetap TERBUKA · **Branch:** `utang-u30-spec-nvda` → `phase-11-matching-engine`
+
+`apps/web/verifikasi/feed-nvda.verifikasi.ts` (bukan CI): API dipalsukan `palsukanApi`, `dist`
+disajikan `vite preview --port 4179`, perintah NVDA (`3`, panah) lewat `tekanTombolOs`. Mencakup
+pembacaan kartu, deskripsi & pengumuman refresh, "Tampilkan urutan terbaru" → fokus ke daftar,
+banner degraded, tombol `aria-disabled` saat jatah habis. Ucapan dari langkah yang jendelanya
+bukan jendela uji dibuang dari laporan (privasi).
+
+Dua run 2026-10-01 tidak sah (fokus direbut aplikasi lain; lalu Windows menolak menjadikan Chrome
+uji jendela depan). Hasil sah: struktur landmark/wilayah/daftar/heading kartu terbaca benar.
+Laporan dan log NVDA kedua run dihapus.
