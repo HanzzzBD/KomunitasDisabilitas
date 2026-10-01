@@ -807,6 +807,35 @@ jendela yang sedang aktif, jadi butuh desktop bebas. Isi:
 
 ---
 
+### U-31 — Landing di 3G 0,76, di bawah AC PR-032 (≥ 0,80)
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Performa / AC belum terpenuhi |
+| **Ditemukan** | 2026-10-01 (CI PR U-25 merah; ditelusuri saat itu) |
+| **Pemilik** | Belum ditetapkan — PR "pre-render landing" tersendiri |
+| **Pemicu** | Sebelum rilis v1.0.0 (Phase 18) |
+
+**Gerbang Lighthouse mengukur halaman yang salah sejak PR-031b/PR-032.** Kedua config menunjuk
+`http://localhost/index.html`, yang tidak cocok dengan rute mana pun — yang diaudit adalah
+halaman 404. Skor 3G-nya naik-turun 0,79/0,80 tepat di ambang (CI PR-074 hijau, CI PR U-25
+dengan kode web identik merah). Landing sungguhan, begitu URL dibetulkan ke `/`, terukur
+**0,73** — dan sudah 0,73–0,75 sebelum PR-074, jadi bukan regresi baru.
+
+Dibayar sebagian 2026-10-01: URL dibetulkan + penjaga `__tests__/lighthouse-url.test.ts`;
+`"sideEffects": false` di `@nawasena/schemas` membuang skema tak terpakai dari bundel awal
+(118 → 108 KB gzip, skor **0,76**, FCP 3,8 → 3,5 dtk). Ambang 3G diset **0,75 sementara**.
+
+Yang tersisa adalah bundel fondasi (react-dom, react-router, zod, TanStack Query) yang di
+"Regular 3G" tersimulasi saja sudah memakan FCP ±3,5 dtk. Eksperimen yang TIDAK membantu:
+landing tanpa menunggu pemulihan sesi (0,76), landing eager di bundel awal (0,76–0,78, bundel
+awal +12 KB untuk semua halaman). Tuas besarnya **pre-render HTML landing** saat build — dengan
+syarat pengguna yang sudah masuk tidak melihat landing sekejap sebelum feed (keputusan PR-074,
+persona Dimas). Lunas = ambang kembali `0.8` dan lulus.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;
