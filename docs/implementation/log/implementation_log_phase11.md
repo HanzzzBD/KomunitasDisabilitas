@@ -752,3 +752,30 @@ naik-turun 0,79/0,80 di ambang. Landing sungguhan terukur **0,73** (dan 0,73–0
 lolos dari kewajiban "setiap `<nama>.vN.ts` terdaftar". Kini lewat `idBerkasTemplate()`
 (rekursif, `id` = basename) + dua penjaga baru: basename unik lintas subfolder, dan test atas
 pemindainya (folder sementara bersubfolder). Tidak ada perubahan kode produksi.
+
+---
+
+## Utang U-10 — Jendela toleransi rotasi refresh token
+
+> **Tanggal:** 2026-10-01 · **Status:** Selesai · **Branch:** `utang-u10-toleransi-rotasi` → `phase-11-matching-engine`
+> Keputusan owner (AskUserQuestion, 2026-10-01): **tolak tanpa mencabut**, jendela **10 detik**.
+
+Dua balapan yang sengaja dibiarkan PR-033i — dua tab menyegarkan bersamaan, dan pemulihan boot vs
+refresh yang dipicu 401 di `/masuk/google` — dulu masuk cabang reuse dan mencabut seluruh keluarga
+sesi, termasuk token segar pemenang (pengguna terlempar keluar).
+
+* **Server** — kode `SESI_SUDAH_DIROTASI` (401). Token `rotated` yang dipakai lagi ≤
+  `AUTH_REFRESH_ROTATION_GRACE_SECONDS` (env baru, bawaan 10, 0–60) ditolak tanpa mencabut
+  keluarga, tanpa token baru, tanpa audit reuse; yang kalah `rotate()` mendapat kode yang sama.
+  Di luar jendela perilaku lama berlaku penuh. Token yang dicabut karena logout tidak pernah
+  mendapat toleransi.
+* **Klien** — `refreshSesiToleran` (api-client) mencoba lagi khusus kode itu (0,3 / 1 / 2,5 dtk,
+  token/cookie terkini); dipakai `createSessionRefresher` dan `pulihkanSesi` web.
+* **Test** — unit service (dalam/tepat di batas/sesudah jendela, jendela 0, logout), PostgreSQL
+  nyata dua refresh bersamaan (`auth-session-toleransi-db.test.ts`), api-client (coba ulang, batas
+  percobaan, sesi habis tidak dicoba ulang, refresher tidak mengakhiri sesi); snapshot katalog
+  error diperbarui.
+* **Catatan keamanan** — satu-satunya pengecualian atas "satu kode untuk semua penolakan refresh":
+  kode baru hanya mengatakan "token ini baru saja dirotasi" kepada pemegang token yang sudah tidak
+  berlaku; pemutaran ulang dalam jendela tidak menghasilkan sesi, dan deteksi reuse tetap aktif di
+  luar jendela.

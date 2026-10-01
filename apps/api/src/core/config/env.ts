@@ -81,6 +81,16 @@ const envSchema = z.object({
     .string()
     .min(32, { message: "minimal 32 karakter (mis. hasil `openssl rand -base64 32`)" })
     .optional(),
+  // Jendela toleransi rotasi refresh token (utang U-10, keputusan owner
+  // 2026-10-01): token yang dirotasi ≤ N detik lalu dan dipakai lagi dibaca
+  // sebagai balapan (dua tab, boot vs 401) — ditolak tanpa mencabut keluarga.
+  // 0 = mematikan toleransi (setiap pemakaian ulang = reuse). Maks 60.
+  AUTH_REFRESH_ROTATION_GRACE_SECONDS: z.coerce
+    .number({ invalid_type_error: "harus angka" })
+    .int({ message: "harus bilangan bulat" })
+    .min(0, { message: "minimal 0" })
+    .max(60, { message: "maksimal 60 detik — jendela lebih lebar melemahkan reuse detection" })
+    .default(10),
   // --- Provider pengiriman OTP (PR-016b) ---
   // Semua OPSIONAL: tanpa satu pun provider, endpoint OTP tetap ada tetapi
   // menjawab 503 (deny-by-default). Kredensial yang setengah terisi ditolak

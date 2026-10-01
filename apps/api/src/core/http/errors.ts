@@ -100,6 +100,18 @@ export const ERROR_CATALOG = {
     message: "Sesi Anda sudah berakhir",
     hint: "Silakan masuk lagi untuk melanjutkan",
   },
+  // Utang U-10 (2026-10-01): token yang BARU SAJA dirotasi (≤ jendela toleransi)
+  // dipakai lagi — hampir selalu balapan sah (dua tab, pemulihan boot vs refresh
+  // 401), bukan pencurian. Keluarga TIDAK dicabut dan tidak ada token baru;
+  // klien mencoba lagi dengan cookie/token terbaru (`refreshSesiToleran`,
+  // api-client). Satu-satunya pengecualian atas "satu kode untuk semua
+  // penolakan" di atas, dan yang dibocorkannya hanya "token ini baru saja
+  // dirotasi" — kepada pemegang token yang memang sudah tidak berlaku.
+  SESI_SUDAH_DIROTASI: {
+    status: 401,
+    message: "Sesi Anda sedang diperbarui",
+    hint: "Coba lagi sebentar",
+  },
   // --- Profil akun (PR-020) ---
   // 409, bukan 400: bentuk inputnya sah — yang bentrok adalah keadaan dunia.
   // Pesannya sengaja TIDAK memastikan bahwa ada akun lain dengan email itu;

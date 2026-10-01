@@ -430,7 +430,7 @@ perubahan sesungguhnya.
 
 | | |
 |---|---|
-| **Status** | TERBUKA |
+| **Status** | **LUNAS — 2026-10-01** (keputusan owner: bayar sekarang) |
 | **Pemilik** | Belum ditetapkan |
 | **Sumber** | Log Phase 03 (PR-033i) |
 
@@ -438,6 +438,18 @@ Untuk dua celah balapan yang sengaja ditunda: dua tab bersamaan, dan pemulihan b
 refresh 401 di `/masuk/google`. Diverifikasi 2026-09-05: belum ada mekanisme toleransi di
 `session.service.ts`.
 
+**PEMBAYARANNYA (2026-10-01, keputusan owner: "tolak tanpa mencabut", jendela 10 dtk).**
+* Server (`session.service.ts`): token yang dicabut karena `rotated` dan dipakai lagi ≤
+  `AUTH_REFRESH_ROTATION_GRACE_SECONDS` (bawaan 10, maks 60, 0 = mati) dijawab
+  `SESI_SUDAH_DIROTASI` (401) — keluarga TIDAK dicabut, tidak ada token baru, tidak ada audit
+  reuse. Di luar jendela reuse detection berlaku penuh. Yang kalah balapan `rotate()` juga
+  mendapat kode ini.
+* Klien (`refreshSesiToleran`, api-client): kode itu dicoba lagi dengan token/cookie terkini
+  (jeda 0,3 / 1 / 2,5 dtk); dipakai refresher 401 DAN pemulihan boot web.
+* Bukti: unit (dalam/batas/di luar jendela, jendela 0, token logout), PostgreSQL nyata (dua
+  refresh BERSAMAAN: satu menang, yang kalah `SESI_SUDAH_DIROTASI`, token pemenang tetap hidup).
+* Yang dibocorkan kode baru: "token ini baru saja dirotasi" — hanya kepada pemegang token yang
+  sudah tidak berlaku, dan pemutaran ulang dalam jendela tidak menghasilkan sesi.
 ---
 
 ### U-11 — Pemberitahuan pasca-hapus untuk akun Google-only

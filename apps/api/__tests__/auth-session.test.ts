@@ -109,7 +109,13 @@ function userRepoPalsu(awal = { id: USER_ID, role: "seeker" as const, tokenVersi
 
 type Catatan = { action: string; entityId: string | null; meta: unknown; actorId: string | null };
 
-function rakit(options: { user?: ReturnType<typeof userRepoPalsu>; clock?: () => Date } = {}) {
+function rakit(
+  options: {
+    user?: ReturnType<typeof userRepoPalsu>;
+    clock?: () => Date;
+    toleransiRotasiMs?: number;
+  } = {},
+) {
   const refreshTokenRepository = refreshRepoPalsu();
   const userRepository = options.user ?? userRepoPalsu();
   const catatan: Catatan[] = [];
@@ -124,6 +130,9 @@ function rakit(options: { user?: ReturnType<typeof userRepoPalsu>; clock?: () =>
     refreshTokenRepository: refreshTokenRepository as never,
     auditLog,
     clock,
+    ...(options.toleransiRotasiMs === undefined
+      ? {}
+      : { toleransiRotasiMs: options.toleransiRotasiMs }),
   });
   return { service, refreshTokenRepository, userRepository, catatan };
 }
@@ -247,7 +256,7 @@ describe("refresh — rotasi", () => {
     });
   });
 
-  it("kalah balapan rotasi → ditolak, tidak menyerahkan access token yatim", async () => {
+  it("kalah balapan rotasi → SESI_SUDAH_DIROTASI (boleh coba lagi), tanpa access token yatim", async () => {
     const { service, refreshTokenRepository } = rakit();
     const awal = await service.issue(USER_ID);
     // Simulasi: permintaan lain mencabut baris ini tepat sebelum rotate.
@@ -257,9 +266,80 @@ describe("refresh — rotasi", () => {
       if (baris !== undefined) baris.revokedAt = T0;
       return asli(input);
     };
+    // Utang U-10: yang kalah balapan diberi tahu bahwa pemenangnya baru saja
+    // merotasi — klien mencoba lagi dengan cookie/token terbaru.
     await expect(service.refresh(awal.refreshToken, actor)).rejects.toMatchObject({
-      code: "SESI_TIDAK_VALID",
+      code: "SESI_SUDAH_DIROTASI",
     });
+  });
+});
+
+describe("jendela toleransi rotasi (utang U-10)", () => {
+  const DETIK = 1000;
+
+  function berjam(toleransiRotasiMs: number) {
+    let jam = T0;
+    const m = rakit({ clock: () => jam, toleransiRotasiMs });
+    return {
+      ...m,
+      majukan: (ms: number) => {
+        jam = new Date(jam.getTime() + ms);
+      },
+    };
+  }
+
+  it("dalam jendela: SESI_SUDAH_DIROTASI, keluarga TIDAK dicabut, tanpa audit, tanpa token baru", async () => {
+    const m = berjam(10 * DETIK);
+    const awal = await m.service.issue(USER_ID);
+    const kedua = await m.service.refresh(awal.refreshToken, actor);
+    m.majukan(3 * DETIK);
+
+    const galat = await tangkap(() => m.service.refresh(awal.refreshToken, actor));
+    expect(galat.code).toBe("SESI_SUDAH_DIROTASI");
+    expect(m.catatan.filter((c) => c.action === AUDIT_ACTION.AUTH_REFRESH_REUSED)).toEqual([]);
+    // Token pemenang tetap hidup dan tetap bisa dirotasi.
+    await expect(m.service.refresh(kedua.refreshToken, actor)).resolves.toHaveProperty(
+      "accessToken",
+    );
+  });
+
+  it("tepat di batas jendela masih toleransi; sesudahnya reuse detection berlaku penuh", async () => {
+    const m = berjam(10 * DETIK);
+    const awal = await m.service.issue(USER_ID);
+    const kedua = await m.service.refresh(awal.refreshToken, actor);
+    m.majukan(10 * DETIK);
+    expect((await tangkap(() => m.service.refresh(awal.refreshToken, actor))).code).toBe(
+      "SESI_SUDAH_DIROTASI",
+    );
+
+    m.majukan(1);
+    expect((await tangkap(() => m.service.refresh(awal.refreshToken, actor))).code).toBe(
+      "SESI_TIDAK_VALID",
+    );
+    // Keluarga dicabut: token pemenang ikut mati, dan reuse teraudit.
+    expect((await tangkap(() => m.service.refresh(kedua.refreshToken, actor))).code).toBe(
+      "SESI_TIDAK_VALID",
+    );
+    expect(m.catatan.some((c) => c.action === AUDIT_ACTION.AUTH_REFRESH_REUSED)).toBe(true);
+  });
+
+  it("jendela 0 = perilaku lama: pemakaian ulang SEKETIKA pun reuse", async () => {
+    const m = berjam(0);
+    const awal = await m.service.issue(USER_ID);
+    await m.service.refresh(awal.refreshToken, actor);
+    expect((await tangkap(() => m.service.refresh(awal.refreshToken, actor))).code).toBe(
+      "SESI_TIDAK_VALID",
+    );
+    expect(m.catatan.some((c) => c.action === AUDIT_ACTION.AUTH_REFRESH_REUSED)).toBe(true);
+  });
+
+  it("token yang dicabut karena LOGOUT tidak pernah mendapat toleransi", async () => {
+    const m = berjam(10 * DETIK);
+    const awal = await m.service.issue(USER_ID);
+    await m.service.logout(awal.refreshToken);
+    expect((await tangkap(() => m.service.refresh(awal.refreshToken, actor))).code).toBe(
+      "SESI_TIDAK_VALID",
+    );
   });
 });
 
