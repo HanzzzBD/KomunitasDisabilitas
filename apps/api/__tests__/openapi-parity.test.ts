@@ -33,6 +33,7 @@ import { createInternalModule } from "../src/modules/internal/index.js";
 import { createCompaniesModule } from "../src/modules/companies/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
+import { createApplicationsModule } from "../src/modules/applications/index.js";
 import { BOBOT_SKOR_SDD, createMatchingFeedModule } from "../src/modules/matching/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
@@ -134,6 +135,20 @@ function routeNyata(): { method: string; path: string }[] {
     auditLog: auditLog as never,
     events,
     jobsService: jobs.service,
+  });
+
+  createApplicationsModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    redis: stub(),
+    fieldKeys: parseFieldKeys({ FIELD_KEY_V1: Buffer.alloc(32, 7).toString("base64") }),
+    auditLog: auditLog as never,
+    events,
+    logger,
+    jobsService: jobs.service,
+    resumesService: stub(),
+    sensitiveAccess: stub(),
+    identitasPelamar: stub(),
   });
 
   createMatchingFeedModule({

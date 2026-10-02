@@ -8,8 +8,8 @@ export const katalogResume = {
       "Pilih cara buat CV: ngobrol dengan AI, atau salin dari profil. Keduanya masih bisa diubah.",
   },
   "resume.daftar.buat": { id: "Buat CV dari profil", "id-simple": "Buat CV memakai profil" },
-  "resume.daftar.membuat": { id: "Membuat CVâ€¦", "id-simple": "CV sedang dibuatâ€¦" },
-  "resume.daftar.memuat": { id: "Memuat daftar CVâ€¦", "id-simple": "Daftar CV sedang dibukaâ€¦" },
+  "resume.daftar.membuat": { id: "Membuat CV…", "id-simple": "CV sedang dibuat…" },
+  "resume.daftar.memuat": { id: "Memuat daftar CV…", "id-simple": "Daftar CV sedang dibuka…" },
   "resume.daftar.judulBawaan": { id: "CV Saya", "id-simple": "CV Baru Saya" },
   "resume.daftar.kosongJudul": { id: "Belum ada CV", "id-simple": "Anda belum punya CV" },
   "resume.daftar.kosongDeskripsi": {
@@ -33,6 +33,11 @@ export const katalogResume = {
       "Ubah dan simpan satu bagian setiap kali. Bagian lain tetap aman bila ada masalah.",
   },
   "resume.editor.kembali": { id: "Kembali ke daftar CV", "id-simple": "Kembali ke semua CV" },
+  // PR-078 — CV dibuat dari dialog lamar; tautan ini membuka dialognya lagi.
+  "resume.kembaliMelamar": {
+    id: "Kembali melamar lowongan",
+    "id-simple": "Kembali dan lamar",
+  },
   "resume.pdf.status.memeriksa": { id: "Memeriksa PDF...", "id-simple": "Sedang memeriksa PDF..." },
   "resume.pdf.bagian": { id: "PDF CV", "id-simple": "Unduh CV sebagai PDF" },
   "resume.pdf.status.idle": { id: "PDF belum dibuat.", "id-simple": "PDF belum siap." },
@@ -65,7 +70,7 @@ export const katalogResume = {
     "id-simple": "Menyiapkan PDF...",
   },
   "resume.pdf.aksi.cobaRenderLagi": { id: "Coba buat PDF lagi", "id-simple": "Coba lagi" },
-  "resume.editor.memuat": { id: "Memuat isi CVâ€¦", "id-simple": "Isi CV sedang dibukaâ€¦" },
+  "resume.editor.memuat": { id: "Memuat isi CV…", "id-simple": "Isi CV sedang dibuka…" },
 
   "resume.bagian.judul": { id: "Nama CV", "id-simple": "Nama dokumen CV" },
   "resume.bagian.tentang": { id: "Profil singkat", "id-simple": "Tentang diri Anda" },
@@ -133,7 +138,7 @@ export const katalogResume = {
   },
 
   "resume.aksi.simpanBagian": { id: "Simpan bagian", "id-simple": "Simpan bagian ini" },
-  "resume.aksi.menyimpan": { id: "Menyimpanâ€¦", "id-simple": "Sedang menyimpanâ€¦" },
+  "resume.aksi.menyimpan": { id: "Menyimpan…", "id-simple": "Sedang menyimpan…" },
   "resume.aksi.cobaLagi": { id: "Coba lagi", "id-simple": "Ulangi" },
   "resume.aksi.hapus": { id: "Hapus", "id-simple": "Buang" },
   "resume.aksi.naik": { id: "Pindah ke atas", "id-simple": "Naikkan" },

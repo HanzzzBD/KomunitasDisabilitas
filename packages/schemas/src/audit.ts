@@ -14,7 +14,19 @@ export const AUDIT_ACTION = {
   AUTH_REFRESH_REUSED: "AUTH_REFRESH_REUSED",
   PROFILE_SENSITIVE_READ: "PROFILE_SENSITIVE_READ",
   PROFILE_SENSITIVE_UPDATED: "PROFILE_SENSITIVE_UPDATED",
+  /** PR-075: lamaran terkirim. `disclosed` dicatat sebagai boolean — FAKTA
+   *  bahwa data disabilitas diungkap, tidak pernah ISI-nya. Pembacaan profil
+   *  sensitif yang mendahuluinya punya baris sendiri (PROFILE_SENSITIVE_READ,
+   *  tujuan `disclosure`). */
+  APPLICATION_SUBMITTED: "APPLICATION_SUBMITTED",
   APPLICATION_STATUS_CHANGED: "APPLICATION_STATUS_CHANGED",
+  /** PR-076: pelamar mengonfirmasi diterima kerja (North Star). `from` = status
+   *  saat konfirmasi (`offered` atau `hired`) — membedakan konfirmasi yang ikut
+   *  memindahkan status dari yang hanya mengesahkan keputusan admin. */
+  APPLICATION_HIRED_CONFIRMED: "APPLICATION_HIRED_CONFIRMED",
+  /** PR-077a: admin MEMBUKA salinan data disabilitas yang diungkap pada satu
+   *  lamaran. Ditulis SEBELUM dekripsi (pola `bacaSensitif`); `reason` wajib. */
+  APPLICATION_DISCLOSURE_READ: "APPLICATION_DISCLOSURE_READ",
   COMPANY_VERIFIED: "COMPANY_VERIFIED",
   ADMIN_RESOURCE_CHANGED: "ADMIN_RESOURCE_CHANGED",
   DATA_EXPORTED: "DATA_EXPORTED",
@@ -49,7 +61,10 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.AUTH_REFRESH_REUSED,
   AUDIT_ACTION.PROFILE_SENSITIVE_READ,
   AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED,
+  AUDIT_ACTION.APPLICATION_SUBMITTED,
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
+  AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED,
+  AUDIT_ACTION.APPLICATION_DISCLOSURE_READ,
   AUDIT_ACTION.COMPANY_VERIFIED,
   AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
   AUDIT_ACTION.DATA_EXPORTED,
@@ -193,9 +208,22 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
     operation: z.enum(["consentGranted", "consentRevoked", "fieldsUpdated"]),
     fields: z.array(sensitiveFieldSchema),
   }),
+  [AUDIT_ACTION.APPLICATION_SUBMITTED]: z.object({
+    jobId: idSchema,
+    disclosed: z.boolean(),
+  }),
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: z.object({
     from: applicationStatusSchema,
     to: applicationStatusSchema,
+    // PR-077a: wajib bagi admin (AC "audit memuat actor + alasan"); perubahan
+    // oleh pelamar sendiri (withdraw/confirm) tidak membawanya.
+    reason: sensitiveAccessReasonSchema.optional(),
+  }),
+  [AUDIT_ACTION.APPLICATION_DISCLOSURE_READ]: z.object({
+    reason: sensitiveAccessReasonSchema,
+  }),
+  [AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED]: z.object({
+    from: z.enum(["offered", "hired"]),
   }),
   [AUDIT_ACTION.COMPANY_VERIFIED]: z.object({
     from: z.enum(["unverified", "selfClaimed", "verified"]),

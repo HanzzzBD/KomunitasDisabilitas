@@ -55,6 +55,48 @@ describe("AC-1: fokus masuk saat buka, kembali saat tutup", () => {
     expect(pemicu).toHaveFocus();
   });
 
+  it("fokusSaatTutup → true: fokus dipindah pemanggil, Radix tidak menimpanya (PR-078)", async () => {
+    const tujuan = { el: null as HTMLElement | null };
+    render(
+      <>
+        <Dialog
+          judul="Lamar"
+          pemicu={<Tombol>Buka</Tombol>}
+          fokusSaatTutup={() => {
+            tujuan.el?.focus();
+            return true;
+          }}
+        >
+          <p>isi</p>
+        </Dialog>
+        <h3
+          tabIndex={-1}
+          ref={(el) => {
+            tujuan.el = el;
+          }}
+        >
+          Lamaran terkirim
+        </h3>
+      </>,
+    );
+    await buka();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { name: "Lamaran terkirim" })).toHaveFocus();
+  });
+
+  it("fokusSaatTutup → false: perilaku bawaan (kembali ke pemicu) tetap berjalan", async () => {
+    const panggil = vi.fn(() => false);
+    render(
+      <Dialog judul="Lamar" pemicu={<Tombol>Buka</Tombol>} fokusSaatTutup={panggil}>
+        <p>isi</p>
+      </Dialog>,
+    );
+    const pemicu = await buka();
+    await userEvent.keyboard("{Escape}");
+    expect(panggil).toHaveBeenCalledOnce();
+    expect(pemicu).toHaveFocus();
+  });
+
   it("fokus TERJERAT: Tab berputar di dalam dialog, tidak lolos ke belakang", async () => {
     // Cacat yang paling menjebak: fokus yang lolos membuat pengguna keyboard
     // menjelajah halaman yang tidak bisa ia lihat sedang tertutup.

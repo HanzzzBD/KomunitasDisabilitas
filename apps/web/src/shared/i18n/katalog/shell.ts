@@ -94,6 +94,12 @@ export const katalogShell = {
     id: "CV saya",
     "id-simple": "Daftar CV",
   },
+  "shell.pintas.lamaran": {
+    // Sama dengan judul halaman tujuannya ("Lamaran Saya") — alasan sama dengan
+    // `shell.pintas.profil`.
+    id: "Lamaran Saya",
+    "id-simple": "Lamaran saya",
+  },
   "shell.pintas.aksesibilitas": {
     // Menyebut DUA kata yang akan ia temui di halaman tujuan: "Pengaturan"
     // (judul halaman) dan "Aksesibilitas" (judul panel). Pengguna mencocokkan

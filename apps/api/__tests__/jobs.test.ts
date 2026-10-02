@@ -85,6 +85,12 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
       return Promise.resolve(hasil.map((r) => ({ ...r, companyName: "PT Uji" })));
     },
 
+    // PR-076 — apa pun statusnya.
+    listByIdsWithCompany: (ids) =>
+      Promise.resolve(
+        rows.filter((r) => ids.includes(r.id)).map((r) => ({ ...r, companyName: "PT Uji" })),
+      ),
+
     create: (id, data): Promise<JobCreateResult> => {
       if (!perusahaanValid.has(data.companyId)) return Promise.resolve("perusahaan-tidak-ada");
       const row = barisBaru({ ...data, id, status: "draft", source: "admin_curated" });

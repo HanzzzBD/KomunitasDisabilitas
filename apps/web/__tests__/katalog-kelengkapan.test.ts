@@ -333,6 +333,23 @@ const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
     "Judul kolom satu kata; kolom ini hanya berisi tautan Ubah dan tombol Duplikat, judulnya " +
     "tidak tampil visual tetapi tetap wajib bagi scope=col.",
   "admin.jobs.ubah": "Label tautan satu kata sehari-hari.",
+
+  // --- admin lamaran (PR-077b) ---
+  "admin.nav.lamaran":
+    "Satu kata sehari-hari. Harus SAMA dengan `admin.lamaran.judul` — pengguna mencocokkan " +
+    "kata yang tadi ia tekan dengan judul halaman yang terbuka.",
+  "admin.ringkasan.lamaran.judul": "Satu kata, sama dengan nama bagian di navigasi.",
+  "admin.lamaran.judul": "Satu kata sehari-hari; nama halaman tidak punya bentuk lebih sederhana.",
+  "admin.lamaran.kolom.pelamar": "Judul kolom satu kata.",
+  "admin.lamaran.kolom.lowongan": "Judul kolom satu kata, sama dengan nama bagian Lowongan.",
+  "admin.lamaran.kolom.status": "Judul kolom satu kata, istilah yang sudah dipakai sehari-hari.",
+  "admin.lamaran.kolom.aksi": "Judul kolom satu kata, sama dengan `admin.jobs.kolom.aksi`.",
+  "admin.lamaran.detail.nama": "Label satu kata.",
+  "admin.lamaran.detail.telepon": "Label dua kata; 'Nomor HP' adalah sebutan sehari-harinya.",
+  "admin.lamaran.detail.email": "Label satu kata yang sudah dipakai sehari-hari.",
+  "admin.lamaran.detail.oleh.admin": "Penggalan kalimat dua kata yang disisipkan ke riwayat.",
+  "admin.lamaran.detail.oleh.seeker": "Penggalan kalimat dua kata yang disisipkan ke riwayat.",
+  "admin.lamaran.ungkap.batal": "Label tombol satu kata sehari-hari.",
   "admin.jobs.ubahLabel":
     "Label tautan dua kata + judul lowongan — sudah menyebut aksinya secara harfiah.",
   "admin.jobs.cobaLagi":
@@ -493,5 +510,35 @@ describe("katalog — isi entri", () => {
         expect(e[mode], `"${kunci}" varian ${mode} punya spasi menggantung`).toBe(e[mode]?.trim());
       }
     }
+  });
+});
+
+describe("katalog — teks tidak rusak encoding", () => {
+  // UTF-8 yang dibaca ulang sebagai Windows-1252 lalu disimpan lagi: "…" menjadi
+  // "â€¦", "é" menjadi "Ã©". Hasilnya tetap string yang sah, jadi typecheck,
+  // lint, dan test kelengkapan semuanya lulus — sementara pengguna membaca
+  // sampah, dan screen reader membacakannya huruf demi huruf. Delapan entri
+  // `resume.*` lolos seperti ini sejak PR-061 (2026-09-25) sampai diperbaiki
+  // 2026-10-02.
+  // Ditulis dengan escape, bukan karakter asli: polanya sendiri memuat NBSP
+  // (U+00A0) dan U+FFFD, yang tidak boleh hidup mentah di sumber.
+  const MOJIBAKE = /\u00E2\u20AC|\u00C3[\u0080-\u00BF]|\u00C2[\u00A0-\u00BF]|\uFFFD/;
+
+  it("tidak satu entri pun memuat pola mojibake", () => {
+    const rusak: string[] = [];
+    for (const [kunci, e] of Object.entries(katalog)) {
+      for (const mode of MODE_BAHASA) {
+        const teks = (e as Readonly<Record<string, string>>)[mode] ?? "";
+        if (MOJIBAKE.test(teks)) rusak.push(`${kunci} (${mode}): ${teks}`);
+      }
+    }
+    expect(rusak).toEqual([]);
+  });
+
+  it("penjaga ini menangkap bentuk yang pernah lolos", () => {
+    expect(MOJIBAKE.test("Membuat CVâ€¦")).toBe(true);
+    expect(MOJIBAKE.test("Membuat CV…")).toBe(false);
+    expect(MOJIBAKE.test("Kafe Ã©")).toBe(true);
+    expect(MOJIBAKE.test("Kafe é")).toBe(false);
   });
 });

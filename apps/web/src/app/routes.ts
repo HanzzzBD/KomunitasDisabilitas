@@ -356,6 +356,30 @@ export const ruteApp: RouteObject[] = [
               return { Component: AdminJobsFormulir };
             },
           },
+          {
+            // Operasional lamaran (PR-077b). Daftar & detail bersaudara, pola
+            // sama "jobs". Detail punya endpoint sendiri (bukan cari di daftar).
+            path: "lamaran",
+            lazy: async () => {
+              const [{ AdminLamaranDaftar }] = await Promise.all([
+                import("../routes/admin-lamaran.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminLamaranDaftar };
+            },
+          },
+          {
+            path: "lamaran/:id",
+            lazy: async () => {
+              const [{ AdminLamaranDetail }] = await Promise.all([
+                import("../routes/admin-lamaran-detail.js"),
+                // `profil` + `onboarding`: label akomodasi & ragam disabilitas
+                // pada data yang diungkap — dipinjam seperti `jobs-formulir.tsx`.
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminLamaranDetail };
+            },
+          },
         ],
       },
       {
@@ -402,9 +426,32 @@ export const ruteApp: RouteObject[] = [
             // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
             // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
             // label ragam disabilitas yang disambut (`RAGAM`).
-            muatKatalog("lowongan", "companies", "profil", "onboarding"),
+            // `pelamar` (PR-079): kotak "sudah melamar" membaca label status.
+            muatKatalog("lowongan", "companies", "profil", "onboarding", "pelamar"),
           ]);
           return { Component: LowonganDetail };
+        },
+      },
+      {
+        // "Lamaran Saya" (PR-079) — daftar + detail, keduanya terlindungi.
+        path: "lamaran",
+        lazy: async () => {
+          const [{ LamaranSaya }] = await Promise.all([
+            import("../routes/lamaran.js"),
+            muatKatalog("pelamar"),
+          ]);
+          return { Component: LamaranSaya };
+        },
+      },
+      {
+        // Tujuan tautan notifikasi pelamar (`features/notifikasi/tautan.ts`).
+        path: "lamaran/:id",
+        lazy: async () => {
+          const [{ LamaranDetail }] = await Promise.all([
+            import("../routes/lamaran-detail.js"),
+            muatKatalog("pelamar"),
+          ]);
+          return { Component: LamaranDetail };
         },
       },
       {

@@ -230,6 +230,15 @@ export const HALAMAN: readonly HalamanDijaga[] = [
 
   // Kurasi lowongan (PR-057) — pola SAMA PERSIS dengan kurasi perusahaan di atas.
   { nama: "admin — daftar lowongan", jalur: "/admin/jobs", butuhSesi: true, butuhAdmin: true },
+  // PR-077b — daftar & detail lamaran. Detail dibuka LANGSUNG (endpoint detail
+  // sendiri): keadaan ber-disclose, tombol "Tampilkan" + formulir ubah status.
+  { nama: "admin — daftar lamaran", jalur: "/admin/lamaran", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — detail lamaran",
+    jalur: "/admin/lamaran/01912345-89ab-7def-8123-4567890aaa30",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
   {
     nama: "admin — tambah lowongan",
     jalur: "/admin/jobs/baru",
@@ -276,6 +285,15 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     // (dan alur browse→detail→kembali) diuji di `lowongan-detail.spec.ts`.
     nama: "lowongan — detail (tidak ditemukan)",
     jalur: "/lowongan/:id",
+  },
+
+  // PR-079 — "Lamaran Saya". Detail dibuka LANGSUNG pada lamaran `offered`:
+  // tombol tarik + "Saya diterima" + lini masa empat titik.
+  { nama: "lamaran saya — daftar", jalur: "/lamaran", butuhSesi: true },
+  {
+    nama: "lamaran saya — detail",
+    jalur: "/lamaran/01912345-89ab-7def-8123-4567890aaa40",
+    butuhSesi: true,
   },
 
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },

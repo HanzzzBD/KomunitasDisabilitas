@@ -55,6 +55,36 @@ export class EmailSudahDipakaiError extends Error {
 
 export function createUserProfileRepository(prisma: AppPrisma) {
   return {
+    /**
+     * Id seluruh admin AKTIF (PR-075) — penerima kabar lamaran baru. Hanya id:
+     * nama/kontak admin tidak dibutuhkan untuk menulis notifikasi.
+     */
+    async listActiveAdminIds(): Promise<string[]> {
+      const rows = await prisma.user.findMany({
+        where: { role: "admin", deletedAt: null },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
+      return rows.map((r) => r.id);
+    },
+
+    /**
+     * Identitas + kontak akun AKTIF per id (PR-077a) — untuk admin yang
+     * meneruskan lamaran ke perusahaan partner. Akun terhapus tidak kembali:
+     * pemanggil membacanya sebagai "akun sudah dihapus".
+     */
+    async listIdentityByIds(
+      ids: readonly string[],
+    ): Promise<
+      Array<{ id: string; fullName: string; phone: string | null; email: string | null }>
+    > {
+      if (ids.length === 0) return [];
+      return prisma.user.findMany({
+        where: { id: { in: [...ids] }, deletedAt: null },
+        select: { id: true, fullName: true, phone: true, email: true },
+      });
+    },
+
     /** Profil akun aktif; null bila tidak ada atau sudah dihapus. */
     async findActiveById(id: string): Promise<UserProfileRow | null> {
       return prisma.user.findFirst({ where: { id, deletedAt: null }, select: KOLOM_PROFIL });

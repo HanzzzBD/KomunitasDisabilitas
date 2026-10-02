@@ -59,6 +59,7 @@ Bisnis: USP Disclosure Control — user memutuskan per lamaran apakah data disab
 **Database Changes:**
 
 * Tidak ada (tabel dari PR-011).
+* **Realisasi (keputusan owner 2026-10-01):** migrasi 20 menambah `applications.disclosure_snapshot` (BYTEA terenkripsi, nullable) + CHECK `applications_snapshot_hanya_bila_disclose` — tabel PR-011 tidak punya tempat untuk snapshot.
 
 **API Changes:**
 
@@ -70,11 +71,11 @@ Bisnis: USP Disclosure Control — user memutuskan per lamaran apakah data disab
 
 **Testing Checklist:**
 
-* [ ] Unit Test (service)
-* [ ] Integration Test (idempoten + race + snapshot)
-* [ ] E2E Test (via PR-078)
+* [x] Unit Test (service)
+* [x] Integration Test (idempoten + race + snapshot)
+* [x] E2E Test (via PR-078 — `e2e/lamar.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (inspeksi DB dua mode disclose)
+* [x] Manual Verification (inspeksi DB dua mode disclose — SQL mentah di `applications-db.test.ts`)
 
 **Deliverables:**
 
@@ -90,11 +91,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Retry ganda (Idempotency-Key sama) → satu lamaran.
-* [ ] Race dua request paralel → satu lamaran (unique).
-* [ ] disclose=false → tidak ada field sensitif tersimpan di application (test DB).
-* [ ] disclose=true → snapshot akomodasi tersimpan (bukan referensi live — perubahan profil kemudian tidak mengubah lamaran lama).
-* [ ] Event submitted terbit → notifikasi admin.
+* [x] Retry ganda (Idempotency-Key sama) → satu lamaran.
+* [x] Race dua request paralel → satu lamaran (unique).
+* [x] disclose=false → tidak ada field sensitif tersimpan di application (test DB).
+* [x] disclose=true → snapshot akomodasi tersimpan (bukan referensi live — perubahan profil kemudian tidak mengubah lamaran lama).
+* [x] Event submitted terbit → notifikasi admin.
 
 #### Dependencies
 
@@ -137,6 +138,7 @@ Bisnis: North Star Metric (penempatan kerja) tercatat akurat (PRD FR-5.5). Tekni
 **API Changes:**
 
 * GET /api/v1/me/applications
+* GET /api/v1/me/applications/:id *(ditambahkan — keputusan owner 2026-10-02, kebutuhan PR-079)*
 * POST /api/v1/me/applications/:id/withdraw
 * POST /api/v1/me/applications/:id/confirm-hired
 
@@ -146,9 +148,9 @@ Bisnis: North Star Metric (penempatan kerja) tercatat akurat (PRD FR-5.5). Tekni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state machine semua sisi)
-* [ ] Integration Test (history + event)
-* [ ] E2E Test (via PR-079)
+* [x] Unit Test (state machine semua sisi)
+* [x] Integration Test (history + event)
+* [x] E2E Test (via PR-079 — `e2e/lamaran-saya.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
 * [ ] Manual Verification (alur penuh staging)
 
@@ -166,11 +168,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Transisi ilegal ditolak (mis. rejected→hired) — test state machine penuh.
-* [ ] Setiap transisi menulis history {from,to,by,at}.
-* [ ] confirm-hired mengisi hired_confirmed_at + event North Star.
-* [ ] Withdraw hanya pada status aktif.
-* [ ] Event → notifikasi user (integrasi).
+* [x] Transisi ilegal ditolak (mis. rejected→hired) — test state machine penuh.
+* [x] Setiap transisi menulis history {from,to,by,at}.
+* [x] confirm-hired mengisi hired_confirmed_at + event North Star.
+* [x] Withdraw hanya pada status aktif.
+* [x] Event → notifikasi user (integrasi).
 
 #### Dependencies
 
@@ -199,6 +201,7 @@ Bisnis: model operasi MVP — admin menjembatani perusahaan partner. Teknis: lis
 **Backend Changes:**
 
 * `modules/admin/applications`.
+* **Realisasi:** hidup di `modules/applications` (pola endpoint admin companies/jobs; modul admin terpisah akan butuh repository lintas modul). PR dipecah: **PR-077a** API, **PR-077b** halaman admin.
 
 **Frontend Changes:**
 
@@ -219,10 +222,10 @@ Bisnis: model operasi MVP — admin menjembatani perusahaan partner. Teknis: lis
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard transisi admin)
-* [ ] Integration Test (authz + audit + visibilitas disclose)
-* [ ] E2E Test (admin ubah → notif user)
-* [ ] Accessibility Test (tabel + aksi keyboard)
+* [x] Unit Test (guard transisi admin)
+* [x] Integration Test (authz + audit + visibilitas disclose)
+* [x] E2E Test (admin ubah → notif user)
+* [x] Accessibility Test (tabel + aksi keyboard)
 * [ ] Manual Verification (persona seed)
 
 **Deliverables:**
@@ -239,11 +242,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Update status → user menerima notifikasi (E2E).
-* [ ] Lamaran disclose=false → admin tidak melihat data akomodasi (test kontrak).
-* [ ] Audit memuat actor + alasan.
-* [ ] Filter per lowongan/status bekerja.
-* [ ] Bulk view performa wajar (pagination).
+* [x] Update status → user menerima notifikasi (E2E).
+* [x] Lamaran disclose=false → admin tidak melihat data akomodasi (test kontrak).
+* [x] Audit memuat actor + alasan.
+* [x] Filter per lowongan/status bekerja.
+* [x] Bulk view performa wajar (pagination).
 
 #### Dependencies
 
@@ -276,6 +279,7 @@ Bisnis: momen paling sensitif produk — keputusan pengungkapan harus dipahami d
 **Frontend Changes:**
 
 * Feature applications/apply.
+* **Realisasi:** `features/applications/` (dialog + bagian lamar); `?tujuan=` dibawa melewati `/cv/chat` dan `/cv/:id` supaya pembuat CV kembali ke dialog; `Dialog` (`@nawasena/ui`) mendapat `fokusSaatTutup`; `RequestOptions.headers` di api-client.
 
 **Database Changes:**
 
@@ -291,10 +295,10 @@ Bisnis: momen paling sensitif produk — keputusan pengungkapan harus dipahami d
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state dialog)
+* [x] Unit Test (state dialog)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (apply kedua mode disclose)
-* [ ] Accessibility Test (axe + NVDA dialog manual)
+* [x] E2E Test (apply kedua mode disclose)
+* [x] Accessibility Test (axe + NVDA dialog manual)
 * [ ] Manual Verification (persona Tuli/Netra simulasi)
 
 **Deliverables:**
@@ -311,11 +315,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Default = TIDAK diungkap; tidak ada pre-checked.
-* [ ] Konsekuensi Ya/Tidak dijelaskan id + id-simple.
-* [ ] Tanpa CV → diarahkan membuat CV (manual/AI) lalu kembali.
-* [ ] Klik ganda tidak melamar dua kali.
-* [ ] Dialog lolos NVDA checklist + keyboard-only.
+* [x] Default = TIDAK diungkap; tidak ada pre-checked.
+* [x] Konsekuensi Ya/Tidak dijelaskan id + id-simple.
+* [x] Tanpa CV → diarahkan membuat CV (manual/AI) lalu kembali.
+* [x] Klik ganda tidak melamar dua kali.
+* [x] Dialog lolos NVDA checklist + keyboard-only.
 
 #### Dependencies
 
@@ -345,10 +349,12 @@ Bisnis: kejelasan status = pengurang kecemasan terbesar pencari kerja; plus inpu
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi (keputusan owner 2026-10-02):** filter aditif `GET /me/applications?job_id=` untuk kotak "sudah melamar" di detail lowongan (kontrak + OpenAPI + test DB).
 
 **Frontend Changes:**
 
 * Feature applications/tracking.
+* **Realisasi:** `features/applications/{daftar,detail}-lamaran`, `lini-masa.ts`, rute `/lamaran` + `/lamaran/:id`, katalog baru `pelamar`, pintasan header "Lamaran Saya", tautan notifikasi pelamar aktif, kotak "sudah melamar" di detail lowongan, layar hasil PR-078 → detail lamaran.
 
 **Database Changes:**
 
@@ -364,11 +370,11 @@ Bisnis: kejelasan status = pengurang kecemasan terbesar pencari kerja; plus inpu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapper timeline)
+* [x] Unit Test (mapper timeline)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (apply→admin ubah→notif→confirm)
-* [ ] Accessibility Test (axe + NVDA timeline)
-* [ ] Manual Verification (reduce-motion mode)
+* [x] E2E Test (apply→admin ubah→notif→confirm) — per potong: apply (`lamar.spec`), admin ubah (`admin-lamaran.spec`), notif→detail→confirm (`lamaran-saya.spec`); API dipalsukan
+* [x] Accessibility Test (axe + NVDA timeline) — [checklist](log/pr-079-nvda-checklist.md)
+* [x] Manual Verification (reduce-motion mode) — e2e `reducedMotion: reduce`, `document.getAnimations()` kosong
 
 **Deliverables:**
 
@@ -384,11 +390,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Timeline = ordered list semantik (SR membaca kronologi benar).
-* [ ] Status terbaru diumumkan saat halaman dibuka.
-* [ ] Withdraw dengan konfirmasi; confirm-hired satu tap + perayaan aksesibel (bukan animasi-saja).
-* [ ] Navigasi dari notifikasi mendarat di lamaran tepat.
-* [ ] Keyboard-only penuh.
+* [x] Timeline = ordered list semantik (SR membaca kronologi benar).
+* [x] Status terbaru diumumkan saat halaman dibuka.
+* [x] Withdraw dengan konfirmasi; confirm-hired satu tap + perayaan aksesibel (bukan animasi-saja).
+* [x] Navigasi dari notifikasi mendarat di lamaran tepat.
+* [x] Keyboard-only penuh.
 
 #### Dependencies
 

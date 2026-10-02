@@ -60,6 +60,13 @@ export interface NotificationsModuleDeps {
    * default-nya diam, sebab email adalah kanal opt-in.
    */
   preferensiKanal?: { untukProduser(userId: string): Promise<NotificationChannelPrefs> };
+  /**
+   * Penerima kabar `admin.lamaran_baru` (PR-075) — dirakit composition root dari
+   * modul `users`, pemilik kolom `role`. OPSIONAL dengan alasan yang sama dengan
+   * `preferensiKanal`: tanpanya pelamar tetap menerima bukti terima, hanya admin
+   * yang tidak dikabari.
+   */
+  direktoriAdmin?: { idAdminAktif(): Promise<string[]> };
   logger?: Pick<Logger, "error">;
 }
 
@@ -227,6 +234,22 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
     );
   });
 
+  // Lamaran terkirim → satu kabar per ADMIN per lamaran (PR-075, AC "event
+  // submitted → notifikasi admin"). Langganan TERPISAH dari bukti terima di atas
+  // dengan sengaja: bus menjalankan tiap pelanggan dalam try sendiri, jadi
+  // direktori admin yang gagal dibaca tidak pernah menelan bukti terima pelamar.
+  //
+  // Berurutan per admin, bukan `Promise.all`: jumlah admin pilot satu digit, dan
+  // kegagalan satu penulisan tetap terlihat di log bus alih-alih tercampur.
+  // `kunciPeristiwa` = applicationId — event yang terbit ulang tidak melahirkan
+  // kabar kedua bagi admin yang sama.
+  deps.events.on("application.submitted", async (payload) => {
+    await kabariAdmin("admin.lamaran_baru", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
+  });
+
   // Perpindahan status → satu kabar per (lamaran, status tujuan) (PR-078).
   //
   // `to` IKUT KE DALAM KUNCI, dan itu yang membuat idempotensinya benar: dua
@@ -240,7 +263,12 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   // seluruh perlindungan terhadap event yang terbit ulang, yang jauh lebih
   // sering terjadi. Bila transisi mundur kelak lahir, yang ditambahkan ke kunci
   // adalah nomor urut riwayat status — bukan waktu.
+  //
+  // AKSI PELAMAR SENDIRI TIDAK DIKABARKAN KEMBALI KEPADANYA (keputusan owner
+  // 2026-10-02): ia baru saja menekan tombolnya, dan kabar "Anda membatalkan
+  // lamaran" hanya menambah kebisingan di notification center.
   deps.events.on("application.status_changed", async (payload) => {
+    if (payload.changedBy === "seeker") return;
     const kunci = `${payload.applicationId}:${payload.to}`;
     const lahir = await service.terbitkan({
       userId: payload.userId,
@@ -257,6 +285,46 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       payload.userId,
       idNotifikasi("lamaran.status_berubah", payload.userId, kunci),
     );
+  });
+
+  /**
+   * Satu kabar per admin aktif — dipakai tiga peristiwa lamaran (PR-075/076).
+   * Berurutan, `kunciPeristiwa` = applicationId: event terbit ulang tidak
+   * melahirkan kabar kedua bagi admin yang sama.
+   */
+  async function kabariAdmin(
+    type: "admin.lamaran_baru" | "admin.lamaran_dibatalkan" | "admin.penempatan_terkonfirmasi",
+    params: { applicationId: string; jobId: string },
+  ): Promise<void> {
+    if (deps.direktoriAdmin === undefined) return;
+    for (const adminId of await deps.direktoriAdmin.idAdminAktif()) {
+      const lahir = await service.terbitkan({
+        userId: adminId,
+        type,
+        params,
+        kunciPeristiwa: params.applicationId,
+      });
+      await antrekanKanalLuar(lahir, adminId, idNotifikasi(type, adminId, params.applicationId));
+    }
+  }
+
+  // Pelamar membatalkan → admin berhenti meneruskannya (PR-076). Langganan
+  // terpisah dari kabar pelamar di atas, alasan yang sama dengan lamaran baru.
+  deps.events.on("application.status_changed", async (payload) => {
+    if (payload.changedBy !== "seeker" || payload.to !== "withdrawn") return;
+    await kabariAdmin("admin.lamaran_dibatalkan", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
+  });
+
+  // Konfirmasi diterima kerja (North Star) → admin memverifikasi silang (PR-076,
+  // SDD §15 "application.hired_confirmed → admin", R10 PRD).
+  deps.events.on("application.hired_confirmed", async (payload) => {
+    await kabariAdmin("admin.penempatan_terkonfirmasi", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
   });
 
   // Kedua router menulis ke registrar — dan karena itu ke Router — yang SAMA.

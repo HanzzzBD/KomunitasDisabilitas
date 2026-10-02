@@ -194,6 +194,13 @@ export function TataLetak() {
           >
             {t("shell.pintas.cv")}
           </Link>
+          {/* PR-079 — tanpa ini "Lamaran Saya" hanya terjangkau lewat notifikasi. */}
+          <Link
+            to="/lamaran"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.lamaran")}
+          </Link>
           <Link
             to="/pengaturan/aksesibilitas"
             className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"

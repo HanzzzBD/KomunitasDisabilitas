@@ -147,6 +147,8 @@ const BERKAS_UJI = {
   // Bagian `resumes` WAJIB sejak utang U-25 (2026-10-01) — pelajaran komentar
   // `profile` di atas: bagian wajib yang hilang membuat unduhan gagal diam-diam.
   resumes: [],
+  // Bagian `applications` WAJIB sejak PR-075 (endpoint apply lahir).
+  applications: [],
 } as const;
 
 /**
@@ -326,6 +328,62 @@ const LOWONGAN_UJI = {
   expiresAt: null as string | null,
   createdAt: "2026-01-15T20:00:00.000Z",
   updatedAt: "2026-01-15T20:00:00.000Z",
+};
+
+/**
+ * Lamaran uji untuk `/admin/lamaran*` (PR-077b). BER-DISCLOSE dengan sengaja:
+ * keadaan terberat untuk gerbang a11y adalah detail yang menawarkan tombol
+ * "Tampilkan", dialog alasannya, dan data yang terbuka sesudahnya. Statusnya
+ * `interview`, jadi formulir ubah status punya tiga tujuan sah untuk diperiksa.
+ *
+ * Detail punya endpoint SENDIRI (beda dari `/admin/jobs/:id`), jadi alamat
+ * `/admin/lamaran/<id ini>` bisa dibuka langsung oleh registry `HALAMAN`.
+ */
+export const LAMARAN_UJI_ID = "01912345-89ab-7def-8123-4567890aaa30";
+
+const LAMARAN_UJI = {
+  id: LAMARAN_UJI_ID,
+  jobId: LOWONGAN_UJI_ID,
+  resumeId: null as string | null,
+  discloseDisability: true,
+  status: "interview" as string,
+  appliedAt: "2026-10-01T03:00:00.000Z",
+  updatedAt: "2026-10-02T03:00:00.000Z",
+  hiredConfirmedAt: null as string | null,
+  job: { title: "Staf Admin Uji", companyName: "PT Uji Fiktif", aktif: true },
+  applicant: { userId: "01912345-89ab-7def-8123-4567890aaa31", fullName: "Rina Pelamar" },
+};
+
+/** Detail: riwayat satu langkah + kontak; CV diisi dari `CV_UJI` saat dipakai. */
+const RIWAYAT_LAMARAN_UJI = [
+  { from: "submitted", to: "interview", by: "admin", at: "2026-10-02T03:00:00.000Z" },
+];
+
+/**
+ * Lamaran milik PELAMAR uji (PR-079, "Lamaran Saya"). Status `offered` dengan
+ * tiga langkah riwayat: halaman detail menampilkan KEDUA aksi (tarik lamaran +
+ * "Saya diterima") dan lini masa empat titik — keadaan terpadat untuk axe.
+ * Lowongannya = `LOWONGAN_UJI_ID`, BUKAN lowongan publik pertama: spec PR-078
+ * melamar lowongan pertama dan harus melihat tombol "Lamar", bukan kotak
+ * "sudah melamar".
+ */
+export const LAMARAN_SAYA_UJI_ID = "01912345-89ab-7def-8123-4567890aaa40";
+
+const LAMARAN_SAYA_UJI = {
+  id: LAMARAN_SAYA_UJI_ID,
+  jobId: LOWONGAN_UJI_ID,
+  resumeId: null as string | null,
+  discloseDisability: false,
+  status: "offered" as string,
+  appliedAt: "2026-09-20T03:00:00.000Z",
+  updatedAt: "2026-10-01T03:00:00.000Z",
+  hiredConfirmedAt: null as string | null,
+  job: { title: "Staf Admin Uji", companyName: "PT Uji Fiktif", aktif: true },
+  statusHistory: [
+    { from: "submitted", to: "viewed", by: "admin", at: "2026-09-22T03:00:00.000Z" },
+    { from: "viewed", to: "interview", by: "admin", at: "2026-09-25T03:00:00.000Z" },
+    { from: "interview", to: "offered", by: "admin", at: "2026-10-01T03:00:00.000Z" },
+  ] as { from: string; to: string; by: string; at: string }[],
 };
 
 /**
@@ -542,8 +600,21 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // Sama alasannya untuk daftar lowongan (PR-057).
   const lowongan: (typeof LOWONGAN_UJI)[] = [{ ...LOWONGAN_UJI }];
   const cv = [{ ...CV_UJI, content: { ...CV_UJI.content } }];
+  // Lamaran admin (PR-077b) — status berubah per pemanggilan, sama seperti lowongan.
+  const lamaranAdmin = { ...LAMARAN_UJI, statusHistory: [...RIWAYAT_LAMARAN_UJI] };
+  // "Lamaran Saya" (PR-079) — tarik/konfirmasi mengubahnya per pemanggilan.
+  const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
   let pdfDiminta = false;
   let pembacaanPdf = 0;
+
+  function detailLamaranAdmin() {
+    return {
+      ...lamaranAdmin,
+      statusHistory: [...lamaranAdmin.statusHistory],
+      applicant: { ...lamaranAdmin.applicant, phone: "+6281200000000", email: "rina@contoh.test" },
+      resume: { ...CV_UJI, content: { ...CV_UJI.content } },
+    };
+  }
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
@@ -876,6 +947,92 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       }
       Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
       return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    // --- Lamaran Saya (PR-079) — jalur PELAMAR ---
+    //
+    // `?job_id=` = "sudah melamar lowongan ini?" (detail lowongan): hanya
+    // lowongan milik lamaran uji yang menjawab satu baris.
+    if (jalur === "/api/v1/me/applications") {
+      const jobId = new URL(route.request().url()).searchParams.get("job_id");
+      const { statusHistory: _riwayat, ...ringkas } = lamaranSaya;
+      const data = jobId === null || jobId === lamaranSaya.jobId ? [ringkas] : [];
+      return route.fulfill(jsonkan(200, { data, meta: { nextCursor: null } }));
+    }
+    if (/\/me\/applications\/[^/]+\/withdraw$/.test(jalur)) {
+      const at = "2026-10-02T05:00:00.000Z";
+      lamaranSaya.statusHistory.push({
+        from: lamaranSaya.status,
+        to: "withdrawn",
+        by: "seeker",
+        at,
+      });
+      Object.assign(lamaranSaya, { status: "withdrawn", updatedAt: at });
+      return route.fulfill(jsonkan(200, { data: { ...lamaranSaya } }));
+    }
+    if (/\/me\/applications\/[^/]+\/confirm-hired$/.test(jalur)) {
+      const at = "2026-10-02T05:00:00.000Z";
+      if (lamaranSaya.status === "offered") {
+        lamaranSaya.statusHistory.push({ from: "offered", to: "hired", by: "seeker", at });
+      }
+      Object.assign(lamaranSaya, { status: "hired", hiredConfirmedAt: at, updatedAt: at });
+      return route.fulfill(jsonkan(200, { data: { ...lamaranSaya } }));
+    }
+    if (/^\/api\/v1\/me\/applications\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      if (id !== lamaranSaya.id) {
+        return route.fulfill(
+          jsonkan(404, { code: "LAMARAN_TIDAK_DITEMUKAN", message: "Lamaran tidak ditemukan" }),
+        );
+      }
+      return route.fulfill(
+        jsonkan(200, { data: { ...lamaranSaya, statusHistory: [...lamaranSaya.statusHistory] } }),
+      );
+    }
+    // --- Lamaran admin (PR-077b) ---
+    //
+    // Sub-jalur (`/status`, `/disclosure`) diperiksa SEBELUM detail generik,
+    // alasan yang sama dengan `/publish` di bawah.
+    if (jalur === "/api/v1/admin/applications") {
+      return route.fulfill(
+        jsonkan(200, {
+          data: [{ ...lamaranAdmin, statusHistory: undefined }],
+          meta: { nextCursor: null },
+        }),
+      );
+    }
+    if (/\/admin\/applications\/[^/]+\/status$/.test(jalur)) {
+      const kirim = route.request().postDataJSON() as { status: string };
+      lamaranAdmin.statusHistory.push({
+        from: lamaranAdmin.status,
+        to: kirim.status,
+        by: "admin",
+        at: "2026-10-02T04:00:00.000Z",
+      });
+      lamaranAdmin.status = kirim.status;
+      return route.fulfill(jsonkan(200, { data: detailLamaranAdmin() }));
+    }
+    if (/\/admin\/applications\/[^/]+\/disclosure$/.test(jalur)) {
+      return route.fulfill(
+        jsonkan(200, {
+          data: {
+            disabilityTypes: ["tuli"],
+            accommodationNeeds: {
+              tags: ["juru_bahasa_isyarat"],
+              notes: "Mohon wawancara lewat teks.",
+            },
+            capturedAt: "2026-10-01T03:00:00.000Z",
+          },
+        }),
+      );
+    }
+    if (/\/admin\/applications\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      if (id !== LAMARAN_UJI_ID) {
+        return route.fulfill(
+          jsonkan(404, { code: "LAMARAN_TIDAK_DITEMUKAN", message: "Lamaran tidak ditemukan" }),
+        );
+      }
+      return route.fulfill(jsonkan(200, { data: detailLamaranAdmin() }));
     }
     // --- Kurasi lowongan (PR-057) ---
     //

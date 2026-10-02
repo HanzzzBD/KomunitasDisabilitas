@@ -208,11 +208,215 @@ export const katalogLowongan = {
     id: "Cara melamar",
     "id-simple": "Cara melamar",
   },
-  "lowongan.detail.melamar.penjelasan": {
-    // Slot CTA (PR-059) — SENGAJA tanpa tombol: tombol "Lamar" yang tidak
-    // berbuat apa-apa adalah kontrol palsu. Tombol sungguhan lahir PR-078.
-    id: "Melamar langsung lewat Nawasena akan segera tersedia. Simpan tautan halaman ini untuk kembali nanti.",
+  // ---------------------------------------------------------------------
+  // Alur lamar (PR-078). Kalimat konsekuensi Ya/Tidak adalah bagian paling
+  // sensitif katalog ini: keduanya ditulis SEPANJANG dan SETEGAS satu sama
+  // lain, dan tidak ada yang menyebut salah satu pilihan "disarankan".
+  // ---------------------------------------------------------------------
+  "lowongan.lamar.ajakan": {
+    id: "Kirim lamaran langsung lewat Nawasena. Anda memilih CV dan memutuskan sendiri apakah data disabilitas ikut dikirim.",
     "id-simple":
-      "Sebentar lagi Anda bisa melamar di sini. Simpan alamat halaman ini supaya mudah kembali.",
+      "Lamar lewat Nawasena. Anda pilih CV. Anda juga pilih: kirim data disabilitas atau tidak.",
+  },
+  "lowongan.lamar.tombol": {
+    id: "Lamar lowongan ini",
+    "id-simple": "Lamar sekarang",
+  },
+  "lowongan.lamar.memeriksaSesi": {
+    id: "Memeriksa status masuk Anda…",
+    "id-simple": "Sebentar, kami cek dulu…",
+  },
+  "lowongan.lamar.perluMasuk": {
+    id: "Masuk dulu untuk melamar. Sesudah masuk, Anda kembali ke lowongan ini.",
+    "id-simple": "Anda perlu masuk dulu. Nanti Anda kembali ke sini.",
+  },
+  "lowongan.lamar.masukUntukMelamar": {
+    id: "Masuk untuk melamar",
+    "id-simple": "Masuk, lalu lamar",
+  },
+  "lowongan.lamar.judul": {
+    id: "Lamar: {judul}",
+    "id-simple": "Melamar {judul}",
+  },
+  "lowongan.lamar.deskripsi": {
+    id: "Dua langkah: pilih CV, lalu putuskan apakah data disabilitas Anda ikut dikirim.",
+    "id-simple": "Pilih CV. Lalu pilih: kirim data disabilitas atau tidak.",
+  },
+  "lowongan.lamar.batal": {
+    id: "Batal",
+    "id-simple": "Tutup",
+  },
+  "lowongan.lamar.kirim": {
+    id: "Kirim lamaran",
+    "id-simple": "Kirim",
+  },
+  "lowongan.lamar.mengirim": {
+    id: "Mengirim lamaran…",
+    "id-simple": "Sedang dikirim…",
+  },
+  "lowongan.lamar.cobaLagi": {
+    id: "Coba lagi",
+    "id-simple": "Ulangi",
+  },
+  "lowongan.lamar.cv.legend": {
+    id: "CV yang dikirim",
+    "id-simple": "Pilih CV",
+  },
+  "lowongan.lamar.cv.memuat": {
+    id: "Memuat daftar CV Anda…",
+    "id-simple": "Membuka CV Anda…",
+  },
+  "lowongan.lamar.cv.diperbarui": {
+    id: "Terakhir diubah {tanggal}",
+    "id-simple": "Diubah {tanggal}",
+  },
+  "lowongan.lamar.cv.kosongJudul": {
+    id: "Anda belum punya CV",
+    "id-simple": "Belum ada CV",
+  },
+  "lowongan.lamar.cv.kosongPenjelasan": {
+    id: "Lamaran perlu CV. Buat CV dulu — sesudah selesai, ada tautan untuk kembali melamar lowongan ini.",
+    "id-simple":
+      "Untuk melamar, Anda perlu CV. Buat CV dulu. Nanti ada tombol untuk kembali ke sini.",
+  },
+  "lowongan.lamar.cv.buatChat": {
+    id: "Buat CV dengan bantuan AI",
+    "id-simple": "Buat CV dibantu AI",
+  },
+  "lowongan.lamar.cv.buatProfil": {
+    id: "Buat CV dari profil saya",
+    "id-simple": "Buat CV dari profil",
+  },
+  "lowongan.lamar.cv.membuat": {
+    id: "Membuat CV…",
+    "id-simple": "CV sedang dibuat…",
+  },
+  "lowongan.lamar.cv.judulBawaan": {
+    id: "CV saya",
+    "id-simple": "CV",
+  },
+  "lowongan.lamar.ungkap.legend": {
+    id: "Kirim data disabilitas Anda ke perusahaan?",
+    "id-simple": "Kirim data disabilitas ke perusahaan?",
+  },
+  "lowongan.lamar.ungkap.bantuan": {
+    id: "Anda yang memutuskan. Pilihan ini hanya berlaku untuk lamaran ini, dan tidak ada jawaban yang salah.",
+    "id-simple": "Anda yang pilih. Pilihan ini hanya untuk lamaran ini. Dua-duanya boleh.",
+  },
+  "lowongan.lamar.ungkap.ya": {
+    id: "Ya, kirim data disabilitas saya",
+    "id-simple": "Ya, kirim",
+  },
+  "lowongan.lamar.ungkap.yaAkibat": {
+    id: "Perusahaan menerima salinan ragam disabilitas dan kebutuhan akomodasi Anda hari ini, supaya bisa menyiapkan bantuan. Salinan ini tidak ikut berubah bila profil Anda berubah nanti.",
+    "id-simple":
+      "Perusahaan bisa lihat disabilitas dan bantuan yang Anda perlu. Mereka bisa bersiap. Kalau profil Anda berubah nanti, yang sudah dikirim tetap sama.",
+  },
+  "lowongan.lamar.ungkap.tidak": {
+    id: "Tidak, jangan kirim data disabilitas saya",
+    "id-simple": "Tidak, jangan kirim",
+  },
+  "lowongan.lamar.ungkap.tidakAkibat": {
+    id: "Perusahaan hanya menerima CV Anda. Data disabilitas tetap tersimpan rahasia di Nawasena. Anda tetap bisa menceritakannya sendiri nanti, misalnya saat wawancara.",
+    "id-simple":
+      "Perusahaan hanya lihat CV Anda. Data disabilitas tetap rahasia. Anda boleh cerita sendiri nanti, misalnya saat wawancara.",
+  },
+  "lowongan.lamar.ungkap.memuatProfil": {
+    id: "Memeriksa data disabilitas di profil Anda…",
+    "id-simple": "Kami cek data disabilitas Anda…",
+  },
+  "lowongan.lamar.ungkap.tidakAdaData": {
+    id: 'Pilihan "Ya" belum bisa dipakai: profil Anda belum berisi data disabilitas atau kebutuhan akomodasi.',
+    "id-simple": 'Belum bisa pilih "Ya". Profil Anda belum ada data disabilitas.',
+  },
+  "lowongan.lamar.ungkap.profilGagal": {
+    id: 'Pilihan "Ya" belum bisa dipakai karena profil Anda gagal dimuat. Anda tetap bisa melamar tanpa mengirim data disabilitas.',
+    "id-simple":
+      'Profil Anda gagal dibuka, jadi belum bisa pilih "Ya". Anda tetap bisa melamar tanpa data itu.',
+  },
+  "lowongan.lamar.ungkap.keProfil": {
+    id: "Lengkapi di halaman Profil",
+    "id-simple": "Isi di Profil",
+  },
+  "lowongan.lamar.pratinjau.judul": {
+    id: "Yang akan dikirim ke perusahaan",
+    "id-simple": "Ini yang dikirim",
+  },
+  "lowongan.lamar.pratinjau.ragam": {
+    id: "Ragam disabilitas",
+    "id-simple": "Disabilitas",
+  },
+  "lowongan.lamar.pratinjau.akomodasi": {
+    id: "Kebutuhan akomodasi",
+    "id-simple": "Bantuan yang perlu",
+  },
+  "lowongan.lamar.pratinjau.catatan": {
+    id: "Catatan akomodasi",
+    "id-simple": "Catatan",
+  },
+  "lowongan.lamar.pratinjau.kosong": {
+    id: "Tidak diisi",
+    "id-simple": "Kosong",
+  },
+  "lowongan.lamar.pratinjau.salinan": {
+    id: "Untuk mengubah isinya, sunting profil Anda sebelum mengirim lamaran.",
+    "id-simple": "Mau ubah? Ubah profil dulu, baru kirim.",
+  },
+  "lowongan.lamar.galat.cvKosong": {
+    id: "Pilih CV yang akan dikirim.",
+    "id-simple": "Pilih satu CV dulu.",
+  },
+  "lowongan.lamar.galat.ungkapKosong": {
+    id: "Pilih salah satu: kirim data disabilitas, atau jangan kirim.",
+    "id-simple": "Pilih dulu: kirim atau jangan kirim.",
+  },
+  "lowongan.lamar.galat.ungkapTakBisa": {
+    id: 'Data disabilitas di profil Anda kosong, jadi tidak ada yang bisa dikirim. Pilih "Tidak", atau lengkapi profil dulu.',
+    "id-simple": 'Profil Anda belum ada data disabilitas. Pilih "Tidak", atau isi profil dulu.',
+  },
+  "lowongan.lamar.galat.dataKosong": {
+    id: 'Data disabilitas di profil Anda kosong. Pilih "Tidak", atau lengkapi profil dulu.',
+    "id-simple": 'Data disabilitas Anda kosong. Pilih "Tidak", atau isi profil dulu.',
+  },
+  "lowongan.lamar.galat.lowonganTutup": {
+    id: "Lowongan ini baru saja ditutup, jadi lamaran tidak bisa dikirim.",
+    "id-simple": "Lowongan ini sudah tutup. Lamaran tidak bisa dikirim.",
+  },
+  "lowongan.lamar.galat.cvHilang": {
+    id: "CV yang dipilih sudah tidak ada. Tutup dialog ini lalu buka lagi untuk memilih CV lain.",
+    "id-simple": "CV itu sudah dihapus. Tutup, lalu buka lagi dan pilih CV lain.",
+  },
+  "lowongan.lamar.galat.sedangDiproses": {
+    id: "Lamaran Anda sedang dikirim. Tunggu sebentar — Anda tidak perlu menekan tombol lagi.",
+    "id-simple": "Lamaran sedang dikirim. Tunggu ya. Jangan tekan lagi.",
+  },
+  "lowongan.lamar.hasil.terkirimJudul": {
+    id: "Lamaran terkirim",
+    "id-simple": "Lamaran sudah dikirim",
+  },
+  "lowongan.lamar.hasil.terkirimIsi": {
+    id: "Lamaran Anda untuk {judul} sudah kami terima. Kabar berikutnya akan muncul di Notifikasi.",
+    "id-simple": "Lamaran Anda untuk {judul} sudah sampai. Kabar baru ada di Notifikasi.",
+  },
+  "lowongan.lamar.hasil.diungkap": {
+    id: "Data disabilitas Anda ikut dikirim bersama lamaran ini.",
+    "id-simple": "Data disabilitas Anda ikut dikirim.",
+  },
+  "lowongan.lamar.hasil.tidakDiungkap": {
+    id: "Data disabilitas Anda tidak dikirim. Perusahaan hanya menerima CV.",
+    "id-simple": "Data disabilitas tidak dikirim. Perusahaan hanya dapat CV.",
+  },
+  "lowongan.lamar.hasil.sudahAdaJudul": {
+    id: "Anda sudah melamar lowongan ini",
+    "id-simple": "Anda sudah melamar di sini",
+  },
+  "lowongan.lamar.hasil.sudahAdaIsi": {
+    id: "Lamaran Anda untuk lowongan ini sudah tercatat, jadi tidak dikirim dua kali. Kabar berikutnya akan muncul di Notifikasi.",
+    "id-simple": "Lamaran Anda sudah ada. Tidak dikirim dua kali. Kabar baru ada di Notifikasi.",
+  },
+  "lowongan.lamar.hasil.keLamaran": {
+    // PR-079 — sebelumnya "Buka Notifikasi" (halaman Lamaran Saya belum ada).
+    id: "Lihat lamaran ini",
+    "id-simple": "Buka lamaran saya",
   },
 } as const satisfies KatalogFitur;

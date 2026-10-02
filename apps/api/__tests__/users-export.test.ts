@@ -104,7 +104,13 @@ const kontributorCv: ExportContributor = {
   kumpulkan: async () => [],
 };
 
-/** Ketujuh kontributor modul lain — urutannya sama dengan boot.ts. */
+/** Lamaran (PR-075) — ditulis bersama endpoint apply. */
+const kontributorLamaran: ExportContributor = {
+  bagian: "applications",
+  kumpulkan: async () => [],
+};
+
+/** Kedelapan kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
@@ -113,6 +119,7 @@ const KONTRIBUTOR_MODUL = [
   kontributorChatAi,
   kontributorPemakaianAi,
   kontributorCv,
+  kontributorLamaran,
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
@@ -277,6 +284,7 @@ describe("agregator ekspor", () => {
       "aiChatSessions",
       "aiUsage",
       "resumes",
+      "applications",
     ]);
   });
 });
@@ -303,6 +311,7 @@ describe("audit ekspor", () => {
           "aiChatSessions",
           "aiUsage",
           "resumes",
+          "applications",
         ],
       },
     });

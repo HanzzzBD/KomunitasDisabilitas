@@ -61,3 +61,25 @@ export function tautanMasuk(lokasi: { pathname: string; search?: string; hash?: 
 export function bacaTujuan(search: string): string {
   return bersihkanTujuan(new URLSearchParams(search).get(NAMA_PARAM));
 }
+
+/**
+ * Tujuan kembali yang DIBAWA melewati halaman lain (PR-078: lowongan → buat CV
+ * → kembali melamar), atau `null` bila tidak ada.
+ *
+ * Berbeda dari `bacaTujuan`, yang selalu punya jawaban ("/" sebagai bawaan):
+ * halaman yang membaca ini menampilkan tautan "kembali" HANYA bila memang ada
+ * tempat untuk kembali. Tautan kembali ke beranda yang muncul begitu saja di
+ * editor CV hanya membingungkan.
+ */
+export function bacaTujuanOpsional(search: string): string | null {
+  const mentah = new URLSearchParams(search).get(NAMA_PARAM);
+  const bersih = bersihkanTujuan(mentah);
+  return bersih === BAWAAN ? null : bersih;
+}
+
+/** `jalur` dengan `?tujuan=` ditambahkan — atau apa adanya bila `tujuan` null. */
+export function denganTujuan(jalur: string, tujuan: string | null): string {
+  if (tujuan === null) return jalur;
+  const pemisah = jalur.includes("?") ? "&" : "?";
+  return `${jalur}${pemisah}${NAMA_PARAM}=${encodeURIComponent(tujuan)}`;
+}

@@ -75,7 +75,49 @@ export const applicationStatusChangedEventSchema = z.object({
   jobId: idSchema,
   from: applicationStatusSchema.optional(),
   to: applicationStatusSchema,
+  /**
+   * PERAN pihak yang memindahkan (PR-076). Pelanggan memakainya untuk tidak
+   * mengabari pelamar atas aksinya sendiri (withdraw, konfirmasi diterima) —
+   * keputusan owner 2026-10-02. Peran, bukan id: identitas admin tidak perlu
+   * mengalir ke pelanggan; ia ada di `audit_logs`.
+   */
+  changedBy: z.enum(["seeker", "admin"]),
   changedAt: timestampSchema,
 });
 
 export type ApplicationStatusChangedEvent = z.infer<typeof applicationStatusChangedEventSchema>;
+
+/**
+ * Event domain `application.hired_confirmed` — pelamar mengonfirmasi diterima
+ * kerja (PR-076, North Star, SDD §15 "→ admin"). Terbit SEKALI per lamaran:
+ * konfirmasi ulang tidak menerbitkannya lagi.
+ */
+export const applicationHiredConfirmedEventSchema = z.object({
+  applicationId: idSchema,
+  userId: idSchema,
+  jobId: idSchema,
+  confirmedAt: timestampSchema,
+});
+
+export type ApplicationHiredConfirmedEvent = z.infer<typeof applicationHiredConfirmedEventSchema>;
+
+/** Peran pemindah status — dipakai riwayat dan event. */
+export const applicationActorRoleSchema = z.enum(["seeker", "admin"]);
+
+/**
+ * Satu entri `applications.status_history` (SDD §6.2 `{from,to,by,at}`).
+ *
+ * `by` adalah PERAN, bukan id pengguna: riwayat ini dibaca pelamar (timeline
+ * PR-079), dan id admin yang memindahkan statusnya bukan urusannya. Siapa
+ * persisnya tercatat di `audit_logs` (APPLICATION_STATUS_CHANGED, actor).
+ */
+export const applicationStatusHistoryEntrySchema = z
+  .object({
+    from: applicationStatusSchema,
+    to: applicationStatusSchema,
+    by: applicationActorRoleSchema,
+    at: timestampSchema,
+  })
+  .openapi({ ref: "ApplicationStatusHistoryEntry" });
+
+export type ApplicationStatusHistoryEntry = z.infer<typeof applicationStatusHistoryEntrySchema>;

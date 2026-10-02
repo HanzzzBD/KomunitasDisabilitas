@@ -41,6 +41,21 @@ import {
   updateCompanySchema,
 } from "./companies.js";
 import {
+  adminApplicationDetailResponseSchema,
+  adminApplicationListQuerySchema,
+  adminApplicationListResponseSchema,
+  disclosureSnapshotResponseSchema,
+  revealDisclosureSchema,
+  updateApplicationStatusSchema,
+  applicationIdParamsSchema,
+  applicationResponseSchema,
+  applyJobSchema,
+  idempotencyKeySchema,
+  myApplicationDetailResponseSchema,
+  myApplicationListQuerySchema,
+  myApplicationListResponseSchema,
+} from "./applications-api.js";
+import {
   companyActiveJobsResponseSchema,
   createJobSchema,
   jobAdminListResponseSchema,
@@ -92,7 +107,7 @@ import {
   matchesRefreshQuerySchema,
   matchesResponseSchema,
 } from "./matching.js";
-import type { ZodTypeAny } from "zod";
+import { z, type ZodTypeAny } from "zod";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -1031,6 +1046,178 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "200": jsonOk("Detail lowongan", jobPublicResponseSchema),
             "400": errorResponse("`id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
+          },
+        },
+      },
+      // Melamar (PR-075, PRD US-11 / FR-5.1–5.2). Idempotensi dua lapis:
+      // header `Idempotency-Key` (Redis 24 jam) + unique (user, job) di DB.
+      "/jobs/{id}/apply": {
+        post: {
+          operationId: "applyJob",
+          tags: ["applications"],
+          summary: "Lamar lowongan (pencari kerja)",
+          description:
+            "`discloseDisability` WAJIB dinyatakan eksplisit. `true` menyimpan SALINAN " +
+            "terenkripsi ragam disabilitas + akomodasi saat ini; `false` tidak menyimpan " +
+            "apa pun yang sensitif. Kunci `Idempotency-Key` yang sama memutar ulang 201 " +
+            "pertama dengan header `Idempotent-Replayed: true`.",
+          requestParams: {
+            path: jobIdParamsSchema,
+            header: z.object({ "Idempotency-Key": idempotencyKeySchema }),
+          },
+          requestBody: jsonBody(applyJobSchema),
+          responses: {
+            "201": jsonOk("Lamaran terkirim (atau putar ulang)", applicationResponseSchema),
+            "400": errorResponse("Input tidak valid, atau header Idempotency-Key tidak ada"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Lowongan atau CV tidak ditemukan"),
+            "409": errorResponse("Sudah melamar lowongan ini, atau lamaran sedang dikirim"),
+            "422": errorResponse(
+              "Kunci dipakai untuk lowongan lain, atau tidak ada data disabilitas untuk dikirim",
+            ),
+            "429": errorResponse("Terlalu banyak lamaran — lihat header Retry-After"),
+            ...responsSesi,
+          },
+        },
+      },
+      // Lamaran Saya (PR-076, PRD FR-5.3/FR-5.5). Seluruhnya milik pelamar
+      // sendiri; lamaran orang lain berperilaku seperti lamaran yang tidak ada.
+      "/me/applications": {
+        get: {
+          operationId: "listMyApplications",
+          tags: ["applications"],
+          summary: "Daftar lamaran sendiri",
+          description:
+            "Terbaru BERUBAH lebih dulu (`updatedAt`), cursor keyset. Ringkasan lowongan " +
+            "dibaca saat ini — lowongan yang sudah ditutup tetap tampil dengan `aktif: false`.",
+          requestParams: { query: myApplicationListQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman lamaran", myApplicationListResponseSchema),
+            "400": errorResponse("Query atau cursor tidak valid"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}": {
+        get: {
+          operationId: "getMyApplication",
+          tags: ["applications"],
+          summary: "Detail lamaran + riwayat status",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran beserta riwayatnya", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}/withdraw": {
+        post: {
+          operationId: "withdrawMyApplication",
+          tags: ["applications"],
+          summary: "Batalkan lamaran",
+          description:
+            "Hanya dari status aktif (submitted..offered). Pelamar tidak dikabari atas aksinya sendiri; admin dikabari.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran terkini", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Status sekarang tidak bisa dibatalkan, atau berubah bersamaan"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}/confirm-hired": {
+        post: {
+          operationId: "confirmHiredMyApplication",
+          tags: ["applications"],
+          summary: "Konfirmasi diterima kerja (North Star)",
+          description:
+            "Dari `offered`: status pindah ke `hired` + `hiredConfirmedAt`. Dari `hired`: hanya " +
+            "`hiredConfirmedAt`. Idempoten — panggilan ulang menjawab 200 yang sama tanpa event kedua.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran terkini", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Lamaran belum ditawari / sudah berakhir"),
+            ...responsSesi,
+          },
+        },
+      },
+      // Operasional lamaran oleh admin (PR-077a). Data disabilitas TIDAK PERNAH
+      // ikut di daftar/detail — dibuka lewat POST .../disclosure dengan alasan.
+      "/admin/applications": {
+        get: {
+          operationId: "listApplicationsAdmin",
+          tags: ["applications"],
+          summary: "Daftar lamaran (admin)",
+          description:
+            "Filter `job_id` dan `status`, cursor keyset, 50 per halaman. Pelamar hanya " +
+            "nama; `discloseDisability` hanya penanda.",
+          requestParams: { query: adminApplicationListQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman lamaran", adminApplicationListResponseSchema),
+            "400": errorResponse("Query atau cursor tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}": {
+        get: {
+          operationId: "getApplicationAdmin",
+          tags: ["applications"],
+          summary: "Detail lamaran (admin)",
+          description: "Kontak pelamar, CV terlampir, dan riwayat status — tanpa data disabilitas.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Detail lamaran", adminApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}/status": {
+        put: {
+          operationId: "updateApplicationStatusAdmin",
+          tags: ["applications"],
+          summary: "Ubah status lamaran (admin)",
+          description:
+            "Maju boleh loncat; mundur, status akhir, dan `withdrawn` ditolak 409. " +
+            "`reason` wajib — masuk audit, tidak terlihat pelamar. Pelamar dikabari.",
+          requestParams: { path: applicationIdParamsSchema },
+          requestBody: jsonBody(updateApplicationStatusSchema),
+          responses: {
+            "200": jsonOk("Lamaran terkini", adminApplicationDetailResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Transisi tidak sah, atau status berubah bersamaan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}/disclosure": {
+        post: {
+          operationId: "revealApplicationDisclosureAdmin",
+          tags: ["applications"],
+          summary: "Buka data yang diungkap pelamar (admin, ber-audit)",
+          description:
+            "Hanya untuk lamaran ber-`discloseDisability`. Jejak audit ditulis SEBELUM " +
+            "data dibaca, termasuk saat ditolak. Respons `Cache-Control: no-store`.",
+          requestParams: { path: applicationIdParamsSchema },
+          requestBody: jsonBody(revealDisclosureSchema),
+          responses: {
+            "200": jsonOk("Salinan yang diungkap", disclosureSnapshotResponseSchema),
+            "400": errorResponse("Alasan kosong atau terlalu panjang"),
+            "404": errorResponse("Tidak ditemukan, atau pelamar tidak mengungkap"),
+            ...responsAdmin,
           },
         },
       },
