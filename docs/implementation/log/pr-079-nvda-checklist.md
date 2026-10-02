@@ -11,8 +11,9 @@ sesudah dibaca.
 
 > **Privasi:** pada langkah pertama sebuah notifikasi toast dari aplikasi lain milik owner ikut
 > dibacakan NVDA meski jendela uji di depan — penjaga "buang ucapan dari jendela lain" tidak
-> menangkap toast sistem. Isinya tidak dicatat di mana pun; laporannya dihapus. Run berikutnya
-> sebaiknya dengan Windows *Do Not Disturb* menyala.
+> menangkap toast sistem. Isinya tidak dicatat di mana pun; laporannya dihapus. **Diperbaiki
+> 2026-10-02:** harness kini mematikan "Report notifications" di konfigurasi NVDA sementaranya
+> dan menyaring ucapan berpola notifikasi (terbukti dengan toast uji).
 
 Yang SUDAH dibuktikan otomatis: axe (registry "lamaran saya — daftar/detail" + `e2e/lamaran-saya.spec.ts`
 untuk dialog tarik, sesudah tarik, sesudah konfirmasi), keyboard-only, `<ol>` + `aria-current`

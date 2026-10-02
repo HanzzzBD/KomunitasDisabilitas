@@ -562,11 +562,43 @@ service, `listMine(…, jobId)`. Test DB: hanya milik sendiri untuk lowongan itu
   uji di depan; laporan dihapus, isinya tidak dicatat. Run berikutnya: nyalakan *Do Not Disturb*.
 * E2E "apply → admin ubah → notif → confirm" dibuktikan **per potong** dengan API dipalsukan, bukan
   satu alur di stack nyata.
-* `resume.ts` memuat 4 baris teks rusak encoding ("â€¦") yang sudah ada SEBELUM PR-078 — di luar
-  scope, tidak disentuh; layak diperbaiki terpisah.
+* `resume.ts` memuat 4 baris teks rusak encoding yang sudah ada SEBELUM PR-078 — di luar scope;
+  **diperbaiki sesudahnya** (lihat "Perbaikan sesudah PR-079").
 * Diff non-test ±1.000 baris (katalog ±250, banyak komentar) — di atas pedoman 500 LOC; cakupan
   tambahan dipilih owner.
 
 ### Next steps
 
 1. Phase 12 lengkap → `phase-12-applications → main` menunggu perintah eksplisit owner (CLAUDE.md §5.8).
+
+---
+
+## Perbaikan sesudah PR-079 — teks rusak encoding & privasi harness NVDA
+
+> **Tanggal:** 2026-10-02 · **Branch:** `perbaikan-encoding-resume-nvda-dnd` → `phase-12-applications`
+> Atas perintah owner ("benerin 2 hal tersebut") — dua catatan terbuka dari log PR-079.
+
+### 1. Delapan teks `resume.*` rusak encoding
+
+Empat entri katalog `resume` (8 varian) menampilkan elipsis sebagai tiga karakter sampah —
+UTF-8 yang pernah dibaca sebagai Windows-1252 lalu disimpan lagi. Lahir di PR-061 (2026-09-25).
+Lolos karena hasilnya tetap string yang sah: typecheck, lint, dan penjaga kelengkapan katalog
+lulus, sementara pengguna melihat sampah dan screen reader mengejanya huruf demi huruf.
+
+* Diperbaiki ke "…".
+* **Penjaga baru** di `katalog-kelengkapan.test.ts`: tidak satu entri pun boleh memuat pola
+  mojibake (`â€`, `Ã`+byte lanjutan, `Â`+byte lanjutan, U+FFFD). Dibuktikan merah atas berkas
+  lama, hijau sesudah diperbaiki.
+
+### 2. Toast notifikasi pribadi terekam harness NVDA
+
+Run PR-079 merekam toast WhatsApp owner walau jendela uji di depan — penjaga per-jendela tidak
+berlaku untuk toast. Perbaikan di `apps/web/verifikasi/nvda.ts`, tanpa bergantung pada orang
+yang ingat menyalakan Do Not Disturb:
+
+* Konfigurasi NVDA SEMENTARA milik harness kini `[presentation] reportHelpBalloons = False`
+  (GUI: "Report notifications") — konfigurasi NVDA pengguna tidak disentuh.
+* Lapis cadangan: `ucapan()` membuang ucapan berpola notifikasi (`adalahUcapanNotifikasi`).
+* **Dibuktikan**, bukan diasumsikan: skrip sekali-pakai menyalakan NVDA senyap, memunculkan toast
+  uji bertanda, lalu mencari HANYA penanda itu di log. Kontrol (`reportHelpBalloons = True`) →
+  terucap; setelan harness → **tidak terucap**. Log dihapus sesudahnya.
