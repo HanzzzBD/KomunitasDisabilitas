@@ -1,6 +1,6 @@
-// Endpoint lamaran — jalur ADMIN (PR-077a server; dikonsumsi PR-077b).
-// Jalur pelamar (apply, "Lamaran Saya") menyusul bersama layarnya di
-// PR-078/PR-079, di berkas yang sama.
+// Endpoint lamaran — jalur ADMIN (PR-077a server; dikonsumsi PR-077b) dan
+// melamar (PR-075 server; dikonsumsi PR-078). "Lamaran Saya" menyusul bersama
+// layarnya di PR-079, di berkas yang sama.
 //
 // `revealDisclosureAdmin` SENGAJA TIDAK PUNYA query key. Salinan data
 // disabilitas tidak boleh tinggal di cache TanStack: setiap pembukaan harus
@@ -9,12 +9,16 @@
 import {
   adminApplicationDetailResponseSchema,
   adminApplicationListResponseSchema,
+  applicationResponseSchema,
+  applyJobSchema,
   disclosureSnapshotResponseSchema,
   revealDisclosureSchema,
   updateApplicationStatusSchema,
   type AdminApplicationDetail,
   type AdminApplicationListResponse,
+  type Application,
   type ApplicationStatus,
+  type ApplyJob,
   type DisclosureSnapshot,
 } from "@nawasena/schemas";
 import type { z } from "zod";
@@ -30,6 +34,30 @@ export const applicationsKeys = {
     queryKey("admin-applications", { jobId: filter.jobId, status: filter.status }),
   adminDetail: (id: string) => queryKey("admin-application", { id }),
 };
+
+/**
+ * POST /api/v1/jobs/:id/apply — melamar dengan keputusan pengungkapan eksplisit.
+ *
+ * `idempotencyKey` disediakan PEMANGGIL, bukan dibangkitkan di sini: kunci yang
+ * lahir di dalam fungsi ini akan berbeda pada setiap panggilan, sehingga klik
+ * ganda atau percobaan ulang sesudah koneksi putus menjadi dua permintaan
+ * berbeda — persis yang hendak dicegah. Pemanggil memegang SATU kunci per
+ * percobaan melamar dan mengirimnya ulang apa adanya.
+ */
+export async function applyJob(
+  client: ApiClient,
+  jobId: string,
+  input: ApplyJob,
+  idempotencyKey: string,
+): Promise<Application> {
+  const res = await client.request(`/jobs/${encodeURIComponent(jobId)}/apply`, {
+    method: "POST",
+    body: applyJobSchema.parse(input),
+    headers: { "Idempotency-Key": idempotencyKey },
+    responseSchema: applicationResponseSchema,
+  });
+  return res.data;
+}
 
 export interface OpsiDaftarLamaranAdmin {
   jobId?: string;

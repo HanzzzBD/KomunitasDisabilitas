@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applicationsKeys,
+  applyJob,
   createApiClient,
   getApplicationAdmin,
   listApplicationsAdmin,
@@ -122,5 +123,54 @@ describe("revealDisclosureAdmin", () => {
     const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: salinan }));
     expect(await revealDisclosureAdmin(klien(fetch), ID, "tiket #1")).toEqual(salinan);
     expect(Object.keys(applicationsKeys)).toEqual(["adminList", "adminDetail"]);
+  });
+});
+
+describe("applyJob (PR-078)", () => {
+  const LAMARAN_BARU = {
+    id: ID,
+    jobId: JOB,
+    resumeId: ID,
+    discloseDisability: false,
+    status: "submitted",
+    appliedAt: "2026-10-02T03:00:00.000Z",
+  };
+
+  it("POST ke lowongan dengan Idempotency-Key dari pemanggil + pilihan pengungkapan eksplisit", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(201, { data: LAMARAN_BARU }));
+    const hasil = await applyJob(
+      klien(fetch),
+      JOB,
+      { resumeId: ID, discloseDisability: false },
+      "kunci-uji-12345678",
+    );
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://x/api/v1/jobs/${JOB}/apply`);
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("kunci-uji-12345678");
+    expect(JSON.parse(String(init.body))).toEqual({ resumeId: ID, discloseDisability: false });
+    expect(hasil.id).toBe(ID);
+  });
+
+  it("header tambahan tidak bisa menimpa authorization/accept", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(201, { data: LAMARAN_BARU }));
+    const c = createApiClient({
+      baseUrl: "https://x/api/v1",
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      getAccessToken: () => "token-asli",
+    });
+    await c.request("/x", { headers: { authorization: "palsu", accept: "text/html" } });
+    const headers = (fetch.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers.authorization).toBe("Bearer token-asli");
+    expect(headers.accept).toBe("application/json");
+  });
+
+  it("pilihan pengungkapan yang tidak dinyatakan ditolak SEBELUM berangkat", async () => {
+    const fetch = vi.fn();
+    await expect(
+      applyJob(klien(fetch), JOB, { resumeId: ID } as never, "kunci-uji-12345678"),
+    ).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

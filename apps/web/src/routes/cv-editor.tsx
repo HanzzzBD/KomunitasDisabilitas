@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { getResume, resumesKeys } from "@nawasena/api-client";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useKlienApi } from "../app/klien-api.js";
@@ -7,6 +7,7 @@ import { EditorResume, KontrolPdf, pesanGalatResume } from "../features/resume/i
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
+import { bacaTujuanOpsional } from "../shared/rute/tujuan.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 
 export function CvEditor() {
@@ -23,6 +24,8 @@ function IsiCvEditor() {
   const queryClient = useQueryClient();
   const sub = idPenggunaSaatIni();
   const id = useParams().id ?? "";
+  // PR-078: CV dibuat dari dialog lamar → jalan pulang ke lowongan yang sama.
+  const tujuan = bacaTujuanOpsional(useLocation().search);
   useJudulHalaman(t("resume.editor.judul"));
 
   const resume = useQuery({
@@ -33,6 +36,14 @@ function IsiCvEditor() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
+      {tujuan !== null && (
+        <Link
+          to={tujuan}
+          className="inline-flex min-h-sentuh items-center justify-center self-start rounded bg-gray-900 px-4 text-base font-semibold text-white"
+        >
+          {t("resume.kembaliMelamar")}
+        </Link>
+      )}
       <Link
         to="/cv"
         className="inline-flex min-h-sentuh items-center self-start rounded text-base font-semibold text-gray-900 underline"

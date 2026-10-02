@@ -7,7 +7,9 @@
 import { describe, expect, it } from "vitest";
 import {
   bacaTujuan,
+  bacaTujuanOpsional,
   bersihkanTujuan,
+  denganTujuan,
   rangkaiTujuan,
   tautanMasuk,
 } from "../src/shared/rute/tujuan.js";
@@ -80,5 +82,24 @@ describe("merangkai dan membaca kembali", () => {
 
   it("tanpa parameter sama sekali → /", () => {
     expect(bacaTujuan("")).toBe("/");
+  });
+});
+
+describe("tujuan yang dibawa melewati halaman lain (PR-078)", () => {
+  it("dibaca bila internal, null bila tidak ada / ke luar situs / hanya beranda", () => {
+    const lamar = "/lowongan/abc?lamar=1";
+    expect(bacaTujuanOpsional(`?tujuan=${encodeURIComponent(lamar)}`)).toBe(lamar);
+    expect(bacaTujuanOpsional("")).toBeNull();
+    expect(bacaTujuanOpsional("?tujuan=https%3A%2F%2Fjahat.example")).toBeNull();
+    expect(bacaTujuanOpsional("?tujuan=%2F%2Fjahat.example")).toBeNull();
+    expect(bacaTujuanOpsional("?tujuan=%2F")).toBeNull();
+  });
+
+  it("denganTujuan merangkai ulang dan bolak-balik dengan bacaTujuanOpsional", () => {
+    const lamar = "/lowongan/abc?lamar=1";
+    expect(denganTujuan("/cv", null)).toBe("/cv");
+    const jalur = denganTujuan("/cv/123", lamar);
+    expect(bacaTujuanOpsional(jalur.slice(jalur.indexOf("?")))).toBe(lamar);
+    expect(denganTujuan("/cv?a=1", lamar)).toMatch(/^\/cv\?a=1&tujuan=/);
   });
 });

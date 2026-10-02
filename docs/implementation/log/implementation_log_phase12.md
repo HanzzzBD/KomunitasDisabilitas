@@ -369,3 +369,108 @@ dialog beralasan. Seluruh keputusan owner PR-077 (2026-10-02) diterapkan di laya
 
 1. PR-078 — dialog disclosure + apply di web.
 2. PR-079 — tracking pelamar + aktifkan tautan notifikasi pelamar.
+
+---
+
+## PR-078 — Apply FE — Disclosure Dialog + One-Tap
+
+> **Phase:** [12 - Applications](../phase-12-applications.md#pr-078---apply-fe--disclosure-dialog--one-tap)
+> **Tanggal:** 2026-10-02
+> **Status:** Selesai
+> **Branch:** `pr-078-apply-disclosure-dialog` → `phase-12-applications`
+
+### Ringkasan hasil
+
+Slot "Cara melamar" di detail lowongan (kosong sejak PR-059) kini hidup: tombol "Lamar lowongan
+ini" membuka dialog modal berisi pilihan CV dan keputusan pengungkapan data disabilitas, lalu
+`POST /jobs/:id/apply` (PR-075) dengan `Idempotency-Key`. Pengunjung yang belum masuk mendapat
+tautan masuk yang kembali ke dialog; pengguna tanpa CV mendapat dua pintu pembuatan CV yang
+membawa jalan pulang ke dialog yang sama.
+
+### Keputusan owner (AskUserQuestion, 2026-10-02)
+
+1. **Dialog modal** di halaman lowongan (bukan halaman `/lowongan/:id/lamar`).
+2. **Pilihan pengungkapan mulai kosong** — dua radio setara, tidak ada yang terpilih; kirim
+   tanpa memilih = galat. Memenuhi "default TIDAK diungkap" tanpa pilihan yang dibuatkan sistem:
+   ketiadaan pilihan tidak pernah berangkat sebagai `false`.
+3. **Pratinjau + "Ya" nonaktif bila kosong** — dialog membaca profil pemilik (`GET /me/profile`)
+   dan menampilkan persis yang akan disalin; tanpa consent/data, "Ya" nonaktif BESERTA alasannya
+   dan tautan ke Profil.
+4. **Tanpa CV → kembali otomatis** — `/cv/chat?tujuan=…` dan "Buat CV dari profil saya" (langsung
+   dari dialog) membawa `/lowongan/:id?lamar=1`; editor CV menampilkan "Kembali melamar lowongan".
+5. **NVDA dijalankan sekarang** (bukan dicatat sebagai utang) — lihat Verifikasi.
+
+### Scope selesai
+
+**`@nawasena/api-client`** — `applyJob(client, jobId, input, idempotencyKey)` (badan divalidasi
+`applyJobSchema` sebelum berangkat; kunci disediakan PEMANGGIL supaya percobaan ulang memakai
+kunci yang sama); `RequestOptions.headers` (aditif; tidak bisa menimpa `authorization`/`accept`).
+
+**`@nawasena/ui`** — `Dialog.fokusSaatTutup?: () => boolean`, diteruskan ke `onCloseAutoFocus`
+Radix. Dibutuhkan karena pemicu dialog lamar LENYAP sesudah melamar; memindah fokus lewat
+`requestAnimationFrame` dari luar berlomba dengan pengembalian fokus Radix dan sesekali kalah
+(e2e sempat gagal sekali di suite penuh sebelum perbaikan; `--repeat-each=8` 24/24 sesudahnya).
+
+**Web**
+
+* `features/applications/` (folder yang direncanakan SDD §4.1):
+  * `keadaan-lamar.ts` — fungsi murni: `ISIAN_AWAL` (pengungkapan `null`), `periksaIsian`,
+    `dataUntukDiungkap` (aturan sama dengan `buatSnapshot` server), `cvBawaan` (paling baru
+    disunting), `kunciIdempotensiBaru` (`crypto.randomUUID`, satu per pembukaan dialog).
+  * `dialog-lamar.tsx` — dialog; kedua pilihan dirender komponen `OpsiUngkap` yang SAMA (jaminan
+    struktural "setara secara visual"); nama radio = label, konsekuensi = deskripsi; klik ganda
+    ditahan `aria-disabled` + kunci idempotensi yang sama; `SUDAH_MELAMAR` dibaca sebagai hasil.
+  * `bagian-lamar.tsx` — empat keadaan (memulihkan sesi / belum masuk / masuk / sesudah melamar);
+    `?lamar=1` membuka dialog lalu DIBUANG (`replace`) supaya muat ulang tidak membukanya lagi.
+  * `pesan-galat.ts` — `DATA_DISABILITAS_KOSONG`, `LOWONGAN_TIDAK_DITEMUKAN`,
+    `CV_TIDAK_DITEMUKAN`, `LAMARAN_SEDANG_DIPROSES` (id-simple).
+* `shared/rute/tujuan.ts` — `bacaTujuanOpsional` + `denganTujuan` (lewat `bersihkanTujuan`; tujuan
+  ke luar situs tetap ditolak).
+* `routes/cv-chat.tsx`, `routes/cv-editor.tsx` — meneruskan/menampilkan jalan pulang.
+* `features/job-feed/detail-lowongan.tsx` — slot diganti `BagianLamar`;
+  `companies-publik/akomodasi-daftar.tsx` mengekspor `KUNCI_AKOMODASI` (label pratinjau).
+* Katalog: 50 entri `lowongan.lamar.*` + `resume.kembaliMelamar`, semuanya id ≠ id-simple;
+  `lowongan.detail.melamar.penjelasan` (teks "segera tersedia") dihapus.
+
+### Acceptance Criteria
+
+| AC | Bukti |
+|---|---|
+| Default = TIDAK diungkap; tidak ada pre-checked | unit `lamar-keadaan.test.ts` (`ISIAN_AWAL`, `periksaIsian` tanpa pilihan → galat); jsdom: kedua radio `not.toBeChecked`, kirim → galat + 0 permintaan; e2e + NVDA: "not checked" |
+| Konsekuensi Ya/Tidak dijelaskan id + id-simple | katalog (kelengkapan hijau); jsdom `toHaveAccessibleDescription`; NVDA membacakan sebagai deskripsi |
+| Tanpa CV → buat CV lalu kembali | e2e: dialog tanpa CV → "Buat CV dari profil saya" → `/cv/:id?tujuan=` → "Kembali melamar lowongan" → dialog terbuka lagi dengan CV baru terpilih; jsdom: href `/cv/chat?tujuan=…` |
+| Klik ganda tidak melamar dua kali | jsdom: klik + dblclick saat mengirim → 1 permintaan; percobaan ulang sesudah galat jaringan memakai `Idempotency-Key` yang SAMA; server menjamin sisanya (PR-075) |
+| Dialog lolos NVDA checklist + keyboard-only | e2e seluruhnya keyboard; axe 0 pelanggaran di 5 keadaan; NVDA: [checklist](pr-078-nvda-checklist.md) |
+
+### Verifikasi
+
+* jsdom `lamar.test.tsx` 10/10, unit `lamar-keadaan.test.ts` 14/14, `tujuan.test.ts` 20/20,
+  `ui/dialog.test.tsx` 21/21, api-client `applications.test.ts` (+3).
+* Playwright sesudah `build`: `lamar.spec.ts` 3/3, diulang `--repeat-each=8` → 24/24; suite a11y
+  penuh 130 lulus + 1 gagal yang ternyata balapan fokus di atas (diperbaiki, lalu stabil).
+* `cek:budget`: JS awal 108,4 KB — tidak berubah (fitur lamar ada di chunk lowongan).
+* Suite `turbo run lint typecheck test --concurrency=1`: **27/27 task**. Docker mati di mesin ini,
+  jadi test DB API terlewat; PR ini tidak menyentuh API.
+* **NVDA** (`verifikasi/lamar-nvda.verifikasi.ts`, 3 run sah — semua langkah jendela uji di
+  depan). Run 1 menemukan konsekuensi dibacakan DUA kali (masuk nama dan deskripsi) → diperbaiki
+  dengan `aria-labelledby`, dijaga `toHaveAccessibleName`. Temuan minor diterima: NVDA sempat
+  membacakan tautan navigasi sebelum judul hasil; fokus akhir benar dan `flushSync` tidak
+  mengubahnya (kursor mode jelajah NVDA, bukan celah fokus).
+
+### Risiko & catatan
+
+* "Sudah melamar" baru diketahui SAAT mencoba (409 → layar hasil "Anda sudah melamar"), belum
+  ditampilkan sebelum dialog dibuka. Butuh daftar lamaran pelamar di halaman lowongan — wajar
+  dibawa PR-079 ("Lamaran Saya") bila diinginkan.
+* Layar hasil menautkan ke Notifikasi, bukan "Lamaran Saya" — halamannya belum ada (PR-079).
+* Data profil sensitif (milik pengguna sendiri) masuk cache TanStack lewat `profilesKeys.me` —
+  sama dengan halaman Profil sejak PR-040; tidak ada pembacaan pihak lain.
+* Risks PR-078 ("user tidak paham konsekuensi") tetap butuh uji copy dengan penguji disabilitas.
+* Diff kode non-test ±900 baris (±210 di antaranya katalog teks id + id-simple, sisanya banyak
+  komentar) — di atas pedoman 500 LOC. Tidak dipecah: dialog, bagian lamar, dan jalan pulang CV
+  baru bermakna bersama (AC "tanpa CV → kembali" menuntut ketiganya).
+
+### Next steps
+
+1. PR-079 — "Lamaran Saya" (timeline, withdraw, confirm-hired) + aktifkan tautan notifikasi
+   pelamar; pertimbangkan menandai lowongan yang sudah dilamar di detail lowongan.

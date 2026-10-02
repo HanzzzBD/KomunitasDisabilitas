@@ -73,7 +73,7 @@ Bisnis: USP Disclosure Control — user memutuskan per lamaran apakah data disab
 
 * [x] Unit Test (service)
 * [x] Integration Test (idempoten + race + snapshot)
-* [ ] E2E Test (via PR-078)
+* [x] E2E Test (via PR-078 — `e2e/lamar.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
 * [x] Manual Verification (inspeksi DB dua mode disclose — SQL mentah di `applications-db.test.ts`)
 
@@ -279,6 +279,7 @@ Bisnis: momen paling sensitif produk — keputusan pengungkapan harus dipahami d
 **Frontend Changes:**
 
 * Feature applications/apply.
+* **Realisasi:** `features/applications/` (dialog + bagian lamar); `?tujuan=` dibawa melewati `/cv/chat` dan `/cv/:id` supaya pembuat CV kembali ke dialog; `Dialog` (`@nawasena/ui`) mendapat `fokusSaatTutup`; `RequestOptions.headers` di api-client.
 
 **Database Changes:**
 
@@ -294,10 +295,10 @@ Bisnis: momen paling sensitif produk — keputusan pengungkapan harus dipahami d
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state dialog)
+* [x] Unit Test (state dialog)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (apply kedua mode disclose)
-* [ ] Accessibility Test (axe + NVDA dialog manual)
+* [x] E2E Test (apply kedua mode disclose)
+* [x] Accessibility Test (axe + NVDA dialog manual)
 * [ ] Manual Verification (persona Tuli/Netra simulasi)
 
 **Deliverables:**
@@ -314,11 +315,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Default = TIDAK diungkap; tidak ada pre-checked.
-* [ ] Konsekuensi Ya/Tidak dijelaskan id + id-simple.
-* [ ] Tanpa CV → diarahkan membuat CV (manual/AI) lalu kembali.
-* [ ] Klik ganda tidak melamar dua kali.
-* [ ] Dialog lolos NVDA checklist + keyboard-only.
+* [x] Default = TIDAK diungkap; tidak ada pre-checked.
+* [x] Konsekuensi Ya/Tidak dijelaskan id + id-simple.
+* [x] Tanpa CV → diarahkan membuat CV (manual/AI) lalu kembali.
+* [x] Klik ganda tidak melamar dua kali.
+* [x] Dialog lolos NVDA checklist + keyboard-only.
 
 #### Dependencies
 

@@ -33,6 +33,11 @@ export const katalogResume = {
       "Ubah dan simpan satu bagian setiap kali. Bagian lain tetap aman bila ada masalah.",
   },
   "resume.editor.kembali": { id: "Kembali ke daftar CV", "id-simple": "Kembali ke semua CV" },
+  // PR-078 — CV dibuat dari dialog lamar; tautan ini membuka dialognya lagi.
+  "resume.kembaliMelamar": {
+    id: "Kembali melamar lowongan",
+    "id-simple": "Kembali dan lamar",
+  },
   "resume.pdf.status.memeriksa": { id: "Memeriksa PDF...", "id-simple": "Sedang memeriksa PDF..." },
   "resume.pdf.bagian": { id: "PDF CV", "id-simple": "Unduh CV sebagai PDF" },
   "resume.pdf.status.idle": { id: "PDF belum dibuat.", "id-simple": "PDF belum siap." },

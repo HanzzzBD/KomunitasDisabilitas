@@ -3,7 +3,8 @@
 //
 // STRUKTUR HEADING (AC "H1 jabatan…"): h1 judul lowongan → h2 per bagian
 // (ringkasan, deskripsi, persyaratan, akomodasi, terbuka untuk, tentang
-// perusahaan, cara melamar) → h3 nama perusahaan → h4 akomodasi perusahaan.
+// perusahaan, cara melamar) → h3 nama perusahaan / hasil lamaran → h4
+// akomodasi perusahaan.
 // Tidak ada tingkat yang dilompati.
 //
 // ANTI-XSS (Security Considerations): deskripsi dan persyaratan hasil kurasi
@@ -29,6 +30,7 @@ import {
 import type { CompanyPublic, JobPublic } from "@nawasena/schemas";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useJudulHalaman } from "../../shared/judul-halaman.js";
+import { BagianLamar } from "../applications/bagian-lamar.js";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { DaftarAkomodasi } from "../companies-publik/akomodasi-daftar.js";
 import { StatusBadgePublik } from "../companies-publik/status-badge.js";
@@ -114,6 +116,7 @@ export function DetailLowongan({ klien, jobId }: DetailLowonganProps) {
     <WilayahMemuat memuat={lowongan.isPending} label={t("lowongan.memuat")}>
       {lowongan.data !== undefined && (
         <IsiDetail
+          klien={klien}
           lowongan={lowongan.data}
           perusahaan={perusahaan.data}
           perusahaanMemuat={perusahaan.isPending}
@@ -134,6 +137,7 @@ function Baris({ label, children }: { label: string; children: ReactNode }) {
 }
 
 interface IsiDetailProps {
+  klien: ApiClient;
   lowongan: JobPublic;
   perusahaan: CompanyPublic | undefined;
   perusahaanMemuat: boolean;
@@ -143,7 +147,13 @@ interface IsiDetailProps {
 const KELAS_H2 = "text-2xl font-semibold text-gray-900";
 const KELAS_TEKS = "text-base text-gray-900";
 
-function IsiDetail({ lowongan, perusahaan, perusahaanMemuat, perusahaanGagal }: IsiDetailProps) {
+function IsiDetail({
+  klien,
+  lowongan,
+  perusahaan,
+  perusahaanMemuat,
+  perusahaanGagal,
+}: IsiDetailProps) {
   const t = useTeks();
   const lokasi = [lowongan.city, lowongan.province].filter((v): v is string => v !== null);
   const gaji = kalimatGaji(t, lowongan.salaryMin, lowongan.salaryMax);
@@ -267,7 +277,8 @@ function IsiDetail({ lowongan, perusahaan, perusahaanMemuat, perusahaanGagal }: 
         <h2 id="lowongan-detail-melamar" className={KELAS_H2}>
           {t("lowongan.detail.melamar.judul")}
         </h2>
-        <p className={KELAS_TEKS}>{t("lowongan.detail.melamar.penjelasan")}</p>
+        {/* PR-078 — menggantikan slot kosong PR-059. */}
+        <BagianLamar klien={klien} jobId={lowongan.id} judulLowongan={lowongan.title} />
       </section>
     </article>
   );

@@ -11,7 +11,8 @@
 import type { AccommodationNeed } from "@nawasena/schemas";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 
-const KUNCI_AKOMODASI: Readonly<Record<AccommodationNeed, KunciTeks>> = {
+/** Dipakai juga pratinjau pengungkapan di dialog lamar (PR-078). */
+export const KUNCI_AKOMODASI: Readonly<Record<AccommodationNeed, KunciTeks>> = {
   akses_kursi_roda: "profil.akomodasi.akses_kursi_roda",
   ramah_screen_reader: "profil.akomodasi.ramah_screen_reader",
   wawancara_via_teks: "profil.akomodasi.wawancara_via_teks",

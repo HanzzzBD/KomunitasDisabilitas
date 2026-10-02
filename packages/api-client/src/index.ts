@@ -109,6 +109,7 @@ export {
 } from "./session.js";
 export {
   applicationsKeys,
+  applyJob,
   getApplicationAdmin,
   listApplicationsAdmin,
   revealDisclosureAdmin,
