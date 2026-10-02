@@ -9,6 +9,16 @@
 // Yang dibaca verifikasi adalah log itu — apa yang BENAR-BENAR akan diucapkan
 // NVDA, bukan apa yang kita kira ada di pohon aksesibilitas.
 //
+// NOTIFIKASI WINDOWS TIDAK DIUCAPKAN (2026-10-02). Run PR-079 merekam toast
+// WhatsApp pribadi owner walau jendela uji di depan: penjaga "jendela di depan"
+// tidak berlaku untuk toast, sebab NVDA mengucapkannya dari jendela mana pun.
+// Dua lapis, supaya privasi tidak bergantung pada orang yang ingat menyalakan
+// Do Not Disturb:
+//   1. `[presentation] reportHelpBalloons = False` — setelan NVDA "Report
+//      notifications" dimatikan di konfigurasi SEMENTARA ini;
+//   2. `ucapan()` membuang ucapan berpola notifikasi (`adalahUcapanNotifikasi`)
+//      bila lapis pertama suatu saat tidak berlaku (versi NVDA lain, add-on).
+//
 // HANYA WINDOWS, dan tidak dijalankan CI (tidak ada NVDA di runner Linux).
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -33,8 +43,20 @@ const INI = [
   "\tloggingLevel = IO",
   "[speech]",
   "\tsynth = silence",
+  // GUI NVDA: Object Presentation → "Report notifications". Lihat kepala berkas.
+  "[presentation]",
+  "\treportHelpBalloons = False",
   "",
 ].join("\r\n");
+
+/**
+ * Ucapan NVDA untuk notifikasi/toast Windows, mis. `New notification from
+ * WhatsApp, …`. Dibuang dari `ucapan()`: isi notifikasi milik pemakai komputer
+ * tidak boleh masuk laporan verifikasi.
+ */
+export function adalahUcapanNotifikasi(ucapan: string): boolean {
+  return /\bnew notification from\b|\bnotification from\b|\bunread messages?\b/i.test(ucapan);
+}
 
 export interface SesiNvda {
   berkasLog: string;
@@ -89,7 +111,9 @@ export async function nyalakanNvda(): Promise<SesiNvda> {
       if (!existsSync(berkasLog)) return [];
       const isi = readFileSync(berkasLog, "utf8");
       // Format log NVDA: "IO - speech.speech.speak (...):\nSpeaking [...]".
-      return [...isi.matchAll(/^Speaking (\[.*\])$/gm)].map((m) => m[1] ?? "");
+      return [...isi.matchAll(/^Speaking (\[.*\])$/gm)]
+        .map((m) => m[1] ?? "")
+        .filter((u) => !adalahUcapanNotifikasi(u));
     },
   };
 }
