@@ -303,3 +303,69 @@ tinggal status, event, dan entri riwayat (yang dibaca pelanggan event). Bundel a
 
 1. PR-077b — halaman `/admin/lamaran` (tabel + filter + "Muat lebih banyak"), detail dengan aksi
    status (alasan) dan dialog "Tampilkan data yang diungkap"; E2E admin ubah → notif pelamar.
+
+---
+
+## PR-077b — Admin Applications Management (halaman web)
+
+> **Phase:** [12 - Applications](../phase-12-applications.md#pr-077---admin-applications-management)
+> **Tanggal:** 2026-10-02
+> **Status:** Selesai — PR-077 lengkap (077a API + 077b web)
+> **Branch:** `pr-077b-admin-applications-web` → `phase-12-applications`
+
+### Ringkasan hasil
+
+Bagian "Lamaran" di area admin: daftar ber-saringan (status + lowongan, di server) dengan tombol
+"Muat lebih banyak", dan detail berisi ringkasan, kontak, CV terlampir, riwayat status (ordered
+list), formulir ubah status beralasan, serta data yang diungkap — tersembunyi sampai dibuka lewat
+dialog beralasan. Seluruh keputusan owner PR-077 (2026-10-02) diterapkan di layar.
+
+### Scope selesai
+
+* **`@nawasena/schemas`** — mesin status dipindah dari API ke `applications-api.ts`
+  (`bolehPindahStatus`, `tujuanStatusSah`, `ALUR_STATUS_LAMARAN`, `STATUS_LAMARAN_AKHIR`).
+  Web menawarkan HANYA tujuan yang sah; server tetap menegakkan. `status-machine.ts` di API kini
+  re-export bernama lama (test PR-076 tidak berubah).
+* **`@nawasena/api-client`** — `listApplicationsAdmin` (query `job_id`/`status`/cursor),
+  `getApplicationAdmin`, `updateApplicationStatusAdmin`, `revealDisclosureAdmin`, `applicationsKeys`.
+  Pembukaan data **tanpa query key**: salinan tidak pernah masuk cache TanStack.
+* **Web** — `features/admin/lamaran-{daftar,detail,status-badge,pesan-galat}`,
+  `routes/admin-lamaran{,-detail}.tsx`, route `/admin/lamaran` + `/admin/lamaran/:id`
+  (detail memuat katalog `profil` + `onboarding` untuk label akomodasi/ragam), entri navigasi +
+  kartu ringkasan admin, ±100 entri katalog `admin.lamaran.*` (id + id-simple; 13 entri identik
+  didaftarkan beserta alasannya).
+* Data yang dibuka disimpan di state komponen saja; "Sembunyikan lagi" membuangnya; membuka lagi
+  = jejak audit baru. Fokus pindah ke judul data yang tampil (dialog menutup).
+* Konflik CAS (409) diterjemahkan menjadi ajakan memuat ulang; daftar di-invalidasi sesudah ubah.
+
+### Acceptance Criteria (PR-077 utuh)
+
+| AC | Bukti |
+|---|---|
+| Update status → user menerima notifikasi (E2E) | web: `admin-lamaran.spec.ts` — PUT berangkat dengan alasan, status & riwayat diperbarui; notifikasinya: `applications-admin-db.test.ts` (077a) |
+| disclose=false → admin tidak melihat data akomodasi | 077a (kontrak) + web: tanpa tombol "Tampilkan", pesan menghormati pilihan pelamar |
+| Audit memuat actor + alasan | 077a; web: alasan wajib sebelum PUT/POST berangkat (jsdom + e2e) |
+| Filter per lowongan/status | saringan dikirim ke server sebagai query (jsdom) |
+| Bulk view (pagination) | "Muat lebih banyak" + cursor, jumlah diumumkan `role="status"` |
+| Accessibility (tabel + aksi keyboard) | axe 0 pelanggaran: daftar, detail, dialog terbuka, data terbuka, sesudah ubah status — alur e2e KEYBOARD-ONLY |
+
+### Verifikasi
+
+* jsdom `admin-lamaran.test.tsx` 7/7; api-client `applications.test.ts`; katalog + registry hijau.
+* Playwright (sesudah `build`): `admin-lamaran.spec.ts` 2/2 + registry a11y daftar & detail.
+* `cek:budget`: JS awal 108,4 KB (halaman lamaran lazy).
+* Suite penuh `--concurrency=1`: 26/27 → satu tes lama menghitung navigasi admin tiga entri
+  (kini empat: + Lamaran), diperbarui lalu lulus. Docker mati saat dijalankan lokal, jadi test DB
+  API terlewat di mesin ini; perubahan API PR ini hanya re-export mesin status — CI menjalankannya.
+
+### Risiko & catatan
+
+* Persona testing NVDA untuk dialog/riwayat belum dijalankan manual (harness NVDA butuh desktop
+  bebas — memori U-30); axe + keyboard-only sudah.
+* Tiga kabar admin (`admin.lamaran_baru`, `…_dibatalkan`, `…penempatan_terkonfirmasi`) kini
+  bertautan ke `/admin/lamaran/:id` (`tautan.ts`). Tautan tipe PELAMAR tetap `null` sampai PR-079.
+
+### Next steps
+
+1. PR-078 — dialog disclosure + apply di web.
+2. PR-079 — tracking pelamar + aktifkan tautan notifikasi pelamar.

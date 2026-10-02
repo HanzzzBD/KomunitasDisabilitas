@@ -356,6 +356,30 @@ export const ruteApp: RouteObject[] = [
               return { Component: AdminJobsFormulir };
             },
           },
+          {
+            // Operasional lamaran (PR-077b). Daftar & detail bersaudara, pola
+            // sama "jobs". Detail punya endpoint sendiri (bukan cari di daftar).
+            path: "lamaran",
+            lazy: async () => {
+              const [{ AdminLamaranDaftar }] = await Promise.all([
+                import("../routes/admin-lamaran.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminLamaranDaftar };
+            },
+          },
+          {
+            path: "lamaran/:id",
+            lazy: async () => {
+              const [{ AdminLamaranDetail }] = await Promise.all([
+                import("../routes/admin-lamaran-detail.js"),
+                // `profil` + `onboarding`: label akomodasi & ragam disabilitas
+                // pada data yang diungkap — dipinjam seperti `jobs-formulir.tsx`.
+                muatKatalog("admin", "profil", "onboarding"),
+              ]);
+              return { Component: AdminLamaranDetail };
+            },
+          },
         ],
       },
       {

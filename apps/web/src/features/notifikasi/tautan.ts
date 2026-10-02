@@ -49,10 +49,9 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU:
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN:
     case NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI:
-      // PR-075 — menunggu halaman lamaran admin (PR-077). Alasan `null` sama
-      // dengan dua tipe lamaran di atas: tautan ke halaman yang belum ada
-      // mengubah "belum bisa" menjadi "rusak".
-      return null;
+      // PR-077b — halaman detail lamaran admin sudah ada. Ketiga kabar admin
+      // menunjuk lamaran yang perlu ditindaklanjuti; ke sanalah mereka mengantar.
+      return `/admin/lamaran/${String(notifikasi.params.applicationId)}`;
     case NOTIFICATION_TYPE.RESUME_PDF_SIAP:
       return `/cv/${String(notifikasi.params.resumeId)}`;
     case NOTIFICATION_TYPE.RESUME_DRAFT_AI_SIAP:

@@ -589,4 +589,384 @@ export const katalogAdmin = {
     id: "{judul} sudah ditutup.",
     "id-simple": "{judul} sudah ditutup. Orang tidak bisa melamar lagi ke lowongan ini.",
   },
+  // --- Lamaran (PR-077b) ---
+  "admin.nav.lamaran": {
+    id: "Lamaran",
+    "id-simple": "Lamaran",
+  },
+  "admin.ringkasan.lamaran.judul": {
+    id: "Lamaran",
+    "id-simple": "Lamaran",
+  },
+  "admin.ringkasan.lamaran.penjelasan": {
+    id: "Teruskan lamaran ke perusahaan partner dan perbarui statusnya.",
+    "id-simple": "Kirim lamaran ke perusahaan. Lalu ubah statusnya.",
+  },
+  "admin.ringkasan.lamaran.tautan": {
+    id: "Kelola lamaran",
+    "id-simple": "Buka daftar lamaran",
+  },
+  "admin.lamaran.judul": {
+    id: "Lamaran",
+    "id-simple": "Lamaran",
+  },
+  "admin.lamaran.penjelasan": {
+    id: "Teruskan lamaran ke perusahaan partner, lalu perbarui statusnya sesuai kabar dari perusahaan.",
+    "id-simple": "Kirim lamaran ke perusahaan. Lalu ubah statusnya sesuai kabar dari perusahaan.",
+  },
+  "admin.lamaran.filterStatus.label": {
+    id: "Saring menurut status",
+    "id-simple": "Pilih status",
+  },
+  "admin.lamaran.filterStatus.semua": {
+    id: "Semua status",
+    "id-simple": "Semua",
+  },
+  "admin.lamaran.filterLowongan.label": {
+    id: "Saring menurut lowongan",
+    "id-simple": "Pilih lowongan",
+  },
+  "admin.lamaran.filterLowongan.semua": {
+    id: "Semua lowongan",
+    "id-simple": "Semua",
+  },
+  "admin.lamaran.tabelJudul": {
+    id: "Daftar lamaran",
+    "id-simple": "Lamaran yang masuk",
+  },
+  "admin.lamaran.kolom.pelamar": {
+    id: "Pelamar",
+    "id-simple": "Pelamar",
+  },
+  "admin.lamaran.kolom.lowongan": {
+    id: "Lowongan",
+    "id-simple": "Lowongan",
+  },
+  "admin.lamaran.kolom.status": {
+    id: "Status",
+    "id-simple": "Status",
+  },
+  "admin.lamaran.kolom.diungkap": {
+    id: "Data disabilitas",
+    "id-simple": "Data disabilitas dikirim?",
+  },
+  "admin.lamaran.kolom.tanggal": {
+    id: "Tanggal melamar",
+    "id-simple": "Kapan melamar",
+  },
+  "admin.lamaran.kolom.aksi": {
+    id: "Aksi",
+    "id-simple": "Aksi",
+  },
+  "admin.lamaran.diungkap.ya": {
+    id: "Diungkap",
+    "id-simple": "Dikirim pelamar",
+  },
+  "admin.lamaran.diungkap.tidak": {
+    id: "Tidak diungkap",
+    "id-simple": "Tidak dikirim",
+  },
+  "admin.lamaran.akunDihapus": {
+    id: "Akun sudah dihapus",
+    "id-simple": "Akunnya sudah dihapus",
+  },
+  "admin.lamaran.lowonganTakDikenal": {
+    id: "Lowongan tidak dikenal",
+    "id-simple": "Lowongan tidak ditemukan",
+  },
+  "admin.lamaran.lihat": {
+    id: "Lihat",
+    "id-simple": "Buka",
+  },
+  "admin.lamaran.lihatLabel": {
+    id: "Lihat lamaran {nama}",
+    "id-simple": "Buka lamaran {nama}",
+  },
+  "admin.lamaran.muatLagi": {
+    id: "Muat lebih banyak",
+    "id-simple": "Tampilkan lagi",
+  },
+  "admin.lamaran.memuatLagi": {
+    id: "Memuat lamaran berikutnya…",
+    "id-simple": "Sebentar, lamaran lain sedang dimuat…",
+  },
+  "admin.lamaran.memuat": {
+    id: "Memuat daftar lamaran…",
+    "id-simple": "Sebentar, daftar lamaran sedang dimuat…",
+  },
+  "admin.lamaran.gagalMuat": {
+    id: "Daftar lamaran gagal dimuat.",
+    "id-simple": "Daftar lamaran tidak bisa dibuka.",
+  },
+  "admin.lamaran.cobaLagi": {
+    id: "Coba lagi",
+    "id-simple": "Ulangi",
+  },
+  "admin.lamaran.kosong.judul": {
+    id: "Belum ada lamaran",
+    "id-simple": "Belum ada yang melamar",
+  },
+  "admin.lamaran.kosong.penjelasan": {
+    id: "Lamaran yang cocok dengan saringan akan tampil di sini.",
+    "id-simple": "Kalau ada yang melamar, lamarannya muncul di sini.",
+  },
+  "admin.lamaran.jumlahTampil": {
+    id: "{jumlah} lamaran ditampilkan.",
+    "id-simple": "Ada {jumlah} lamaran di layar.",
+  },
+  "admin.lamaran.status.submitted": {
+    id: "Terkirim",
+    "id-simple": "Sudah dikirim",
+  },
+  "admin.lamaran.status.viewed": {
+    id: "Dilihat perusahaan",
+    "id-simple": "Sudah dilihat perusahaan",
+  },
+  "admin.lamaran.status.in_review": {
+    id: "Sedang ditinjau",
+    "id-simple": "Sedang diperiksa",
+  },
+  "admin.lamaran.status.interview": {
+    id: "Undangan wawancara",
+    "id-simple": "Diundang wawancara",
+  },
+  "admin.lamaran.status.offered": {
+    id: "Penawaran kerja",
+    "id-simple": "Ditawari kerja",
+  },
+  "admin.lamaran.status.hired": {
+    id: "Diterima bekerja",
+    "id-simple": "Diterima kerja",
+  },
+  "admin.lamaran.status.rejected": {
+    id: "Belum berhasil",
+    "id-simple": "Belum berhasil kali ini",
+  },
+  "admin.lamaran.status.withdrawn": {
+    id: "Dibatalkan pelamar",
+    "id-simple": "Dibatalkan oleh pelamar",
+  },
+  "admin.lamaran.galat.tidakDitemukan": {
+    id: "Lamaran ini tidak ditemukan. Mungkin akun pelamarnya sudah dihapus.",
+    "id-simple": "Lamaran ini tidak ada lagi.",
+  },
+  "admin.lamaran.galat.statusBerubah": {
+    id: "Status lamaran ini sudah berubah atau sudah akhir. Muat ulang untuk melihat status terbaru.",
+    "id-simple": "Statusnya sudah berubah. Muat ulang halaman ini.",
+  },
+  "admin.lamaran.detail.kembali": {
+    id: "Kembali ke daftar lamaran",
+    "id-simple": "Kembali ke semua lamaran",
+  },
+  "admin.lamaran.detail.judul": {
+    id: "Lamaran {nama}",
+    "id-simple": "Lamaran dari {nama}",
+  },
+  "admin.lamaran.detail.memuat": {
+    id: "Memuat lamaran…",
+    "id-simple": "Sebentar, lamaran sedang dimuat…",
+  },
+  "admin.lamaran.detail.ringkasanJudul": {
+    id: "Ringkasan lamaran",
+    "id-simple": "Tentang lamaran ini",
+  },
+  "admin.lamaran.detail.statusSekarang": {
+    id: "Status saat ini",
+    "id-simple": "Statusnya sekarang",
+  },
+  "admin.lamaran.detail.lowonganTutup": {
+    id: "Lowongan ini sudah ditutup.",
+    "id-simple": "Lowongan ini sudah tidak dibuka.",
+  },
+  "admin.lamaran.detail.terkonfirmasi": {
+    id: "Pelamar sudah mengonfirmasi diterima bekerja pada {tanggal}.",
+    "id-simple": "Pelamar sudah bilang diterima kerja, tanggal {tanggal}.",
+  },
+  "admin.lamaran.detail.kontakJudul": {
+    id: "Kontak pelamar",
+    "id-simple": "Cara menghubungi pelamar",
+  },
+  "admin.lamaran.detail.nama": {
+    id: "Nama",
+    "id-simple": "Nama",
+  },
+  "admin.lamaran.detail.telepon": {
+    id: "Nomor HP",
+    "id-simple": "Nomor HP",
+  },
+  "admin.lamaran.detail.email": {
+    id: "Email",
+    "id-simple": "Email",
+  },
+  "admin.lamaran.detail.tidakAda": {
+    id: "Tidak ada",
+    "id-simple": "Tidak diisi",
+  },
+  "admin.lamaran.detail.cvJudul": {
+    id: "CV yang dilampirkan",
+    "id-simple": "CV yang dikirim",
+  },
+  "admin.lamaran.detail.cvTanpa": {
+    id: "Lamaran ini tidak melampirkan CV.",
+    "id-simple": "Pelamar tidak mengirim CV.",
+  },
+  "admin.lamaran.detail.cvRingkasan": {
+    id: "Ringkasan",
+    "id-simple": "Tentang pelamar",
+  },
+  "admin.lamaran.detail.cvPengalaman": {
+    id: "Pengalaman kerja",
+    "id-simple": "Pernah bekerja di",
+  },
+  "admin.lamaran.detail.cvPendidikan": {
+    id: "Pendidikan",
+    "id-simple": "Sekolah dan kuliah",
+  },
+  "admin.lamaran.detail.cvKeahlian": {
+    id: "Keahlian",
+    "id-simple": "Kemampuan",
+  },
+  "admin.lamaran.detail.riwayatJudul": {
+    id: "Riwayat status",
+    "id-simple": "Perjalanan lamaran",
+  },
+  "admin.lamaran.detail.riwayatKosong": {
+    id: "Status belum pernah berubah sejak lamaran dikirim.",
+    "id-simple": "Statusnya belum pernah berubah.",
+  },
+  "admin.lamaran.detail.riwayatEntri": {
+    id: "{ke}, sebelumnya {dari}. Diubah {oleh} pada {waktu}.",
+    "id-simple": "{ke}. Sebelumnya {dari}. Diubah {oleh}, {waktu}.",
+  },
+  "admin.lamaran.detail.oleh.admin": {
+    id: "oleh admin",
+    "id-simple": "oleh admin",
+  },
+  "admin.lamaran.detail.oleh.seeker": {
+    id: "oleh pelamar",
+    "id-simple": "oleh pelamar",
+  },
+  "admin.lamaran.ubah.judul": {
+    id: "Ubah status",
+    "id-simple": "Ganti status",
+  },
+  "admin.lamaran.ubah.statusBaru": {
+    id: "Status baru",
+    "id-simple": "Status yang baru",
+  },
+  "admin.lamaran.ubah.pilihStatus": {
+    id: "Pilih status",
+    "id-simple": "Pilih salah satu",
+  },
+  "admin.lamaran.ubah.alasan": {
+    id: "Alasan perubahan",
+    "id-simple": "Kenapa diubah?",
+  },
+  "admin.lamaran.ubah.alasanBantuan": {
+    id: "Wajib, maksimal 200 karakter. Tercatat di jejak audit dan tidak terlihat pelamar. Jangan tulis nama, nomor, atau kondisi seseorang.",
+    "id-simple":
+      "Wajib diisi, paling banyak 200 huruf. Pelamar tidak melihatnya. Jangan tulis nama, nomor HP, atau kondisi orang.",
+  },
+  "admin.lamaran.ubah.simpan": {
+    id: "Simpan status",
+    "id-simple": "Simpan",
+  },
+  "admin.lamaran.ubah.menyimpan": {
+    id: "Menyimpan status…",
+    "id-simple": "Sebentar, sedang disimpan…",
+  },
+  "admin.lamaran.ubah.berhasil": {
+    id: "Status diubah menjadi {status}. Pelamar sudah dikabari.",
+    "id-simple": "Status sekarang {status}. Pelamar sudah diberi tahu.",
+  },
+  "admin.lamaran.ubah.akhir": {
+    id: "Status ini sudah akhir dan tidak bisa diubah lagi.",
+    "id-simple": "Status ini sudah selesai. Tidak bisa diganti lagi.",
+  },
+  "admin.lamaran.ubah.galat.statusKosong": {
+    id: "Pilih status baru.",
+    "id-simple": "Pilih dulu status barunya.",
+  },
+  "admin.lamaran.ubah.galat.alasanKosong": {
+    id: "Tulis alasan perubahan.",
+    "id-simple": "Tulis dulu alasannya.",
+  },
+  "admin.lamaran.ubah.galat.alasanPanjang": {
+    id: "Alasan maksimal 200 karakter.",
+    "id-simple": "Alasan paling banyak 200 huruf.",
+  },
+  "admin.lamaran.ungkap.galat.alasanKosong": {
+    id: "Tulis alasan membuka data ini.",
+    "id-simple": "Tulis dulu kenapa data ini dibuka.",
+  },
+  "admin.lamaran.ungkap.judul": {
+    id: "Data disabilitas yang diungkap",
+    "id-simple": "Data disabilitas dari pelamar",
+  },
+  "admin.lamaran.ungkap.tidakDiungkap": {
+    id: "Pelamar memilih tidak mengungkap data disabilitas pada lamaran ini. Teruskan lamaran tanpa data tersebut.",
+    "id-simple":
+      "Pelamar tidak mengirim data disabilitas. Hormati pilihannya. Kirim lamaran tanpa data itu.",
+  },
+  "admin.lamaran.ungkap.tersembunyi": {
+    id: "Pelamar mengungkap data disabilitasnya untuk lamaran ini. Data disembunyikan sampai Anda membukanya dengan alasan.",
+    "id-simple":
+      "Pelamar mengirim data disabilitas. Data ini tertutup. Buka hanya kalau perlu, dan tulis alasannya.",
+  },
+  "admin.lamaran.ungkap.tombol": {
+    id: "Tampilkan data yang diungkap",
+    "id-simple": "Buka data disabilitas",
+  },
+  "admin.lamaran.ungkap.dialogJudul": {
+    id: "Buka data disabilitas pelamar",
+    "id-simple": "Buka data disabilitas?",
+  },
+  "admin.lamaran.ungkap.dialogDeskripsi": {
+    id: "Pembukaan ini dicatat beserta akun Anda dan alasannya. Buka hanya bila diperlukan untuk meneruskan lamaran.",
+    "id-simple": "Kami mencatat siapa yang membuka dan alasannya. Buka hanya kalau perlu.",
+  },
+  "admin.lamaran.ungkap.alasan": {
+    id: "Alasan membuka",
+    "id-simple": "Kenapa dibuka?",
+  },
+  "admin.lamaran.ungkap.buka": {
+    id: "Buka data",
+    "id-simple": "Buka",
+  },
+  "admin.lamaran.ungkap.batal": {
+    id: "Batal",
+    "id-simple": "Batal",
+  },
+  "admin.lamaran.ungkap.membuka": {
+    id: "Membuka data…",
+    "id-simple": "Sebentar…",
+  },
+  "admin.lamaran.ungkap.ragam": {
+    id: "Ragam disabilitas",
+    "id-simple": "Jenis disabilitas",
+  },
+  "admin.lamaran.ungkap.akomodasi": {
+    id: "Kebutuhan akomodasi",
+    "id-simple": "Bantuan yang dibutuhkan",
+  },
+  "admin.lamaran.ungkap.catatan": {
+    id: "Catatan pelamar",
+    "id-simple": "Catatan dari pelamar",
+  },
+  "admin.lamaran.ungkap.diambil": {
+    id: "Diungkap pada {tanggal}.",
+    "id-simple": "Dikirim tanggal {tanggal}.",
+  },
+  "admin.lamaran.ungkap.kosong": {
+    id: "Tidak ada",
+    "id-simple": "Tidak diisi",
+  },
+  "admin.lamaran.ungkap.sembunyikan": {
+    id: "Sembunyikan lagi",
+    "id-simple": "Tutup lagi",
+  },
+  "admin.lamaran.ungkap.terbuka": {
+    id: "Data disabilitas ditampilkan.",
+    "id-simple": "Data disabilitas sekarang terlihat.",
+  },
 } as const satisfies KatalogFitur;

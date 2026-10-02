@@ -107,3 +107,12 @@ export {
   type OpsiRefreshToleran,
   type SessionRefresherOptions,
 } from "./session.js";
+export {
+  applicationsKeys,
+  getApplicationAdmin,
+  listApplicationsAdmin,
+  revealDisclosureAdmin,
+  updateApplicationStatusAdmin,
+  type OpsiDaftarLamaranAdmin,
+  type UbahStatusLamaran,
+} from "./endpoints/applications.js";

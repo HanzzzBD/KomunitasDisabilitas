@@ -224,8 +224,8 @@ Bisnis: model operasi MVP — admin menjembatani perusahaan partner. Teknis: lis
 
 * [x] Unit Test (guard transisi admin)
 * [x] Integration Test (authz + audit + visibilitas disclose)
-* [ ] E2E Test (admin ubah → notif user)
-* [ ] Accessibility Test (tabel + aksi keyboard)
+* [x] E2E Test (admin ubah → notif user)
+* [x] Accessibility Test (tabel + aksi keyboard)
 * [ ] Manual Verification (persona seed)
 
 **Deliverables:**
@@ -242,11 +242,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Update status → user menerima notifikasi (E2E).
+* [x] Update status → user menerima notifikasi (E2E).
 * [x] Lamaran disclose=false → admin tidak melihat data akomodasi (test kontrak).
 * [x] Audit memuat actor + alasan.
 * [x] Filter per lowongan/status bekerja.
-* [ ] Bulk view performa wajar (pagination).
+* [x] Bulk view performa wajar (pagination).
 
 #### Dependencies
 

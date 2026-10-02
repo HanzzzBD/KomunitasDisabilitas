@@ -288,3 +288,60 @@ export const disclosureSnapshotResponseSchema = z
   .openapi({ ref: "DisclosureSnapshotResponse" });
 
 export type DisclosureSnapshotResponse = z.infer<typeof disclosureSnapshotResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Mesin status lamaran (PR-076; dipindah ke sini di PR-077b supaya API dan web
+// membaca aturan yang SAMA — web menawarkan hanya tujuan yang sah, server
+// tetap menegakkannya). Fungsi murni, tanpa I/O.
+//
+// ATURAN (keputusan owner 2026-10-02):
+//   1. Maju boleh LONCAT di sepanjang ALUR (submitted → … → hired).
+//   2. Mundur DILARANG.
+//   3. `hired`, `rejected`, `withdrawn` adalah AKHIR.
+//   4. Pelamar hanya boleh `withdrawn` dari status aktif mana pun.
+//   5. Admin boleh semua langkah maju + `rejected`, TIDAK `withdrawn`:
+//      membatalkan lamaran adalah keputusan pelamar, bukan operator.
+// ---------------------------------------------------------------------------
+
+type StatusLamaran = z.infer<typeof applicationStatusSchema>;
+
+/** Urutan maju pipeline. `rejected`/`withdrawn` di luar alur — keduanya akhir. */
+export const ALUR_STATUS_LAMARAN = [
+  "submitted",
+  "viewed",
+  "in_review",
+  "interview",
+  "offered",
+  "hired",
+] as const satisfies readonly StatusLamaran[];
+
+export const STATUS_LAMARAN_AKHIR: ReadonlySet<StatusLamaran> = new Set([
+  "hired",
+  "rejected",
+  "withdrawn",
+]);
+
+export type PeranPemindahStatus = "seeker" | "admin";
+
+export function statusLamaranAktif(status: StatusLamaran): boolean {
+  return !STATUS_LAMARAN_AKHIR.has(status);
+}
+
+/** Apakah `peran` boleh memindahkan lamaran dari `dari` ke `ke`. */
+export function bolehPindahStatus(
+  dari: StatusLamaran,
+  ke: StatusLamaran,
+  peran: PeranPemindahStatus,
+): boolean {
+  if (!statusLamaranAktif(dari) || dari === ke) return false;
+  if (peran === "seeker") return ke === "withdrawn";
+  if (ke === "withdrawn") return false;
+  if (ke === "rejected") return true;
+  const urut = ALUR_STATUS_LAMARAN as readonly StatusLamaran[];
+  return urut.indexOf(ke) > urut.indexOf(dari);
+}
+
+/** Tujuan sah untuk `peran` dari `dari`, berurutan alur (+ `rejected` terakhir). */
+export function tujuanStatusSah(dari: StatusLamaran, peran: PeranPemindahStatus): StatusLamaran[] {
+  return applicationStatusSchema.options.filter((ke) => bolehPindahStatus(dari, ke, peran));
+}

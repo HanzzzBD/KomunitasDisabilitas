@@ -36,6 +36,18 @@ describe("tujuan notifikasi", () => {
     }
   });
 
+  it("kabar admin (PR-077b) mengantar ke detail lamaran admin", () => {
+    for (const type of [
+      NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU,
+      NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN,
+      NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI,
+    ]) {
+      expect(tautanNotifikasi({ type, params: PARAMS })).toBe(
+        `/admin/lamaran/${PARAMS.applicationId}`,
+      );
+    }
+  });
+
   it("sambutan akun TIDAK punya tujuan, dan itu permanen", () => {
     // Satu-satunya tipe yang akan tetap tanpa tautan sesudah Phase 12: sambutan
     // tidak menunjuk entitas apa pun.
