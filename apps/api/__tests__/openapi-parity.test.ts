@@ -34,6 +34,7 @@ import { createCompaniesModule } from "../src/modules/companies/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
 import { createApplicationsModule } from "../src/modules/applications/index.js";
+import { createAdminModule } from "../src/modules/admin/index.js";
 import { BOBOT_SKOR_SDD, createMatchingFeedModule } from "../src/modules/matching/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
@@ -163,6 +164,14 @@ function routeNyata(): { method: string; path: string }[] {
     bacaKeahlian: stub(),
     bacaLowongan: stub(),
     config: { efSearch: 100, bobot: BOBOT_SKOR_SDD, paruhKebaruanHari: 14, rerankAktif: true },
+  });
+  // PR-080 — metrik admin.
+  createAdminModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    cache: stub(),
+    bacaDlqTotal: stub(),
+    logger,
   });
 
   // Permukaan operasional — ikut dirakit supaya test terakhir benar-benar
