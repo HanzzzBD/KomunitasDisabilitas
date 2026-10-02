@@ -10,6 +10,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `PROFILE_SENSITIVE_UPDATED` | Simpan/hapus data disabilitas/akomodasi, dan pemberian/pencabutan consent-nya | `operation`, `fields` |
 | `APPLICATION_SUBMITTED` | Lamaran terkirim (PR-075) — `disclosed` adalah FAKTA pengungkapan, tidak pernah isinya | `jobId`, `disclosed` |
 | `APPLICATION_STATUS_CHANGED` | Perubahan status lamaran | `from`, `to` |
+| `APPLICATION_HIRED_CONFIRMED` | Pelamar mengonfirmasi diterima kerja (PR-076, North Star) — `from` = status saat konfirmasi | `from` |
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
 | `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |
 | `DATA_EXPORTED` | Ekspor data subjek | `format`, `formatVersion`, `sections` |

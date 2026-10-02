@@ -138,6 +138,7 @@ Bisnis: North Star Metric (penempatan kerja) tercatat akurat (PRD FR-5.5). Tekni
 **API Changes:**
 
 * GET /api/v1/me/applications
+* GET /api/v1/me/applications/:id *(ditambahkan — keputusan owner 2026-10-02, kebutuhan PR-079)*
 * POST /api/v1/me/applications/:id/withdraw
 * POST /api/v1/me/applications/:id/confirm-hired
 
@@ -147,8 +148,8 @@ Bisnis: North Star Metric (penempatan kerja) tercatat akurat (PRD FR-5.5). Tekni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (state machine semua sisi)
-* [ ] Integration Test (history + event)
+* [x] Unit Test (state machine semua sisi)
+* [x] Integration Test (history + event)
 * [ ] E2E Test (via PR-079)
 * [ ] Accessibility Test (N/A)
 * [ ] Manual Verification (alur penuh staging)
@@ -167,11 +168,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Transisi ilegal ditolak (mis. rejected→hired) — test state machine penuh.
-* [ ] Setiap transisi menulis history {from,to,by,at}.
-* [ ] confirm-hired mengisi hired_confirmed_at + event North Star.
-* [ ] Withdraw hanya pada status aktif.
-* [ ] Event → notifikasi user (integrasi).
+* [x] Transisi ilegal ditolak (mis. rejected→hired) — test state machine penuh.
+* [x] Setiap transisi menulis history {from,to,by,at}.
+* [x] confirm-hired mengisi hired_confirmed_at + event North Star.
+* [x] Withdraw hanya pada status aktif.
+* [x] Event → notifikasi user (integrasi).
 
 #### Dependencies
 

@@ -25,6 +25,8 @@ import {
   type ApplicationsActor,
 } from "./services/apply.service.js";
 import { createApplyController } from "./controllers/apply.controller.js";
+import { createStatusController } from "./controllers/status.controller.js";
+import { createStatusService, type RingkasanLowongan } from "./services/status.service.js";
 import { createApplicationsRouter } from "./routers/index.js";
 import { createApplicationsExportContributor } from "./services/application-export.service.js";
 
@@ -38,8 +40,12 @@ export interface ApplicationsModuleDeps {
   auditLog: AuditLog;
   /** Penerbit `application.submitted`; pelanggannya modul notifications. */
   events: Pick<EventBus, "emit">;
-  logger: Pick<Logger, "warn">;
-  jobsService: { getPublic(id: string): Promise<unknown> };
+  logger: Pick<Logger, "warn" | "error">;
+  jobsService: {
+    getPublic(id: string): Promise<unknown>;
+    /** PR-076 — judul & perusahaan untuk "Lamaran Saya", termasuk lowongan tutup. */
+    ringkasanUntukLamaran(ids: readonly string[]): Promise<RingkasanLowongan[]>;
+  };
   resumesService: { get(actor: ApplicationsActor, id: string): Promise<unknown> };
   sensitiveAccess: {
     bacaSensitif(
@@ -52,8 +58,9 @@ export interface ApplicationsModuleDeps {
 }
 
 export function createApplicationsModule(deps: ApplicationsModuleDeps): { router: Router } {
+  const repo = createApplicationsRepository(deps.prisma);
   const service = createApplyService({
-    applicationsRepository: createApplicationsRepository(deps.prisma),
+    applicationsRepository: repo,
     idempotensi: createIdempotensiRepository(deps.redis),
     crypto: createFieldCrypto(deps.fieldKeys),
     auditLog: deps.auditLog,
@@ -77,7 +84,23 @@ export function createApplicationsModule(deps: ApplicationsModuleDeps): { router
       }),
   });
 
-  return { router: createApplicationsRouter(createApplyController(service), deps.routes) };
+  // Penerbit `application.status_changed` + `application.hired_confirmed`
+  // (pelanggannya modul notifications) — bus yang sama dengan apply.
+  const status = createStatusService({
+    applicationsRepository: repo,
+    ringkasanLowongan: (ids) => deps.jobsService.ringkasanUntukLamaran(ids),
+    auditLog: deps.auditLog,
+    events: deps.events,
+    logger: deps.logger,
+    clock: deps.clock,
+  });
+
+  return {
+    router: createApplicationsRouter(
+      { apply: createApplyController(service), status: createStatusController(status) },
+      deps.routes,
+    ),
+  };
 }
 
 /**
@@ -100,6 +123,7 @@ export {
   createApplicationsRepository,
   SudahMelamarError,
   type ApplicationBaru,
+  type ApplicationDetailRow,
   type ApplicationExportRow,
   type ApplicationRow,
   type ApplicationsRepository,
@@ -121,4 +145,18 @@ export {
   type HasilApply,
 } from "./services/apply.service.js";
 export { createApplyController, type ApplyController } from "./controllers/apply.controller.js";
+export { createStatusController, type StatusController } from "./controllers/status.controller.js";
+export {
+  createStatusService,
+  type RingkasanLowongan,
+  type StatusService,
+  type StatusServiceDeps,
+} from "./services/status.service.js";
+export {
+  ALUR_STATUS,
+  STATUS_AKHIR,
+  bolehPindah,
+  statusAktif,
+  type PeranPemindah,
+} from "./services/status-machine.js";
 export { createApplicationsRouter } from "./routers/index.js";

@@ -49,6 +49,7 @@ function fakeRepo(hasil: JobSearchRow[]): { repo: JobsRepository; panggilan: Job
     findById: notUsed,
     listActiveByCompany: notUsed,
     listActiveByIds: notUsed,
+    listByIdsWithCompany: notUsed,
     create: notUsed as unknown as JobsRepository["create"],
     update: notUsed,
     publish: notUsed,

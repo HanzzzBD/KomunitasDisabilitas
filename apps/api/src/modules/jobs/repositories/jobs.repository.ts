@@ -226,6 +226,12 @@ export interface JobsRepository {
    * nama perusahaannya (kartu feed PR-073); urutan tak dijamin.
    */
   listActiveByIds(ids: readonly string[]): Promise<JobRowBerperusahaan[]>;
+  /**
+   * Lowongan per id APA PUN statusnya, berikut nama perusahaannya (PR-076).
+   * Untuk "Lamaran Saya": lamaran ke lowongan yang sudah ditutup tetap harus
+   * menampilkan judulnya.
+   */
+  listByIdsWithCompany(ids: readonly string[]): Promise<JobRowBerperusahaan[]>;
   create(id: string, data: JobCreateData): Promise<JobCreateResult>;
   /** null bila `id` tidak ada. */
   update(id: string, patch: JobUpdatePatch): Promise<JobRow | null>;
@@ -274,6 +280,15 @@ export function createJobsRepository(prisma: AppPrisma): JobsRepository {
           status: "published",
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
+        select: { ...KOLOM, company: { select: { name: true } } },
+      });
+      return rows.map(({ company, ...baris }) => ({ ...keRow(baris), companyName: company.name }));
+    },
+
+    listByIdsWithCompany: async (ids) => {
+      if (ids.length === 0) return [];
+      const rows = await prisma.job.findMany({
+        where: { id: { in: [...ids] } },
         select: { ...KOLOM, company: { select: { name: true } } },
       });
       return rows.map(({ company, ...baris }) => ({ ...keRow(baris), companyName: company.name }));

@@ -6,7 +6,7 @@
 // urutan path & skema mengikuti urutan deklarasi di file ini. Output byte-sama
 // untuk input sama → diff check di CI valid.
 import { createDocument, type oas31, type ZodOpenApiPathItemObject } from "zod-openapi";
-import { errorEnvelopeSchema } from "./common.js";
+import { errorEnvelopeSchema, paginationQuerySchema } from "./common.js";
 import {
   requestOtpSchema,
   requestOtpResponseSchema,
@@ -40,7 +40,14 @@ import {
   createCompanySchema,
   updateCompanySchema,
 } from "./companies.js";
-import { applicationResponseSchema, applyJobSchema, idempotencyKeySchema } from "./applications.js";
+import {
+  applicationIdParamsSchema,
+  applicationResponseSchema,
+  applyJobSchema,
+  idempotencyKeySchema,
+  myApplicationDetailResponseSchema,
+  myApplicationListResponseSchema,
+} from "./applications.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -1062,6 +1069,77 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
               "Kunci dipakai untuk lowongan lain, atau tidak ada data disabilitas untuk dikirim",
             ),
             "429": errorResponse("Terlalu banyak lamaran — lihat header Retry-After"),
+            ...responsSesi,
+          },
+        },
+      },
+      // Lamaran Saya (PR-076, PRD FR-5.3/FR-5.5). Seluruhnya milik pelamar
+      // sendiri; lamaran orang lain berperilaku seperti lamaran yang tidak ada.
+      "/me/applications": {
+        get: {
+          operationId: "listMyApplications",
+          tags: ["applications"],
+          summary: "Daftar lamaran sendiri",
+          description:
+            "Terbaru BERUBAH lebih dulu (`updatedAt`), cursor keyset. Ringkasan lowongan " +
+            "dibaca saat ini — lowongan yang sudah ditutup tetap tampil dengan `aktif: false`.",
+          requestParams: { query: paginationQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman lamaran", myApplicationListResponseSchema),
+            "400": errorResponse("Query atau cursor tidak valid"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}": {
+        get: {
+          operationId: "getMyApplication",
+          tags: ["applications"],
+          summary: "Detail lamaran + riwayat status",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran beserta riwayatnya", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}/withdraw": {
+        post: {
+          operationId: "withdrawMyApplication",
+          tags: ["applications"],
+          summary: "Batalkan lamaran",
+          description:
+            "Hanya dari status aktif (submitted..offered). Pelamar tidak dikabari atas aksinya sendiri; admin dikabari.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran terkini", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Status sekarang tidak bisa dibatalkan, atau berubah bersamaan"),
+            ...responsSesi,
+          },
+        },
+      },
+      "/me/applications/{id}/confirm-hired": {
+        post: {
+          operationId: "confirmHiredMyApplication",
+          tags: ["applications"],
+          summary: "Konfirmasi diterima kerja (North Star)",
+          description:
+            "Dari `offered`: status pindah ke `hired` + `hiredConfirmedAt`. Dari `hired`: hanya " +
+            "`hiredConfirmedAt`. Idempoten — panggilan ulang menjawab 200 yang sama tanpa event kedua.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Lamaran terkini", myApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "403": errorResponse("Bukan akun pencari kerja"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Lamaran belum ditawari / sudah berakhir"),
             ...responsSesi,
           },
         },

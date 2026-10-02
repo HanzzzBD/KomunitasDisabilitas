@@ -116,3 +116,101 @@ sudah ada) dan **setiap admin aktif** menerima kabar `admin.lamaran_baru`.
 
 1. PR-076 — status pipeline + `GET /me/applications` (penerbit `application.status_changed`).
 2. PR-077 — pembaca snapshot oleh admin lewat jalur ter-audit (`disclosureSnapshotSchema`).
+
+---
+
+## PR-076 — Status Pipeline + Confirm-Hired (North Star)
+
+> **Phase:** [12 - Applications](../phase-12-applications.md#pr-076---status-pipeline--confirm-hired-north-star)
+> **Tanggal:** 2026-10-02
+> **Status:** Selesai
+> **Branch:** `pr-076-status-pipeline` → `phase-12-applications`
+
+### Ringkasan hasil
+
+"Lamaran Saya" sisi API: daftar ber-cursor, detail + riwayat, withdraw, dan konfirmasi diterima
+kerja (North Star). Mesin status murni (`status-machine.ts`) menjadi satu-satunya penentu
+transisi dan siap dipakai jalur admin PR-077. Setiap transisi ditulis compare-and-set atas
+`(status, updatedAt)` sehingga klik ganda / tindakan admin yang bersamaan tidak saling menimpa
+riwayat. Event `application.status_changed` (kini membawa `changedBy`) dan event baru
+`application.hired_confirmed` punya penerbit.
+
+### Keputusan owner (AskUserQuestion, 2026-10-02)
+
+1. **Transisi:** maju boleh loncat sepanjang `submitted → viewed → in_review → interview → offered
+   → hired`; mundur dilarang; `hired`/`rejected`/`withdrawn` akhir. Pelamar hanya withdraw (dari
+   status aktif); admin semua langkah maju + `rejected`, tetapi tidak `withdrawn`.
+2. **confirm-hired saat `offered` ATAU `hired`.** Dari `offered` status ikut pindah ke `hired`;
+   dari `hired` hanya mengisi `hired_confirmed_at`. Idempoten.
+3. **Aksi pelamar sendiri tidak dikabarkan kembali kepadanya** (`changedBy: "seeker"` dilewati);
+   admin dikabari saat withdraw (`admin.lamaran_dibatalkan`) dan saat konfirmasi
+   (`admin.penempatan_terkonfirmasi`, untuk verifikasi silang R10).
+4. **List ber-cursor + endpoint detail** `GET /me/applications/:id` (di luar dokumen PR —
+   dibutuhkan timeline & tautan notifikasi PR-079).
+
+### Scope selesai
+
+**Kontrak (`packages/schemas`)**
+
+* `applications.ts` — `changedBy` pada `applicationStatusChangedEventSchema`;
+  `applicationHiredConfirmedEventSchema`; `applicationStatusHistoryEntrySchema` (`by` = PERAN,
+  bukan id — id pelaku ada di `audit_logs`); `applicationIdParamsSchema`,
+  `applicationJobSummarySchema` (`aktif`), `myApplication(Detail)Schema` + response; ekspor PDP
+  kini memuat `statusHistory` + `hiredConfirmedAt`.
+* `audit.ts` — `APPLICATION_HIRED_CONFIRMED { from: offered|hired }`.
+* `notifications.ts` — `admin.lamaran_dibatalkan`, `admin.penempatan_terkonfirmasi`.
+* `openapi.ts`/`openapi.json` — 4 path `/me/applications…`.
+
+**API**
+
+* `modules/applications` — `status-machine.ts` (`bolehPindah`, `ALUR_STATUS`, `STATUS_AKHIR`),
+  `status.service.ts`, `status.controller.ts`; repository `listMine` (indeks
+  `applications_user_updated`), `findOwnedDetail`, `perbarui` (CAS). Semua route `role("seeker")`.
+* `modules/jobs` — `ringkasanUntukLamaran(ids)` (apa pun statusnya, `aktif` dihitung) +
+  repo `listByIdsWithCompany`.
+* `modules/notifications` — pelanggan `status_changed` melewati `changedBy: seeker`; helper
+  `kabariAdmin` dipakai tiga kabar admin; pelanggan `application.hired_confirmed`; dua template
+  baru (id + id-simple).
+* `core/events` — `application.hired_confirmed`; `core/http/errors.ts` —
+  `LAMARAN_TIDAK_DITEMUKAN` 404, `STATUS_LAMARAN_TIDAK_VALID` 409.
+
+**Web** — `tautan.ts`: dua tipe admin baru → `null` (halaman admin = PR-077).
+
+### Perbaikan atas PR-075
+
+`applications-db.test.ts` memakai `REDIS_URL ?? 6379`, padahal CI hanya menyediakan
+`REDIS_QUEUE_URL` (6380): **seluruh 11 test integration apply terlewat di CI tanpa tanda**
+(lokalnya kebetulan mengenai Redis proyek lain di 6379). Kini memakai rantai yang sama dengan
+`auth-otp-redis.test.ts` (`REDIS_URL ?? REDIS_QUEUE_URL ?? 6380`) dan lulus 11/11 terhadap
+Redis dev.
+
+### Acceptance Criteria
+
+| AC | Bukti |
+|---|---|
+| Transisi ilegal ditolak — test state machine penuh | `applications-status-machine.test.ts`: 8×8×2 kombinasi vs tabel tulis-tangan + contoh `rejected→hired` |
+| Setiap transisi menulis history {from,to,by,at} | `applications-status-db.test.ts`: withdraw & confirm dari offered → entri JSONB; dua withdraw serentak → `[200,409]`, satu entri |
+| confirm-hired → `hired_confirmed_at` + event North Star | offered→hired + timestamp + audit `APPLICATION_HIRED_CONFIRMED`; dua tekan serentak → satu audit, satu kabar admin |
+| Withdraw hanya pada status aktif | rejected/hired/withdrawn → 409 `STATUS_LAMARAN_TIDAK_VALID` |
+| Event → notifikasi (integrasi) | modul notifications nyata: admin menerima kabar; pelamar tidak dikabari atas aksinya sendiri |
+
+### Verifikasi
+
+* `turbo run lint typecheck test --concurrency=1` dengan PostgreSQL + Redis hidup: 26/27 task;
+  satu-satunya kegagalan snapshot katalog error (dua kode baru) — diperbarui, lalu lulus.
+  api 149 berkas (1 skip berkas), web 61, api-client 13, ui 14, a11y 9.
+
+### Risiko & catatan
+
+* `updatedAt` adalah kunci CAS. Prisma mengisinya di sisi aplikasi (presisi milidetik), jadi
+  pembandingan persis aman; penulis yang memakai SQL mentah `now()` (mikrodetik) di masa depan
+  harus ikut memakai guard yang sama atau membaca ulang barisnya.
+* Kabar `lamaran.status_berubah` untuk pelamar kini hanya lahir dari perubahan oleh admin — yang
+  baru ada di PR-077.
+* Ajakan konfirmasi saat `offered` (mitigasi R10) belum mengubah teks template; layaknya ditulis
+  bersama tombolnya di PR-079.
+
+### Next steps
+
+1. PR-077 — admin memindahkan status lewat `bolehPindah(…, "admin")` + pembaca snapshot ter-audit.
+2. PR-079 — timeline memakai `GET /me/applications/:id`; `tautanNotifikasi` mengarah ke `/lamaran/:id`.

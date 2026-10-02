@@ -180,6 +180,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Lamaran Anda sedang dikirim",
           "status": 409,
         },
+        "LAMARAN_TIDAK_DITEMUKAN": {
+          "hint": "Muat ulang daftar lamaran Anda, lalu coba lagi",
+          "message": "Lamaran tidak ditemukan",
+          "status": 404,
+        },
         "LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS": {
           "hint": "Tutup lowongan (status closed) sebagai gantinya",
           "message": "Lowongan ini sudah punya pelamar dan tidak bisa dihapus",
@@ -209,6 +214,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Silakan masuk lagi untuk melanjutkan",
           "message": "Sesi Anda sudah berakhir",
           "status": 401,
+        },
+        "STATUS_LAMARAN_TIDAK_VALID": {
+          "hint": "Muat ulang lamaran untuk melihat statusnya yang terbaru",
+          "message": "Lamaran ini tidak bisa diubah dari statusnya sekarang",
+          "status": 409,
         },
         "SUDAH_MELAMAR": {
           "hint": "Lihat status lamaran Anda di halaman Lamaran Saya",

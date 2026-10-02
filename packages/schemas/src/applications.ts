@@ -14,7 +14,7 @@
 // pelanggan, dan mengubahnya akan terbaca sebagai perubahan kontrak.
 import "zod-openapi/extend";
 import { z } from "zod";
-import { idSchema, timestampSchema } from "./common.js";
+import { idSchema, paginationMetaSchema, timestampSchema } from "./common.js";
 import { sensitiveProfileSchema } from "./profiles.js";
 
 /**
@@ -76,10 +76,52 @@ export const applicationStatusChangedEventSchema = z.object({
   jobId: idSchema,
   from: applicationStatusSchema.optional(),
   to: applicationStatusSchema,
+  /**
+   * PERAN pihak yang memindahkan (PR-076). Pelanggan memakainya untuk tidak
+   * mengabari pelamar atas aksinya sendiri (withdraw, konfirmasi diterima) —
+   * keputusan owner 2026-10-02. Peran, bukan id: identitas admin tidak perlu
+   * mengalir ke pelanggan; ia ada di `audit_logs`.
+   */
+  changedBy: z.enum(["seeker", "admin"]),
   changedAt: timestampSchema,
 });
 
 export type ApplicationStatusChangedEvent = z.infer<typeof applicationStatusChangedEventSchema>;
+
+/**
+ * Event domain `application.hired_confirmed` — pelamar mengonfirmasi diterima
+ * kerja (PR-076, North Star, SDD §15 "→ admin"). Terbit SEKALI per lamaran:
+ * konfirmasi ulang tidak menerbitkannya lagi.
+ */
+export const applicationHiredConfirmedEventSchema = z.object({
+  applicationId: idSchema,
+  userId: idSchema,
+  jobId: idSchema,
+  confirmedAt: timestampSchema,
+});
+
+export type ApplicationHiredConfirmedEvent = z.infer<typeof applicationHiredConfirmedEventSchema>;
+
+/** Peran pemindah status — dipakai riwayat dan event. */
+export const applicationActorRoleSchema = z.enum(["seeker", "admin"]);
+
+/**
+ * Satu entri `applications.status_history` (SDD §6.2 `{from,to,by,at}`).
+ *
+ * `by` adalah PERAN, bukan id pengguna: riwayat ini dibaca pelamar (timeline
+ * PR-079), dan id admin yang memindahkan statusnya bukan urusannya. Siapa
+ * persisnya tercatat di `audit_logs` (APPLICATION_STATUS_CHANGED, actor).
+ */
+export const applicationStatusHistoryEntrySchema = z
+  .object({
+    from: applicationStatusSchema,
+    to: applicationStatusSchema,
+    by: applicationActorRoleSchema,
+    at: timestampSchema,
+  })
+  .openapi({ ref: "ApplicationStatusHistoryEntry" });
+
+export type ApplicationStatusHistoryEntry = z.infer<typeof applicationStatusHistoryEntrySchema>;
 
 // ---------------------------------------------------------------------------
 // Apply (PR-075) — POST /api/v1/jobs/:id/apply
@@ -174,7 +216,71 @@ export type DisclosureSnapshot = z.infer<typeof disclosureSnapshotSchema>;
  * salinan itu bisa berbeda dari profilnya hari ini. `null` = tidak diungkap.
  */
 export const exportApplicationSchema = applicationSchema
-  .extend({ disclosureSnapshot: disclosureSnapshotSchema.nullable() })
+  .extend({
+    disclosureSnapshot: disclosureSnapshotSchema.nullable(),
+    // PR-076 — riwayat dan konfirmasi diterima juga milik pelamar.
+    statusHistory: z.array(applicationStatusHistoryEntrySchema),
+    hiredConfirmedAt: timestampSchema.nullable(),
+  })
   .openapi({ ref: "ExportApplication" });
 
 export type ExportApplication = z.infer<typeof exportApplicationSchema>;
+
+// ---------------------------------------------------------------------------
+// Lamaran Saya (PR-076) — GET /me/applications, GET /me/applications/:id,
+// POST /me/applications/:id/{withdraw,confirm-hired}
+// ---------------------------------------------------------------------------
+
+export const applicationIdParamsSchema = z
+  .object({ id: idSchema })
+  .openapi({ ref: "ApplicationIdParams" });
+
+export type ApplicationIdParams = z.infer<typeof applicationIdParamsSchema>;
+
+/**
+ * Ringkasan lowongan yang dilamar. Dibaca lewat service `jobs` SAAT INI, bukan
+ * disalin ke lamaran: judul yang diperbaiki admin ikut terbaca benar.
+ * `aktif: false` = lowongan sudah ditutup/kedaluwarsa — lamarannya tetap ada.
+ */
+export const applicationJobSummarySchema = z
+  .object({
+    title: z.string(),
+    companyName: z.string(),
+    aktif: z.boolean(),
+  })
+  .openapi({ ref: "ApplicationJobSummary" });
+
+/**
+ * Satu lamaran di daftar "Lamaran Saya".
+ *
+ * `job` nullable hanya sebagai jaring: FK Restrict membuat lowongan berlamaran
+ * tidak bisa dihapus, jadi `null` seharusnya tidak pernah terlihat.
+ */
+export const myApplicationSchema = applicationSchema
+  .extend({
+    updatedAt: timestampSchema,
+    hiredConfirmedAt: timestampSchema.nullable(),
+    job: applicationJobSummarySchema.nullable(),
+  })
+  .openapi({ ref: "MyApplication" });
+
+export type MyApplication = z.infer<typeof myApplicationSchema>;
+
+/** Detail = ringkasan + riwayat status (urut kronologis, terlama dulu). */
+export const myApplicationDetailSchema = myApplicationSchema
+  .extend({ statusHistory: z.array(applicationStatusHistoryEntrySchema) })
+  .openapi({ ref: "MyApplicationDetail" });
+
+export type MyApplicationDetail = z.infer<typeof myApplicationDetailSchema>;
+
+export const myApplicationListResponseSchema = z
+  .object({ data: z.array(myApplicationSchema), meta: paginationMetaSchema })
+  .openapi({ ref: "MyApplicationListResponse" });
+
+export type MyApplicationListResponse = z.infer<typeof myApplicationListResponseSchema>;
+
+export const myApplicationDetailResponseSchema = z
+  .object({ data: myApplicationDetailSchema })
+  .openapi({ ref: "MyApplicationDetailResponse" });
+
+export type MyApplicationDetailResponse = z.infer<typeof myApplicationDetailResponseSchema>;

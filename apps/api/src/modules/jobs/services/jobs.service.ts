@@ -276,6 +276,24 @@ export function createJobsService(deps: JobsServiceDeps) {
       }));
     },
 
+    /**
+     * Ringkasan lowongan untuk "Lamaran Saya" (PR-076, modul `applications`
+     * lewat lapisan service). Termasuk yang sudah ditutup/kedaluwarsa —
+     * `aktif` memberi tahu bedanya; draft tidak mungkin berlamaran.
+     */
+    async ringkasanUntukLamaran(
+      ids: readonly string[],
+    ): Promise<Array<{ id: string; title: string; companyName: string; aktif: boolean }>> {
+      const rows = await jobsRepository.listByIdsWithCompany(ids);
+      const saatIni = now();
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        companyName: row.companyName,
+        aktif: masihAktif(row, saatIni),
+      }));
+    },
+
     /** GET /api/v1/admin/jobs — seluruh lowongan, tanpa pagination (skala pilot). */
     async listAdmin(): Promise<JobAdmin[]> {
       const rows = await jobsRepository.listAdmin();
