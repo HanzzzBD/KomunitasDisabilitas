@@ -53,7 +53,7 @@ import {
   idempotencyKeySchema,
   myApplicationDetailResponseSchema,
   myApplicationListResponseSchema,
-} from "./applications.js";
+} from "./applications-api.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,

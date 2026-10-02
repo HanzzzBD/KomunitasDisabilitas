@@ -279,6 +279,19 @@ repository lintas modul yang dilarang lint boundaries.
   admin yang menyiapkan ±15 baris berurutan — batas waktu tes itu (dan satu tes sejenis) dinaikkan
   ke 20 dtk; `applications-admin-db.test.ts` 7/7 lulus.
 
+### Perbaikan CI: Lighthouse 3G landing 0,74 (ambang 0,75)
+
+PR ini tidak menyentuh web, tetapi CI `a11y` merah: skor performa 3G beranda turun ke 0,74.
+Penyebabnya bundel awal naik 1,7 KB gzip (110,2 → 111,9 KB). `notifications.ts` (notification
+center, bundel AWAL) mengimpor `applications.ts`, dan `sideEffects: false` hanya memangkas MODUL
+tak terpakai — panggilan `z.object(...).openapi(...)` tingkat-atas di modul yang terpakai tetap
+ikut. Seluruh kontrak HTTP lamaran (PR-075/076/077a, termasuk impor `resumeSchema`) karena itu
+terunduh di beranda.
+
+Perbaikan: kontrak HTTP dipindah ke `packages/schemas/src/applications-api.ts`; `applications.ts`
+tinggal status, event, dan entri riwayat (yang dibaca pelanggan event). Bundel awal kini
+**108,2 KB** — di bawah baseline sebelum PR. `openapi.json` identik (`check:openapi` sinkron).
+
 ### Risiko & catatan
 
 * Alasan bebas adalah tempat PII bisa masuk ke audit (retensi 2 tahun). Dijaga pelatihan operator +
