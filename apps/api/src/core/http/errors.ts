@@ -306,6 +306,15 @@ export const ERROR_CATALOG = {
     message: "Lamaran ini tidak bisa diubah dari statusnya sekarang",
     hint: "Muat ulang lamaran untuk melihat statusnya yang terbaru",
   },
+  // --- Admin lamaran (PR-077a) ---
+  // 404, bukan 403: pemanggilnya admin yang sah — yang tidak ada adalah DATA
+  // yang diungkap, karena pelamar memilih tidak mengungkapnya. Pesannya
+  // menyebut pilihan itu supaya admin tidak mengira ada yang rusak.
+  DATA_TIDAK_DIUNGKAP: {
+    status: 404,
+    message: "Pelamar memilih tidak mengungkap data disabilitas pada lamaran ini",
+    hint: "Hormati pilihan pelamar; teruskan lamaran tanpa data tersebut",
+  },
   // --- Sesi AI CV Builder (PR-065) ---
   // 404 juga untuk sesi milik orang lain — alasannya sama dengan CV_TIDAK_DITEMUKAN.
   AI_SESI_TIDAK_DITEMUKAN: {

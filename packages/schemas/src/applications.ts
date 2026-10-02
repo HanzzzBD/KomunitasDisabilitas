@@ -14,8 +14,14 @@
 // pelanggan, dan mengubahnya akan terbaca sebagai perubahan kontrak.
 import "zod-openapi/extend";
 import { z } from "zod";
-import { idSchema, paginationMetaSchema, timestampSchema } from "./common.js";
+import {
+  idSchema,
+  paginationMetaSchema,
+  paginationQuerySchema,
+  timestampSchema,
+} from "./common.js";
 import { sensitiveProfileSchema } from "./profiles.js";
+import { resumeSchema } from "./resumes.js";
 
 /**
  * Status pipeline lamaran — cerminan enum `ApplicationStatus` di schema.prisma.
@@ -201,7 +207,8 @@ export type ApplicationResponse = z.infer<typeof applicationResponseSchema>;
  */
 export const disclosureSnapshotSchema = sensitiveProfileSchema
   .extend({ capturedAt: timestampSchema })
-  .strict();
+  .strict()
+  .openapi({ ref: "DisclosureSnapshot", description: "Salinan data yang diungkap per lamaran" });
 
 export type DisclosureSnapshot = z.infer<typeof disclosureSnapshotSchema>;
 
@@ -284,3 +291,105 @@ export const myApplicationDetailResponseSchema = z
   .openapi({ ref: "MyApplicationDetailResponse" });
 
 export type MyApplicationDetailResponse = z.infer<typeof myApplicationDetailResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Admin — operasional lamaran pilot (PR-077a). Admin menjembatani perusahaan
+// partner (model operasi MVP), jadi ia perlu nama, kontak, dan CV pelamar —
+// TETAPI tidak data disabilitas, kecuali diungkap DAN dibuka dengan alasan.
+// ---------------------------------------------------------------------------
+
+/**
+ * Alasan admin — perubahan status maupun membuka data yang diungkap. Teks
+ * bebas 1–200 karakter yang masuk `audit_logs` (keputusan owner 2026-10-02).
+ * JANGAN tulis nama, nomor, atau kondisi siapa pun: tulis apa yang terjadi
+ * ("perusahaan mengundang wawancara 10 Okt"). Pelamar tidak melihatnya.
+ */
+export const adminReasonSchema = z
+  .string({ required_error: "Alasan wajib diisi" })
+  .trim()
+  .min(1, { message: "Alasan wajib diisi" })
+  .max(200, { message: "Alasan maksimal 200 karakter" });
+
+/** GET /admin/applications — filter per lowongan/status, cursor, 50 per halaman. */
+export const adminApplicationListQuerySchema = paginationQuerySchema
+  .extend({
+    job_id: idSchema.optional().openapi({ description: "Saring per lowongan" }),
+    status: applicationStatusSchema.optional().openapi({ description: "Saring per status" }),
+    limit: z.coerce
+      .number()
+      .int({ message: "limit harus bilangan bulat" })
+      .min(1, { message: "limit minimal 1" })
+      .max(100, { message: "limit maksimal 100" })
+      .default(50),
+  })
+  .openapi({ ref: "AdminApplicationListQuery" });
+
+export type AdminApplicationListQuery = z.infer<typeof adminApplicationListQuerySchema>;
+
+/**
+ * Pelamar sebagaimana dilihat admin di DAFTAR — nama saja. `fullName: null` =
+ * akun sudah dihapus pemiliknya (menunggu purge); lamarannya masih ada.
+ */
+export const adminApplicantSchema = z
+  .object({ userId: idSchema, fullName: z.string().nullable() })
+  .openapi({ ref: "AdminApplicant" });
+
+/** Pelamar di DETAIL — ditambah kontak untuk dihubungi admin. */
+export const adminApplicantContactSchema = adminApplicantSchema
+  .extend({ phone: z.string().nullable(), email: z.string().nullable() })
+  .openapi({ ref: "AdminApplicantContact" });
+
+/**
+ * Satu baris daftar lamaran admin. `discloseDisability` HANYA penanda — isi
+ * yang diungkap tidak pernah ikut di daftar maupun detail; ia dibuka lewat
+ * POST .../disclosure dengan alasan.
+ */
+export const adminApplicationSchema = myApplicationSchema
+  .extend({ applicant: adminApplicantSchema })
+  .openapi({ ref: "AdminApplication" });
+
+export type AdminApplication = z.infer<typeof adminApplicationSchema>;
+
+export const adminApplicationDetailSchema = myApplicationDetailSchema
+  .extend({
+    applicant: adminApplicantContactSchema,
+    /** CV yang dilampirkan saat melamar (isi terkini). `null` = tanpa CV. */
+    resume: resumeSchema.nullable(),
+  })
+  .openapi({ ref: "AdminApplicationDetail" });
+
+export type AdminApplicationDetail = z.infer<typeof adminApplicationDetailSchema>;
+
+export const adminApplicationListResponseSchema = z
+  .object({ data: z.array(adminApplicationSchema), meta: paginationMetaSchema })
+  .openapi({ ref: "AdminApplicationListResponse" });
+
+export type AdminApplicationListResponse = z.infer<typeof adminApplicationListResponseSchema>;
+
+export const adminApplicationDetailResponseSchema = z
+  .object({ data: adminApplicationDetailSchema })
+  .openapi({ ref: "AdminApplicationDetailResponse" });
+
+export type AdminApplicationDetailResponse = z.infer<typeof adminApplicationDetailResponseSchema>;
+
+/** PUT /admin/applications/:id/status. */
+export const updateApplicationStatusSchema = z
+  .object({ status: applicationStatusSchema, reason: adminReasonSchema })
+  .strict()
+  .openapi({ ref: "UpdateApplicationStatus" });
+
+export type UpdateApplicationStatus = z.infer<typeof updateApplicationStatusSchema>;
+
+/** POST /admin/applications/:id/disclosure — membuka salinan yang diungkap. */
+export const revealDisclosureSchema = z
+  .object({ reason: adminReasonSchema })
+  .strict()
+  .openapi({ ref: "RevealDisclosure" });
+
+export type RevealDisclosure = z.infer<typeof revealDisclosureSchema>;
+
+export const disclosureSnapshotResponseSchema = z
+  .object({ data: disclosureSnapshotSchema })
+  .openapi({ ref: "DisclosureSnapshotResponse" });
+
+export type DisclosureSnapshotResponse = z.infer<typeof disclosureSnapshotResponseSchema>;

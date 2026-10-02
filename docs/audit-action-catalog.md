@@ -9,8 +9,9 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `PROFILE_SENSITIVE_READ` | Baca data disabilitas/akomodasi | `purpose`, `fields`, `reason`, `count` |
 | `PROFILE_SENSITIVE_UPDATED` | Simpan/hapus data disabilitas/akomodasi, dan pemberian/pencabutan consent-nya | `operation`, `fields` |
 | `APPLICATION_SUBMITTED` | Lamaran terkirim (PR-075) — `disclosed` adalah FAKTA pengungkapan, tidak pernah isinya | `jobId`, `disclosed` |
-| `APPLICATION_STATUS_CHANGED` | Perubahan status lamaran | `from`, `to` |
+| `APPLICATION_STATUS_CHANGED` | Perubahan status lamaran — `reason` WAJIB bila pelakunya admin (PR-077a), tidak ada bila pelamar sendiri | `from`, `to`, `reason` |
 | `APPLICATION_HIRED_CONFIRMED` | Pelamar mengonfirmasi diterima kerja (PR-076, North Star) — `from` = status saat konfirmasi | `from` |
+| `APPLICATION_DISCLOSURE_READ` | Admin membuka salinan data yang diungkap pada satu lamaran (PR-077a) — ditulis SEBELUM dibaca, termasuk saat ditolak | `reason` |
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
 | `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |
 | `DATA_EXPORTED` | Ekspor data subjek | `format`, `formatVersion`, `sections` |
@@ -19,7 +20,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `DATA_RETAINED` | Penghapusan terjadwal menurut kebijakan retensi (SDD §6.4) | `dryRun`, `policy`, `deleted`, `remaining`, `monthsAggregated` |
 | `JOB_AUTO_CLOSED` | Lowongan ditutup otomatis karena melewati `expires_at` | `dryRun`, `closed`, `remaining` |
 
-Jangan masukkan nama, telepon, email, nilai disabilitas, kebutuhan akomodasi, token, atau nilai field sensitif lain ke `meta`. Katalog dipetakan pada PR modul terkait; baca massal dicatat per-job, bukan per-record. Satu-satunya teks bebas di seluruh katalog ini adalah `PROFILE_SENSITIVE_READ.reason` — pengecualian yang disengaja, dengan harga yang dijelaskan di bawah.
+Jangan masukkan nama, telepon, email, nilai disabilitas, kebutuhan akomodasi, token, atau nilai field sensitif lain ke `meta`. Katalog dipetakan pada PR modul terkait; baca massal dicatat per-job, bukan per-record. Teks bebas di katalog ini hanya `reason`: `PROFILE_SENSITIVE_READ`, `APPLICATION_DISCLOSURE_READ`, dan `APPLICATION_STATUS_CHANGED` oleh admin (PR-077a) — pengecualian yang disengaja, dengan harga yang dijelaskan di bawah dan aturan yang SAMA: jangan tulis nama, nomor, atau kondisi seseorang.
 
 Perhatikan `ACCOUNT_DELETED`: `stage` dibaca sebagai **rangkaian**, bukan tiga kejadian lepas. `rejected` berulang atas satu akun berarti ada yang memegang access token-nya tetapi tidak memegang kredensialnya; `requested` tanpa `completed` berarti pembuktian lolos tetapi transaksi penghapusan gagal — akun itu perlu diperiksa tangan sebelum purge (PR-023).
 

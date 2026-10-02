@@ -121,6 +121,21 @@ sebanding untuk mengamankan sebuah hitungan.
   alasan yang sama dengan `snapshotFor`), dan kelak admin lewat jalur ter-audit (PR-077).
   Respons `POST /apply` sendiri tidak pernah membawanya.
 
+### Admin membuka salinan pengungkapan (PR-077a)
+
+`POST /admin/applications/:id/disclosure` (role admin) adalah SATU-SATUNYA jalan admin melihat
+isi `applications.disclosure_snapshot`. Daftar dan detail lamaran admin hanya membawa penanda
+`discloseDisability` (keputusan owner 2026-10-02: tombol "Tampilkan" + alasan wajib).
+
+* **Alasan wajib 1–200 karakter**, ditolak 400 sebelum service berjalan.
+* **Audit `APPLICATION_DISCLOSURE_READ` ditulis SEBELUM ciphertext dibaca** — termasuk bila
+  lamarannya tidak ada atau tidak diungkap (404 `DATA_TIDAK_DIUNGKAP`). Alasannya sama dengan
+  `bacaSensitif`: kalau hanya pembukaan berhasil yang tercatat, menyisir lamaran mana yang
+  ber-disclose menjadi gratis.
+* **Respons `Cache-Control: no-store`.**
+* Ini salinan per lamaran, BUKAN profil — jadi tidak lewat `sensitiveAccess` dan tidak memakai
+  `PROFILE_SENSITIVE_READ`. Profil hidup pelamar tetap tidak terjangkau dari jalur ini.
+
 ### Pemanggil `matching` pertama — feed (PR-071)
 
 `createPembacaAkomodasi` (`modules/matching/services/penilaian.service.ts`)

@@ -148,6 +148,7 @@ function routeNyata(): { method: string; path: string }[] {
     jobsService: jobs.service,
     resumesService: stub(),
     sensitiveAccess: stub(),
+    identitasPelamar: stub(),
   });
 
   createMatchingFeedModule({

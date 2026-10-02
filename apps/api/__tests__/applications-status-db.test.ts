@@ -32,7 +32,11 @@ import { createApplicationsModule } from "../src/modules/applications/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
 import { createNotificationsModule } from "../src/modules/notifications/index.js";
-import { createAdminDirectory, createUserProfileRepository } from "../src/modules/users/index.js";
+import {
+  createAdminDirectory,
+  createApplicantDirectory,
+  createUserProfileRepository,
+} from "../src/modules/users/index.js";
 import { SESSION_KEYS } from "./helpers/session.js";
 
 const prisma = new PrismaClient();
@@ -197,6 +201,8 @@ beforeAll(async () => {
     jobsService: jobs.service,
     resumesService: resumes.service,
     sensitiveAccess: { bacaSensitif: tidakDipakai },
+    identitasPelamar: (ids) =>
+      createApplicantDirectory(createUserProfileRepository(appPrisma)).identitas(ids),
   });
 
   api = createServer(env, logger, {

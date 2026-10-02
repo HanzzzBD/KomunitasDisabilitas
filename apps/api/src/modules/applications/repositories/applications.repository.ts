@@ -65,6 +65,11 @@ export interface ApplicationExportRow extends ApplicationDetailRow {
   disclosureSnapshot: Uint8Array | null;
 }
 
+/** Baris jalur admin — membawa pemilik lamaran (tetap TANPA snapshot). */
+export interface ApplicationAdminRow extends ApplicationDetailRow {
+  userId: string;
+}
+
 /** Posisi halaman "Lamaran Saya": urut `updated_at DESC, id DESC`. */
 export interface PosisiLamaran {
   updatedAt: Date;
@@ -180,6 +185,66 @@ export function createApplicationsRepository(prisma: AppPrisma) {
         data: perubahan,
       });
       return hasil.count === 1;
+    },
+
+    // ----- Jalur admin (PR-077a) — tanpa saringan pemilik; dijaga role("admin").
+
+    /** Satu halaman lamaran (filter lowongan/status), terbaru berubah dulu. */
+    async listAdmin(
+      filter: { jobId?: string; status?: ApplicationStatus },
+      limit: number,
+      setelah?: PosisiLamaran,
+    ): Promise<ApplicationAdminRow[]> {
+      return prisma.application.findMany({
+        where: {
+          ...(filter.jobId === undefined ? {} : { jobId: filter.jobId }),
+          ...(filter.status === undefined ? {} : { status: filter.status }),
+          ...(setelah === undefined
+            ? {}
+            : {
+                OR: [
+                  { updatedAt: { lt: setelah.updatedAt } },
+                  { updatedAt: setelah.updatedAt, id: { lt: setelah.id } },
+                ],
+              }),
+        },
+        select: { ...KOLOM_DETAIL, userId: true },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: limit,
+      });
+    },
+
+    async findForAdmin(id: string): Promise<ApplicationAdminRow | null> {
+      return prisma.application.findUnique({
+        where: { id },
+        select: { ...KOLOM_DETAIL, userId: true },
+      });
+    },
+
+    /** Compare-and-set yang sama dengan `perbarui`, tanpa saringan pemilik. */
+    async perbaruiOlehAdmin(
+      id: string,
+      syarat: { status: ApplicationStatus; updatedAt: Date },
+      perubahan: PerubahanLamaran,
+    ): Promise<boolean> {
+      const hasil = await prisma.application.updateMany({
+        where: { id, status: syarat.status, updatedAt: syarat.updatedAt },
+        data: perubahan,
+      });
+      return hasil.count === 1;
+    },
+
+    /**
+     * SATU-SATUNYA bacaan ciphertext snapshot di jalur admin. Dipanggil HANYA
+     * setelah audit pembukaannya ditulis (lihat admin-applications.service).
+     */
+    async bacaSnapshot(
+      id: string,
+    ): Promise<{ discloseDisability: boolean; disclosureSnapshot: Uint8Array | null } | null> {
+      return prisma.application.findUnique({
+        where: { id },
+        select: { discloseDisability: true, disclosureSnapshot: true },
+      });
     },
 
     /** Satu lamaran MILIKNYA; null bila tidak ada ATAU milik orang lain. */

@@ -115,6 +115,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Belum ada data disabilitas untuk dikirim",
           "status": 422,
         },
+        "DATA_TIDAK_DIUNGKAP": {
+          "hint": "Hormati pilihan pelamar; teruskan lamaran tanpa data tersebut",
+          "message": "Pelamar memilih tidak mengungkap data disabilitas pada lamaran ini",
+          "status": 404,
+        },
         "EMAIL_GOOGLE_BELUM_TERVERIFIKASI": {
           "hint": "Verifikasi email di akun Google Anda, lalu coba lagi — atau masuk dengan kode OTP",
           "message": "Email Google Anda belum terverifikasi",

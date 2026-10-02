@@ -47,6 +47,9 @@ function rakit(options: { row?: UserProfileRow | null; emailBentrok?: boolean } 
     listActiveAdminIds: () => {
       throw new Error("Alur profil tidak boleh membaca direktori admin");
     },
+    listIdentityByIds: () => {
+      throw new Error("Alur profil tidak boleh membaca direktori pelamar");
+    },
     // Jalur ekspor PDP (PR-022) tidak dipakai alur profil; dibuat meledak
     // supaya pemakaian tak sengaja terlihat sebagai kegagalan test.
     findAccountForExport: () => {
