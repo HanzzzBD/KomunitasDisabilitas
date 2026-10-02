@@ -3821,6 +3821,407 @@
         }
       }
     },
+    "/admin/applications": {
+      "get": {
+        "operationId": "listApplicationsAdmin",
+        "tags": [
+          "applications"
+        ],
+        "summary": "Daftar lamaran (admin)",
+        "description": "Filter `job_id` dan `status`, cursor keyset, 50 per halaman. Pelamar hanya nama; `discloseDisability` hanya penanda.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "in": "query",
+            "name": "job_id",
+            "description": "Saring per lowongan",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Saring per lowongan",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "description": "Saring per status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "viewed",
+                "in_review",
+                "interview",
+                "offered",
+                "hired",
+                "rejected",
+                "withdrawn"
+              ],
+              "description": "Saring per status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Satu halaman lamaran",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApplicationListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}": {
+      "get": {
+        "operationId": "getApplicationAdmin",
+        "tags": [
+          "applications"
+        ],
+        "summary": "Detail lamaran (admin)",
+        "description": "Kontak pelamar, CV terlampir, dan riwayat status — tanpa data disabilitas.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail lamaran",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApplicationDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/status": {
+      "put": {
+        "operationId": "updateApplicationStatusAdmin",
+        "tags": [
+          "applications"
+        ],
+        "summary": "Ubah status lamaran (admin)",
+        "description": "Maju boleh loncat; mundur, status akhir, dan `withdrawn` ditolak 409. `reason` wajib — masuk audit, tidak terlihat pelamar. Pelamar dikabari.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApplicationStatus"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lamaran terkini",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApplicationDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transisi tidak sah, atau status berubah bersamaan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/disclosure": {
+      "post": {
+        "operationId": "revealApplicationDisclosureAdmin",
+        "tags": [
+          "applications"
+        ],
+        "summary": "Buka data yang diungkap pelamar (admin, ber-audit)",
+        "description": "Hanya untuk lamaran ber-`discloseDisability`. Jejak audit ditulis SEBELUM data dibaca, termasuk saat ditolak. Respons `Cache-Control: no-store`.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevealDisclosure"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Salinan yang diungkap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisclosureSnapshotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Alasan kosong atau terlalu panjang",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan, atau pelamar tidak mengungkap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/jobs": {
       "get": {
         "operationId": "listJobsAdmin",
@@ -6632,23 +7033,7 @@
           "disclosureSnapshot": {
             "oneOf": [
               {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/SensitiveProfile"
-                  }
-                ],
-                "properties": {
-                  "capturedAt": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "Waktu ISO 8601 dengan offset",
-                    "example": "2026-07-18T09:00:00+07:00"
-                  }
-                },
-                "required": [
-                  "capturedAt"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/DisclosureSnapshot"
               },
               {
                 "type": "null"
@@ -6676,6 +7061,26 @@
           "statusHistory",
           "hiredConfirmedAt"
         ]
+      },
+      "DisclosureSnapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SensitiveProfile"
+          }
+        ],
+        "properties": {
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "capturedAt"
+        ],
+        "additionalProperties": false,
+        "description": "Salinan data yang diungkap per lamaran"
       },
       "ApplicationStatusHistoryEntry": {
         "type": "object",
@@ -8384,6 +8789,175 @@
         },
         "required": [
           "statusHistory"
+        ]
+      },
+      "AdminApplicationListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminApplication"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "AdminApplication": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyApplication"
+          }
+        ],
+        "properties": {
+          "applicant": {
+            "$ref": "#/components/schemas/AdminApplicant"
+          }
+        },
+        "required": [
+          "applicant"
+        ]
+      },
+      "AdminApplicant": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "fullName"
+        ]
+      },
+      "AdminApplicationDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminApplicationDetail"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AdminApplicationDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MyApplicationDetail"
+          }
+        ],
+        "properties": {
+          "applicant": {
+            "$ref": "#/components/schemas/AdminApplicantContact"
+          },
+          "resume": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Resume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "applicant",
+          "resume"
+        ]
+      },
+      "AdminApplicantContact": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminApplicant"
+          }
+        ],
+        "properties": {
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "phone",
+          "email"
+        ]
+      },
+      "UpdateApplicationStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "viewed",
+              "in_review",
+              "interview",
+              "offered",
+              "hired",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "status",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "RevealDisclosure": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "DisclosureSnapshotResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DisclosureSnapshot"
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "JobAdmin": {

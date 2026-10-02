@@ -24,7 +24,7 @@ import { accessibilityProfileSchema } from "./accessibility.js";
 import { notificationChannelPrefsSchema, notificationSchema } from "./notifications.js";
 import { aiChatSessionSchema, aiQuotaFeatureSchema } from "./ai.js";
 import { resumeSchema } from "./resumes.js";
-import { exportApplicationSchema } from "./applications.js";
+import { exportApplicationSchema } from "./applications-api.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;

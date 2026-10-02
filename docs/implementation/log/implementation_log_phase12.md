@@ -214,3 +214,92 @@ Redis dev.
 
 1. PR-077 — admin memindahkan status lewat `bolehPindah(…, "admin")` + pembaca snapshot ter-audit.
 2. PR-079 — timeline memakai `GET /me/applications/:id`; `tautanNotifikasi` mengarah ke `/lamaran/:id`.
+
+---
+
+## PR-077a — Admin Applications Management (API)
+
+> **Phase:** [12 - Applications](../phase-12-applications.md#pr-077---admin-applications-management)
+> **Tanggal:** 2026-10-02
+> **Status:** Selesai (bagian API; halaman admin = PR-077b)
+> **Branch:** `pr-077a-admin-applications-api` → `phase-12-applications`
+
+### Ringkasan hasil
+
+Empat endpoint `role("admin")` untuk operasional lamaran pilot: daftar ber-filter + cursor,
+detail (kontak + CV + riwayat), ubah status atas nama perusahaan partner (alasan wajib), dan
+membuka salinan data yang diungkap (alasan wajib, audit sebelum baca). Aturan transisi memakai
+mesin status PR-076 (`bolehPindah(…, "admin")`); penulisan compare-and-set yang sama.
+
+PR-077 dipecah dua (CLAUDE.md §9 "< 500 LOC — split", preseden PR-049a/b): **077a** API (ini),
+**077b** halaman admin web.
+
+### Keputusan owner (AskUserQuestion, 2026-10-02)
+
+1. **Data diungkap: tersembunyi bawaan; tombol "Tampilkan" + alasan wajib**, setiap pembukaan diaudit.
+2. **Alasan ubah status: teks bebas wajib 1–200**, masuk `audit_logs`, tidak terlihat pelamar.
+3. **Paginasi cursor + "Muat lebih banyak"**, 50 per halaman, filter `job_id`/`status` di server.
+4. **Admin melihat nama + kontak + CV pelamar** (tanpa itu lamaran tidak bisa diteruskan).
+
+### Scope selesai
+
+**Kontrak** — `adminReasonSchema`, `adminApplicationListQuerySchema`, `adminApplicant(Contact)Schema`,
+`adminApplication(Detail)Schema` + response, `updateApplicationStatusSchema`,
+`revealDisclosureSchema`, `disclosureSnapshotResponseSchema` (+ ref OpenAPI `DisclosureSnapshot`);
+audit `APPLICATION_STATUS_CHANGED.reason` (opsional — pelamar tidak membawanya) dan aksi baru
+`APPLICATION_DISCLOSURE_READ { reason }`; OpenAPI 4 path.
+
+**API** — `admin-applications.service.ts`, controller, 4 route; repository `listAdmin`,
+`findForAdmin`, `perbaruiOlehAdmin` (CAS), `bacaSnapshot` (satu-satunya bacaan ciphertext jalur
+admin); `pemeta-lamaran.ts` diekstrak dari `status.service.ts` supaya pelamar & admin membaca
+bentuk yang sama; modul users `listIdentityByIds` + `createApplicantDirectory` (akun aktif saja);
+error `DATA_TIDAK_DIUNGKAP` 404. CV dibaca lewat `resumesService.get({ userId: pelamar })`.
+
+**Lokasi:** `modules/applications`, bukan `modules/admin/applications` seperti dokumen — endpoint
+admin lain (companies, jobs) juga hidup di modul domainnya, dan modul admin terpisah akan membutuhkan
+repository lintas modul yang dilarang lint boundaries.
+
+**Dokumen** — katalog audit (tiga `reason` bebas kini, aturan PII sama), `akses-data-sensitif.md`
+(bagian "Admin membuka salinan pengungkapan").
+
+### Acceptance Criteria (bagian API)
+
+| AC | Bukti (`applications-admin-db.test.ts`) |
+|---|---|
+| Lamaran disclose=false → admin tidak melihat data akomodasi | daftar & detail tidak memuat isi meski lamaran diungkap; pembukaan disclose=false → 404 `DATA_TIDAK_DIUNGKAP` (tetap tercatat) |
+| Audit memuat actor + alasan | `APPLICATION_STATUS_CHANGED {from,to,reason}` & `APPLICATION_DISCLOSURE_READ {reason}` ber-actor admin |
+| Filter per lowongan/status | `job_id` + `status`, cursor menelusuri seluruh hasil |
+| Update status → user dikabari | integrasi modul notifications: `lamaran.status_berubah` ke pelamar (E2E web menyusul 077b) |
+| Pagination | cursor keyset `updated_at DESC, id DESC`, 50 bawaan, maks 100 |
+
+### Verifikasi
+
+* `turbo run lint typecheck test --concurrency=1` (PostgreSQL + Redis hidup): 26/27 task. Dua
+  kegagalan: snapshot katalog error (kode baru, diperbarui) dan timeout 5 dtk pada tes pagination
+  admin yang menyiapkan ±15 baris berurutan — batas waktu tes itu (dan satu tes sejenis) dinaikkan
+  ke 20 dtk; `applications-admin-db.test.ts` 7/7 lulus.
+
+### Perbaikan CI: Lighthouse 3G landing 0,74 (ambang 0,75)
+
+PR ini tidak menyentuh web, tetapi CI `a11y` merah: skor performa 3G beranda turun ke 0,74.
+Penyebabnya bundel awal naik 1,7 KB gzip (110,2 → 111,9 KB). `notifications.ts` (notification
+center, bundel AWAL) mengimpor `applications.ts`, dan `sideEffects: false` hanya memangkas MODUL
+tak terpakai — panggilan `z.object(...).openapi(...)` tingkat-atas di modul yang terpakai tetap
+ikut. Seluruh kontrak HTTP lamaran (PR-075/076/077a, termasuk impor `resumeSchema`) karena itu
+terunduh di beranda.
+
+Perbaikan: kontrak HTTP dipindah ke `packages/schemas/src/applications-api.ts`; `applications.ts`
+tinggal status, event, dan entri riwayat (yang dibaca pelanggan event). Bundel awal kini
+**108,2 KB** — di bawah baseline sebelum PR. `openapi.json` identik (`check:openapi` sinkron).
+
+### Risiko & catatan
+
+* Alasan bebas adalah tempat PII bisa masuk ke audit (retensi 2 tahun). Dijaga pelatihan operator +
+  teks peringatan di UI 077b, bukan validasi — sama dengan `PROFILE_SENSITIVE_READ.reason`.
+* CV yang ditampilkan adalah ISI TERKINI, bukan salinan saat melamar (resume bisa disunting).
+  Dicatat sebagai batas yang diketahui; salinan CV per lamaran bukan scope MVP.
+
+### Next steps
+
+1. PR-077b — halaman `/admin/lamaran` (tabel + filter + "Muat lebih banyak"), detail dengan aksi
+   status (alasan) dan dialog "Tampilkan data yang diungkap"; E2E admin ubah → notif pelamar.

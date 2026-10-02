@@ -12,6 +12,7 @@ export * from "./companies.js";
 export * from "./jobs.js";
 export * from "./matching.js";
 export * from "./applications.js";
+export * from "./applications-api.js";
 export * from "./notifications.js";
 export * from "./admin.js";
 export * from "./signbridge.js";

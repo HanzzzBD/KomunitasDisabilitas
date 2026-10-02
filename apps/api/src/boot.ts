@@ -25,6 +25,7 @@ import {
 } from "./modules/auth/index.js";
 import {
   createAdminDirectory,
+  createApplicantDirectory,
   createNotificationChannelsContributor,
   createNotificationPrefsService,
   createUserProfileRepository,
@@ -417,6 +418,9 @@ export async function startApi(options: BootOptions): Promise<void> {
           jobsService: jobs.service,
           resumesService: resumes.service,
           sensitiveAccess: profiles.sensitiveAccess,
+          // PR-077a: nama + kontak pelamar bagi admin — kolom milik modul users.
+          identitasPelamar: (ids) =>
+            createApplicantDirectory(createUserProfileRepository(prisma)).identitas(ids),
         }).router,
       );
       // Feed AI Job Matching (PR-073) — SESUDAH `jobs` (kartu lowongan lewat

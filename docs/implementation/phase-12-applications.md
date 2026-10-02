@@ -201,6 +201,7 @@ Bisnis: model operasi MVP — admin menjembatani perusahaan partner. Teknis: lis
 **Backend Changes:**
 
 * `modules/admin/applications`.
+* **Realisasi:** hidup di `modules/applications` (pola endpoint admin companies/jobs; modul admin terpisah akan butuh repository lintas modul). PR dipecah: **PR-077a** API, **PR-077b** halaman admin.
 
 **Frontend Changes:**
 
@@ -221,8 +222,8 @@ Bisnis: model operasi MVP — admin menjembatani perusahaan partner. Teknis: lis
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard transisi admin)
-* [ ] Integration Test (authz + audit + visibilitas disclose)
+* [x] Unit Test (guard transisi admin)
+* [x] Integration Test (authz + audit + visibilitas disclose)
 * [ ] E2E Test (admin ubah → notif user)
 * [ ] Accessibility Test (tabel + aksi keyboard)
 * [ ] Manual Verification (persona seed)
@@ -242,9 +243,9 @@ RB-Std.
 #### Acceptance Criteria
 
 * [ ] Update status → user menerima notifikasi (E2E).
-* [ ] Lamaran disclose=false → admin tidak melihat data akomodasi (test kontrak).
-* [ ] Audit memuat actor + alasan.
-* [ ] Filter per lowongan/status bekerja.
+* [x] Lamaran disclose=false → admin tidak melihat data akomodasi (test kontrak).
+* [x] Audit memuat actor + alasan.
+* [x] Filter per lowongan/status bekerja.
 * [ ] Bulk view performa wajar (pagination).
 
 #### Dependencies

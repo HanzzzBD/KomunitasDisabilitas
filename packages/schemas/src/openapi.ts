@@ -41,13 +41,19 @@ import {
   updateCompanySchema,
 } from "./companies.js";
 import {
+  adminApplicationDetailResponseSchema,
+  adminApplicationListQuerySchema,
+  adminApplicationListResponseSchema,
+  disclosureSnapshotResponseSchema,
+  revealDisclosureSchema,
+  updateApplicationStatusSchema,
   applicationIdParamsSchema,
   applicationResponseSchema,
   applyJobSchema,
   idempotencyKeySchema,
   myApplicationDetailResponseSchema,
   myApplicationListResponseSchema,
-} from "./applications.js";
+} from "./applications-api.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -1141,6 +1147,76 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "404": errorResponse("Tidak ditemukan"),
             "409": errorResponse("Lamaran belum ditawari / sudah berakhir"),
             ...responsSesi,
+          },
+        },
+      },
+      // Operasional lamaran oleh admin (PR-077a). Data disabilitas TIDAK PERNAH
+      // ikut di daftar/detail — dibuka lewat POST .../disclosure dengan alasan.
+      "/admin/applications": {
+        get: {
+          operationId: "listApplicationsAdmin",
+          tags: ["applications"],
+          summary: "Daftar lamaran (admin)",
+          description:
+            "Filter `job_id` dan `status`, cursor keyset, 50 per halaman. Pelamar hanya " +
+            "nama; `discloseDisability` hanya penanda.",
+          requestParams: { query: adminApplicationListQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman lamaran", adminApplicationListResponseSchema),
+            "400": errorResponse("Query atau cursor tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}": {
+        get: {
+          operationId: "getApplicationAdmin",
+          tags: ["applications"],
+          summary: "Detail lamaran (admin)",
+          description: "Kontak pelamar, CV terlampir, dan riwayat status — tanpa data disabilitas.",
+          requestParams: { path: applicationIdParamsSchema },
+          responses: {
+            "200": jsonOk("Detail lamaran", adminApplicationDetailResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}/status": {
+        put: {
+          operationId: "updateApplicationStatusAdmin",
+          tags: ["applications"],
+          summary: "Ubah status lamaran (admin)",
+          description:
+            "Maju boleh loncat; mundur, status akhir, dan `withdrawn` ditolak 409. " +
+            "`reason` wajib — masuk audit, tidak terlihat pelamar. Pelamar dikabari.",
+          requestParams: { path: applicationIdParamsSchema },
+          requestBody: jsonBody(updateApplicationStatusSchema),
+          responses: {
+            "200": jsonOk("Lamaran terkini", adminApplicationDetailResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Transisi tidak sah, atau status berubah bersamaan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/applications/{id}/disclosure": {
+        post: {
+          operationId: "revealApplicationDisclosureAdmin",
+          tags: ["applications"],
+          summary: "Buka data yang diungkap pelamar (admin, ber-audit)",
+          description:
+            "Hanya untuk lamaran ber-`discloseDisability`. Jejak audit ditulis SEBELUM " +
+            "data dibaca, termasuk saat ditolak. Respons `Cache-Control: no-store`.",
+          requestParams: { path: applicationIdParamsSchema },
+          requestBody: jsonBody(revealDisclosureSchema),
+          responses: {
+            "200": jsonOk("Salinan yang diungkap", disclosureSnapshotResponseSchema),
+            "400": errorResponse("Alasan kosong atau terlalu panjang"),
+            "404": errorResponse("Tidak ditemukan, atau pelamar tidak mengungkap"),
+            ...responsAdmin,
           },
         },
       },
