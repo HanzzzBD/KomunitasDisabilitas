@@ -182,12 +182,16 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("navigasi punya TIGA entri: Ringkasan, Perusahaan, dan Lowongan", async () => {
+  it("navigasi punya EMPAT entri: Ringkasan, Perusahaan, Lowongan, dan Lamaran", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
     const nav = screen.getByRole("navigation", { name: "Bagian admin" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(3);
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((l) => l.textContent),
+    ).toEqual(["Ringkasan", "Perusahaan", "Lowongan", "Lamaran"]);
   });
 });
 
