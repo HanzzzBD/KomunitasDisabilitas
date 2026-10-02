@@ -51,6 +51,7 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 **Backend Changes:**
 
 * `modules/admin/metrics`.
+* **Realisasi:** modul resmi baru `modules/admin` (repository agregat SQL read-only + service + controller + router); DLQ dibaca lewat `QueuesService` modul `internal`. Kontrak `adminMetrics*` di `packages/schemas/src/admin.ts` + OpenAPI.
 
 **Frontend Changes:**
 
@@ -58,11 +59,11 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 
 **Database Changes:**
 
-* Tidak ada.
+* Tidak ada. (Counter harian materialized DITUNDA — keputusan owner 2026-10-02, utang **U-32**.)
 
 **API Changes:**
 
-* GET /api/v1/admin/metrics
+* GET /api/v1/admin/metrics?periode=7d|30d|semua (bawaan 30d)
 
 **Security Considerations:**
 
@@ -70,11 +71,11 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 
 **Testing Checklist:**
 
-* [ ] Unit Test (agregator)
-* [ ] Integration Test (fixture)
+* [x] Unit Test (agregator)
+* [x] Integration Test (fixture)
 * [ ] E2E Test (via PR-081)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (bandingkan manual count)
+* [x] Manual Verification (bandingkan manual count) — DB dev: periode `semua` = hitungan psql
 
 **Deliverables:**
 
@@ -90,11 +91,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Angka funnel cocok dengan fixture deterministik.
-* [ ] Query tidak menyentuh kolom terenkripsi (review + test).
-* [ ] Cache 5 menit bekerja (hit kedua tanpa query berat).
-* [ ] North Star = count hired_confirmed_at.
-* [ ] Respons < 500 ms (cache hangat).
+* [x] Angka funnel cocok dengan fixture deterministik.
+* [x] Query tidak menyentuh kolom terenkripsi (review + test).
+* [x] Cache 5 menit bekerja (hit kedua tanpa query berat).
+* [x] North Star = count hired_confirmed_at.
+* [x] Respons < 500 ms (cache hangat).
 
 #### Dependencies
 

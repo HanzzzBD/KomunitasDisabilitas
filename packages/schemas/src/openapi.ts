@@ -55,6 +55,7 @@ import {
   myApplicationListQuerySchema,
   myApplicationListResponseSchema,
 } from "./applications-api.js";
+import { adminMetricsQuerySchema, adminMetricsResponseSchema } from "./admin.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -1153,6 +1154,23 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
       },
       // Operasional lamaran oleh admin (PR-077a). Data disabilitas TIDAK PERNAH
       // ikut di daftar/detail — dibuka lewat POST .../disclosure dengan alasan.
+      "/admin/metrics": {
+        get: {
+          operationId: "getAdminMetrics",
+          tags: ["admin"],
+          summary: "Metrik pilot (admin)",
+          description:
+            "Funnel kohort per pengguna (daftar → profil siap → melamar → wawancara → diterima), " +
+            "North Star (`hired_confirmed_at`), pemakaian AI per fitur, total DLQ. Agregat saja; " +
+            "tidak ada kolom terenkripsi yang dibaca. Cache 5 menit per periode.",
+          requestParams: { query: adminMetricsQuerySchema },
+          responses: {
+            "200": jsonOk("Metrik agregat", adminMetricsResponseSchema),
+            "400": errorResponse("Periode tidak dikenal"),
+            ...responsAdmin,
+          },
+        },
+      },
       "/admin/applications": {
         get: {
           operationId: "listApplicationsAdmin",

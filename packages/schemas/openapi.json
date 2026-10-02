@@ -3832,6 +3832,85 @@
         }
       }
     },
+    "/admin/metrics": {
+      "get": {
+        "operationId": "getAdminMetrics",
+        "tags": [
+          "admin"
+        ],
+        "summary": "Metrik pilot (admin)",
+        "description": "Funnel kohort per pengguna (daftar → profil siap → melamar → wawancara → diterima), North Star (`hired_confirmed_at`), pemakaian AI per fitur, total DLQ. Agregat saja; tidak ada kolom terenkripsi yang dibaca. Cache 5 menit per periode.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "periode",
+            "description": "Jendela kohort: 7d, 30d, atau semua",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d",
+                "semua"
+              ],
+              "default": "30d",
+              "description": "Jendela kohort: 7d, 30d, atau semua"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metrik agregat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMetricsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Periode tidak dikenal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/applications": {
       "get": {
         "operationId": "listApplicationsAdmin",
@@ -8800,6 +8879,182 @@
         },
         "required": [
           "statusHistory"
+        ]
+      },
+      "AdminMetricsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminMetrics"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AdminMetrics": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "7d",
+              "30d",
+              "semua"
+            ]
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "funnel": {
+            "$ref": "#/components/schemas/AdminFunnel"
+          },
+          "northStar": {
+            "$ref": "#/components/schemas/AdminNorthStar"
+          },
+          "aiUsage": {
+            "$ref": "#/components/schemas/AdminAiUsage"
+          },
+          "dlqTotal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "period",
+          "from",
+          "to",
+          "generatedAt",
+          "funnel",
+          "northStar",
+          "aiUsage",
+          "dlqTotal"
+        ]
+      },
+      "AdminFunnel": {
+        "type": "object",
+        "properties": {
+          "registered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "profileReady": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "applied": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "interviewed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hired": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "registered",
+          "profileReady",
+          "applied",
+          "interviewed",
+          "hired"
+        ]
+      },
+      "AdminNorthStar": {
+        "type": "object",
+        "properties": {
+          "confirmedInPeriod": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confirmedTotal": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "confirmedInPeriod",
+          "confirmedTotal"
+        ]
+      },
+      "AdminAiUsage": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAiUsageFeature"
+            }
+          }
+        },
+        "required": [
+          "since",
+          "features"
+        ]
+      },
+      "AdminAiUsageFeature": {
+        "type": "object",
+        "properties": {
+          "feature": {
+            "type": "string",
+            "enum": [
+              "cv_chat",
+              "cv_finalize",
+              "cv_check",
+              "simplify_text",
+              "interview_sim",
+              "rerank",
+              "embed"
+            ]
+          },
+          "requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokensIn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokensOut": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "feature",
+          "requests",
+          "tokensIn",
+          "tokensOut"
         ]
       },
       "AdminApplicationListResponse": {

@@ -891,6 +891,27 @@ persona Dimas). Lunas = ambang kembali `0.8` dan lulus.
 
 ---
 
+### U-32 — Metrik admin tanpa counter harian (agregasi langsung + cache 5 menit)
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Performa / desain ditunda |
+| **Ditemukan** | PR-080 (2026-10-02) |
+| **Pemilik** | Belum ditetapkan |
+| **Pemicu** | Query `GET /admin/metrics` (cache dingin) > 300 ms, ATAU `users` seeker > 20.000 — mana yang lebih dulu |
+
+Dokumen PR-080 menyebut "subscriber counter harian (materialized)" sekaligus "Database: tidak
+ada". Keputusan owner 2026-10-02: **tanpa tabel baru** — funnel dihitung langsung dengan SQL
+agregat (`modules/admin/repositories/metrics.repository.ts`) dan di-cache 5 menit per periode.
+Pada skala MVP (< 5.000 pengguna) satu hitungan per 5 menit per periode tidak berarti apa-apa.
+Yang akan menagihnya: funnel adalah join users ⨝ seeker_profiles ⨝ applications dengan
+`jsonb_array_elements(status_history)` — biayanya tumbuh linier dengan lamaran. Pembayaran:
+tabel counter harian per tahap yang diisi subscriber event (`application.submitted`,
+`application.status_changed`, `application.hired_confirmed`, pendaftaran) + backfill sekali.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

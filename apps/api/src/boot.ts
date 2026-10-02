@@ -16,7 +16,12 @@ import { createRedisClients } from "./core/redis/index.js";
 import { createAuditLog, createPrismaAuditWriter } from "./core/audit/index.js";
 import { createEventBus } from "./core/events/index.js";
 import { createHealthModule } from "./modules/health/index.js";
-import { createInternalAuth, createInternalModule } from "./modules/internal/index.js";
+import {
+  createInternalAuth,
+  createInternalModule,
+  createQueuesService,
+} from "./modules/internal/index.js";
+import { createAdminModule } from "./modules/admin/index.js";
 import {
   createAuthModule,
   createGoogleConfigFromEnv,
@@ -421,6 +426,22 @@ export async function startApi(options: BootOptions): Promise<void> {
           // PR-077a: nama + kontak pelamar bagi admin — kolom milik modul users.
           identitasPelamar: (ids) =>
             createApplicantDirectory(createUserProfileRepository(prisma)).identitas(ids),
+        }).router,
+      );
+      // Metrik pilot (PR-080) — agregat read-only, admin saja. DLQ dibaca lewat
+      // QueuesService modul `internal` (sumber yang sama dengan /internal/queues).
+      const statusAntrean = createQueuesService({
+        registry: queues,
+        dlqQueueOf: (dlqName) => dlqQueues.queueOf(dlqName),
+      });
+      app.use(
+        createAdminModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          // Cache, bukan queue: metrik yang terusir hanya dihitung ulang.
+          cache: redis.cache,
+          bacaDlqTotal: async () => (await statusAntrean.status()).dlqTotal,
+          logger,
         }).router,
       );
       // Feed AI Job Matching (PR-073) — SESUDAH `jobs` (kartu lowongan lewat
