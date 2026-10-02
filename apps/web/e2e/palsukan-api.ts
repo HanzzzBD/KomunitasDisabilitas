@@ -360,6 +360,33 @@ const RIWAYAT_LAMARAN_UJI = [
 ];
 
 /**
+ * Lamaran milik PELAMAR uji (PR-079, "Lamaran Saya"). Status `offered` dengan
+ * tiga langkah riwayat: halaman detail menampilkan KEDUA aksi (tarik lamaran +
+ * "Saya diterima") dan lini masa empat titik — keadaan terpadat untuk axe.
+ * Lowongannya = `LOWONGAN_UJI_ID`, BUKAN lowongan publik pertama: spec PR-078
+ * melamar lowongan pertama dan harus melihat tombol "Lamar", bukan kotak
+ * "sudah melamar".
+ */
+export const LAMARAN_SAYA_UJI_ID = "01912345-89ab-7def-8123-4567890aaa40";
+
+const LAMARAN_SAYA_UJI = {
+  id: LAMARAN_SAYA_UJI_ID,
+  jobId: LOWONGAN_UJI_ID,
+  resumeId: null as string | null,
+  discloseDisability: false,
+  status: "offered" as string,
+  appliedAt: "2026-09-20T03:00:00.000Z",
+  updatedAt: "2026-10-01T03:00:00.000Z",
+  hiredConfirmedAt: null as string | null,
+  job: { title: "Staf Admin Uji", companyName: "PT Uji Fiktif", aktif: true },
+  statusHistory: [
+    { from: "submitted", to: "viewed", by: "admin", at: "2026-09-22T03:00:00.000Z" },
+    { from: "viewed", to: "interview", by: "admin", at: "2026-09-25T03:00:00.000Z" },
+    { from: "interview", to: "offered", by: "admin", at: "2026-10-01T03:00:00.000Z" },
+  ] as { from: string; to: string; by: string; at: string }[],
+};
+
+/**
  * Detail lowongan publik (PR-059, `JobPublic`) — DITURUNKAN dari
  * `LOWONGAN_PENCARIAN_UJI`, bukan fixture terpisah: judul/perusahaan di
  * halaman detail harus sama dengan kartu yang diklik di daftar.
@@ -575,6 +602,8 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   const cv = [{ ...CV_UJI, content: { ...CV_UJI.content } }];
   // Lamaran admin (PR-077b) — status berubah per pemanggilan, sama seperti lowongan.
   const lamaranAdmin = { ...LAMARAN_UJI, statusHistory: [...RIWAYAT_LAMARAN_UJI] };
+  // "Lamaran Saya" (PR-079) — tarik/konfirmasi mengubahnya per pemanggilan.
+  const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
   let pdfDiminta = false;
   let pembacaanPdf = 0;
 
@@ -918,6 +947,46 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       }
       Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
       return route.fulfill(jsonkan(200, { data: { ...baris } }));
+    }
+    // --- Lamaran Saya (PR-079) — jalur PELAMAR ---
+    //
+    // `?job_id=` = "sudah melamar lowongan ini?" (detail lowongan): hanya
+    // lowongan milik lamaran uji yang menjawab satu baris.
+    if (jalur === "/api/v1/me/applications") {
+      const jobId = new URL(route.request().url()).searchParams.get("job_id");
+      const { statusHistory: _riwayat, ...ringkas } = lamaranSaya;
+      const data = jobId === null || jobId === lamaranSaya.jobId ? [ringkas] : [];
+      return route.fulfill(jsonkan(200, { data, meta: { nextCursor: null } }));
+    }
+    if (/\/me\/applications\/[^/]+\/withdraw$/.test(jalur)) {
+      const at = "2026-10-02T05:00:00.000Z";
+      lamaranSaya.statusHistory.push({
+        from: lamaranSaya.status,
+        to: "withdrawn",
+        by: "seeker",
+        at,
+      });
+      Object.assign(lamaranSaya, { status: "withdrawn", updatedAt: at });
+      return route.fulfill(jsonkan(200, { data: { ...lamaranSaya } }));
+    }
+    if (/\/me\/applications\/[^/]+\/confirm-hired$/.test(jalur)) {
+      const at = "2026-10-02T05:00:00.000Z";
+      if (lamaranSaya.status === "offered") {
+        lamaranSaya.statusHistory.push({ from: "offered", to: "hired", by: "seeker", at });
+      }
+      Object.assign(lamaranSaya, { status: "hired", hiredConfirmedAt: at, updatedAt: at });
+      return route.fulfill(jsonkan(200, { data: { ...lamaranSaya } }));
+    }
+    if (/^\/api\/v1\/me\/applications\/[^/]+$/.test(jalur)) {
+      const id = decodeURIComponent(jalur.split("/").pop() ?? "");
+      if (id !== lamaranSaya.id) {
+        return route.fulfill(
+          jsonkan(404, { code: "LAMARAN_TIDAK_DITEMUKAN", message: "Lamaran tidak ditemukan" }),
+        );
+      }
+      return route.fulfill(
+        jsonkan(200, { data: { ...lamaranSaya, statusHistory: [...lamaranSaya.statusHistory] } }),
+      );
     }
     // --- Lamaran admin (PR-077b) ---
     //

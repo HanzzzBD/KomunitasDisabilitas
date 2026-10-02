@@ -72,6 +72,8 @@ interface Permintaan {
 interface OpsiKlien {
   resumes?: ResumeSummary[];
   sensitive?: SensitiveProfile | null;
+  /** Lamaran yang sudah ada untuk lowongan ini (PR-079). */
+  sudahAda?: Record<string, unknown>;
   /** Jawaban POST apply; bawaan = 201. */
   apply?: () => Promise<unknown>;
 }
@@ -91,6 +93,14 @@ function klienPalsu(jejak: Permintaan[], opsi: OpsiKlien = {}): ApiClient {
         }) as Promise<never>;
       }
       jejak.push({ path, method, body: options?.body, headers: options?.headers });
+
+      // PR-079 — "sudah melamar lowongan ini?". Bawaan: belum.
+      if (path.startsWith("/me/applications?")) {
+        return Promise.resolve({
+          data: opsi.sudahAda === undefined ? [] : [opsi.sudahAda],
+          meta: { nextCursor: null },
+        }) as Promise<never>;
+      }
 
       if (path === `/jobs/${JOB}`) return Promise.resolve({ data: LOWONGAN }) as Promise<never>;
       if (path.startsWith("/companies/")) {
@@ -328,5 +338,46 @@ describe("bagian lamar — sesi & ?lamar=1", () => {
       await screen.findByRole("dialog", { name: /Lamar: Staf Layanan Pelanggan/ }),
     ).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toBe(""));
+  });
+});
+
+describe("bagian lamar — sudah pernah melamar (PR-079)", () => {
+  it("lamaran yang sudah ada → status + tautan ke detailnya, TANPA tombol Lamar", async () => {
+    const ID = "01912345-89ab-7def-8123-4567890aff09";
+    const { jejak } = renderDi(undefined, {
+      sudahAda: {
+        id: ID,
+        jobId: JOB,
+        resumeId: null,
+        discloseDisability: false,
+        status: "interview",
+        appliedAt: "2026-09-20T03:00:00.000Z",
+        updatedAt: "2026-09-25T03:00:00.000Z",
+        hiredConfirmedAt: null,
+        job: { title: "Staf Layanan Pelanggan", companyName: "PT", aktif: true },
+      },
+    });
+    expect(
+      await screen.findByRole("heading", { level: 3, name: "Anda sudah melamar lowongan ini" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Undangan wawancara")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Lihat lamaran saya" })).toHaveAttribute(
+      "href",
+      `/lamaran/${ID}`,
+    );
+    expect(screen.queryByRole("button", { name: "Lamar lowongan ini" })).not.toBeInTheDocument();
+    expect(jejak.some((p) => p.path === `/me/applications?job_id=${JOB}&limit=1`)).toBe(true);
+  });
+
+  it("sesudah terkirim → tautan hasil ke detail lamaran yang baru", async () => {
+    renderDi();
+    const { user, dialog } = await bukaDialog();
+    await user.click(await within(dialog).findByRole("radio", { name: /Tidak, jangan kirim/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Kirim lamaran" }));
+    await screen.findByRole("heading", { level: 3, name: "Lamaran terkirim" });
+    expect(screen.getByRole("link", { name: "Lihat lamaran ini" })).toHaveAttribute(
+      "href",
+      "/lamaran/01912345-89ab-7def-8123-4567890aff01",
+    );
   });
 });

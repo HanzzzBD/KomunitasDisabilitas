@@ -43,9 +43,8 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       return null;
     case NOTIFICATION_TYPE.LAMARAN_TERKIRIM:
     case NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH:
-      // Menunggu `/lamaran/:id` (Phase 12). Bentuk yang akan dipakai:
-      //   return `/lamaran/${String(notifikasi.params.applicationId)}`;
-      return null;
+      // PR-079 — "Lamaran Saya" sudah ada; kabar lamaran mendarat di detailnya.
+      return `/lamaran/${String(notifikasi.params.applicationId)}`;
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU:
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN:
     case NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI:

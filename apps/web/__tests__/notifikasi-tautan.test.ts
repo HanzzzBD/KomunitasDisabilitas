@@ -1,5 +1,10 @@
 // Seam tujuan notifikasi (PR-050, AC-4).
 //
+// PR-079: halaman `/lamaran/:id` lahir, dan kabar lamaran pelamar kini
+// mengantar ke sana — test "BELUM punya tujuan" di bawah berubah persis seperti
+// yang diniatkan catatan asli ini. Penjaga "alamat belum ada" kini memeriksa
+// langsung ke `ruteApp`: setiap tujuan harus cocok dengan route nyata.
+//
 // BERKAS INI MENJAGA SEBUAH KETIADAAN, dan itu bentuk test yang paling mudah
 // disalahpahami — jadi alasannya ditulis di sini, bukan hanya di kode.
 //
@@ -16,6 +21,8 @@
 // atas dan memperbarui AC-nya.
 import { describe, expect, it } from "vitest";
 import { NOTIFICATION_TYPE, notificationTypeSchema } from "@nawasena/schemas";
+import { matchRoutes } from "react-router";
+import { ruteApp } from "../src/app/routes.js";
 import { tautanNotifikasi } from "../src/features/notifikasi/tautan.js";
 
 const PARAMS = {
@@ -56,16 +63,13 @@ describe("tujuan notifikasi", () => {
     ).toBeNull();
   });
 
-  it("notifikasi lamaran BELUM punya tujuan — halamannya lahir di Phase 12", () => {
-    // MERAH begitu `/lamaran/:id` dipasang dan `tautan.ts` diperbarui. Itu
-    // memang yang diinginkan: perubahan tujuan navigasi tidak boleh lolos tanpa
-    // seseorang meninjau ulang AC-4.
-    expect(
-      tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_TERKIRIM, params: PARAMS }),
-    ).toBeNull();
-    expect(
-      tautanNotifikasi({ type: NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH, params: PARAMS }),
-    ).toBeNull();
+  it("kabar lamaran pelamar mengantar ke detail lamarannya (PR-079, AC-4 PR-050)", () => {
+    for (const type of [
+      NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
+      NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
+    ]) {
+      expect(tautanNotifikasi({ type, params: PARAMS })).toBe(`/lamaran/${PARAMS.applicationId}`);
+    }
   });
 
   it("notifikasi PDF membuka editor CV yang menghasilkan berkasnya", () => {
@@ -84,12 +88,14 @@ describe("tujuan notifikasi", () => {
   });
 
   it("tidak satu pun tipe menjanjikan alamat yang belum ada di router", () => {
-    // Bentuk paling langsung dari alasan seam ini ada.
+    // Bentuk paling langsung dari alasan seam ini ada: setiap tujuan harus
+    // cocok dengan route nyata, bukan jatuh ke penangkap `*` (404).
     for (const type of notificationTypeSchema.options) {
       const ke = tautanNotifikasi({ type, params: PARAMS });
-      // `null` LULUS: tidak menjanjikan apa pun memang jawaban yang benar hari
-      // ini. Yang tidak boleh adalah string yang menunjuk alamat tak terpasang.
-      if (ke !== null) expect(ke).not.toMatch(/^\/lamaran\//);
+      if (ke === null) continue;
+      const cocok = matchRoutes(ruteApp, ke) ?? [];
+      expect(cocok.at(-1)?.route.path, `${type} → ${ke}`).not.toBe("*");
+      expect(cocok.length, `${type} → ${ke}`).toBeGreaterThan(0);
     }
   });
 });

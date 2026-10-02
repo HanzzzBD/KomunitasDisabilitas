@@ -474,3 +474,99 @@ Radix. Dibutuhkan karena pemicu dialog lamar LENYAP sesudah melamar; memindah fo
 
 1. PR-079 — "Lamaran Saya" (timeline, withdraw, confirm-hired) + aktifkan tautan notifikasi
    pelamar; pertimbangkan menandai lowongan yang sudah dilamar di detail lowongan.
+
+---
+
+## PR-079 — Tracking FE — Timeline + Confirm Hired
+
+> **Phase:** [12 - Applications](../phase-12-applications.md#pr-079---tracking-fe--timeline--confirm-hired)
+> **Tanggal:** 2026-10-02
+> **Status:** Selesai — seluruh PR Phase 12 (075..079) selesai
+> **Branch:** `pr-079-applications-tracking` → `phase-12-applications`
+
+### Ringkasan hasil
+
+"Lamaran Saya" hidup: `/lamaran` (daftar) dan `/lamaran/:id` (status sekarang + artinya, lini
+masa `<ol>`, tarik lamaran ber-konfirmasi, "Saya diterima" satu ketuk dengan perayaan teks).
+Kabar lamaran pelamar di notification center kini mengantar ke detail lamarannya; header punya
+pintasan "Lamaran Saya"; detail lowongan menampilkan "Anda sudah melamar" beserta statusnya
+alih-alih tombol "Lamar"; layar hasil PR-078 menautkan ke lamaran yang baru dibuat.
+
+### Keputusan owner (AskUserQuestion, 2026-10-02)
+
+1. **"Saya diterima" satu ketuk**, tanpa dialog (AC). Tombol hanya ada saat Penawaran kerja /
+   Diterima dan belum dikonfirmasi.
+2. **Perayaan = teks saja**, tanpa animasi; fokus ke judulnya, emoji `aria-hidden`.
+3. **Tarik lamaran lewat dialog konfirmasi** yang menyebut akibatnya.
+4. **Cakupan tambahan:** pintasan header, tautan notifikasi pelamar, layar hasil PR-078 → detail
+   lamaran, dan tanda "sudah melamar" di detail lowongan.
+5. **"Sudah melamar" lewat filter API `?job_id=`** (bukan klien menelusuri daftar) — dokumen PR-079
+   menyebut "Backend: Tidak ada"; dicatat sebagai realisasi.
+6. **NVDA dijalankan sekarang.**
+
+### Scope selesai
+
+**API (aditif)** — `myApplicationListQuerySchema` (`job_id` opsional) + OpenAPI; router, controller,
+service, `listMine(…, jobId)`. Test DB: hanya milik sendiri untuk lowongan itu; id rusak = 400.
+
+**`@nawasena/api-client`** — `listMyApplications` (`job_id`/cursor/limit), `getMyApplication`,
+`withdrawMyApplication`, `confirmHiredMyApplication`; `applicationsKeys.myList(sub, {jobId})` /
+`myDetail(sub, id)` — dilingkupi `sub` seperti `resumesKeys`.
+
+**Web**
+
+* Katalog baru **`pelamar`** (67 entri id + id-simple). Bukan `lamaran`: prefiks itu milik tipe
+  notifikasi (`lamaran.terkirim`) dan penjaga `i18n-lazy` membaca literal `"<fitur>.`; satu kata
+  huruf kecil karena penjaga hanya mengenali `[a-z]+`. Label status ditulis untuk pelamar, terpisah
+  dari `admin.lamaran.status.*`.
+* `features/applications/`: `lini-masa.ts` (mapper murni — titik awal "Lamaran dikirim"
+  disisipkan karena riwayat hanya mencatat perpindahan; diurutkan ulang stabil), `status-lamaran.tsx`
+  (label/arti/badge; warna hanya penguat), `daftar-lamaran.tsx` (`<li>` + `h2` + satu tautan,
+  "Muat lebih banyak"), `detail-lamaran.tsx`, `pesan-galat-lamaran-saya.ts`.
+* Detail: wilayah `role="status"` dirender KOSONG sejak awal lalu diisi (live region yang lahir
+  bersama isinya sering tidak diumumkan); fokus sesudah tarik → judul "Status sekarang" lewat
+  `Dialog.fokusSaatTutup` (PR-078) dengan **ref**, bukan `isSuccess` — closure yang dipanggil Radix
+  adalah render sebelumnya; fokus sesudah konfirmasi → judul perayaan lewat efek yang menunggu
+  `hiredConfirmedAt` (state lokal & data query bisa ter-commit di render berbeda — tertangkap jsdom).
+* `bagian-lamar.tsx`: lima keadaan (+ "sudah melamar"); pemeriksaan yang GAGAL (jaringan, admin
+  403) tetap menawarkan tombol — unique (user, job) di server tetap wasit.
+* Rute `/lamaran`, `/lamaran/:id`; `/lowongan/:id` ikut memuat katalog `pelamar`.
+* `tautan.ts`: `LAMARAN_TERKIRIM`/`LAMARAN_STATUS_BERUBAH` → `/lamaran/:id`. Test seam diperbarui:
+  penjaga "alamat belum ada" kini memeriksa langsung ke `ruteApp` (`matchRoutes`, bukan `*`).
+* Registry a11y: "lamaran saya — daftar/detail"; pemalsu e2e jalur pelamar (stateful).
+
+### Acceptance Criteria
+
+| AC | Bukti |
+|---|---|
+| Timeline = ordered list semantik | unit `lini-masa.test.ts`; jsdom `<ol>` + `aria-current="step"`; e2e 4 item; NVDA "list with 4 items", kronologi benar |
+| Status terbaru diumumkan saat dibuka | jsdom wilayah status; e2e teks wilayah; NVDA membacakan "Status terbaru …: Penawaran kerja." |
+| Withdraw ber-konfirmasi; confirm satu tap + perayaan aksesibel | jsdom + e2e keyboard: dialog → batal/tarik → fokus judul status; satu Enter → judul perayaan berfokus; `getAnimations()` kosong di mode kurangi gerak |
+| Navigasi dari notifikasi mendarat tepat | unit `tautan`; e2e notifikasi `lamaran.status_berubah` → `/lamaran/:id` |
+| Keyboard-only penuh | `lamaran-saya.spec.ts` tanpa satu klik; axe 0 pelanggaran di setiap keadaan |
+
+### Verifikasi
+
+* jsdom `lamaran-saya.test.tsx` 8/8, `lini-masa.test.ts` 4/4, `lamar.test.tsx` 12/12,
+  `notifikasi-tautan`, `i18n-lazy`, `katalog-kelengkapan` hijau; api-client 11/11.
+* Playwright sesudah `build`: `lamaran-saya.spec.ts` 4/4 (`--repeat-each=6` → 24/24); suite a11y
+  penuh **139/139**.
+* `cek:budget`: JS awal 108,6 KB (+0,2 KB — pintasan header di shell).
+* `turbo run lint typecheck test --concurrency=1`: **27/27**. Docker mati di mesin ini → test DB API
+  (termasuk kasus `job_id` baru) terlewat lokal; dibuktikan CI.
+* NVDA: satu run sah — [checklist](pr-079-nvda-checklist.md). Tidak ada cacat baru.
+
+### Risiko & catatan
+
+* **Privasi harness NVDA:** toast notifikasi aplikasi lain milik owner terbaca NVDA walau jendela
+  uji di depan; laporan dihapus, isinya tidak dicatat. Run berikutnya: nyalakan *Do Not Disturb*.
+* E2E "apply → admin ubah → notif → confirm" dibuktikan **per potong** dengan API dipalsukan, bukan
+  satu alur di stack nyata.
+* `resume.ts` memuat 4 baris teks rusak encoding ("â€¦") yang sudah ada SEBELUM PR-078 — di luar
+  scope, tidak disentuh; layak diperbaiki terpisah.
+* Diff non-test ±1.000 baris (katalog ±250, banyak komentar) — di atas pedoman 500 LOC; cakupan
+  tambahan dipilih owner.
+
+### Next steps
+
+1. Phase 12 lengkap → `phase-12-applications → main` menunggu perintah eksplisit owner (CLAUDE.md §5.8).

@@ -1,6 +1,6 @@
 // Endpoint lamaran — jalur ADMIN (PR-077a server; dikonsumsi PR-077b) dan
-// melamar (PR-075 server; dikonsumsi PR-078). "Lamaran Saya" menyusul bersama
-// layarnya di PR-079, di berkas yang sama.
+// melamar (PR-075 server; dikonsumsi PR-078) dan "Lamaran Saya" (PR-076
+// server; dikonsumsi PR-079).
 //
 // `revealDisclosureAdmin` SENGAJA TIDAK PUNYA query key. Salinan data
 // disabilitas tidak boleh tinggal di cache TanStack: setiap pembukaan harus
@@ -12,6 +12,8 @@ import {
   applicationResponseSchema,
   applyJobSchema,
   disclosureSnapshotResponseSchema,
+  myApplicationDetailResponseSchema,
+  myApplicationListResponseSchema,
   revealDisclosureSchema,
   updateApplicationStatusSchema,
   type AdminApplicationDetail,
@@ -20,6 +22,8 @@ import {
   type ApplicationStatus,
   type ApplyJob,
   type DisclosureSnapshot,
+  type MyApplicationDetail,
+  type MyApplicationListResponse,
 } from "@nawasena/schemas";
 import type { z } from "zod";
 import type { ApiClient } from "../client.js";
@@ -33,6 +37,15 @@ export const applicationsKeys = {
   adminList: (filter: { jobId?: string; status?: ApplicationStatus }) =>
     queryKey("admin-applications", { jobId: filter.jobId, status: filter.status }),
   adminDetail: (id: string) => queryKey("admin-application", { id }),
+  /**
+   * "Lamaran Saya" (PR-079) — dilingkupi `sub` seperti `resumesKeys`: pengguna
+   * yang berganti akun di tab yang sama tidak boleh melihat cache milik akun
+   * sebelumnya. `jobId` = pertanyaan "sudah melamar lowongan ini?".
+   */
+  myList: (sub: string | null, filter: { jobId?: string } = {}) =>
+    queryKey("my-applications", { sub: sub ?? "anonim", jobId: filter.jobId }),
+  myDetail: (sub: string | null, id: string) =>
+    queryKey("my-application", { sub: sub ?? "anonim", id }),
 };
 
 /**
@@ -119,6 +132,65 @@ export async function revealDisclosureAdmin(
     method: "POST",
     body: revealDisclosureSchema.parse({ reason }),
     responseSchema: disclosureSnapshotResponseSchema,
+  });
+  return res.data;
+}
+
+export interface OpsiDaftarLamaranSaya {
+  jobId?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+/** GET /api/v1/me/applications — satu halaman; amplop utuh untuk `meta.nextCursor`. */
+export async function listMyApplications(
+  client: ApiClient,
+  opsi: OpsiDaftarLamaranSaya = {},
+): Promise<MyApplicationListResponse> {
+  const query = new URLSearchParams();
+  if (opsi.jobId !== undefined) query.set("job_id", opsi.jobId);
+  if (opsi.cursor !== undefined) query.set("cursor", opsi.cursor);
+  if (opsi.limit !== undefined) query.set("limit", String(opsi.limit));
+  const akhiran = query.size === 0 ? "" : `?${query.toString()}`;
+  return client.request(`/me/applications${akhiran}`, {
+    responseSchema: myApplicationListResponseSchema,
+  });
+}
+
+/** GET /api/v1/me/applications/:id — dengan riwayat status. */
+export async function getMyApplication(
+  client: ApiClient,
+  id: string,
+): Promise<MyApplicationDetail> {
+  const res = await client.request(`/me/applications/${encodeURIComponent(id)}`, {
+    responseSchema: myApplicationDetailResponseSchema,
+  });
+  return res.data;
+}
+
+/** POST /api/v1/me/applications/:id/withdraw — hanya dari status aktif. */
+export async function withdrawMyApplication(
+  client: ApiClient,
+  id: string,
+): Promise<MyApplicationDetail> {
+  const res = await client.request(`/me/applications/${encodeURIComponent(id)}/withdraw`, {
+    method: "POST",
+    responseSchema: myApplicationDetailResponseSchema,
+  });
+  return res.data;
+}
+
+/**
+ * POST /api/v1/me/applications/:id/confirm-hired — North Star (PRD FR-5.5).
+ * Idempoten di server: konfirmasi kedua menjawab keadaan yang sama.
+ */
+export async function confirmHiredMyApplication(
+  client: ApiClient,
+  id: string,
+): Promise<MyApplicationDetail> {
+  const res = await client.request(`/me/applications/${encodeURIComponent(id)}/confirm-hired`, {
+    method: "POST",
+    responseSchema: myApplicationDetailResponseSchema,
   });
   return res.data;
 }

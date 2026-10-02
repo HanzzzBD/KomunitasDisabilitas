@@ -287,5 +287,14 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     jalur: "/lowongan/:id",
   },
 
+  // PR-079 — "Lamaran Saya". Detail dibuka LANGSUNG pada lamaran `offered`:
+  // tombol tarik + "Saya diterima" + lini masa empat titik.
+  { nama: "lamaran saya — daftar", jalur: "/lamaran", butuhSesi: true },
+  {
+    nama: "lamaran saya — detail",
+    jalur: "/lamaran/01912345-89ab-7def-8123-4567890aaa40",
+    butuhSesi: true,
+  },
+
   { nama: "404", jalur: "/jalur-yang-tidak-ada" },
 ];

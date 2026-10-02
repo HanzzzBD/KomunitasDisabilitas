@@ -6,7 +6,7 @@
 // urutan path & skema mengikuti urutan deklarasi di file ini. Output byte-sama
 // untuk input sama → diff check di CI valid.
 import { createDocument, type oas31, type ZodOpenApiPathItemObject } from "zod-openapi";
-import { errorEnvelopeSchema, paginationQuerySchema } from "./common.js";
+import { errorEnvelopeSchema } from "./common.js";
 import {
   requestOtpSchema,
   requestOtpResponseSchema,
@@ -52,6 +52,7 @@ import {
   applyJobSchema,
   idempotencyKeySchema,
   myApplicationDetailResponseSchema,
+  myApplicationListQuerySchema,
   myApplicationListResponseSchema,
 } from "./applications-api.js";
 import {
@@ -1089,7 +1090,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           description:
             "Terbaru BERUBAH lebih dulu (`updatedAt`), cursor keyset. Ringkasan lowongan " +
             "dibaca saat ini — lowongan yang sudah ditutup tetap tampil dengan `aktif: false`.",
-          requestParams: { query: paginationQuerySchema },
+          requestParams: { query: myApplicationListQuerySchema },
           responses: {
             "200": jsonOk("Satu halaman lamaran", myApplicationListResponseSchema),
             "400": errorResponse("Query atau cursor tidak valid"),

@@ -136,15 +136,19 @@ export function createApplicationsRepository(prisma: AppPrisma) {
      * Satu halaman lamaran milik pengguna, terbaru BERUBAH lebih dulu — indeks
      * `applications_user_updated (user_id, updated_at DESC)` migrasi 03 ada
      * untuk persis query ini. `limit` sudah termasuk +1 pengintip halaman.
+     * `jobId` (PR-079): "sudah melamar lowongan ini?" — unique (user, job)
+     * membuat hasilnya paling banyak satu baris.
      */
     async listMine(
       userId: string,
       limit: number,
       setelah?: PosisiLamaran,
+      jobId?: string,
     ): Promise<ApplicationDetailRow[]> {
       return prisma.application.findMany({
         where: {
           userId,
+          ...(jobId === undefined ? {} : { jobId }),
           ...(setelah === undefined
             ? {}
             : {

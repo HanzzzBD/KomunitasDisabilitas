@@ -7,7 +7,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applicationsKeys,
   applyJob,
+  confirmHiredMyApplication,
   createApiClient,
+  listMyApplications,
+  withdrawMyApplication,
   getApplicationAdmin,
   listApplicationsAdmin,
   revealDisclosureAdmin,
@@ -122,7 +125,12 @@ describe("revealDisclosureAdmin", () => {
     };
     const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: salinan }));
     expect(await revealDisclosureAdmin(klien(fetch), ID, "tiket #1")).toEqual(salinan);
-    expect(Object.keys(applicationsKeys)).toEqual(["adminList", "adminDetail"]);
+    expect(Object.keys(applicationsKeys)).toEqual([
+      "adminList",
+      "adminDetail",
+      "myList",
+      "myDetail",
+    ]);
   });
 });
 
@@ -172,5 +180,50 @@ describe("applyJob (PR-078)", () => {
       applyJob(klien(fetch), JOB, { resumeId: ID } as never, "kunci-uji-12345678"),
     ).rejects.toThrow();
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Lamaran Saya (PR-079)", () => {
+  const SAYA = {
+    id: ID,
+    jobId: JOB,
+    resumeId: null,
+    discloseDisability: false,
+    status: "offered",
+    appliedAt: "2026-10-02T03:00:00.000Z",
+    updatedAt: "2026-10-02T03:00:00.000Z",
+    hiredConfirmedAt: null,
+    job: { title: "Staf Admin", companyName: "PT Uji", aktif: true },
+  };
+
+  it("daftar mengirim `job_id` dengan nama server", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { data: [SAYA], meta: { nextCursor: null } }));
+    const hasil = await listMyApplications(klien(fetch), { jobId: JOB });
+    const url = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe("/api/v1/me/applications");
+    expect(url.searchParams.get("job_id")).toBe(JOB);
+    expect(hasil.data[0]?.status).toBe("offered");
+  });
+
+  it("withdraw & confirm-hired = POST tanpa badan ke jalur masing-masing", async () => {
+    // Response baru per panggilan: badan Response hanya bisa dibaca sekali.
+    const fetch = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse(200, { data: { ...SAYA, statusHistory: [] } })),
+      );
+    await withdrawMyApplication(klien(fetch), ID);
+    await confirmHiredMyApplication(klien(fetch), ID);
+    const [[u1, i1], [u2, i2]] = fetch.mock.calls as [[string, RequestInit], [string, RequestInit]];
+    expect(u1).toBe(`https://x/api/v1/me/applications/${ID}/withdraw`);
+    expect(u2).toBe(`https://x/api/v1/me/applications/${ID}/confirm-hired`);
+    expect([i1.method, i2.method, i1.body, i2.body]).toEqual([
+      "POST",
+      "POST",
+      undefined,
+      undefined,
+    ]);
   });
 });

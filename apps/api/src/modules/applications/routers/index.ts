@@ -12,7 +12,7 @@ import {
   updateApplicationStatusSchema,
   applyJobSchema,
   jobIdParamsSchema,
-  paginationQuerySchema,
+  myApplicationListQuerySchema,
 } from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
@@ -38,7 +38,7 @@ export function createApplicationsRouter(
   routes.get(
     "/me/applications",
     access.role("seeker"),
-    validate({ query: paginationQuerySchema }),
+    validate({ query: myApplicationListQuerySchema }),
     asyncHandler(status.list),
   );
   routes.get(
