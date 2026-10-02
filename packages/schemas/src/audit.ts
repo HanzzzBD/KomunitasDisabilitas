@@ -20,6 +20,10 @@ export const AUDIT_ACTION = {
    *  tujuan `disclosure`). */
   APPLICATION_SUBMITTED: "APPLICATION_SUBMITTED",
   APPLICATION_STATUS_CHANGED: "APPLICATION_STATUS_CHANGED",
+  /** PR-076: pelamar mengonfirmasi diterima kerja (North Star). `from` = status
+   *  saat konfirmasi (`offered` atau `hired`) — membedakan konfirmasi yang ikut
+   *  memindahkan status dari yang hanya mengesahkan keputusan admin. */
+  APPLICATION_HIRED_CONFIRMED: "APPLICATION_HIRED_CONFIRMED",
   COMPANY_VERIFIED: "COMPANY_VERIFIED",
   ADMIN_RESOURCE_CHANGED: "ADMIN_RESOURCE_CHANGED",
   DATA_EXPORTED: "DATA_EXPORTED",
@@ -56,6 +60,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.PROFILE_SENSITIVE_UPDATED,
   AUDIT_ACTION.APPLICATION_SUBMITTED,
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
+  AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED,
   AUDIT_ACTION.COMPANY_VERIFIED,
   AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
   AUDIT_ACTION.DATA_EXPORTED,
@@ -206,6 +211,9 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: z.object({
     from: applicationStatusSchema,
     to: applicationStatusSchema,
+  }),
+  [AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED]: z.object({
+    from: z.enum(["offered", "hired"]),
   }),
   [AUDIT_ACTION.COMPANY_VERIFIED]: z.object({
     from: z.enum(["unverified", "selfClaimed", "verified"]),

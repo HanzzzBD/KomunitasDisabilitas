@@ -22,6 +22,7 @@
 //      menggagalkan job akan membatalkan pekerjaan yang sudah benar, lalu
 //      mengulanginya — dan pengulangan itu menerbitkan event yang sama lagi.
 import type {
+  ApplicationHiredConfirmedEvent,
   ApplicationStatusChangedEvent,
   ApplicationSubmittedEvent,
   CompanyVerifiedEvent,
@@ -82,6 +83,13 @@ export interface DomainEvents {
    * yang dipicu event ini — bukan dari handler-nya.
    */
   "application.status_changed": ApplicationStatusChangedEvent;
+  /**
+   * Pelamar mengonfirmasi diterima kerja (PR-076, North Star, SDD §15 "→
+   * admin"). Penerbitnya modul `applications` DI PROSES API (endpoint
+   * confirm-hired). Pelanggannya modul notifications: kabar ke admin untuk
+   * verifikasi silang (R10 PRD). Terbit sekali per lamaran.
+   */
+  "application.hired_confirmed": ApplicationHiredConfirmedEvent;
   /**
    * Perusahaan diverifikasi admin (PR-051, PRD FR-6.1). Penerbitnya modul
    * `companies`, DI PROSES API — endpoint verify berjalan lewat HTTP. Belum

@@ -114,6 +114,31 @@ export const TEMPLATE = {
     }),
   },
 
+  // PR-076. Pelamar membatalkan — admin berhenti meneruskan ke perusahaan.
+  "admin.lamaran_dibatalkan": {
+    title: () => ({
+      id: "Lamaran dibatalkan pelamar",
+      "id-simple": "Pelamar membatalkan lamaran",
+    }),
+    body: () => ({
+      id: "Pelamar menarik lamaran ini. Kabari perusahaan partner bila sudah diteruskan.",
+      "id-simple": "Lamaran ini dibatalkan. Kabari perusahaan kalau sudah dikirim.",
+    }),
+  },
+
+  // PR-076 (North Star). Kabar ini memicu VERIFIKASI SILANG admin dengan
+  // perusahaan partner (R10 PRD), jadi kalimatnya meminta tindakan itu.
+  "admin.penempatan_terkonfirmasi": {
+    title: () => ({
+      id: "Pelamar mengonfirmasi diterima kerja",
+      "id-simple": "Pelamar bilang sudah diterima kerja",
+    }),
+    body: () => ({
+      id: "Verifikasi penempatan ini dengan perusahaan partner.",
+      "id-simple": "Cek ke perusahaan. Pastikan pelamar memang diterima.",
+    }),
+  },
+
   "resume.pdf_siap": {
     title: () => ({
       id: "PDF CV Anda siap",

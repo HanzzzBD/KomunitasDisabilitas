@@ -290,6 +290,22 @@ export const ERROR_CATALOG = {
     message: "Belum ada data disabilitas untuk dikirim",
     hint: "Isi data disabilitas di profil Anda, atau lamar tanpa mengirimnya",
   },
+  // --- Pipeline status lamaran (PR-076) ---
+  // 404 juga untuk lamaran milik orang lain — alasan yang sama dengan
+  // CV_TIDAK_DITEMUKAN: membedakannya memberi tahu siapa melamar ke mana.
+  LAMARAN_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Lamaran tidak ditemukan",
+    hint: "Muat ulang daftar lamaran Anda, lalu coba lagi",
+  },
+  // 409: bentuk permintaannya sah, yang bentrok adalah KEADAAN lamaran
+  // (mis. withdraw lamaran yang sudah ditolak, atau status berubah di antara
+  // dua klik). Hint-nya mengarah ke status terbaru, bukan menyalahkan.
+  STATUS_LAMARAN_TIDAK_VALID: {
+    status: 409,
+    message: "Lamaran ini tidak bisa diubah dari statusnya sekarang",
+    hint: "Muat ulang lamaran untuk melihat statusnya yang terbaru",
+  },
   // --- Sesi AI CV Builder (PR-065) ---
   // 404 juga untuk sesi milik orang lain — alasannya sama dengan CV_TIDAK_DITEMUKAN.
   AI_SESI_TIDAK_DITEMUKAN: {

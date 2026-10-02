@@ -34,6 +34,7 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
     disclosed: false,
   },
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: { from: "viewed", to: "interview" },
+  [AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED]: { from: "offered" },
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },
   [AUDIT_ACTION.DATA_EXPORTED]: { format: "json", formatVersion: 1, sections: ["account"] },

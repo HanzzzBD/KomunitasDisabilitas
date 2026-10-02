@@ -8,7 +8,9 @@
 // lewat endpoint yang identitasnya dari sesi — alasan yang sama dengan
 // `profilesService.snapshotFor` (docs/akses-data-sensitif.md): tidak ada
 // pengungkapan ketika subjek dan pembacanya orang yang sama.
+import { z } from "zod";
 import {
+  applicationStatusHistoryEntrySchema,
   disclosureSnapshotSchema,
   type DisclosureSnapshot,
   type ExportApplication,
@@ -16,6 +18,8 @@ import {
 import type { FieldCrypto } from "../../../core/crypto/index.js";
 import type { ExportContributor } from "../../users/services/export.service.js";
 import type { ApplicationsRepository } from "../repositories/applications.repository.js";
+
+const riwayatSchema = z.array(applicationStatusHistoryEntrySchema);
 
 export function createApplicationsExportContributor(deps: {
   repo: Pick<ApplicationsRepository, "listForExport">;
@@ -36,6 +40,10 @@ export function createApplicationsExportContributor(deps: {
         status: row.status,
         appliedAt: row.appliedAt.toISOString(),
         disclosureSnapshot: bukaSnapshot(row.disclosureSnapshot),
+        // Riwayat rusak tidak boleh menggagalkan hak ekspor seseorang — status
+        // terkininya tetap ada di `status` (pola yang sama dengan "Lamaran Saya").
+        statusHistory: riwayatSchema.safeParse(row.statusHistory).data ?? [],
+        hiredConfirmedAt: row.hiredConfirmedAt?.toISOString() ?? null,
       }));
     },
   };

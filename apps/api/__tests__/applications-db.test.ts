@@ -131,7 +131,11 @@ async function tunggu<T>(baca: () => Promise<T>, cukup: (v: T) => boolean): Prom
 beforeAll(async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    const klien = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
+    // Rantai yang SAMA dengan auth-otp-redis.test.ts. CI hanya menyediakan
+    // `REDIS_QUEUE_URL` (6380); fallback lama ke 6379 membuat berkas ini
+    // TERLEWAT diam-diam di CI sejak PR-075 (ditemukan di PR-076).
+    const url = process.env.REDIS_URL ?? process.env.REDIS_QUEUE_URL ?? "redis://localhost:6380";
+    const klien = new Redis(url, {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
     });

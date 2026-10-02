@@ -317,6 +317,7 @@ describe("event → row notifikasi (AC)", () => {
       jobId: JOB,
       from: "in_review",
       to: "interview",
+      changedBy: "admin",
       changedAt: "2026-09-05T10:00:00.000Z",
     } as const;
 
@@ -538,6 +539,7 @@ describe("produser push (PR-048b)", () => {
       userId: A,
       jobId: JOB,
       to: "interview",
+      changedBy: "admin",
       changedAt: "2026-09-05T10:00:00.000Z",
     } as const;
 
@@ -568,6 +570,7 @@ describe("produser push (PR-048b)", () => {
         userId: A,
         jobId: JOB,
         to,
+        changedBy: "admin",
         changedAt: "2026-09-05T10:00:00.000Z",
       });
       await tunggu();
@@ -589,6 +592,7 @@ describe("POST /me/notifications/read-all (PR-050)", () => {
         userId: A,
         jobId: JOB,
         to,
+        changedBy: "admin",
         changedAt: "2026-09-05T10:00:00.000Z",
       });
       await tunggu();

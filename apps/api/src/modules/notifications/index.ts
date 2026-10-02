@@ -244,20 +244,10 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   // `kunciPeristiwa` = applicationId — event yang terbit ulang tidak melahirkan
   // kabar kedua bagi admin yang sama.
   deps.events.on("application.submitted", async (payload) => {
-    if (deps.direktoriAdmin === undefined) return;
-    for (const adminId of await deps.direktoriAdmin.idAdminAktif()) {
-      const lahir = await service.terbitkan({
-        userId: adminId,
-        type: "admin.lamaran_baru",
-        params: { applicationId: payload.applicationId, jobId: payload.jobId },
-        kunciPeristiwa: payload.applicationId,
-      });
-      await antrekanKanalLuar(
-        lahir,
-        adminId,
-        idNotifikasi("admin.lamaran_baru", adminId, payload.applicationId),
-      );
-    }
+    await kabariAdmin("admin.lamaran_baru", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
   });
 
   // Perpindahan status → satu kabar per (lamaran, status tujuan) (PR-078).
@@ -273,7 +263,12 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
   // seluruh perlindungan terhadap event yang terbit ulang, yang jauh lebih
   // sering terjadi. Bila transisi mundur kelak lahir, yang ditambahkan ke kunci
   // adalah nomor urut riwayat status — bukan waktu.
+  //
+  // AKSI PELAMAR SENDIRI TIDAK DIKABARKAN KEMBALI KEPADANYA (keputusan owner
+  // 2026-10-02): ia baru saja menekan tombolnya, dan kabar "Anda membatalkan
+  // lamaran" hanya menambah kebisingan di notification center.
   deps.events.on("application.status_changed", async (payload) => {
+    if (payload.changedBy === "seeker") return;
     const kunci = `${payload.applicationId}:${payload.to}`;
     const lahir = await service.terbitkan({
       userId: payload.userId,
@@ -290,6 +285,46 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       payload.userId,
       idNotifikasi("lamaran.status_berubah", payload.userId, kunci),
     );
+  });
+
+  /**
+   * Satu kabar per admin aktif — dipakai tiga peristiwa lamaran (PR-075/076).
+   * Berurutan, `kunciPeristiwa` = applicationId: event terbit ulang tidak
+   * melahirkan kabar kedua bagi admin yang sama.
+   */
+  async function kabariAdmin(
+    type: "admin.lamaran_baru" | "admin.lamaran_dibatalkan" | "admin.penempatan_terkonfirmasi",
+    params: { applicationId: string; jobId: string },
+  ): Promise<void> {
+    if (deps.direktoriAdmin === undefined) return;
+    for (const adminId of await deps.direktoriAdmin.idAdminAktif()) {
+      const lahir = await service.terbitkan({
+        userId: adminId,
+        type,
+        params,
+        kunciPeristiwa: params.applicationId,
+      });
+      await antrekanKanalLuar(lahir, adminId, idNotifikasi(type, adminId, params.applicationId));
+    }
+  }
+
+  // Pelamar membatalkan → admin berhenti meneruskannya (PR-076). Langganan
+  // terpisah dari kabar pelamar di atas, alasan yang sama dengan lamaran baru.
+  deps.events.on("application.status_changed", async (payload) => {
+    if (payload.changedBy !== "seeker" || payload.to !== "withdrawn") return;
+    await kabariAdmin("admin.lamaran_dibatalkan", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
+  });
+
+  // Konfirmasi diterima kerja (North Star) → admin memverifikasi silang (PR-076,
+  // SDD §15 "application.hired_confirmed → admin", R10 PRD).
+  deps.events.on("application.hired_confirmed", async (payload) => {
+    await kabariAdmin("admin.penempatan_terkonfirmasi", {
+      applicationId: payload.applicationId,
+      jobId: payload.jobId,
+    });
   });
 
   // Kedua router menulis ke registrar — dan karena itu ke Router — yang SAMA.

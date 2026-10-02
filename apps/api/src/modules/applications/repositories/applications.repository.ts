@@ -45,9 +45,41 @@ export interface ApplicationRow {
   appliedAt: Date;
 }
 
+/** Kolom "Lamaran Saya" (PR-076) — tetap tanpa snapshot. */
+const KOLOM_DETAIL = {
+  ...KOLOM_LAMARAN,
+  updatedAt: true,
+  hiredConfirmedAt: true,
+  statusHistory: true,
+} as const;
+
+export interface ApplicationDetailRow extends ApplicationRow {
+  updatedAt: Date;
+  hiredConfirmedAt: Date | null;
+  /** JSONB mentah — dibentuk ulang (zod) di service. */
+  statusHistory: Prisma.JsonValue;
+}
+
 /** Baris ekspor PDP — SATU-SATUNYA bacaan yang membawa ciphertext snapshot. */
-export interface ApplicationExportRow extends ApplicationRow {
+export interface ApplicationExportRow extends ApplicationDetailRow {
   disclosureSnapshot: Uint8Array | null;
+}
+
+/** Posisi halaman "Lamaran Saya": urut `updated_at DESC, id DESC`. */
+export interface PosisiLamaran {
+  updatedAt: Date;
+  id: string;
+}
+
+/**
+ * Perubahan yang ditulis `perbarui`. `statusHistory` adalah larik UTUH yang
+ * baru (lama + entri baru) — penambahan dihitung service dari baris yang ia
+ * baca, dan guard `updatedAt` memastikan tidak ada penulis lain di antaranya.
+ */
+export interface PerubahanLamaran {
+  status?: ApplicationStatus;
+  statusHistory?: Prisma.InputJsonValue;
+  hiredConfirmedAt?: Date;
 }
 
 export interface ApplicationBaru {
@@ -90,9 +122,64 @@ export function createApplicationsRepository(prisma: AppPrisma) {
     async listForExport(userId: string): Promise<ApplicationExportRow[]> {
       return prisma.application.findMany({
         where: { userId },
-        select: { ...KOLOM_LAMARAN, disclosureSnapshot: true },
+        select: { ...KOLOM_DETAIL, disclosureSnapshot: true },
         orderBy: [{ appliedAt: "desc" }, { id: "desc" }],
       });
+    },
+
+    /**
+     * Satu halaman lamaran milik pengguna, terbaru BERUBAH lebih dulu — indeks
+     * `applications_user_updated (user_id, updated_at DESC)` migrasi 03 ada
+     * untuk persis query ini. `limit` sudah termasuk +1 pengintip halaman.
+     */
+    async listMine(
+      userId: string,
+      limit: number,
+      setelah?: PosisiLamaran,
+    ): Promise<ApplicationDetailRow[]> {
+      return prisma.application.findMany({
+        where: {
+          userId,
+          ...(setelah === undefined
+            ? {}
+            : {
+                OR: [
+                  { updatedAt: { lt: setelah.updatedAt } },
+                  { updatedAt: setelah.updatedAt, id: { lt: setelah.id } },
+                ],
+              }),
+        },
+        select: KOLOM_DETAIL,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: limit,
+      });
+    },
+
+    /** Detail lamaran MILIKNYA (dengan riwayat); null bila tidak ada/milik orang lain. */
+    async findOwnedDetail(userId: string, id: string): Promise<ApplicationDetailRow | null> {
+      return prisma.application.findFirst({ where: { id, userId }, select: KOLOM_DETAIL });
+    },
+
+    /**
+     * Tulis perubahan HANYA bila baris masih persis seperti yang dibaca
+     * pemanggil (`status` + `updatedAt` sama) — compare-and-set.
+     *
+     * Dua klik withdraw, atau withdraw yang bersilangan dengan admin
+     * menolak lamaran, tidak boleh sama-sama menambah riwayat: yang kalah
+     * mendapat `false` dan menjawab 409, bukan menimpa riwayat yang baru
+     * saja ditulis pihak lain.
+     */
+    async perbarui(
+      userId: string,
+      id: string,
+      syarat: { status: ApplicationStatus; updatedAt: Date },
+      perubahan: PerubahanLamaran,
+    ): Promise<boolean> {
+      const hasil = await prisma.application.updateMany({
+        where: { id, userId, status: syarat.status, updatedAt: syarat.updatedAt },
+        data: perubahan,
+      });
+      return hasil.count === 1;
     },
 
     /** Satu lamaran MILIKNYA; null bila tidak ada ATAU milik orang lain. */
