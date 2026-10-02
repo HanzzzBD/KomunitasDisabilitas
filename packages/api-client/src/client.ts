@@ -30,6 +30,12 @@ export interface RequestOptions<TResponse> {
   body?: unknown;
   /** Skema response; bila diberikan, response diparse (guard drift runtime). */
   responseSchema?: z.ZodType<TResponse>;
+  /**
+   * Header tambahan (PR-078: `Idempotency-Key` saat melamar). `accept`,
+   * `content-type`, dan `authorization` tetap ditentukan klien — header di sini
+   * tidak bisa menimpanya.
+   */
+  headers?: Readonly<Record<string, string>>;
   signal?: AbortSignal;
   /**
    * Jangan jalankan hook refresh pada 401 permintaan ini.
@@ -77,7 +83,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   async function doFetch(
     path: string,
-    init: RequestOptions<unknown> & { accept?: string; headers?: Readonly<Record<string, string>> },
+    init: RequestOptions<unknown> & { accept?: string },
   ): Promise<Response> {
     const headers: Record<string, string> = {
       ...(init.headers ?? {}),

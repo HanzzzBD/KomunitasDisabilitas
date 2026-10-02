@@ -58,6 +58,19 @@ export interface DialogProps {
   aksi?: ReactNode;
   /** Teks tombol tutup di pojok — dibaca screen reader, bukan hanya "×". */
   labelTutup?: string;
+  /**
+   * Ke mana fokus pergi saat dialog menutup. Bawaannya kembali ke pemicu —
+   * yang benar hampir selalu. Pengecualiannya satu: pemicunya HILANG karena
+   * dialog ini (mis. tombol "Lamar" berganti ringkasan "Lamaran terkirim",
+   * PR-078). Fungsi ini menerima elemen yang semestinya difokus; ia dipanggil
+   * PADA saat Radix hendak mengembalikan fokus, bukan sesudahnya — fokus yang
+   * dipindah lewat `requestAnimationFrame` dari luar berlomba dengan
+   * pengembalian fokus Radix dan sesekali kalah.
+   *
+   * Kembalikan `true` bila fokus sudah dipindah sendiri; `false` membiarkan
+   * perilaku bawaan berjalan.
+   */
+  fokusSaatTutup?: () => boolean;
   className?: string;
 }
 
@@ -70,6 +83,7 @@ export function Dialog({
   deskripsi,
   aksi,
   labelTutup = "Tutup",
+  fokusSaatTutup,
   className,
 }: DialogProps) {
   if (useContext(DiDalamDialog)) {
@@ -96,6 +110,9 @@ export function Dialog({
         />
 
         <RadixDialog.Content
+          onCloseAutoFocus={(e) => {
+            if (fokusSaatTutup?.() === true) e.preventDefault();
+          }}
           className={gabungKelas(
             "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
             // `max-h` + `overflow-y-auto`: pada zoom 200% (WCAG 2.2 §1.4.4)

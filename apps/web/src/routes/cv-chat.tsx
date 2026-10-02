@@ -10,7 +10,7 @@
 //      terlihat. Tidak ada navigasi otomatis — alur tetap bisa diprediksi.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   aiKeys,
   ApiError,
@@ -27,6 +27,7 @@ import { useBuatCvDariProfil } from "../features/resume/index.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
+import { bacaTujuanOpsional, denganTujuan } from "../shared/rute/tujuan.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 
 /** Kode pra-aliran yang berarti "chat tidak bisa dipakai sekarang". */
@@ -56,6 +57,8 @@ function IsiChatCv() {
   const klien = useKlienApi();
   const sub = idPenggunaSaatIni();
   const navigate = useNavigate();
+  // PR-078: dibawa dari dialog lamar; diteruskan ke editor CV yang dihasilkan.
+  const tujuan = bacaTujuanOpsional(useLocation().search);
   const queryClient = useQueryClient();
   const kotakKetik = useRef<HTMLTextAreaElement>(null);
   const [pesan, setPesan] = useState("");
@@ -137,7 +140,7 @@ function IsiChatCv() {
     sub,
     judulBawaan: t("resume.daftar.judulBawaan"),
     onBerhasil: (resume) => {
-      void navigate(`/cv/${resume.id}`);
+      void navigate(denganTujuan(`/cv/${resume.id}`, tujuan));
     },
   });
 
@@ -302,7 +305,7 @@ function IsiChatCv() {
                 <div className="flex flex-wrap gap-3">
                   {s.resumeId !== null ? (
                     <Link
-                      to={`/cv/${s.resumeId}`}
+                      to={denganTujuan(`/cv/${s.resumeId}`, tujuan)}
                       className="inline-flex min-h-sentuh items-center rounded bg-gray-900 px-4 text-base font-semibold text-white"
                     >
                       {t("resume.chat.bukaDraft")}

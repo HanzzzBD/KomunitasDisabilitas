@@ -855,6 +855,11 @@ Hasil sah satu-satunya: perintah NVDA `3` membacakan *"main landmark, Daftar low
 region, list with 3 items, heading level 3, Penulis Konten Jarak Jauh"* — struktur landmark,
 wilayah, daftar, dan heading kartu benar. Sisa checklist menunggu run di sesi Windows yang tidak
 sedang dipakai (mis. login lokal tanpa terminal/IDE aktif di depan).
+
+**Catatan 2026-10-02 (PR-078).** Harness yang sama (`lamar-nvda.verifikasi.ts`) berjalan SAH tiga
+kali dari sesi Claude Code yang aktif — setiap langkah jendela uji di depan. Jadi kegagalan
+2026-10-01 bukan kepastian; layak dicoba ulang untuk feed dengan desktop yang dibersihkan dari
+notifikasi.
 ---
 
 ### U-31 — Landing di 3G 0,76, di bawah AC PR-032 (≥ 0,80)
