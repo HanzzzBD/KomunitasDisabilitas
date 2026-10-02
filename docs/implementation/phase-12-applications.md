@@ -150,7 +150,7 @@ Bisnis: North Star Metric (penempatan kerja) tercatat akurat (PRD FR-5.5). Tekni
 
 * [x] Unit Test (state machine semua sisi)
 * [x] Integration Test (history + event)
-* [ ] E2E Test (via PR-079)
+* [x] E2E Test (via PR-079 — `e2e/lamaran-saya.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
 * [ ] Manual Verification (alur penuh staging)
 
@@ -349,10 +349,12 @@ Bisnis: kejelasan status = pengurang kecemasan terbesar pencari kerja; plus inpu
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi (keputusan owner 2026-10-02):** filter aditif `GET /me/applications?job_id=` untuk kotak "sudah melamar" di detail lowongan (kontrak + OpenAPI + test DB).
 
 **Frontend Changes:**
 
 * Feature applications/tracking.
+* **Realisasi:** `features/applications/{daftar,detail}-lamaran`, `lini-masa.ts`, rute `/lamaran` + `/lamaran/:id`, katalog baru `pelamar`, pintasan header "Lamaran Saya", tautan notifikasi pelamar aktif, kotak "sudah melamar" di detail lowongan, layar hasil PR-078 → detail lamaran.
 
 **Database Changes:**
 
@@ -368,11 +370,11 @@ Bisnis: kejelasan status = pengurang kecemasan terbesar pencari kerja; plus inpu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapper timeline)
+* [x] Unit Test (mapper timeline)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (apply→admin ubah→notif→confirm)
-* [ ] Accessibility Test (axe + NVDA timeline)
-* [ ] Manual Verification (reduce-motion mode)
+* [x] E2E Test (apply→admin ubah→notif→confirm) — per potong: apply (`lamar.spec`), admin ubah (`admin-lamaran.spec`), notif→detail→confirm (`lamaran-saya.spec`); API dipalsukan
+* [x] Accessibility Test (axe + NVDA timeline) — [checklist](log/pr-079-nvda-checklist.md)
+* [x] Manual Verification (reduce-motion mode) — e2e `reducedMotion: reduce`, `document.getAnimations()` kosong
 
 **Deliverables:**
 
@@ -388,11 +390,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Timeline = ordered list semantik (SR membaca kronologi benar).
-* [ ] Status terbaru diumumkan saat halaman dibuka.
-* [ ] Withdraw dengan konfirmasi; confirm-hired satu tap + perayaan aksesibel (bukan animasi-saja).
-* [ ] Navigasi dari notifikasi mendarat di lamaran tepat.
-* [ ] Keyboard-only penuh.
+* [x] Timeline = ordered list semantik (SR membaca kronologi benar).
+* [x] Status terbaru diumumkan saat halaman dibuka.
+* [x] Withdraw dengan konfirmasi; confirm-hired satu tap + perayaan aksesibel (bukan animasi-saja).
+* [x] Navigasi dari notifikasi mendarat di lamaran tepat.
+* [x] Keyboard-only penuh.
 
 #### Dependencies
 

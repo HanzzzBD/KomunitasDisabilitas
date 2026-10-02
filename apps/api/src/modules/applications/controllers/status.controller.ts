@@ -4,7 +4,7 @@
 // menunjuk lamaran MILIK pemanggil (service menyaring `userId`).
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import type { ApplicationIdParams, PaginationQuery } from "@nawasena/schemas";
+import type { ApplicationIdParams, MyApplicationListQuery } from "@nawasena/schemas";
 import { authOf } from "../../../core/auth/index.js";
 import { appError } from "../../../core/http/index.js";
 import { KursorTidakValidError } from "../../../core/pagination/index.js";
@@ -27,7 +27,7 @@ export function createStatusController(service: StatusService) {
       try {
         res
           .status(200)
-          .json(await service.list(aktor(req), req.query as unknown as PaginationQuery));
+          .json(await service.list(aktor(req), req.query as unknown as MyApplicationListQuery));
       } catch (err) {
         if (err instanceof KursorTidakValidError) {
           throw appError("VALIDATION_ERROR", { hint: "Muat ulang daftar lamaran dari awal" });

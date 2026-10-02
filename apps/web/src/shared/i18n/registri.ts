@@ -33,6 +33,7 @@ export const FITUR_MALAS = [
   "companies",
   "lowongan",
   "resume",
+  "pelamar",
 ] as const;
 
 export type FiturMalas = (typeof FITUR_MALAS)[number];
@@ -56,6 +57,7 @@ const PEMUAT: Readonly<Record<FiturMalas, () => Promise<KatalogFitur>>> = {
   companies: async () => (await import("./katalog/companies.js")).katalogCompanies,
   lowongan: async () => (await import("./katalog/lowongan.js")).katalogLowongan,
   resume: async () => (await import("./katalog/resume.js")).katalogResume,
+  pelamar: async () => (await import("./katalog/pelamar.js")).katalogPelamar,
 };
 
 const dimuat = new Map<NamaFitur, KatalogFitur>([["shell", katalogShell]]);

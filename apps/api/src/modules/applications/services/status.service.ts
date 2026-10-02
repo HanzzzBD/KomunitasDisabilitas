@@ -14,7 +14,7 @@ import {
   type MyApplication,
   type MyApplicationDetail,
   type MyApplicationListResponse,
-  type PaginationQuery,
+  type MyApplicationListQuery,
 } from "@nawasena/schemas";
 import type { AuditLog } from "../../../core/audit/index.js";
 import type { EventBus } from "../../../core/events/index.js";
@@ -106,13 +106,14 @@ export function createStatusService(deps: StatusServiceDeps) {
     /** GET /me/applications — terbaru berubah lebih dulu, cursor keyset. */
     async list(
       actor: ApplicationsActor,
-      query: PaginationQuery,
+      query: MyApplicationListQuery,
     ): Promise<MyApplicationListResponse> {
       const posisi = query.cursor === undefined ? undefined : decodeKursor(query.cursor);
       const rows = await repo.listMine(
         actor.userId,
         query.limit + 1,
         posisi === undefined ? undefined : { updatedAt: posisi.sortAt, id: posisi.id },
+        query.job_id,
       );
       const adaLagi = rows.length > query.limit;
       const halaman = adaLagi ? rows.slice(0, query.limit) : rows;

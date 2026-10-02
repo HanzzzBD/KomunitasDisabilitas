@@ -278,6 +278,26 @@ describe("GET /me/applications — daftar & detail", () => {
     expect((await panggil(p.token, "GET", "/me/applications?cursor=rusak")).status).toBe(400);
   });
 
+  it("?job_id (PR-079) → hanya lamaran milik sendiri untuk lowongan itu; id rusak = 400", async (ctx) => {
+    if (!tersedia) return ctx.skip();
+    const p = await buatPelamar();
+    const lain = await buatPelamar();
+    const lowongan = await buatLowongan("published");
+    const id = await buatLamaran(p.userId, "interview", lowongan);
+    await buatLamaran(p.userId, "submitted");
+    await buatLamaran(lain.userId, "submitted", lowongan);
+
+    const res = await panggil(p.token, "GET", `/me/applications?job_id=${lowongan}`);
+    const { data } = (await res.json()) as { data: MyApplication[] };
+    expect(res.status).toBe(200);
+    expect(data.map((a) => a.id)).toEqual([id]);
+    expect(data[0]?.status).toBe("interview");
+
+    const kosong = await panggil(lain.token, "GET", `/me/applications?job_id=${adminId}`);
+    expect(((await kosong.json()) as { data: MyApplication[] }).data).toEqual([]);
+    expect((await panggil(p.token, "GET", "/me/applications?job_id=bukan-uuid")).status).toBe(400);
+  });
+
   it("admin tidak memakai jalur pelamar (403)", async (ctx) => {
     if (!tersedia) return ctx.skip();
     const token = await tokens.signAccessToken({ sub: adminId, role: "admin", ver: 0 });

@@ -426,9 +426,32 @@ export const ruteApp: RouteObject[] = [
             // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
             // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
             // label ragam disabilitas yang disambut (`RAGAM`).
-            muatKatalog("lowongan", "companies", "profil", "onboarding"),
+            // `pelamar` (PR-079): kotak "sudah melamar" membaca label status.
+            muatKatalog("lowongan", "companies", "profil", "onboarding", "pelamar"),
           ]);
           return { Component: LowonganDetail };
+        },
+      },
+      {
+        // "Lamaran Saya" (PR-079) — daftar + detail, keduanya terlindungi.
+        path: "lamaran",
+        lazy: async () => {
+          const [{ LamaranSaya }] = await Promise.all([
+            import("../routes/lamaran.js"),
+            muatKatalog("pelamar"),
+          ]);
+          return { Component: LamaranSaya };
+        },
+      },
+      {
+        // Tujuan tautan notifikasi pelamar (`features/notifikasi/tautan.ts`).
+        path: "lamaran/:id",
+        lazy: async () => {
+          const [{ LamaranDetail }] = await Promise.all([
+            import("../routes/lamaran-detail.js"),
+            muatKatalog("pelamar"),
+          ]);
+          return { Component: LamaranDetail };
         },
       },
       {

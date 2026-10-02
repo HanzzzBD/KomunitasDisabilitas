@@ -414,8 +414,9 @@ export const katalogLowongan = {
     id: "Lamaran Anda untuk lowongan ini sudah tercatat, jadi tidak dikirim dua kali. Kabar berikutnya akan muncul di Notifikasi.",
     "id-simple": "Lamaran Anda sudah ada. Tidak dikirim dua kali. Kabar baru ada di Notifikasi.",
   },
-  "lowongan.lamar.hasil.keNotifikasi": {
-    id: "Buka Notifikasi",
-    "id-simple": "Lihat Notifikasi",
+  "lowongan.lamar.hasil.keLamaran": {
+    // PR-079 — sebelumnya "Buka Notifikasi" (halaman Lamaran Saya belum ada).
+    id: "Lihat lamaran ini",
+    "id-simple": "Buka lamaran saya",
   },
 } as const satisfies KatalogFitur;

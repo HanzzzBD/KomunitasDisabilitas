@@ -111,6 +111,7 @@ import { katalogAdmin } from "../src/shared/i18n/katalog/admin.js";
 import { katalogCompanies } from "../src/shared/i18n/katalog/companies.js";
 import { katalogLowongan } from "../src/shared/i18n/katalog/lowongan.js";
 import { katalogResume } from "../src/shared/i18n/katalog/resume.js";
+import { katalogPelamar } from "../src/shared/i18n/katalog/pelamar.js";
 
 seedKatalogUntukTest({
   shell: katalogShell,
@@ -123,5 +124,6 @@ seedKatalogUntukTest({
   admin: katalogAdmin,
   companies: katalogCompanies,
   lowongan: katalogLowongan,
+  pelamar: katalogPelamar,
   resume: katalogResume,
 });

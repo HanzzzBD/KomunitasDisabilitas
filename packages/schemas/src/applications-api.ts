@@ -175,6 +175,19 @@ export const myApplicationDetailSchema = myApplicationSchema
 
 export type MyApplicationDetail = z.infer<typeof myApplicationDetailSchema>;
 
+/**
+ * GET /me/applications — `job_id` (PR-079, keputusan owner 2026-10-02):
+ * detail lowongan menanyakan "apakah saya sudah melamar ini?". Unique
+ * (user, job) membuat jawabannya paling banyak satu baris.
+ */
+export const myApplicationListQuerySchema = paginationQuerySchema
+  .extend({
+    job_id: idSchema.optional().openapi({ description: "Saring per lowongan (maks. 1 hasil)" }),
+  })
+  .openapi({ ref: "MyApplicationListQuery" });
+
+export type MyApplicationListQuery = z.infer<typeof myApplicationListQuerySchema>;
+
 export const myApplicationListResponseSchema = z
   .object({ data: z.array(myApplicationSchema), meta: paginationMetaSchema })
   .openapi({ ref: "MyApplicationListResponse" });

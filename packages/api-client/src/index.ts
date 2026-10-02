@@ -110,7 +110,12 @@ export {
 export {
   applicationsKeys,
   applyJob,
+  confirmHiredMyApplication,
   getApplicationAdmin,
+  getMyApplication,
+  listMyApplications,
+  withdrawMyApplication,
+  type OpsiDaftarLamaranSaya,
   listApplicationsAdmin,
   revealDisclosureAdmin,
   updateApplicationStatusAdmin,
