@@ -932,6 +932,28 @@ env (ADR-015) dan kata sandi admin bawaan DIGANTI; (2) reverse proxy first-party
 
 ---
 
+### U-34 — Objek yatim kamus BISINDO di bucket
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Biaya storage / kebersihan data |
+| **Ditemukan** | PR-085a (2026-10-03) |
+| **Pemilik** | Phase 16 (PR-104 backup & lifecycle) |
+| **Pemicu** | Prefix `sign-videos/` melewati 5 GB, ATAU fitur hapus entri kamus dibangun |
+
+Presign kamus (`POST /admin/sign-videos/presign`) selalu membuat key baru
+(`sign-videos/{id}/{kind}-{uuidv7}.{ext}`) supaya unggahan tidak menimpa media yang sedang tayang.
+Akibatnya, unggahan yang tidak pernah disimpan dan media lama yang sudah digantikan **tetap ada**
+di bucket. `core/storage` sengaja tidak punya operasi hapus/list. Lifecycle B2 "30 hari versi"
+hanya membuang versi yang *disembunyikan*, bukan objek aktif yang tidak dirujuk. Isinya video
+juru bahasa (bukan data pribadi pengguna), jadi risikonya biaya, bukan PDP. Pembayaran: job
+pembersih berkala yang membandingkan objek `sign-videos/*` dengan `video_key`/`caption_key`/
+`thumbnail_key` di `sign_videos`, lalu menghapus yang tidak dirujuk dan berumur > 7 hari (lewat
+operasi hapus khusus job, bukan permukaan API).
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

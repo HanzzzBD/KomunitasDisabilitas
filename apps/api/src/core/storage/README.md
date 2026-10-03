@@ -1,8 +1,9 @@
 # Object storage
 
 `core/storage` adalah satu-satunya adapter S3-compatible untuk Backblaze B2
-(staging/production, ADR-020) dan MinIO (dev/CI). Permukaannya sengaja hanya memiliki `upload`
-dan `presignDownload`: bucket privat tidak pernah memiliki operasi public-list.
+(staging/production, ADR-020) dan MinIO (dev/CI). Permukaannya sengaja sempit — `upload`,
+`presignDownload`, `presignUpload` (PR-085), dan `stat` (PR-085): bucket privat tidak pernah
+memiliki operasi public-list, hapus, atau pembuatan bucket.
 
 ## Bucket per environment
 
@@ -49,6 +50,11 @@ segmen traversal, nama pengguna, email, dan PII lain tidak boleh dipakai.
 ## Kebijakan keamanan
 
 - URL unduh ditandatangani paling lama 15 menit (default 5 menit).
+- URL unggah (`presignUpload`, PUT dari browser) menandatangani `content-type` DAN
+  `content-length` sebagai header: berkas dengan ukuran berbeda dari yang dideklarasikan
+  ditolak provider (dibuktikan `storage-minio.test.ts`). Batas ukuran diperiksa sebelum
+  URL dibuat. Pemanggil tetap memverifikasi hasilnya lewat `stat` sebelum mempercayai key
+  (kamus BISINDO: `modules/signbridge`).
 - Ukuran diperiksa sebelum byte dikirim; batas global default 100 MiB dan
   pemanggil boleh memberi batas domain yang lebih kecil.
 - Kredensial hanya datang dari environment dan tidak pernah masuk hasil fungsi.

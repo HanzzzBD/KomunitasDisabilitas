@@ -40,6 +40,12 @@ let adminToken = "";
 let seekerToken = "";
 const userIds: string[] = [];
 const videoIds: string[] = [];
+/** Isi bucket palsu — `unggah()` meniru browser yang menyelesaikan PUT presigned. */
+const bucket = new Map<string, { size: number; contentType: string }>();
+
+function unggah(key: string, contentType: string, size = 100): void {
+  bucket.set(key, { size, contentType });
+}
 
 async function buatUser(role: "seeker" | "admin", urutan: number): Promise<string> {
   const id = uuidV7();
@@ -75,6 +81,8 @@ async function buatDraft(phrase: string, category = "salam"): Promise<SignVideoA
 }
 
 async function lengkapiDanTerbitkan(id: string): Promise<void> {
+  unggah(`sign-videos/${id}/source.mp4`, "video/mp4");
+  unggah(`sign-videos/${id}/caption.vtt`, "text/vtt");
   const put = await panggil(adminToken, "PUT", `/admin/sign-videos/${id}`, {
     videoKey: `sign-videos/${id}/source.mp4`,
     captionKey: `sign-videos/${id}/caption.vtt`,
@@ -137,12 +145,19 @@ beforeAll(async () => {
     prisma: appPrisma,
     routes: registry.forModule("/api/v1"),
     auditLog,
-    // Presign palsu: penandatanganan SigV4 sudah diuji `storage-minio.test.ts`.
+    // Storage palsu: SigV4 & PUT presigned nyata sudah diuji `storage-minio.test.ts`.
     storage: {
       presignDownload: async ({ key }) => ({
         url: `https://storage.test/${key}?sig=uji`,
         expiresAt: new Date(Date.now() + 300_000),
       }),
+      presignUpload: async ({ key, contentType }) => ({
+        url: `https://storage.test/${key}?put=uji`,
+        method: "PUT",
+        headers: { "content-type": contentType },
+        expiresAt: new Date(Date.now() + 300_000),
+      }),
+      stat: async (key) => bucket.get(key) ?? null,
     },
   });
   api = createServer(env, logger, { routes: (app) => app.use(signbridge.router) });
@@ -168,6 +183,7 @@ describe("siklus draft → publish", () => {
     expect(draft.createdBy).toBe(adminId);
 
     // Video saja belum cukup — server yang menolak, bukan formulir.
+    unggah(`sign-videos/${draft.id}/source.mp4`, "video/mp4");
     await panggil(adminToken, "PUT", `/admin/sign-videos/${draft.id}`, {
       videoKey: `sign-videos/${draft.id}/source.mp4`,
     });
@@ -203,6 +219,72 @@ describe("siklus draft → publish", () => {
       videoKey: `sign-videos/${b.id}/source.mp4`,
     });
     expect(res.status).toBe(422);
+  });
+});
+
+describe("presign → unggah → simpan key (PR-085)", () => {
+  it("key dari presign baru bisa disimpan setelah objeknya ada", async (ctx) => {
+    if (!tersedia) return ctx.skip();
+    const draft = await buatDraft(`Unggah ${KATA}`);
+    const res = await panggil(adminToken, "POST", "/admin/sign-videos/presign", {
+      videoId: draft.id,
+      kind: "caption",
+      contentType: "text/vtt",
+      size: 64,
+    });
+    expect(res.status).toBe(200);
+    const { data: izin } = (await res.json()) as { data: { key: string; headers: object } };
+    expect(izin.key.startsWith(`sign-videos/${draft.id}/caption-`)).toBe(true);
+    expect(izin.headers).toEqual({ "content-type": "text/vtt" });
+
+    // Simpan SEBELUM unggahan selesai → ditolak.
+    const dini = await panggil(adminToken, "PUT", `/admin/sign-videos/${draft.id}`, {
+      captionKey: izin.key,
+    });
+    expect(dini.status).toBe(422);
+    expect(((await dini.json()) as { code: string }).code).toBe("BERKAS_VIDEO_ISYARAT_TIDAK_ADA");
+
+    unggah(izin.key, "text/vtt", 64);
+    const sah = await panggil(adminToken, "PUT", `/admin/sign-videos/${draft.id}`, {
+      captionKey: izin.key,
+    });
+    expect(sah.status).toBe(200);
+  });
+
+  it("tipe & ukuran disaring server; pencari kerja 403", async (ctx) => {
+    if (!tersedia) return ctx.skip();
+    const draft = await buatDraft(`Saring ${KATA}`);
+    const dasar = { videoId: draft.id, kind: "video", contentType: "video/mp4", size: 10 };
+    const besar = await panggil(adminToken, "POST", "/admin/sign-videos/presign", {
+      ...dasar,
+      size: 50 * 1024 * 1024 + 1,
+    });
+    expect(besar.status).toBe(400);
+    const tipe = await panggil(adminToken, "POST", "/admin/sign-videos/presign", {
+      ...dasar,
+      contentType: "video/quicktime",
+    });
+    expect(tipe.status).toBe(400);
+    expect((await panggil(seekerToken, "POST", "/admin/sign-videos/presign", dasar)).status).toBe(
+      403,
+    );
+  });
+});
+
+describe("unpublish (PR-085)", () => {
+  it("entri ditarik hilang dari publik; tarik dua kali 409", async (ctx) => {
+    if (!tersedia) return ctx.skip();
+    const entri = await buatDraft(`Tarik ${KATA}`, "umum");
+    await lengkapiDanTerbitkan(entri.id);
+    expect((await cari(`category=umum&query=${KATA}`)).map((v) => v.id)).toContain(entri.id);
+
+    const tarik = await panggil(adminToken, "POST", `/admin/sign-videos/${entri.id}/unpublish`);
+    expect(tarik.status).toBe(200);
+    expect(((await tarik.json()) as { data: SignVideoAdmin }).data.status).toBe("draft");
+    expect((await cari(`category=umum&query=${KATA}`)).map((v) => v.id)).not.toContain(entri.id);
+
+    const ulang = await panggil(adminToken, "POST", `/admin/sign-videos/${entri.id}/unpublish`);
+    expect(ulang.status).toBe(409);
   });
 });
 

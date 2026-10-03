@@ -94,6 +94,86 @@ export const signVideoIdParamsSchema = z
 
 export type SignVideoIdParams = z.infer<typeof signVideoIdParamsSchema>;
 
+/**
+ * Jenis media + tipe MIME yang diterima + batas ukuran (PR-085, keputusan owner
+ * 2026-10-03: video 50 MB, caption 200 KB, thumbnail 1 MB). SATU sumber untuk
+ * server (presign & verifikasi objek) dan formulir web (validasi dini).
+ */
+export const SIGN_VIDEO_MEDIA = {
+  video: {
+    kolom: "videoKey",
+    maksByte: 50 * 1024 * 1024,
+    tipe: { "video/mp4": "mp4", "video/webm": "webm" },
+  },
+  caption: {
+    kolom: "captionKey",
+    maksByte: 200 * 1024,
+    tipe: { "text/vtt": "vtt" },
+  },
+  thumbnail: {
+    kolom: "thumbnailKey",
+    maksByte: 1024 * 1024,
+    tipe: { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" },
+  },
+} as const;
+
+export const signVideoMediaKindSchema = z
+  .enum(["video", "caption", "thumbnail"])
+  .openapi({ ref: "SignVideoMediaKind" });
+
+export type SignVideoMediaKind = z.infer<typeof signVideoMediaKindSchema>;
+
+/** POST /admin/sign-videos/presign — izin unggah satu berkas untuk satu entri. */
+export const signVideoPresignSchema = z
+  .object({
+    videoId: idSchema,
+    kind: signVideoMediaKindSchema,
+    contentType: z.string().trim().min(1).max(100),
+    size: z
+      .number()
+      .int({ message: "Ukuran berkas harus bilangan bulat (byte)" })
+      .min(1, { message: "Berkas kosong" }),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    const aturan = SIGN_VIDEO_MEDIA[v.kind];
+    if (!(v.contentType in aturan.tipe)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["contentType"],
+        message: `Tipe berkas tidak diterima untuk ${v.kind}`,
+      });
+    }
+    if (v.size > aturan.maksByte) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["size"],
+        message: `Berkas ${v.kind} maksimal ${Math.round(aturan.maksByte / 1024)} KB`,
+      });
+    }
+  })
+  .openapi({ ref: "SignVideoPresign" });
+
+export type SignVideoPresign = z.infer<typeof signVideoPresignSchema>;
+
+export const signVideoPresignResultSchema = z
+  .object({
+    /** Disimpan lewat PUT `/admin/sign-videos/:id` SETELAH unggah berhasil. */
+    key: z.string(),
+    uploadUrl: z.string().url(),
+    method: z.literal("PUT"),
+    /** Kirim apa adanya — bagian dari signature. */
+    headers: z.record(z.string()),
+    expiresAt: timestampSchema,
+  })
+  .openapi({ ref: "SignVideoPresignResult" });
+
+export type SignVideoPresignResult = z.infer<typeof signVideoPresignResultSchema>;
+
+export const signVideoPresignResponseSchema = z
+  .object({ data: signVideoPresignResultSchema })
+  .openapi({ ref: "SignVideoPresignResponse" });
+
 /** Bentuk admin — key mentah, termasuk draft yang belum lengkap. */
 export const signVideoAdminSchema = z
   .object({

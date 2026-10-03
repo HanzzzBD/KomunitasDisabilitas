@@ -1,4 +1,10 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  NotFound,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { InvalidPresignTtlError, StorageUploadTooLargeError } from "./errors.js";
 import { assertStorageKey } from "./paths.js";
@@ -30,9 +36,36 @@ export interface PresignedDownload {
   expiresAt: Date;
 }
 
+export interface PresignUploadInput {
+  key: string;
+  contentType: string;
+  /** Ukuran PERSIS berkas; ikut ditandatangani, jadi PUT dengan ukuran lain ditolak provider. */
+  contentLength: number;
+  /** Kebijakan domain yang lebih ketat; tidak pernah dapat melonggarkan batas global. */
+  maxBytes?: number;
+  expiresInSeconds?: number;
+}
+
+export interface PresignedUpload {
+  url: string;
+  method: "PUT";
+  /** Header yang WAJIB dikirim browser apa adanya (bagian dari signature). */
+  headers: Record<string, string>;
+  expiresAt: Date;
+}
+
+/** Metadata objek yang SUDAH ada; `null` dari `stat` = objek tidak ada. */
+export interface ObjectStat {
+  size: number;
+  contentType: string | null;
+}
+
 export interface ObjectStorage {
   upload(input: UploadObjectInput): Promise<StoredObject>;
   presignDownload(input: PresignDownloadInput): Promise<PresignedDownload>;
+  /** Unggah langsung dari browser (PR-085) — bucket tetap privat, tanpa list. */
+  presignUpload(input: PresignUploadInput): Promise<PresignedUpload>;
+  stat(key: string): Promise<ObjectStat | null>;
 }
 
 /** Port sempit agar kebijakan storage dapat diuji tanpa jaringan. */
@@ -46,6 +79,14 @@ export interface StorageDriver {
     contentDisposition?: string;
   }): Promise<void>;
   presignGet(input: { bucket: string; key: string; expiresInSeconds: number }): Promise<string>;
+  presignPut(input: {
+    bucket: string;
+    key: string;
+    contentType: string;
+    contentLength: number;
+    expiresInSeconds: number;
+  }): Promise<string>;
+  head(input: { bucket: string; key: string }): Promise<ObjectStat | null>;
 }
 
 export interface CreateObjectStorageOptions {
@@ -102,6 +143,44 @@ function awsDriver(config: StorageConfig): StorageDriver {
           expiresIn: input.expiresInSeconds,
         },
       );
+    },
+
+    presignPut(input) {
+      return getSignedUrl(
+        presigner,
+        new PutObjectCommand({
+          Bucket: input.bucket,
+          Key: input.key,
+          ContentType: input.contentType,
+          ContentLength: input.contentLength,
+        }),
+        {
+          expiresIn: input.expiresInSeconds,
+          // Tanpa ini presigner "mengangkat" header ke query string dan
+          // content-length tidak ikut terikat. Ditandatangani sebagai header,
+          // browser yang mengirim ukuran lain mendapat 403 dari provider.
+          signableHeaders: new Set(["content-type", "content-length"]),
+          unhoistableHeaders: new Set(["content-type", "content-length"]),
+        },
+      );
+    },
+
+    async head(input) {
+      try {
+        const res = await client.send(
+          new HeadObjectCommand({ Bucket: input.bucket, Key: input.key }),
+        );
+        return { size: res.ContentLength ?? 0, contentType: res.ContentType ?? null };
+      } catch (err) {
+        if (err instanceof NotFound) return null;
+        // HEAD tidak punya badan: sebagian provider menjawab 404 tanpa kode bernama.
+        if (
+          (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404
+        ) {
+          return null;
+        }
+        throw err;
+      }
     },
   };
 }
@@ -164,6 +243,45 @@ export function createObjectStorage(
         expiresInSeconds: ttl,
       });
       return { url, expiresAt: new Date(issuedAt.getTime() + ttl * 1_000) };
+    },
+
+    async presignUpload(input) {
+      assertStorageKey(input.key);
+      const requestedMax = input.maxBytes ?? config.maxUploadBytes;
+      if (!positiveInteger(requestedMax)) {
+        throw new RangeError("maxBytes upload harus bilangan bulat positif");
+      }
+      const effectiveMax = Math.min(requestedMax, config.maxUploadBytes);
+      if (!positiveInteger(input.contentLength)) {
+        throw new RangeError("contentLength harus bilangan bulat positif");
+      }
+      if (input.contentLength > effectiveMax) {
+        throw new StorageUploadTooLargeError(input.contentLength, effectiveMax);
+      }
+      const ttl = input.expiresInSeconds ?? config.presignTtlSeconds;
+      if (!positiveInteger(ttl) || ttl > config.presignTtlSeconds) {
+        throw new InvalidPresignTtlError(ttl, config.presignTtlSeconds);
+      }
+
+      const issuedAt = clock();
+      const url = await driver.presignPut({
+        bucket: config.bucket,
+        key: input.key,
+        contentType: input.contentType,
+        contentLength: input.contentLength,
+        expiresInSeconds: ttl,
+      });
+      return {
+        url,
+        method: "PUT",
+        headers: { "content-type": input.contentType },
+        expiresAt: new Date(issuedAt.getTime() + ttl * 1_000),
+      };
+    },
+
+    async stat(key) {
+      assertStorageKey(key);
+      return driver.head({ bucket: config.bucket, key });
     },
   };
 }

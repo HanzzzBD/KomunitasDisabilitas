@@ -7,6 +7,7 @@ import type { Request, Response } from "express";
 import type {
   CreateSignVideo,
   SignVideoIdParams,
+  SignVideoPresign,
   SignVideoSearchQuery,
   UpdateSignVideo,
 } from "@nawasena/schemas";
@@ -50,6 +51,20 @@ export function createSignVideosController(service: SignVideosService) {
     async publishAdmin(req: Request, res: Response): Promise<void> {
       const { id } = req.params as unknown as SignVideoIdParams;
       res.status(200).json({ data: await service.publish(aktorAdmin(req), id) });
+    },
+
+    /** POST /api/v1/admin/sign-videos/:id/unpublish → 200 setelah kembali draft. */
+    async unpublishAdmin(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as SignVideoIdParams;
+      res.status(200).json({ data: await service.unpublish(aktorAdmin(req), id) });
+    },
+
+    /** POST /api/v1/admin/sign-videos/presign → 200 izin unggah satu berkas. */
+    async presignAdmin(req: Request, res: Response): Promise<void> {
+      // Admin wajib bersesi — `authOf` sekaligus jaring pengaman route tanpa guard.
+      authOf(req);
+      const body = req.body as SignVideoPresign;
+      res.status(200).json({ data: await service.presign(body) });
     },
   };
 }

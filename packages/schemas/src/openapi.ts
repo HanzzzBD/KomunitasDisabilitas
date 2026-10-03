@@ -68,6 +68,8 @@ import {
   signVideoAdminListResponseSchema,
   signVideoAdminResponseSchema,
   signVideoIdParamsSchema,
+  signVideoPresignResponseSchema,
+  signVideoPresignSchema,
   signVideoSearchQuerySchema,
   signVideoSearchResponseSchema,
   updateSignVideoSchema,
@@ -1268,6 +1270,26 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      "/admin/sign-videos/presign": {
+        post: {
+          operationId: "presignSignVideoMediaAdmin",
+          tags: ["signbridge"],
+          summary: "Izin unggah satu berkas media kamus (admin)",
+          description:
+            "URL PUT presigned langsung ke bucket (PR-085). Tipe & ukuran dibatasi per jenis: " +
+            "video mp4/webm ≤ 50 MB, caption text/vtt ≤ 200 KB, thumbnail jpg/png/webp ≤ 1 MB. " +
+            "Ukuran ikut ditandatangani. Kirim `headers` apa adanya, lalu simpan `key` lewat " +
+            "PUT /admin/sign-videos/{id} — server memeriksa objeknya sudah ada.",
+          requestBody: jsonBody(signVideoPresignSchema),
+          responses: {
+            "200": jsonOk("Izin unggah", signVideoPresignResponseSchema),
+            "400": errorResponse("Tipe/ukuran tidak diterima atau input tidak valid"),
+            "404": errorResponse("Entri kamus tidak ditemukan"),
+            ...responsAdmin,
+            "503": errorResponse("Sesi atau object storage belum diatur di server"),
+          },
+        },
+      },
       "/admin/sign-videos/{id}": {
         put: {
           operationId: "updateSignVideoAdmin",
@@ -1283,8 +1305,11 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "200": jsonOk("Entri setelah diperbarui", signVideoAdminResponseSchema),
             "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
             "404": errorResponse("Tidak ditemukan"),
-            "422": errorResponse("Key media tidak valid, atau entri terbit menjadi tidak lengkap"),
+            "422": errorResponse(
+              "Key media tidak valid, objeknya belum diunggah, atau entri terbit menjadi tidak lengkap",
+            ),
             ...responsAdmin,
+            "503": errorResponse("Sesi atau object storage belum diatur di server"),
           },
         },
       },
@@ -1303,6 +1328,24 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "404": errorResponse("Tidak ditemukan"),
             "409": errorResponse("Sudah diterbitkan"),
             "422": errorResponse("Video, caption, atau transkrip belum ada"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/sign-videos/{id}/unpublish": {
+        post: {
+          operationId: "unpublishSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Tarik entri kamus ke draft (admin)",
+          description:
+            "published → draft (PR-085), audit `ADMIN_RESOURCE_CHANGED {operation: unpublish}`. " +
+            "Media & transkrip tetap utuh; entri bisa diterbitkan lagi.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri setelah ditarik", signVideoAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Belum diterbitkan"),
             ...responsAdmin,
           },
         },

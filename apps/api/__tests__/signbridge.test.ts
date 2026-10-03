@@ -15,6 +15,7 @@ import {
   mediaKeySah,
   type SignVideoRow,
   type SignVideosRepository,
+  type SignVideoStorage,
 } from "../src/modules/signbridge/index.js";
 
 const ID = "01923456-7890-7abc-8def-0123456789ab";
@@ -59,6 +60,11 @@ function repoPalsu(awal: SignVideoRow | null) {
       simpanan = { ...simpanan, ...patch };
       return simpanan;
     }),
+    unpublish: vi.fn(async () => {
+      if (simpanan === null || simpanan.status !== "published") return null;
+      simpanan = { ...simpanan, status: "draft" };
+      return simpanan;
+    }),
     publish: vi.fn(async () => {
       if (simpanan === null || simpanan.status !== "draft") return null;
       simpanan = { ...simpanan, status: "published" };
@@ -67,6 +73,23 @@ function repoPalsu(awal: SignVideoRow | null) {
     search: vi.fn(async () => (simpanan === null ? [] : [simpanan])),
   };
   return repo as typeof repo & SignVideosRepository;
+}
+
+/** Storage palsu: `objek` = berkas yang sudah "diunggah" browser. */
+function storagePalsu(objek: Record<string, { size: number; contentType: string }> = {}) {
+  return {
+    presignDownload: vi.fn(async ({ key }: { key: string }) => ({
+      url: `https://minio.test/${key}?sig=1`,
+      expiresAt: new Date(key.endsWith(".vtt") ? "2026-10-03T00:04:00Z" : "2026-10-03T00:05:00Z"),
+    })),
+    presignUpload: vi.fn(async ({ key, contentType }: { key: string; contentType: string }) => ({
+      url: `https://minio.test/${key}?put=1`,
+      method: "PUT" as const,
+      headers: { "content-type": contentType },
+      expiresAt: new Date("2026-10-03T00:05:00Z"),
+    })),
+    stat: vi.fn(async (key: string) => objek[key] ?? null),
+  } satisfies SignVideoStorage;
 }
 
 async function galat(jalan: () => Promise<unknown>): Promise<AppError> {
@@ -242,14 +265,11 @@ describe("search — publik", () => {
   });
 
   it("memetakan key → URL presigned; kedaluwarsa = yang paling awal; key tidak bocor", async () => {
-    const presignDownload = vi.fn(async ({ key }: { key: string }) => ({
-      url: `https://minio.test/${key}?sig=1`,
-      expiresAt: new Date(key.endsWith(".vtt") ? "2026-10-03T00:04:00Z" : "2026-10-03T00:05:00Z"),
-    }));
+    const storage = storagePalsu();
     const service = createSignVideosService({
       repository: repoPalsu(baris({ ...LENGKAP, status: "published" })),
       auditLog: vi.fn(),
-      storage: { presignDownload },
+      storage,
     });
 
     const [entri] = await service.search({ query: "terima", limit: 24 });
@@ -264,6 +284,128 @@ describe("search — publik", () => {
       thumbnailUrl: null,
       mediaExpiresAt: "2026-10-03T00:04:00.000Z",
     });
-    expect(presignDownload).toHaveBeenCalledTimes(2);
+    expect(storage.presignDownload).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("presign — izin unggah (PR-085)", () => {
+  it("key baru per unggahan di bawah entri ini + batas domain diteruskan", async () => {
+    const storage = storagePalsu();
+    const service = createSignVideosService({
+      repository: repoPalsu(baris()),
+      auditLog: vi.fn(),
+      storage,
+    });
+    const izin = await service.presign({
+      videoId: ID,
+      kind: "video",
+      contentType: "video/webm",
+      size: 1234,
+    });
+    expect(izin.key).toMatch(new RegExp(`^sign-videos/${ID}/video-[0-9a-f-]{36}\\.webm$`));
+    expect(mediaKeySah(ID, "videoKey", izin.key)).toBe(true);
+    expect(izin.headers).toEqual({ "content-type": "video/webm" });
+    expect(storage.presignUpload).toHaveBeenCalledWith({
+      key: izin.key,
+      contentType: "video/webm",
+      contentLength: 1234,
+      maxBytes: 50 * 1024 * 1024,
+    });
+
+    const lagi = await service.presign({
+      videoId: ID,
+      kind: "video",
+      contentType: "video/webm",
+      size: 1,
+    });
+    expect(lagi.key).not.toBe(izin.key);
+  });
+
+  it("entri tidak ada → 404; storage absen → 503", async () => {
+    const tanpaEntri = createSignVideosService({
+      repository: repoPalsu(null),
+      auditLog: vi.fn(),
+      storage: storagePalsu(),
+    });
+    const input = { videoId: ID, kind: "caption" as const, contentType: "text/vtt", size: 10 };
+    expect((await galat(() => tanpaEntri.presign(input))).code).toBe(
+      "VIDEO_ISYARAT_TIDAK_DITEMUKAN",
+    );
+    const tanpaStorage = createSignVideosService({
+      repository: repoPalsu(baris()),
+      auditLog: vi.fn(),
+      storage: undefined,
+    });
+    expect((await galat(() => tanpaStorage.presign(input))).code).toBe("BELUM_SIAP");
+  });
+});
+
+describe("simpan key — objek diperiksa di storage (PR-085)", () => {
+  const KEY = `sign-videos/${ID}/video-uji.mp4`;
+
+  it("objek belum diunggah → 422 BERKAS_VIDEO_ISYARAT_TIDAK_ADA", async () => {
+    const repo = repoPalsu(baris());
+    const service = createSignVideosService({
+      repository: repo,
+      auditLog: vi.fn(),
+      storage: storagePalsu(),
+    });
+    const err = await galat(() => service.update(AKTOR, ID, { videoKey: KEY }));
+    expect(err.code).toBe("BERKAS_VIDEO_ISYARAT_TIDAK_ADA");
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["terlalu besar", { size: 50 * 1024 * 1024 + 1, contentType: "video/mp4" }],
+    ["tipe lain", { size: 10, contentType: "application/octet-stream" }],
+  ])("objek %s → 422 MEDIA_VIDEO_ISYARAT_TIDAK_VALID", async (_nama, objek) => {
+    const service = createSignVideosService({
+      repository: repoPalsu(baris()),
+      auditLog: vi.fn(),
+      storage: storagePalsu({ [KEY]: objek }),
+    });
+    const err = await galat(() => service.update(AKTOR, ID, { videoKey: KEY }));
+    expect(err.code).toBe("MEDIA_VIDEO_ISYARAT_TIDAK_VALID");
+  });
+
+  it("objek sah → tersimpan; key yang tidak berubah tidak diperiksa ulang", async () => {
+    const storage = storagePalsu({ [KEY]: { size: 10, contentType: "video/mp4" } });
+    const service = createSignVideosService({
+      repository: repoPalsu(baris()),
+      auditLog: vi.fn(),
+      storage,
+    });
+    expect((await service.update(AKTOR, ID, { videoKey: KEY })).videoKey).toBe(KEY);
+    await service.update(AKTOR, ID, { videoKey: KEY, phrase: "Makasih" });
+    expect(storage.stat).toHaveBeenCalledTimes(1);
+  });
+
+  it("storage absen saat menyimpan key → 503", async () => {
+    const service = createSignVideosService({
+      repository: repoPalsu(baris()),
+      auditLog: vi.fn(),
+      storage: undefined,
+    });
+    expect((await galat(() => service.update(AKTOR, ID, { videoKey: KEY }))).code).toBe(
+      "BELUM_SIAP",
+    );
+  });
+});
+
+describe("unpublish (PR-085)", () => {
+  it("published → draft + audit unpublish; draft → 409", async () => {
+    const auditLog = vi.fn();
+    const service = createSignVideosService({
+      repository: repoPalsu(baris({ ...LENGKAP, status: "published" })),
+      auditLog,
+      storage: undefined,
+    });
+    const hasil = await service.unpublish(AKTOR, ID);
+    expect(hasil.status).toBe("draft");
+    expect(hasil.captionKey).toBe(LENGKAP.captionKey);
+    expect(auditLog.mock.calls[0]?.[4]).toEqual({ operation: "unpublish" });
+    expect((await galat(() => service.unpublish(AKTOR, ID))).code).toBe(
+      "VIDEO_ISYARAT_BELUM_TERBIT",
+    );
   });
 });

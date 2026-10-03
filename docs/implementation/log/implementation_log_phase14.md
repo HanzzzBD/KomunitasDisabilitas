@@ -96,3 +96,80 @@ maks 50). OpenAPI: 4 path, tag `signbridge`.
 * **PR-085** — `POST /admin/sign-videos/presign` (id draft, batas tipe & ukuran) + UI unggah.
   Key yang dihasilkan presign harus lolos `mediaKeySah`.
 * **PR-086** — halaman kamus publik + pemutar (caption default menyala, transkrip di bawah).
+
+---
+
+## PR-085a — Admin Sign-Videos — Presign Unggah (API)
+
+> **Phase:** [14 - SignBridge v1 & Simplify](../phase-14-signbridge-simplify.md#pr-085---admin-sign-videos-fe--upload)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai (bagian API; UI menyusul di PR-085b)
+> **Branch:** `pr-085a-presign-api` → `phase-14-signbridge-simplify`
+
+### Ringkasan hasil
+
+Browser admin kini bisa mengunggah media kamus **langsung ke bucket** lewat URL PUT presigned,
+tanpa melewati API. Tipe dan ukuran dibatasi per jenis. Ukuran **ikut ditandatangani**, jadi
+berkas yang lebih besar dari izin ditolak provider. Key baru disimpan hanya bila objeknya sudah
+ada di bucket dengan ukuran dan tipe yang sah. Admin juga bisa **menarik** entri terbit kembali
+ke draft.
+
+### Keputusan owner (AskUserQuestion, 2026-10-03)
+
+1. **Batas ukuran:** video mp4/webm ≤ 50 MB, caption `text/vtt` ≤ 200 KB, thumbnail
+   jpg/png/webp ≤ 1 MB. Satu sumber: `SIGN_VIDEO_MEDIA` di `@nawasena/schemas`, dipakai server
+   dan formulir web.
+2. **Unggah per berkas** — tiap slot punya progres dan coba-lagi sendiri (diterapkan di PR-085b).
+3. **Tarik ke draft** (`unpublish`) masuk PR ini. Hapus permanen belum.
+4. **Dipecah:** PR-085a (API) + PR-085b (UI), preseden PR-083a/b.
+
+### Scope selesai
+
+**`core/storage`** — dua operasi baru, kebijakan diperiksa sebelum provider disentuh:
+
+* `presignUpload({key, contentType, contentLength, maxBytes?})` → `{url, method:"PUT", headers,
+  expiresAt}`. `signableHeaders` + `unhoistableHeaders` = `content-type`, `content-length`.
+  Tanpa itu presigner AWS SDK mengangkat header ke query dan ukuran tidak terikat.
+* `stat(key)` → `{size, contentType} | null` (HeadObject; 404 → `null`).
+* README diperbarui: permukaan adapter, kebijakan URL unggah.
+
+**API `modules/signbridge`:**
+
+* `POST /admin/sign-videos/presign` `{videoId, kind, contentType, size}` → izin unggah. Tipe dan
+  ukuran disaring zod (400). Key selalu baru, `sign-videos/{id}/{kind}-{uuidv7}.{ext}`, supaya
+  unggahan tidak pernah menimpa media yang sedang tayang. Publik baru melihatnya setelah key
+  disimpan (audit `update`).
+* `PUT /admin/sign-videos/:id` — key media yang **berubah** diverifikasi lewat `stat`: belum ada
+  → 422 `BERKAS_VIDEO_ISYARAT_TIDAK_ADA`; ukuran/tipe tidak sah → 422
+  `MEDIA_VIDEO_ISYARAT_TIDAK_VALID`; storage absen → 503.
+* `POST /admin/sign-videos/:id/unpublish` — published → draft, audit
+  `ADMIN_RESOURCE_CHANGED {operation:"unpublish"}` (nilai enum baru). Draft → 409
+  `VIDEO_ISYARAT_BELUM_TERBIT`.
+* OpenAPI: 2 path baru, deskripsi PUT diperbarui.
+
+### Acceptance Criteria (bagian API)
+
+* [x] Validasi tipe/ukuran di presign (server) — zod + `presignUpload` + `stat` saat simpan.
+* [ ] Upload video+vtt+thumbnail → publish end-to-end (MinIO) — PUT presigned nyata ke MinIO
+  sudah terbukti (`storage-minio.test.ts`); alur UI end-to-end di PR-085b.
+* [ ] Progres `aria-live`, form keyboard-only + axe, pesan gagal + retry — PR-085b.
+
+### Verifikasi
+
+* `storage.test.ts` (+5), `storage-minio.test.ts` (+1, MinIO nyata: ukuran sesuai diterima,
+  ukuran lain ditolak, `stat`), `signbridge.test.ts` (30), `signbridge-db.test.ts` (9).
+* Lint, typecheck, `check:openapi`, suite penuh — lihat badan PR.
+
+### Risiko & catatan
+
+* **Objek yatim:** unggahan yang tidak pernah disimpan, atau media lama yang digantikan, tetap di
+  bucket. Tidak ada operasi hapus di adapter (disengaja). Dicatat sebagai utang **U-34**.
+* **CORS bucket** wajib untuk unggah dari browser di staging/produksi (README core/storage langkah
+  5). MinIO dev mengizinkan semua origin secara bawaan.
+* TTL URL unggah = `STORAGE_PRESIGN_TTL_SECONDS` (≤ 15 menit). Provider memeriksa kedaluwarsa saat
+  permintaan dimulai, jadi unggahan 50 MB yang lambat tidak terputus di tengah.
+
+### Next steps
+
+* **PR-085b** — `api-client` + halaman admin "Kamus BISINDO": daftar, formulir metadata +
+  transkrip, tiga slot unggah ber-progres `aria-live`, terbitkan/tarik dengan konfirmasi.

@@ -34,10 +34,14 @@ const CONFIG: StorageConfig = {
 function fakeDriver(): StorageDriver & {
   put: ReturnType<typeof vi.fn>;
   presignGet: ReturnType<typeof vi.fn>;
+  presignPut: ReturnType<typeof vi.fn>;
+  head: ReturnType<typeof vi.fn>;
 } {
   return {
     put: vi.fn(() => Promise.resolve()),
     presignGet: vi.fn(() => Promise.resolve("https://signed.example/object?signature=uji")),
+    presignPut: vi.fn(() => Promise.resolve("https://signed.example/put?signature=uji")),
+    head: vi.fn(() => Promise.resolve(null)),
   };
 }
 
@@ -237,6 +241,71 @@ describe("ObjectStorage policy", () => {
       storage.presignDownload({ key: "resumes/user-1/resume-1/cv.pdf", expiresInSeconds: ttl }),
     ).rejects.toBeInstanceOf(InvalidPresignTtlError);
     expect(driver.presignGet).not.toHaveBeenCalled();
+  });
+});
+
+// PR-085 — unggah langsung dari browser. Kebijakan (key, ukuran, TTL) diperiksa
+// SEBELUM provider disentuh, sama seperti `upload`.
+describe("presignUpload", () => {
+  const KEY = "sign-videos/video-1/video-uji.mp4";
+
+  it("meneruskan ukuran persis + tipe ke driver dan mengembalikan header wajib", async () => {
+    const driver = fakeDriver();
+    const now = new Date("2026-10-03T00:00:00.000Z");
+    const storage = createObjectStorage(CONFIG, { driver, clock: () => now });
+
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 6 }),
+    ).resolves.toEqual({
+      url: "https://signed.example/put?signature=uji",
+      method: "PUT",
+      headers: { "content-type": "video/mp4" },
+      expiresAt: new Date("2026-10-03T00:05:00.000Z"),
+    });
+    expect(driver.presignPut).toHaveBeenCalledWith({
+      bucket: "nawasena-test",
+      key: KEY,
+      contentType: "video/mp4",
+      contentLength: 6,
+      expiresInSeconds: 300,
+    });
+  });
+
+  it.each([
+    ["melebihi batas global", { contentLength: 9 }],
+    ["melebihi batas domain", { contentLength: 6, maxBytes: 5 }],
+  ])("%s ditolak sebelum provider disentuh", async (_nama, extra) => {
+    const driver = fakeDriver();
+    const storage = createObjectStorage(CONFIG, { driver });
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", ...extra }),
+    ).rejects.toBeInstanceOf(StorageUploadTooLargeError);
+    expect(driver.presignPut).not.toHaveBeenCalled();
+  });
+
+  it("ukuran 0/pecahan dan key liar ditolak", async () => {
+    const storage = createObjectStorage(CONFIG, { driver: fakeDriver() });
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 0 }),
+    ).rejects.toBeInstanceOf(RangeError);
+    await expect(
+      storage.presignUpload({
+        key: "sign-videos/../x.mp4",
+        contentType: "video/mp4",
+        contentLength: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("driver asli: content-type & content-length terikat sebagai header bertanda tangan", async () => {
+    const { url } = await createObjectStorage({
+      ...CONFIG,
+      endpoint: "http://minio:9000",
+      region: "us-east-1",
+      forcePathStyle: true,
+    }).presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 6 });
+    const signed = new URL(url).searchParams.get("X-Amz-SignedHeaders")?.split(";") ?? [];
+    expect(signed).toEqual(expect.arrayContaining(["content-length", "content-type", "host"]));
   });
 });
 
