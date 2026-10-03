@@ -151,6 +151,7 @@ export function konfigKeahlian(sub: string | null): KonfigKarier<Skill> {
     skemaBuat: createSkillSchema,
     api: skillsApi,
     kunciQuery: profilesKeys.skills(sub),
+    keahlian: true,
     kolom: [
       { nama: "name", label: "profil.keahlian.name", jenis: "teks", maks: 80, wajib: true },
       {

@@ -12,6 +12,7 @@ import {
   useLocation,
   useNavigation,
 } from "react-router";
+import { useEffect } from "react";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { LencanaNotifikasi } from "./lencana-notifikasi.js";
@@ -95,6 +96,26 @@ export function TataLetak() {
   // Berlangganan HANYA `status`; lihat catatan yang sama di `Terlindungi`.
   const status = useStoreSesi((s) => s.status);
   const lokasi = useLocation();
+
+  // PAGEVIEW ANALYTICS (PR-082) — di kerangka karena satu-satunya komponen yang
+  // dilewati setiap perpindahan halaman. Hanya `pathname` yang diserahkan, dan
+  // id di dalamnya dinormalkan sebelum meninggalkan perangkat; query & hash
+  // tidak pernah ikut. No-op bila analytics tidak aktif (lihat `analitik.ts`).
+  //
+  // Dimuat DINAMIS, bukan diimpor: kerangka ini bundel awal, dan skor
+  // Lighthouse 3G landing berdiri tepat di ambangnya (U-31) — impor statis
+  // menambah 0,5 KB dan menurunkan skor ke 0,75. Pageview fire-and-forget,
+  // jadi menunggu satu chunk kecil tidak merugikan apa pun.
+  useEffect(() => {
+    const path = lokasi.pathname;
+    void import("../shared/analitik.js")
+      .then((m) => {
+        m.trackPageview(path);
+      })
+      .catch(() => {
+        // Chunk gagal dimuat (luring) — analytics diam, aplikasi tidak terganggu.
+      });
+  }, [lokasi.pathname]);
 
   const perluOnboarding =
     status === "masuk" && wizardOnboardingAktif() && !JALUR_DIKECUALIKAN.includes(lokasi.pathname);

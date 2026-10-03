@@ -21,6 +21,7 @@ import {
   type ApiClient,
 } from "@nawasena/api-client";
 import type { Resume } from "@nawasena/schemas";
+import { track } from "../../shared/analitik.js";
 import { buatPrefillResume } from "./prefill.js";
 
 export function useBuatCvDariProfil(opsi: {
@@ -65,6 +66,8 @@ export function useBuatCvDariProfil(opsi: {
     },
     onSuccess: (resume) => {
       void queryClient.invalidateQueries({ queryKey: resumesKeys.list(sub) });
+      // PR-082 — funnel "cv_dibuat" (jalur non-AI).
+      track("cv_dibuat", { via: "profil" });
       opsi.onBerhasil(resume);
     },
   });

@@ -912,6 +912,26 @@ tabel counter harian per tahap yang diisi subscriber event (`application.submitt
 
 ---
 
+### U-33 — Analytics Umami belum ada di staging/produksi
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Infrastruktur / AC belum terpenuhi |
+| **Ditemukan** | PR-082 (2026-10-03) |
+| **Pemilik** | Phase 16 (PR-097 compose staging/produksi, reverse proxy) |
+| **Pemicu** | PR-097 — compose staging/produksi + Nginx |
+
+AC PR-082 "Funnel lengkap terlihat di Umami **staging**" belum bisa dipenuhi: staging belum ada.
+Yang sudah terbukti: Umami dev (compose profil `analitik`) menerima ke-6 event funnel + pageview
+ternormal dari kode yang sama (verifikasi manual 2026-10-03). Untuk menagihnya, PR-097 harus:
+(1) menaikkan `umami` + database-nya sendiri di compose staging/produksi dengan `APP_SECRET` dari
+env (ADR-015) dan kata sandi admin bawaan DIGANTI; (2) reverse proxy first-party
+`/analitik/` → Umami (pengganti proxy Vite dev); (3) membangun web dengan
+`VITE_UMAMI_WEBSITE_ID`; (4) membuat funnel di dasbor Umami sesuai `docs/katalog-event-analitik.md`.
+
+---
+
 ## Di luar scope — JANGAN ditarik ke PR berjalan
 
 Keputusan owner 2026-09-05. Ketiganya sudah punya pemilik yang jelas di phase-nya sendiri;

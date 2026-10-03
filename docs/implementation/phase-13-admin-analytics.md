@@ -203,6 +203,7 @@ Bisnis: KPI PRD terukur (aktivasi ≥60%, lamaran/bulan, retensi) tanpa tracker 
 **Frontend Changes:**
 
 * `shared/analytics.ts` + panggilan di titik funnel.
+* **Realisasi:** `shared/analitik.ts` (ringan, bundel awal) + `shared/analitik-kirim.ts` (dimuat malas: normalisasi path, validasi kontrak no-PII, `POST /analitik/api/send` tanpa skrip Umami); kontrak `packages/schemas/src/analytics.ts`; toggle opt-out di Pengaturan → Akun; Umami di `docker-compose.dev.yml` profil `analitik`; katalog `docs/katalog-event-analitik.md`.
 
 **Mobile Changes:**
 
@@ -222,11 +223,11 @@ Bisnis: KPI PRD terukur (aktivasi ≥60%, lamaran/bulan, retensi) tanpa tracker 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (schema payload)
+* [x] Unit Test (schema payload)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (event terkirim — mock endpoint)
+* [x] E2E Test (event terkirim — mock endpoint)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (dashboard Umami)
+* [x] Manual Verification (dashboard Umami) — Umami DEV: 6 event + pageview `/lowongan/:id` tercatat; staging = U-33
 
 **Deliverables:**
 
@@ -243,10 +244,10 @@ RB-Std; container Umami bisa dimatikan tanpa efek produk.
 #### Acceptance Criteria
 
 * [ ] Funnel lengkap terlihat di Umami staging.
-* [ ] Payload event lolos schema no-PII (test).
-* [ ] Analytics gagal → aplikasi tidak terganggu (fire-and-forget).
-* [ ] Event terdokumentasi (katalog).
-* [ ] Opt-out tersedia di settings (toggle).
+* [x] Payload event lolos schema no-PII (test).
+* [x] Analytics gagal → aplikasi tidak terganggu (fire-and-forget).
+* [x] Event terdokumentasi (katalog).
+* [x] Opt-out tersedia di settings (toggle).
 
 #### Dependencies
 

@@ -230,7 +230,44 @@ services:
     mem_reservation: 512m
     shm_size: 256mb
 
+  # --- Analytics privacy-first (PR-082) — HANYA dengan `--profile analitik`:
+  #   docker compose -f docker-compose.dev.yml --profile analitik up -d umami
+  # `docker compose up` biasa tidak menaikkan keduanya (keputusan owner
+  # 2026-10-03). Database SENDIRI, bukan database aplikasi: Umami mengelola
+  # skemanya sendiri, dan mematikannya tidak boleh menyentuh data produk
+  # (Rollback PR-082: "container Umami bisa dimatikan tanpa efek produk").
+  umami-db:
+    profiles: ["analitik"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami # dev-only
+      POSTGRES_DB: umami
+    volumes:
+      - umamidata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  umami:
+    profiles: ["analitik"]
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    environment:
+      DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
+      APP_SECRET: dev-only-ganti-di-produksi # dev-only
+      # Tanpa skrip pelacak: web mengirim langsung ke /api/send (PR-082).
+      DISABLE_TELEMETRY: "1"
+    ports:
+      # Diakses web lewat proxy first-party Vite `/analitik` → :3010.
+      - "3010:3000"
+    depends_on:
+      umami-db:
+        condition: service_healthy
+
 volumes:
+  umamidata:
   pgdata:
   redisqueue:
   miniodata:
