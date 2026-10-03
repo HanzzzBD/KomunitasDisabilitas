@@ -32,6 +32,7 @@ import type { MyApplication } from "@nawasena/schemas";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useTeks } from "../../shared/i18n/index.js";
 import { useStoreSesi } from "../../shared/sesi/store.js";
+import { track } from "../../shared/analitik.js";
 import { tautanMasuk } from "../../shared/rute/tujuan.js";
 import { idPenggunaSaatIni } from "../onboarding/identitas.js";
 import { DialogLamar, type HasilLamar } from "./dialog-lamar.js";
@@ -178,6 +179,8 @@ export function BagianLamar({ klien, jobId, judulLowongan }: BagianLamarProps) {
         terbuka={terbuka}
         onUbahTerbuka={setTerbuka}
         onSelesai={(h) => {
+          // PR-082 — funnel "lamar": hanya lamaran yang BARU terkirim.
+          if (h.jenis === "terkirim") track("lamar");
           setTerbuka(false);
           setHasil(h);
           // "Lamaran Saya" & kotak "sudah melamar" basi — termasuk `sudahAda`,

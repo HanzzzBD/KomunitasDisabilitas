@@ -28,6 +28,7 @@ import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { bacaTujuanOpsional, denganTujuan } from "../shared/rute/tujuan.js";
+import { sekaliSaja, track } from "../shared/analitik.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 
 /** Kode pra-aliran yang berarti "chat tidak bisa dipakai sekarang". */
@@ -134,6 +135,16 @@ function IsiChatCv() {
     // `kunciSesi` dibentuk ulang tiap render; isinya hanya bergantung pada `sub`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pantau.data, queryClient, sub]);
+
+  // PR-082 — funnel "cv_dibuat" jalur AI: saat sesi selesai DAN CV-nya lahir.
+  // Sekali per CV (penanda lokal), karena halaman ini bisa dibuka ulang.
+  const resumeIdFinal = sesi.data?.status === "finalized" ? sesi.data.resumeId : null;
+  useEffect(() => {
+    if (resumeIdFinal === null) return;
+    sekaliSaja(`cv_dibuat.${resumeIdFinal}`, () => {
+      track("cv_dibuat", { via: "ai" });
+    });
+  }, [resumeIdFinal]);
 
   const buatFormulir = useBuatCvDariProfil({
     klien,

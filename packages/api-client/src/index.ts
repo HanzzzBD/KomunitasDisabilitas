@@ -72,6 +72,14 @@ export {
   type UbahPerusahaan,
 } from "./endpoints/companies.js";
 export {
+  adminKeys,
+  getAdminMetrics,
+  listUsersAdmin,
+  suspendUserAdmin,
+  unsuspendUserAdmin,
+  type OpsiDaftarPengguna,
+} from "./endpoints/admin.js";
+export {
   listJobsAdmin,
   createJobAdmin,
   updateJobAdmin,

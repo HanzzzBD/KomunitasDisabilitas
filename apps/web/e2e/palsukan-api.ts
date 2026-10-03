@@ -360,6 +360,77 @@ const RIWAYAT_LAMARAN_UJI = [
 ];
 
 /**
+ * Akun untuk halaman moderasi admin (PR-083b): pencari kerja aktif,
+ * pencari kerja yang ditangguhkan, dan admin (tanpa tombol aksi).
+ */
+export const PENGGUNA_UJI_ID = "01912345-89ab-7def-8123-4567890aab01";
+const PENGGUNA_UJI = [
+  {
+    id: PENGGUNA_UJI_ID,
+    fullName: "Rina Pelamar",
+    phone: "+6281200000001",
+    email: "rina@contoh.test",
+    role: "seeker",
+    createdAt: "2026-09-20T03:00:00.000Z",
+    suspendedAt: null as string | null,
+    suspendReason: null as string | null,
+  },
+  {
+    id: "01912345-89ab-7def-8123-4567890aab02",
+    fullName: "Bayu Pelamar",
+    phone: "+6281200000002",
+    email: null,
+    role: "seeker",
+    createdAt: "2026-09-18T03:00:00.000Z",
+    suspendedAt: "2026-10-02T03:00:00.000Z" as string | null,
+    suspendReason: "laporan penyalahgunaan tiket #12" as string | null,
+  },
+  {
+    id: "01912345-89ab-7def-8123-4567890aab03",
+    fullName: "Admin Uji",
+    phone: "+6281200000003",
+    email: null,
+    role: "admin",
+    createdAt: "2026-09-01T03:00:00.000Z",
+    suspendedAt: null as string | null,
+    suspendReason: null as string | null,
+  },
+];
+
+/**
+ * Metrik admin (PR-081, `GET /admin/metrics`) — angka "berbentuk": ada tahap yang
+ * naik, turun, dan tetap terhadap periode sebelumnya, supaya ketiga kalimat
+ * tren dirender dan diperiksa axe. `semua` tanpa `previous`, seperti server.
+ */
+export function metrikAdminUji(periode: string) {
+  return {
+    period: periode,
+    from: periode === "semua" ? null : "2026-09-02T00:00:00.000Z",
+    to: "2026-10-02T00:00:00.000Z",
+    generatedAt: "2026-10-02T03:15:00.000Z",
+    funnel: { registered: 15, profileReady: 9, applied: 6, interviewed: 3, hired: 1 },
+    northStar: { confirmedInPeriod: 1, confirmedTotal: 4 },
+    previous:
+      periode === "semua"
+        ? null
+        : {
+            from: "2026-08-03T00:00:00.000Z",
+            to: "2026-09-02T00:00:00.000Z",
+            funnel: { registered: 12, profileReady: 9, applied: 8, interviewed: 3, hired: 0 },
+            confirmedInPeriod: 2,
+          },
+    aiUsage: {
+      since: "2026-09-02T00:00:00.000Z",
+      features: [
+        { feature: "cv_chat", requests: 1250, tokensIn: 40000, tokensOut: 52000 },
+        { feature: "rerank", requests: 80, tokensIn: 9000, tokensOut: 1200 },
+      ],
+    },
+    dlqTotal: 0,
+  };
+}
+
+/**
  * Lamaran milik PELAMAR uji (PR-079, "Lamaran Saya"). Status `offered` dengan
  * tiga langkah riwayat: halaman detail menampilkan KEDUA aksi (tarik lamaran +
  * "Saya diterima") dan lini masa empat titik — keadaan terpadat untuk axe.
@@ -603,6 +674,8 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // Lamaran admin (PR-077b) — status berubah per pemanggilan, sama seperti lowongan.
   const lamaranAdmin = { ...LAMARAN_UJI, statusHistory: [...RIWAYAT_LAMARAN_UJI] };
   // "Lamaran Saya" (PR-079) — tarik/konfirmasi mengubahnya per pemanggilan.
+  // Moderasi akun (PR-083b) — status berubah per pemanggilan.
+  const pengguna = PENGGUNA_UJI.map((u) => ({ ...u }));
   const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
   let pdfDiminta = false;
   let pembacaanPdf = 0;
@@ -992,6 +1065,46 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     //
     // Sub-jalur (`/status`, `/disclosure`) diperiksa SEBELUM detail generik,
     // alasan yang sama dengan `/publish` di bawah.
+    // --- Metrik admin (PR-081) ---
+    // --- Moderasi akun (PR-083b) ---
+    if (jalur === "/api/v1/admin/users") {
+      const url = new URL(route.request().url());
+      const q = (url.searchParams.get("q") ?? "").toLowerCase();
+      const status = url.searchParams.get("status");
+      const data = pengguna.filter(
+        (u) =>
+          (q === "" ||
+            u.fullName.toLowerCase().includes(q) ||
+            (u.phone ?? "").includes(q) ||
+            (u.email ?? "").toLowerCase().includes(q)) &&
+          (status === null || (status === "ditangguhkan") === (u.suspendedAt !== null)),
+      );
+      return route.fulfill(jsonkan(200, { data, meta: { nextCursor: null } }));
+    }
+    if (/\/admin\/users\/[^/]+\/(suspend|unsuspend)$/.test(jalur)) {
+      const bagian = jalur.split("/");
+      const aksi = bagian.pop();
+      const id = bagian.pop();
+      const akun = pengguna.find((u) => u.id === id);
+      if (akun === undefined) {
+        return route.fulfill(
+          jsonkan(404, { code: "PENGGUNA_TIDAK_DITEMUKAN", message: "Pengguna tidak ditemukan" }),
+        );
+      }
+      const { reason } = route.request().postDataJSON() as { reason: string };
+      if (aksi === "suspend") {
+        akun.suspendedAt = "2026-10-03T03:00:00.000Z";
+        akun.suspendReason = reason;
+      } else {
+        akun.suspendedAt = null;
+        akun.suspendReason = null;
+      }
+      return route.fulfill(jsonkan(200, { data: { ...akun } }));
+    }
+    if (jalur === "/api/v1/admin/metrics") {
+      const periode = new URL(route.request().url()).searchParams.get("periode") ?? "30d";
+      return route.fulfill(jsonkan(200, { data: metrikAdminUji(periode) }));
+    }
     if (jalur === "/api/v1/admin/applications") {
       return route.fulfill(
         jsonkan(200, {

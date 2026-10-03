@@ -223,6 +223,15 @@ export const adminApplicationListQuerySchema = paginationQuerySchema
   .extend({
     job_id: idSchema.optional().openapi({ description: "Saring per lowongan" }),
     status: applicationStatusSchema.optional().openapi({ description: "Saring per status" }),
+    /**
+     * PR-083 — lamaran dari akun DITANGGUHKAN disembunyikan bawaan (keputusan
+     * owner 2026-10-03); `true` menampilkannya. String, bukan `z.coerce.boolean`:
+     * coerce membaca "false" sebagai `true`.
+     */
+    termasuk_ditangguhkan: z
+      .enum(["true", "false"])
+      .optional()
+      .openapi({ description: "Sertakan lamaran dari akun yang ditangguhkan" }),
     limit: z.coerce
       .number()
       .int({ message: "limit harus bilangan bulat" })

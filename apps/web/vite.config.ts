@@ -93,6 +93,14 @@ export default defineConfig({
         // sebenarnya alih-alih dirinya sendiri.
         changeOrigin: false,
       },
+      // Analytics first-party (PR-082): peramban mengirim ke origin web sendiri
+      // (`/analitik/api/send`), proxy meneruskan ke Umami dev (compose profil
+      // `analitik`, port 3010). Produksi: reverse proxy Phase 16 (utang U-33).
+      "/analitik": {
+        target: "http://localhost:3010",
+        changeOrigin: true,
+        rewrite: (jalur) => jalur.replace(/^\/analitik/, ""),
+      },
     },
   },
   build: {

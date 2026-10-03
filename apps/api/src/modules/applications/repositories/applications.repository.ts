@@ -195,12 +195,15 @@ export function createApplicationsRepository(prisma: AppPrisma) {
 
     /** Satu halaman lamaran (filter lowongan/status), terbaru berubah dulu. */
     async listAdmin(
-      filter: { jobId?: string; status?: ApplicationStatus },
+      filter: { jobId?: string; status?: ApplicationStatus; termasukDitangguhkan?: boolean },
       limit: number,
       setelah?: PosisiLamaran,
     ): Promise<ApplicationAdminRow[]> {
       return prisma.application.findMany({
         where: {
+          // PR-083 — akun ditangguhkan disembunyikan bawaan. Akun TERHAPUS tetap
+          // tampil (menunggu purge; namanya kosong) — itu urusan lain.
+          ...(filter.termasukDitangguhkan === true ? {} : { user: { suspendedAt: null } }),
           ...(filter.jobId === undefined ? {} : { jobId: filter.jobId }),
           ...(filter.status === undefined ? {} : { status: filter.status }),
           ...(setelah === undefined

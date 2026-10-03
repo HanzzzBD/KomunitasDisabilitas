@@ -381,3 +381,38 @@ describe("bagian lamar — sudah pernah melamar (PR-079)", () => {
     );
   });
 });
+
+describe("dialog lamar — kirim sebelum daftar CV tiba (temuan PR-082)", () => {
+  it("Kirim ditahan (aria-disabled), tidak ada galat 'Pilih CV' palsu, lalu berhasil", async () => {
+    let lepasCv: (v: unknown) => void = () => {};
+    const jejak: Permintaan[] = [];
+    const dasar = klienPalsu(jejak);
+    const klien: ApiClient = {
+      request: (path, opsi) =>
+        path === "/me/resumes"
+          ? (new Promise<unknown>((r) => {
+              lepasCv = r;
+            }) as Promise<never>)
+          : dasar.request(path, opsi as never),
+    };
+    useStoreSesi.setState({ status: "masuk" });
+    const router = createMemoryRouter(ruteApp, { initialEntries: [`/lowongan/${JOB}`] });
+    render(
+      <Providers queryClient={createQueryClient()} klienApi={klien}>
+        <RouterProvider router={router} />
+      </Providers>,
+    );
+    const { user, dialog } = await bukaDialog();
+    await user.click(await within(dialog).findByRole("radio", { name: /Tidak, jangan kirim/ }));
+    const kirim = within(dialog).getByRole("button", { name: "Kirim lamaran" });
+    expect(kirim).toHaveAttribute("aria-disabled", "true");
+    await user.click(kirim);
+    expect(within(dialog).queryByText("Pilih CV yang akan dikirim.")).not.toBeInTheDocument();
+    expect(permintaanApply(jejak)).toHaveLength(0);
+
+    lepasCv({ data: DUA_CV });
+    await waitFor(() => expect(kirim).toHaveAttribute("aria-disabled", "false"));
+    await user.click(kirim);
+    await screen.findByRole("heading", { level: 3, name: "Lamaran terkirim" });
+  });
+});

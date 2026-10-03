@@ -51,6 +51,7 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 **Backend Changes:**
 
 * `modules/admin/metrics`.
+* **Realisasi:** modul resmi baru `modules/admin` (repository agregat SQL read-only + service + controller + router); DLQ dibaca lewat `QueuesService` modul `internal`. Kontrak `adminMetrics*` di `packages/schemas/src/admin.ts` + OpenAPI.
 
 **Frontend Changes:**
 
@@ -58,11 +59,11 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 
 **Database Changes:**
 
-* Tidak ada.
+* Tidak ada. (Counter harian materialized DITUNDA — keputusan owner 2026-10-02, utang **U-32**.)
 
 **API Changes:**
 
-* GET /api/v1/admin/metrics
+* GET /api/v1/admin/metrics?periode=7d|30d|semua (bawaan 30d)
 
 **Security Considerations:**
 
@@ -70,11 +71,11 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 
 **Testing Checklist:**
 
-* [ ] Unit Test (agregator)
-* [ ] Integration Test (fixture)
-* [ ] E2E Test (via PR-081)
+* [x] Unit Test (agregator)
+* [x] Integration Test (fixture)
+* [x] E2E Test (via PR-081 — `e2e/admin-metrik.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (bandingkan manual count)
+* [x] Manual Verification (bandingkan manual count) — DB dev: periode `semua` = hitungan psql
 
 **Deliverables:**
 
@@ -90,11 +91,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Angka funnel cocok dengan fixture deterministik.
-* [ ] Query tidak menyentuh kolom terenkripsi (review + test).
-* [ ] Cache 5 menit bekerja (hit kedua tanpa query berat).
-* [ ] North Star = count hired_confirmed_at.
-* [ ] Respons < 500 ms (cache hangat).
+* [x] Angka funnel cocok dengan fixture deterministik.
+* [x] Query tidak menyentuh kolom terenkripsi (review + test).
+* [x] Cache 5 menit bekerja (hit kedua tanpa query berat).
+* [x] North Star = count hired_confirmed_at.
+* [x] Respons < 500 ms (cache hangat).
 
 #### Dependencies
 
@@ -123,10 +124,12 @@ Bisnis: admin melihat kesehatan pilot dalam satu layar. Teknis: tiles aksesibel 
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi (keputusan owner 2026-10-02):** respons `GET /admin/metrics` bertambah `previous` (funnel + konfirmasi diterima untuk jendela sebelumnya yang sama panjang) — dasar tren tekstual; `null` untuk `semua`. Kunci cache naik ke v2.
 
 **Frontend Changes:**
 
 * Feature admin/dashboard.
+* **Realisasi:** `features/admin/metrik-dasbor.tsx` + `metrik-tren.ts`, dipasang di Ringkasan `/admin` di atas kartu tautan; api-client `getAdminMetrics`/`adminKeys`.
 
 **Database Changes:**
 
@@ -142,10 +145,10 @@ Bisnis: admin melihat kesehatan pilot dalam satu layar. Teknis: tiles aksesibel 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (tile)
+* [x] Unit Test (tile)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (render + angka)
-* [ ] Accessibility Test (axe + NVDA)
+* [x] E2E Test (render + angka)
+* [x] Accessibility Test (axe + NVDA) — [checklist](log/pr-081-nvda-checklist.md)
 * [ ] Manual Verification (data staging)
 
 **Deliverables:**
@@ -162,11 +165,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua metrik terbaca SR dengan konteks (label+nilai+periode).
-* [ ] Tren naik/turun tekstual (bukan panah warna saja).
-* [ ] Auto-refresh tidak mencuri fokus.
-* [ ] axe pass.
-* [ ] Angka cocok fixture E2E.
+* [x] Semua metrik terbaca SR dengan konteks (label+nilai+periode).
+* [x] Tren naik/turun tekstual (bukan panah warna saja).
+* [x] Auto-refresh tidak mencuri fokus.
+* [x] axe pass.
+* [x] Angka cocok fixture E2E.
 
 #### Dependencies
 
@@ -200,6 +203,7 @@ Bisnis: KPI PRD terukur (aktivasi ≥60%, lamaran/bulan, retensi) tanpa tracker 
 **Frontend Changes:**
 
 * `shared/analytics.ts` + panggilan di titik funnel.
+* **Realisasi:** `shared/analitik.ts` (ringan, bundel awal) + `shared/analitik-kirim.ts` (dimuat malas: normalisasi path, validasi kontrak no-PII, `POST /analitik/api/send` tanpa skrip Umami); kontrak `packages/schemas/src/analytics.ts`; toggle opt-out di Pengaturan → Akun; Umami di `docker-compose.dev.yml` profil `analitik`; katalog `docs/katalog-event-analitik.md`.
 
 **Mobile Changes:**
 
@@ -219,11 +223,11 @@ Bisnis: KPI PRD terukur (aktivasi ≥60%, lamaran/bulan, retensi) tanpa tracker 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (schema payload)
+* [x] Unit Test (schema payload)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (event terkirim — mock endpoint)
+* [x] E2E Test (event terkirim — mock endpoint)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (dashboard Umami)
+* [x] Manual Verification (dashboard Umami) — Umami DEV: 6 event + pageview `/lowongan/:id` tercatat; staging = U-33
 
 **Deliverables:**
 
@@ -240,10 +244,10 @@ RB-Std; container Umami bisa dimatikan tanpa efek produk.
 #### Acceptance Criteria
 
 * [ ] Funnel lengkap terlihat di Umami staging.
-* [ ] Payload event lolos schema no-PII (test).
-* [ ] Analytics gagal → aplikasi tidak terganggu (fire-and-forget).
-* [ ] Event terdokumentasi (katalog).
-* [ ] Opt-out tersedia di settings (toggle).
+* [x] Payload event lolos schema no-PII (test).
+* [x] Analytics gagal → aplikasi tidak terganggu (fire-and-forget).
+* [x] Event terdokumentasi (katalog).
+* [x] Opt-out tersedia di settings (toggle).
 
 #### Dependencies
 
@@ -272,19 +276,23 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 **Backend Changes:**
 
 * `modules/admin/moderation`.
+* **Realisasi:** di `modules/users` (penulis tabel `users`; preseden endpoint admin di modul domain PR-051/077a), pencabut sesi dari modul `auth` lewat composition root. PR dipecah: **PR-083a** API, **PR-083b** halaman admin "Pengguna".
 
 **Frontend Changes:**
 
 * Aksi suspend di tabel user admin.
+* **Realisasi (PR-083b):** bagian admin baru `/admin/pengguna` (`features/admin/pengguna-daftar.tsx` + dialog dua langkah `pengguna-moderasi.tsx`), saringan "akun ditangguhkan" di daftar lamaran admin, pesan `AKUN_DITANGGUHKAN` di jalur masuk Google.
 
 **Database Changes:**
 
 * Kolom `suspended_at`, `suspend_reason` di users (additive).
+* **Realisasi:** migrasi 21 (kolom + CHECK berpasangan) dan migrasi 22 (nilai enum `RefreshRevokedReason.suspended`).
 
 **API Changes:**
 
 * POST /api/v1/admin/users/:id/suspend
 * POST /api/v1/admin/users/:id/unsuspend
+* **Realisasi:** + `GET /api/v1/admin/users?q&status&cursor` (daftar untuk halaman "Pengguna", keputusan owner 2026-10-03); `GET /admin/applications?termasuk_ditangguhkan=true`.
 
 **Security Considerations:**
 
@@ -292,10 +300,10 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard login)
-* [ ] Integration Test (siklus suspend)
-* [ ] E2E Test (admin flow)
-* [ ] Accessibility Test (dialog)
+* [x] Unit Test (guard login)
+* [x] Integration Test (siklus suspend)
+* [x] E2E Test (admin flow)
+* [x] Accessibility Test (dialog) — axe + keyboard + [NVDA](log/pr-083-nvda-checklist.md)
 * [ ] Manual Verification (akun uji)
 
 **Deliverables:**
@@ -312,11 +320,11 @@ Migrasi additive; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Suspended tidak bisa login/refresh (test).
-* [ ] Alasan wajib; audit tercatat.
-* [ ] Unsuspend memulihkan akses.
-* [ ] Konfirmasi dua langkah di FE.
-* [ ] Suspended tidak muncul di feed employer/admin listing normal (flag).
+* [x] Suspended tidak bisa login/refresh (test).
+* [x] Alasan wajib; audit tercatat.
+* [x] Unsuspend memulihkan akses.
+* [x] Konfirmasi dua langkah di FE.
+* [x] Suspended tidak muncul di feed employer/admin listing normal (flag).
 
 #### Dependencies
 

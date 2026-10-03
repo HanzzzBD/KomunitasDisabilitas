@@ -185,7 +185,7 @@ function fakePrisma(awal: BarisUser[] = []) {
             (where.id === undefined || u.id === where.id),
         );
         if (found === undefined) return Promise.resolve(null);
-        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0 });
+        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0, suspendedAt: null });
       },
       create: ({ data }: { data: BarisUser }) => {
         // Wasit unique parsial email (migrasi 06) — di sinilah 409 lahir.

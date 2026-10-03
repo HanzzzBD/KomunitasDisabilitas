@@ -61,8 +61,28 @@ export function createAuthUserRepository(prisma: AppPrisma) {
       id: string,
     ): Promise<{ id: string; role: Role; tokenVersion: number } | null> {
       return prisma.user.findFirst({
-        where: { id, deletedAt: null },
+        // PR-083: akun DITANGGUHKAN bukan sesi aktif — penjaga setiap
+        // permintaan dan refresh token menolaknya seketika, bahkan sebelum
+        // access token lama (sudah di-`ver`-bump) kedaluwarsa.
+        where: { id, deletedAt: null, suspendedAt: null },
         select: { id: true, role: true, tokenVersion: true },
+      });
+    },
+
+    /**
+     * Pengguna yang hendak DITERBITKAN sesinya sesudah login (PR-083) —
+     * termasuk yang ditangguhkan, supaya penerbit bisa menjawab dengan galat
+     * yang jelas (`AKUN_DITANGGUHKAN`) alih-alih "sesi tidak sah".
+     */
+    async findLoginTarget(id: string): Promise<{
+      id: string;
+      role: Role;
+      tokenVersion: number;
+      suspendedAt: Date | null;
+    } | null> {
+      return prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, role: true, tokenVersion: true, suspendedAt: true },
       });
     },
 

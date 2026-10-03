@@ -18,7 +18,7 @@
 // jaringan — dan supaya jawaban server sesudah menyimpan bisa langsung menjadi
 // keadaan berikutnya, bukan disalin ulang lewat pemuatan kedua.
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProfile, profilesKeys, updateProfile } from "@nawasena/api-client";
 import type { SeekerProfile } from "@nawasena/schemas";
 import { updateSeekerProfileSchema } from "@nawasena/schemas";
@@ -28,6 +28,7 @@ import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
+import { periksaProfilLengkap } from "../features/profil/analitik-profil.js";
 import {
   BADAN_CABUT,
   BagianDasar,
@@ -103,9 +104,13 @@ function IsiProfil() {
     setBerizinSejak(isi.consentSensitiveAt);
   }
 
+  const queryClient = useQueryClient();
   const simpanDasar = useMutation({
     mutationFn: (badan: Parameters<typeof updateProfile>[1]) => updateProfile(klien, badan),
-    onSuccess: pasang,
+    onSuccess: (isi) => {
+      pasang(isi);
+      periksaProfilLengkap(queryClient, sub, { profil: isi });
+    },
   });
 
   const simpanSensitif = useMutation({

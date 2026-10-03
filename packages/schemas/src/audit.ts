@@ -27,6 +27,10 @@ export const AUDIT_ACTION = {
   /** PR-077a: admin MEMBUKA salinan data disabilitas yang diungkap pada satu
    *  lamaran. Ditulis SEBELUM dekripsi (pola `bacaSensitif`); `reason` wajib. */
   APPLICATION_DISCLOSURE_READ: "APPLICATION_DISCLOSURE_READ",
+  /** PR-083: admin menangguhkan / memulihkan akun pencari kerja. `reason`
+   *  wajib (alasan internal; tidak pernah ditampilkan ke pengguna ybs). */
+  USER_SUSPENDED: "USER_SUSPENDED",
+  USER_UNSUSPENDED: "USER_UNSUSPENDED",
   COMPANY_VERIFIED: "COMPANY_VERIFIED",
   ADMIN_RESOURCE_CHANGED: "ADMIN_RESOURCE_CHANGED",
   DATA_EXPORTED: "DATA_EXPORTED",
@@ -65,6 +69,8 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.APPLICATION_STATUS_CHANGED,
   AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED,
   AUDIT_ACTION.APPLICATION_DISCLOSURE_READ,
+  AUDIT_ACTION.USER_SUSPENDED,
+  AUDIT_ACTION.USER_UNSUSPENDED,
   AUDIT_ACTION.COMPANY_VERIFIED,
   AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
   AUDIT_ACTION.DATA_EXPORTED,
@@ -222,6 +228,8 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.APPLICATION_DISCLOSURE_READ]: z.object({
     reason: sensitiveAccessReasonSchema,
   }),
+  [AUDIT_ACTION.USER_SUSPENDED]: z.object({ reason: sensitiveAccessReasonSchema }),
+  [AUDIT_ACTION.USER_UNSUSPENDED]: z.object({ reason: sensitiveAccessReasonSchema }),
   [AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED]: z.object({
     from: z.enum(["offered", "hired"]),
   }),

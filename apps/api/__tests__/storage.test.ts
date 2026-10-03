@@ -136,6 +136,8 @@ describe("storage config", () => {
       STORAGE_SECRET_ACCESS_KEY: "secret",
       STORAGE_BUCKET_PREFIX: "nawasena",
       STORAGE_BUCKET_ENV: "staging",
+      // PR-083 — production wajib alamat banding.
+      SUPPORT_EMAIL: "dukungan@contoh.test",
     });
 
     expect(storageConfigFromEnv(env).bucket).toBe("nawasena-staging");

@@ -34,8 +34,16 @@ export const applicationsKeys = {
    * Daftar admin — dilingkupi FILTER, tanpa `cursor` (pola `jobsKeys.search`:
    * `useInfiniteQuery` memegang halaman lewat `pageParam`).
    */
-  adminList: (filter: { jobId?: string; status?: ApplicationStatus }) =>
-    queryKey("admin-applications", { jobId: filter.jobId, status: filter.status }),
+  adminList: (filter: {
+    jobId?: string;
+    status?: ApplicationStatus;
+    termasukDitangguhkan?: boolean;
+  }) =>
+    queryKey("admin-applications", {
+      jobId: filter.jobId,
+      status: filter.status,
+      termasukDitangguhkan: filter.termasukDitangguhkan === true ? true : undefined,
+    }),
   adminDetail: (id: string) => queryKey("admin-application", { id }),
   /**
    * "Lamaran Saya" (PR-079) — dilingkupi `sub` seperti `resumesKeys`: pengguna
@@ -75,6 +83,8 @@ export async function applyJob(
 export interface OpsiDaftarLamaranAdmin {
   jobId?: string;
   status?: ApplicationStatus;
+  /** PR-083 — sertakan lamaran dari akun yang ditangguhkan (bawaan: disembunyikan). */
+  termasukDitangguhkan?: boolean;
   cursor?: string;
   limit?: number;
 }
@@ -87,6 +97,7 @@ export async function listApplicationsAdmin(
   const query = new URLSearchParams();
   if (opsi.jobId !== undefined) query.set("job_id", opsi.jobId);
   if (opsi.status !== undefined) query.set("status", opsi.status);
+  if (opsi.termasukDitangguhkan === true) query.set("termasuk_ditangguhkan", "true");
   if (opsi.cursor !== undefined) query.set("cursor", opsi.cursor);
   if (opsi.limit !== undefined) query.set("limit", String(opsi.limit));
   const akhiran = query.size === 0 ? "" : `?${query.toString()}`;

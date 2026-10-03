@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { googleAuth, ApiError } from "@nawasena/api-client";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
+import { track } from "../shared/analitik.js";
 import { useTeks, type KunciTeks } from "../shared/i18n/index.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
@@ -35,6 +36,9 @@ export function MasukGoogle() {
   const keluarDariSesi = useStoreSesi((s) => s.keluar);
 
   const [galat, setGalat] = useState<KunciTeks | null>(null);
+  // PR-083 — saran dari server untuk akun yang ditangguhkan (memuat alamat
+  // banding dari env SUPPORT_EMAIL; tidak bisa ditulis di katalog).
+  const [saranServer, setSaranServer] = useState<string | null>(null);
   /**
    * Cabang HAPUS AKUN (PR-033c-2).
    *
@@ -98,11 +102,21 @@ export function MasukGoogle() {
           client: "web",
         });
         masukKeSesi(data.accessToken);
+        // PR-082 — funnel "daftar": hanya akun yang BARU dibuat pada login ini.
+        if (data.isNewUser) track("daftar", { metode: "google" });
         navigate(titipan.tujuan, { replace: true });
       } catch (kegagalan) {
         // Kode server dibedakan hanya jika saran tindakannya berbeda. Untuk
         // pengguna, "code sudah dipakai" dan "code tidak sah" bermuara pada
         // satu hal yang sama: ulangi dari halaman masuk.
+        // PR-083 — akun DITANGGUHKAN: kredensial Google-nya sah, tetapi akses
+        // diblok admin. "Gagal umum" akan menyuruhnya mencoba lagi tanpa akhir
+        // dan menyembunyikan jalan bandingnya.
+        if (kegagalan instanceof ApiError && kegagalan.code === "AKUN_DITANGGUHKAN") {
+          setSaranServer(kegagalan.hint ?? null);
+          setGalat("auth.google.ditangguhkan");
+          return;
+        }
         setGalat(
           kegagalan instanceof ApiError && kegagalan.code === "GOOGLE_EXCHANGE_GAGAL"
             ? "auth.google.gagalKedaluwarsa"
@@ -148,6 +162,7 @@ export function MasukGoogle() {
             berikutnya. */}
         <p role="alert" className="text-base text-gray-900">
           {t(galat)}
+          {saranServer === null ? null : ` ${saranServer}`}
         </p>
         <Tombol onClick={() => navigate("/masuk", { replace: true })}>
           {t("auth.google.kembali")}

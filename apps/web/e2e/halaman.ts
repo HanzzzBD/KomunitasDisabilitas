@@ -239,6 +239,8 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     butuhSesi: true,
     butuhAdmin: true,
   },
+  // PR-083b — moderasi akun: satu pencari kerja aktif, satu ditangguhkan, satu admin.
+  { nama: "admin — pengguna", jalur: "/admin/pengguna", butuhSesi: true, butuhAdmin: true },
   {
     nama: "admin — tambah lowongan",
     jalur: "/admin/jobs/baru",

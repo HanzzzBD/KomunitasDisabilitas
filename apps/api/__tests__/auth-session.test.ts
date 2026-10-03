@@ -89,6 +89,7 @@ function refreshRepoPalsu() {
 
 function userRepoPalsu(awal = { id: USER_ID, role: "seeker" as const, tokenVersion: 0 }) {
   let user: { id: string; role: "seeker"; tokenVersion: number } | null = { ...awal };
+  let ditangguhkan = false;
   return {
     get current() {
       return user;
@@ -97,7 +98,15 @@ function userRepoPalsu(awal = { id: USER_ID, role: "seeker" as const, tokenVersi
       user = null;
     },
     async findActiveSessionUser(id: string) {
-      return user !== null && user.id === id ? { ...user } : null;
+      return user !== null && user.id === id && !ditangguhkan ? { ...user } : null;
+    },
+    async findLoginTarget(id: string) {
+      return user !== null && user.id === id
+        ? { ...user, suspendedAt: ditangguhkan ? new Date() : null }
+        : null;
+    },
+    tangguhkan(nilai: boolean) {
+      ditangguhkan = nilai;
     },
     async bumpTokenVersion(id: string) {
       if (user === null || user.id !== id) return null;
@@ -193,6 +202,33 @@ describe("issue — sesi baru", () => {
     const { service, refreshTokenRepository } = rakit({ user });
     await expect(service.issue(USER_ID)).rejects.toMatchObject({ code: "SESI_TIDAK_VALID" });
     expect(refreshTokenRepository.rows).toHaveLength(0);
+  });
+});
+
+describe("akun ditangguhkan (PR-083)", () => {
+  it("issue → AKUN_DITANGGUHKAN dengan alamat banding, tanpa sesi tersimpan, tanpa alasan admin", async () => {
+    const user = userRepoPalsu();
+    user.tangguhkan(true);
+    const { service, refreshTokenRepository } = rakit({ user });
+    const galat = await tangkap(() => service.issue(USER_ID));
+    expect(galat.code).toBe("AKUN_DITANGGUHKAN");
+    expect(galat.status).toBe(403);
+    expect(galat.hint).toContain("dukungan@nawasena.local");
+    expect(refreshTokenRepository.rows).toHaveLength(0);
+  });
+
+  it("refresh token yang sudah ada → ditolak begitu akun ditangguhkan; pulih sesudah dipulihkan", async () => {
+    const user = userRepoPalsu();
+    const { service } = rakit({ user });
+    const awal = await service.issue(USER_ID);
+
+    user.tangguhkan(true);
+    const galat = await tangkap(() => service.refresh(awal.refreshToken, actor));
+    expect(galat.status).toBe(401);
+
+    user.tangguhkan(false);
+    const lagi = await service.issue(USER_ID);
+    expect(lagi.accessToken).toBeTruthy();
   });
 });
 

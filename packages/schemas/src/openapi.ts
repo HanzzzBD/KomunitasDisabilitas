@@ -55,6 +55,14 @@ import {
   myApplicationListQuerySchema,
   myApplicationListResponseSchema,
 } from "./applications-api.js";
+import { adminMetricsQuerySchema, adminMetricsResponseSchema } from "./admin.js";
+import {
+  adminUserIdParamsSchema,
+  adminUserListQuerySchema,
+  adminUserListResponseSchema,
+  adminUserResponseSchema,
+  moderateUserSchema,
+} from "./admin-users.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -1153,6 +1161,77 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
       },
       // Operasional lamaran oleh admin (PR-077a). Data disabilitas TIDAK PERNAH
       // ikut di daftar/detail — dibuka lewat POST .../disclosure dengan alasan.
+      "/admin/users": {
+        get: {
+          operationId: "listUsersAdmin",
+          tags: ["admin"],
+          summary: "Daftar akun (admin, moderasi)",
+          description:
+            "Cari nama/nomor/email, saring status aktif/ditangguhkan, cursor 50. Kontak ikut; " +
+            "tidak ada data disabilitas.",
+          requestParams: { query: adminUserListQuerySchema },
+          responses: {
+            "200": jsonOk("Satu halaman akun", adminUserListResponseSchema),
+            "400": errorResponse("Query atau cursor tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/users/{id}/suspend": {
+        post: {
+          operationId: "suspendUserAdmin",
+          tags: ["admin"],
+          summary: "Tangguhkan akun pencari kerja",
+          description:
+            "Alasan wajib (audit, tidak ditampilkan ke pengguna). Semua sesi dicabut; login & " +
+            "refresh berikutnya menjawab 403 AKUN_DITANGGUHKAN. Data tidak dihapus.",
+          requestParams: { path: adminUserIdParamsSchema },
+          requestBody: jsonBody(moderateUserSchema),
+          responses: {
+            "200": jsonOk("Akun terkini", adminUserResponseSchema),
+            "400": errorResponse("Alasan kosong / id tidak valid"),
+            "404": errorResponse("Akun tidak ditemukan"),
+            "409": errorResponse("Sudah ditangguhkan"),
+            "422": errorResponse("Bukan akun pencari kerja / diri sendiri"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/users/{id}/unsuspend": {
+        post: {
+          operationId: "unsuspendUserAdmin",
+          tags: ["admin"],
+          summary: "Pulihkan akun yang ditangguhkan",
+          description:
+            "Alasan wajib (audit). Akses pulih; sesi lama TIDAK hidup lagi — masuk ulang.",
+          requestParams: { path: adminUserIdParamsSchema },
+          requestBody: jsonBody(moderateUserSchema),
+          responses: {
+            "200": jsonOk("Akun terkini", adminUserResponseSchema),
+            "400": errorResponse("Alasan kosong / id tidak valid"),
+            "404": errorResponse("Akun tidak ditemukan"),
+            "409": errorResponse("Akun tidak sedang ditangguhkan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/metrics": {
+        get: {
+          operationId: "getAdminMetrics",
+          tags: ["admin"],
+          summary: "Metrik pilot (admin)",
+          description:
+            "Funnel kohort per pengguna (daftar → profil siap → melamar → wawancara → diterima), " +
+            "North Star (`hired_confirmed_at`), pemakaian AI per fitur, total DLQ. Agregat saja; " +
+            "tidak ada kolom terenkripsi yang dibaca. Cache 5 menit per periode.",
+          requestParams: { query: adminMetricsQuerySchema },
+          responses: {
+            "200": jsonOk("Metrik agregat", adminMetricsResponseSchema),
+            "400": errorResponse("Periode tidak dikenal"),
+            ...responsAdmin,
+          },
+        },
+      },
       "/admin/applications": {
         get: {
           operationId: "listApplicationsAdmin",
