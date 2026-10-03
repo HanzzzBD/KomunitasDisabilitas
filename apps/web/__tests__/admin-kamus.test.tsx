@@ -90,11 +90,15 @@ function renderKamus(jalur: string, awal: SignVideoAdmin = DRAFT) {
       const method = options?.method ?? "GET";
       if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
       if (path.startsWith("/me/notifications")) {
-        return Promise.resolve({ data: [], meta: { nextCursor: null, unreadCount: 0 } }) as Promise<never>;
+        return Promise.resolve({
+          data: [],
+          meta: { nextCursor: null, unreadCount: 0 },
+        }) as Promise<never>;
       }
       if (path === "/me") return Promise.resolve({ data: ADMIN }) as Promise<never>;
       jejak.push({ path, method, body: options?.body });
-      if (path === "/admin/sign-videos") return Promise.resolve({ data: [entri] }) as Promise<never>;
+      if (path === "/admin/sign-videos")
+        return Promise.resolve({ data: [entri] }) as Promise<never>;
       if (path === "/admin/sign-videos/presign") {
         const b = options?.body as { kind: string };
         return Promise.resolve({
@@ -149,7 +153,9 @@ describe("/admin/kamus/:id — unggah per berkas", () => {
     const user = userEvent.setup();
     const terbitkan = await screen.findByRole("button", { name: "Terbitkan" });
     expect(terbitkan).toHaveAttribute("aria-disabled", "true");
-    expect(terbitkan).toHaveAccessibleDescription("Belum bisa terbit. Lengkapi dulu: caption (.vtt), transkrip.");
+    expect(terbitkan).toHaveAccessibleDescription(
+      "Belum bisa terbit. Lengkapi dulu: caption (.vtt), transkrip.",
+    );
 
     await user.upload(screen.getByLabelText("Caption (.vtt)"), vtt());
     await waitFor(() => expect(XhrUji.semua).toHaveLength(1));
@@ -164,10 +170,9 @@ describe("/admin/kamus/:id — unggah per berkas", () => {
 
     act(() => xhrTerakhir().maju(30));
     expect(await screen.findByText("Mengunggah Caption (.vtt): 25%")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "Kemajuan unggah Caption (.vtt)" })).toHaveAttribute(
-      "value",
-      "30",
-    );
+    expect(
+      screen.getByRole("progressbar", { name: "Kemajuan unggah Caption (.vtt)" }),
+    ).toHaveAttribute("value", "30");
     act(() => xhrTerakhir().selesai());
     expect(await screen.findByText("Caption (.vtt) tersimpan.")).toBeInTheDocument();
     expect(jejak.find((p) => p.method === "PUT")?.body).toEqual({
@@ -179,7 +184,10 @@ describe("/admin/kamus/:id — unggah per berkas", () => {
   it("caption > 200 KB ditolak di browser tanpa permintaan apa pun", async () => {
     const { jejak } = renderKamus(`/admin/kamus/${ID}`);
     const user = userEvent.setup();
-    await user.upload(await screen.findByLabelText("Caption (.vtt)"), vtt("x".repeat(200 * 1024 + 1)));
+    await user.upload(
+      await screen.findByLabelText("Caption (.vtt)"),
+      vtt("x".repeat(200 * 1024 + 1)),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent("Caption lebih dari 200 KB");
     expect(jejak.some((p) => p.path.endsWith("/presign"))).toBe(false);
   });
@@ -190,7 +198,9 @@ describe("/admin/kamus/:id — unggah per berkas", () => {
     await user.upload(await screen.findByLabelText("Caption (.vtt)"), vtt());
     await waitFor(() => expect(XhrUji.semua).toHaveLength(1));
     act(() => xhrTerakhir().selesai(403));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Penyimpanan menolak Caption (.vtt)");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Penyimpanan menolak Caption (.vtt)",
+    );
 
     await user.click(screen.getByRole("button", { name: "Coba unggah Caption (.vtt) lagi" }));
     await waitFor(() => expect(XhrUji.semua).toHaveLength(2));
@@ -209,7 +219,9 @@ describe("/admin/kamus/:id — unggah per berkas", () => {
     const terbitkan = await screen.findByRole("button", { name: "Terbitkan" });
     expect(terbitkan).not.toHaveAttribute("aria-disabled", "true");
     await user.click(terbitkan);
-    expect(await screen.findByText("Terima kasih sudah terbit di kamus publik.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Terima kasih sudah terbit di kamus publik."),
+    ).toBeInTheDocument();
     expect(jejak.some((p) => p.path === `/admin/sign-videos/${ID}/publish`)).toBe(true);
 
     await user.click(await screen.findByRole("button", { name: "Tarik ke draf" }));

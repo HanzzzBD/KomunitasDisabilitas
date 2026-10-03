@@ -62,7 +62,10 @@ describe("unggahKeStorage", () => {
     ["putus → jaringan", (x: XhrMinimal) => x.onerror?.(), "jaringan"],
   ] as const)("%s", async (_n, picu, jenis) => {
     const xhr = xhrPalsu();
-    const janji = unggahKeStorage(IZIN, new Blob(["a"]), { onProgres: () => {}, buatXhr: () => xhr });
+    const janji = unggahKeStorage(IZIN, new Blob(["a"]), {
+      onProgres: () => {},
+      buatXhr: () => xhr,
+    });
     picu(xhr);
     await expect(janji).rejects.toMatchObject({ jenis });
   });
@@ -105,10 +108,12 @@ describe("validasi berkas di browser", () => {
     expect(periksaBerkas("video", { name: "a.mov", type: "video/quicktime", size: 9 })).toBe(
       "admin.kamus.unggah.galat.tipe.video",
     );
+    expect(periksaBerkas("caption", { name: "a.vtt", type: "", size: 200 * 1024 + 1 })).toBe(
+      "admin.kamus.unggah.galat.ukuran.caption",
+    );
     expect(
-      periksaBerkas("caption", { name: "a.vtt", type: "", size: 200 * 1024 + 1 }),
-    ).toBe("admin.kamus.unggah.galat.ukuran.caption");
-    expect(periksaBerkas("video", { name: "a.webm", type: "video/webm", size: 50 * 1024 * 1024 })).toBeNull();
+      periksaBerkas("video", { name: "a.webm", type: "video/webm", size: 50 * 1024 * 1024 }),
+    ).toBeNull();
   });
 
   it("accept memuat MIME dan ekstensi", () => {
