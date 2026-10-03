@@ -618,9 +618,9 @@ RB-Std; monitoring mati tidak memengaruhi produk.
 
 #### Objective
 
-**pg_dump → age → R2 (retensi 30h + bulanan×6) + restore.sh + drill.**
+**pg_dump → age → B2 (retensi 30h + bulanan×6) + restore.sh + drill.**
 
-Bisnis: RPO ≤ 24 jam & janji "backup yang tidak diuji = tidak ada" (SDD §18). Teknis: processor `maintenance:backup` 02:07, enkripsi age (kunci terpisah), lifecycle R2, `restore.sh`, drill bulanan terdokumentasi.
+Bisnis: RPO ≤ 24 jam & janji "backup yang tidak diuji = tidak ada" (SDD §18). Teknis: processor `maintenance:backup` 02:07, enkripsi age (kunci terpisah), lifecycle B2 (versi tersembunyi tidak disimpan selamanya — ADR-020), `restore.sh`, drill bulanan terdokumentasi.
 
 #### Scope
 
@@ -670,9 +670,10 @@ Inilah jaring pengaman rollback data; skrip pause via config.
 
 #### Acceptance Criteria
 
-* [ ] Backup harian terbentuk di R2 & tidak terbaca tanpa kunci (verifikasi).
+* [ ] Backup harian terbentuk di B2 & tidak terbaca tanpa kunci (verifikasi).
 * [ ] `restore.sh` di staging → DB fungsional + smoke hijau (drill dicatat).
 * [ ] Retensi lifecycle bekerja (30 hari + bulanan).
+* [ ] Setiap bucket B2 (data & backup) punya lifecycle rule yang menghapus versi tersembunyi — bawaan B2 menyimpannya selamanya (ADR-020, README `core/storage`).
 * [ ] Backup gagal → alert (PR-103).
 * [ ] Pre-deploy backup hook aktif di deploy.sh.
 

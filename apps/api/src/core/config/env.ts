@@ -325,7 +325,7 @@ const envSchema = z.object({
     .default("https://api.resend.com"),
   EMAIL_SEND_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
 
-  // --- Object storage S3-compatible / Cloudflare R2 (PR-062) ---
+  // --- Object storage S3-compatible / Backblaze B2 (PR-062, ADR-020) ---
   //
   // Lima nilai koneksi opsional SEBAGAI GRUP: dev yang belum membutuhkan
   // objek tetap bisa boot, tetapi konfigurasi setengah jadi ditolak. Bucket
@@ -337,7 +337,7 @@ const envSchema = z.object({
    * Host yang dipakai browser untuk membuka URL presigned (PR-064b, U-23).
    * Hanya perlu bila endpoint internal tidak dapat dijangkau browser —
    * mis. `http://minio:9000` di jaringan compose. Kosong = sama dengan
-   * `STORAGE_ENDPOINT` (kasus R2/produksi).
+   * `STORAGE_ENDPOINT` (kasus B2/produksi).
    */
   STORAGE_PUBLIC_ENDPOINT: z.string().url({ message: "harus URL absolut" }).optional(),
   STORAGE_ACCESS_KEY_ID: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
@@ -352,11 +352,17 @@ const envSchema = z.object({
     .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, {
       message: "hanya huruf kecil, angka, dan tanda hubung; harus diawali/diakhiri alfanumerik",
     })
+    // Nama berawalan `b2-` dicadangkan Backblaze; bucket-nya tidak bisa dibuat.
+    .refine((nilai) => !nilai.startsWith("b2-"), { message: "tidak boleh diawali 'b2-'" })
     .optional(),
   STORAGE_BUCKET_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
-  /** R2 memakai `auto`; MinIO integration test menimpanya dengan `us-east-1`. */
-  STORAGE_REGION: z.string().min(1, { message: "tidak boleh kosong" }).default("auto"),
-  /** MinIO perlu path-style; R2 memakai virtual-host style secara default. */
+  /**
+   * Kosong = diturunkan dari endpoint B2 (`s3.<region>.backblazeb2.com`), atau
+   * `us-east-1` untuk endpoint lain (MinIO). Bila diisi untuk B2, wajib sama
+   * dengan region di host endpoint (ADR-020).
+   */
+  STORAGE_REGION: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  /** MinIO perlu path-style; B2 memakai virtual-host style secara default. */
   STORAGE_FORCE_PATH_STYLE: z
     .enum(["true", "false"], { errorMap: () => ({ message: "harus 'true' atau 'false'" }) })
     .default("false")
@@ -492,7 +498,7 @@ const GRUP_KREDENSIAL = [
     vars: ["RESEND_API_KEY", "EMAIL_FROM"],
   },
   {
-    label: "kredensial object storage S3/R2",
+    label: "kredensial object storage S3/B2",
     vars: [
       "STORAGE_ENDPOINT",
       "STORAGE_ACCESS_KEY_ID",
@@ -581,7 +587,33 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
       message: `tidak cocok dengan NODE_ENV=${env.NODE_ENV}`,
     });
   }
+
+  // B2 (ADR-020): region adalah bagian dari tanda tangan SigV4. Region yang
+  // tidak cocok dengan host endpoint tidak gagal saat boot, melainkan pada
+  // upload pertama — sebagai `SignatureDoesNotMatch` yang tidak menyebut region.
+  const regionB2 =
+    env.STORAGE_ENDPOINT === undefined ? undefined : regionDariEndpointB2(env.STORAGE_ENDPOINT);
+  if (
+    regionB2 !== undefined &&
+    env.STORAGE_REGION !== undefined &&
+    env.STORAGE_REGION !== regionB2
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["STORAGE_REGION"],
+      message: `tidak cocok dengan endpoint B2 (region-nya ${regionB2}); kosongkan agar diturunkan otomatis`,
+    });
+  }
 });
+
+/**
+ * Region Backblaze B2 dari host endpoint S3-nya: `https://s3.us-west-004.backblazeb2.com`
+ * → `us-west-004`. `undefined` untuk endpoint selain B2 (MinIO, S3 lain).
+ */
+export function regionDariEndpointB2(endpoint: string): string | undefined {
+  const cocok = /^s3\.([a-z0-9-]+)\.backblazeb2\.com$/.exec(new URL(endpoint).hostname);
+  return cocok?.[1];
+}
 
 export type Env = z.infer<typeof envSchema>;
 

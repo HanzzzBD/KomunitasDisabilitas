@@ -230,7 +230,7 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
    │ Gemini API  │   │ S3-compatible    │  │ FCM (push),   │
    │ (free tier) │   │ (CV PDF, video   │  │ WA OTP (Fonnte│
    │ + Groq      │   │ BISINDO) — mis.  │  │ /Twilio),     │
-   │ (fallback)  │   │ Cloudflare R2    │  │ email (Resend)│
+   │ (fallback)  │   │ Backblaze B2     │  │ email (Resend)│
    └─────────────┘   └──────────────────┘  └───────────────┘
 ```
 

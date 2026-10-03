@@ -6,7 +6,7 @@
 // Docker Hub, maka provisioning memakai SDK S3 yang sudah menjadi dependensi.
 //
 // Idempoten: bucket yang sudah ada dibiarkan. Menolak staging/production — di
-// sana bucket R2 dibuat operator, bukan skrip dev.
+// sana bucket B2 dibuat operator, bukan skrip dev.
 /* eslint-disable no-console -- script CLI: output ke console adalah antarmukanya */
 import {
   CreateBucketCommand,

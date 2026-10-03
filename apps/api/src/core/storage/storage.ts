@@ -62,7 +62,7 @@ function s3Client(config: StorageConfig, endpoint: string): S3Client {
       secretAccessKey: config.secretAccessKey,
     },
     forcePathStyle: config.forcePathStyle,
-    // SDK versi baru menghitung CRC32 secara default. R2/MinIO tidak
+    // SDK versi baru menghitung CRC32 secara default. B2/MinIO tidak
     // memerlukannya untuk payload yang ukurannya sudah kita ketahui.
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
@@ -111,7 +111,7 @@ function positiveInteger(value: number): boolean {
 }
 
 /**
- * Policy layer di depan S3/R2. Provider hanya disentuh setelah key, ukuran,
+ * Policy layer di depan S3/B2. Provider hanya disentuh setelah key, ukuran,
  * dan TTL lolos; tidak ada operasi list maupun pembuatan URL publik.
  */
 export function createObjectStorage(

@@ -112,9 +112,9 @@ RB-Std.
 
 #### Objective
 
-**Upload presigned R2 + thumbnail + metadata + publish.**
+**Upload presigned B2 + thumbnail + metadata + publish.**
 
-Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung ke R2 via presigned, progress aksesibel, form metadata + file caption (vtt) + transkrip.
+Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung ke B2 via presigned (aturan CORS bucket untuk origin web saja — README core/storage), progress aksesibel, form metadata + file caption (vtt) + transkrip.
 
 #### Scope
 

@@ -1,7 +1,7 @@
 # Object storage
 
-`core/storage` adalah satu-satunya adapter S3-compatible untuk Cloudflare R2
-(production) dan MinIO (dev/CI). Permukaannya sengaja hanya memiliki `upload`
+`core/storage` adalah satu-satunya adapter S3-compatible untuk Backblaze B2
+(staging/production, ADR-020) dan MinIO (dev/CI). Permukaannya sengaja hanya memiliki `upload`
 dan `presignDownload`: bucket privat tidak pernah memiliki operasi public-list.
 
 ## Bucket per environment
@@ -18,8 +18,12 @@ Suffix deployment dibuat eksplisit karena staging tetap memakai
 | `production`  | `nawasena-production`  |
 
 Bucket harus dibuat oleh provisioning infrastruktur. Aplikasi tidak memiliki
-API untuk membuat atau mendaftar bucket. R2 production wajib memakai endpoint
+API untuk membuat atau mendaftar bucket. B2 production wajib memakai endpoint
 HTTPS; MinIO lokal memakai `STORAGE_FORCE_PATH_STYLE=true`.
+
+Nama bucket B2 unik di seluruh akun B2, bukan hanya di akun kita. Bila
+`nawasena-production` sudah dipakai pihak lain, ganti `STORAGE_BUCKET_PREFIX`
+(mis. `nawasena-id`) — suffix environment tetap dibentuk aplikasi.
 
 ## Konvensi key
 
@@ -73,3 +77,34 @@ STORAGE_FORCE_PATH_STYLE=true
 
 Kredensial di atas khusus localhost dan tidak boleh dipakai di staging atau
 production.
+
+## Backblaze B2 (staging/production)
+
+Langkah operator, sekali per environment:
+
+1. **Buat bucket** `<prefix>-<env>` dengan tipe **Private**. Jangan pernah Public:
+   seluruh akses lewat URL presigned.
+2. **Lifecycle rule:** pilih _Custom_ dengan _Days till hide_ kosong dan _Days till
+   delete_ `30` (`daysFromHidingToDeleting: 30`, SDD §18 "30 hari versi"). Bawaan
+   B2 adalah _Keep all versions_. Dengan bawaan itu, objek yang ditimpa atau dihapus
+   lewat API S3 hanya disembunyikan: datanya tetap tersimpan, tetap ditagih, dan
+   **tetap ada selamanya** walau pengguna meminta datanya dihapus (UU PDP, SDD §6.4).
+   Retensi backup database (30 hari + bulanan×6) diatur PR-104.
+3. **Application Key** khusus bucket itu (bukan Master Application Key), dengan
+   kapabilitas baca + tulis. `keyID` → `STORAGE_ACCESS_KEY_ID`, `applicationKey`
+   → `STORAGE_SECRET_ACCESS_KEY`. B2 hanya menampilkan `applicationKey` sekali.
+4. **Endpoint** dari halaman bucket → `STORAGE_ENDPOINT`. Kosongkan
+   `STORAGE_REGION`: region diturunkan dari host, dan nilai yang bertentangan
+   membuat boot gagal (SigV4 menandatangani region).
+5. **CORS** hanya bila browser mengunggah langsung (presigned PUT, kamus video
+   SignBridge PR-085): atur _CORS rules_ bucket untuk origin web Nawasena saja,
+   operasi `s3_put` dan `s3_get`. Unduhan CV tidak butuh CORS karena dibuka
+   sebagai navigasi biasa.
+
+```dotenv
+STORAGE_ENDPOINT=https://s3.us-west-004.backblazeb2.com
+STORAGE_ACCESS_KEY_ID=<keyID>
+STORAGE_SECRET_ACCESS_KEY=<applicationKey>
+STORAGE_BUCKET_PREFIX=nawasena
+STORAGE_BUCKET_ENV=production
+```

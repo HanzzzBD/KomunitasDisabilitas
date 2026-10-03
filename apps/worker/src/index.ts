@@ -300,7 +300,7 @@ const rerankService = createRerankService({
 });
 
 // Jalur PDF (PR-063). Seluruh dependensi eksternal dirakit di composition root:
-// repository CV, R2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
+// repository CV, B2/MinIO, dan Chromium. Konfigurasi yang belum lengkap tidak
 // menjatuhkan processor lain, tetapi berisik dan queue pdf-render tidak dibaca.
 let pdfProcessor: JobProcessor | undefined;
 if (env.PDF_CHROMIUM_EXECUTABLE_PATH === undefined) {
