@@ -6,6 +6,7 @@ import type { Router } from "express";
 import {
   createSignVideoSchema,
   signVideoIdParamsSchema,
+  signVideoPresignSchema,
   signVideoSearchQuerySchema,
   updateSignVideoSchema,
 } from "@nawasena/schemas";
@@ -25,6 +26,14 @@ export function createSignbridgeRouter(
   );
 
   routes.get("/admin/sign-videos", access.role("admin"), asyncHandler(controller.listAdmin));
+  // Didaftarkan SEBELUM `/admin/sign-videos/:id` — tidak bentrok (metode beda),
+  // tetapi urutan ini menjaga pembaca dari kebingungan "presign" sebagai `:id`.
+  routes.post(
+    "/admin/sign-videos/presign",
+    access.role("admin"),
+    validate({ body: signVideoPresignSchema }),
+    asyncHandler(controller.presignAdmin),
+  );
   routes.post(
     "/admin/sign-videos",
     access.role("admin"),
@@ -42,6 +51,12 @@ export function createSignbridgeRouter(
     access.role("admin"),
     validate({ params: signVideoIdParamsSchema }),
     asyncHandler(controller.publishAdmin),
+  );
+  routes.post(
+    "/admin/sign-videos/:id/unpublish",
+    access.role("admin"),
+    validate({ params: signVideoIdParamsSchema }),
+    asyncHandler(controller.unpublishAdmin),
   );
 
   return routes.router;

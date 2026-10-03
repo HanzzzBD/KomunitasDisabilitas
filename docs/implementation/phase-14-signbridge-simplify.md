@@ -127,6 +127,7 @@ Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung
 **Backend Changes:**
 
 * Endpoint presign untuk video/caption/thumbnail.
+* **Realisasi:** PR dipecah — **PR-085a** API (`core/storage` `presignUpload` + `stat`, presign, verifikasi objek saat simpan key, `POST /admin/sign-videos/:id/unpublish` atas keputusan owner 2026-10-03), **PR-085b** UI. Batas: video 50 MB, caption 200 KB, thumbnail 1 MB (`SIGN_VIDEO_MEDIA`).
 
 **Frontend Changes:**
 

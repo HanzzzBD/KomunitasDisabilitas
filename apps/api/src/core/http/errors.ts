@@ -342,6 +342,19 @@ export const ERROR_CATALOG = {
     message: "Berkas media tidak cocok untuk video isyarat ini",
     hint: "Unggah ulang berkasnya lewat halaman kamus, lalu simpan lagi",
   },
+  // 422 (PR-085): key disimpan tetapi objeknya belum ada di bucket — unggahan
+  // belum selesai, gagal di tengah, atau key tidak berasal dari presign.
+  BERKAS_VIDEO_ISYARAT_TIDAK_ADA: {
+    status: 422,
+    message: "Berkas belum sampai di penyimpanan",
+    hint: "Unggah ulang berkasnya, lalu tunggu sampai selesai 100%",
+  },
+  // 409 (PR-085): menarik entri yang memang belum terbit.
+  VIDEO_ISYARAT_BELUM_TERBIT: {
+    status: 409,
+    message: "Video isyarat ini belum diterbitkan",
+    hint: "Muat ulang daftar kamus untuk melihat status terbaru",
+  },
   // 409: diterbitkan dua kali — biasanya admin lain baru saja menerbitkannya.
   VIDEO_ISYARAT_SUDAH_TERBIT: {
     status: 409,

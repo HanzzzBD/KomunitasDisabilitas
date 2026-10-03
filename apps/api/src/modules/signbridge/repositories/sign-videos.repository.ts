@@ -102,6 +102,16 @@ export function createSignVideosRepository(prisma: AppPrisma) {
       return prisma.signVideo.findUnique({ where: { id }, select: KOLOM });
     },
 
+    /** published → draft secara atomik (PR-085). `null` = tidak ada baris published. */
+    async unpublish(id: string): Promise<SignVideoRow | null> {
+      const { count } = await prisma.signVideo.updateMany({
+        where: { id, status: "published" },
+        data: { status: "draft" },
+      });
+      if (count === 0) return null;
+      return prisma.signVideo.findUnique({ where: { id }, select: KOLOM });
+    },
+
     /**
      * Pencarian publik — HANYA published. Raw SQL karena FTS tidak punya API
      * Prisma. Ekspresi `to_tsvector('indonesian', "phrase")` HARUS sama persis

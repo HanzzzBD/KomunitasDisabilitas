@@ -15,7 +15,7 @@ Katalog ini adalah kontrak `core/audit` (SDD §8.3). Pemakaian: `auditLog({ acto
 | `USER_SUSPENDED` | Admin menangguhkan akun pencari kerja (PR-083); semua sesi dicabut | `reason` |
 | `USER_UNSUSPENDED` | Admin memulihkan akun yang ditangguhkan (PR-083) | `reason` |
 | `COMPANY_VERIFIED` | Verifikasi perusahaan | `from`, `to` |
-| `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource | `operation` |
+| `ADMIN_RESOURCE_CHANGED` | Aksi admin terhadap resource (`unpublish` = entri kamus BISINDO ditarik ke draft, PR-085) | `operation` |
 | `DATA_EXPORTED` | Ekspor data subjek | `format`, `formatVersion`, `sections` |
 | `ACCOUNT_DELETED` | Konfirmasi hapus akun ditolak/diterima, dan selesainya penghapusan | `stage`, `method`, `revokedCount` |
 | `DATA_PURGED` | Purge/anonimisasi terjadwal akun terhapus > 30 hari | `dryRun`, `accounts`, `deleted`, `anonymized`, `records` |

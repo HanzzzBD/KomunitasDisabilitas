@@ -6,9 +6,8 @@ import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
 import type { AuditLog } from "../../core/audit/index.js";
-import type { ObjectStorage } from "../../core/storage/index.js";
 import { createSignVideosRepository } from "./repositories/sign-videos.repository.js";
-import { createSignVideosService } from "./services/sign-videos.service.js";
+import { createSignVideosService, type SignVideoStorage } from "./services/sign-videos.service.js";
 import { createSignVideosController } from "./controllers/sign-videos.controller.js";
 import { createSignbridgeRouter } from "./routers/index.js";
 
@@ -17,8 +16,8 @@ export interface SignbridgeModuleDeps {
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
   routes: RouteRegistrar;
   auditLog: AuditLog;
-  /** undefined = storage belum diatur → `GET /sign-videos` menjawab 503. */
-  storage: Pick<ObjectStorage, "presignDownload"> | undefined;
+  /** undefined = storage belum diatur → pencarian, presign, dan simpan key menjawab 503. */
+  storage: SignVideoStorage | undefined;
 }
 
 export interface SignbridgeModule {
@@ -46,4 +45,5 @@ export {
   mediaKeySah,
   type SignVideosActor,
   type SignVideosService,
+  type SignVideoStorage,
 } from "./services/sign-videos.service.js";

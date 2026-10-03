@@ -7,9 +7,13 @@
 // aturannya ditegakkan di SERVER (422) dan sekali lagi oleh CHECK di DB.
 import {
   AUDIT_ACTION,
+  SIGN_VIDEO_MEDIA,
   type CreateSignVideo,
   type SignVideoAdmin,
   type SignVideoCategory,
+  type SignVideoMediaKind,
+  type SignVideoPresign,
+  type SignVideoPresignResult,
   type SignVideoPublic,
   type SignVideoSearchQuery,
   type UpdateSignVideo,
@@ -17,7 +21,11 @@ import {
 import type { AuditLog } from "../../../core/audit/index.js";
 import { appError } from "../../../core/http/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
-import { assertStorageKey, type ObjectStorage } from "../../../core/storage/index.js";
+import {
+  assertStorageKey,
+  buildStorageKey,
+  type ObjectStorage,
+} from "../../../core/storage/index.js";
 import type {
   SignVideoRow,
   SignVideosRepository,
@@ -34,17 +42,28 @@ export interface SignVideosActor {
 export interface SignVideosServiceDeps {
   repository: SignVideosRepository;
   auditLog: AuditLog;
-  /** undefined = storage belum diatur → pencarian publik 503 (pola PDF CV). */
-  storage: Pick<ObjectStorage, "presignDownload"> | undefined;
+  /** undefined = storage belum diatur → pencarian, presign, dan simpan key 503 (pola PDF CV). */
+  storage: SignVideoStorage | undefined;
 }
+
+export type SignVideoStorage = Pick<ObjectStorage, "presignDownload" | "presignUpload" | "stat">;
 
 type JenisMedia = "videoKey" | "thumbnailKey" | "captionKey";
 
-/** Ekstensi yang diterima per jenis media; PR-085 mempersempit tipe & ukuran saat presign. */
+const KIND_DARI_KOLOM: Record<JenisMedia, SignVideoMediaKind> = {
+  videoKey: "video",
+  captionKey: "caption",
+  thumbnailKey: "thumbnail",
+};
+
+/**
+ * Ekstensi yang diterima per jenis media. Turunan `SIGN_VIDEO_MEDIA` (key buatan
+ * presign PR-085) + `.jpeg` (key PR-084 yang mungkin sudah tersimpan).
+ */
 const EKSTENSI: Record<JenisMedia, readonly string[]> = {
-  videoKey: [".mp4", ".webm"],
-  captionKey: [".vtt"],
-  thumbnailKey: [".jpg", ".jpeg", ".png", ".webp"],
+  videoKey: Object.values(SIGN_VIDEO_MEDIA.video.tipe).map((e) => `.${e}`),
+  captionKey: Object.values(SIGN_VIDEO_MEDIA.caption.tipe).map((e) => `.${e}`),
+  thumbnailKey: [...Object.values(SIGN_VIDEO_MEDIA.thumbnail.tipe).map((e) => `.${e}`), ".jpeg"],
 };
 
 /**
@@ -103,7 +122,11 @@ function keAdmin(row: SignVideoRow): SignVideoAdmin {
 export function createSignVideosService(deps: SignVideosServiceDeps) {
   const { repository, auditLog, storage } = deps;
 
-  const catat = (actor: SignVideosActor, id: string, operation: "create" | "update" | "publish") =>
+  const catat = (
+    actor: SignVideosActor,
+    id: string,
+    operation: "create" | "update" | "publish" | "unpublish",
+  ) =>
     auditLog(
       { actorId: actor.userId, requestId: actor.requestId },
       AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
@@ -111,6 +134,26 @@ export function createSignVideosService(deps: SignVideosServiceDeps) {
       id,
       { operation },
     );
+
+  /**
+   * Objek di balik key harus SUDAH ada, dengan ukuran & tipe yang diizinkan.
+   * Ukuran juga terikat ke signature presign, tetapi pemeriksaan di sini yang
+   * menjadi penentu: key yang tidak lewat presign (mis. diketik tangan) atau
+   * unggahan yang belum selesai tidak pernah tersimpan.
+   */
+  async function periksaObjek(
+    penyimpanan: SignVideoStorage,
+    jenis: JenisMedia,
+    key: string,
+  ): Promise<void> {
+    const aturan = SIGN_VIDEO_MEDIA[KIND_DARI_KOLOM[jenis]];
+    const objek = await penyimpanan.stat(key);
+    if (objek === null) throw appError("BERKAS_VIDEO_ISYARAT_TIDAK_ADA");
+    const tipeSah = objek.contentType !== null && objek.contentType in aturan.tipe;
+    if (objek.size > aturan.maksByte || !tipeSah) {
+      throw appError("MEDIA_VIDEO_ISYARAT_TIDAK_VALID");
+    }
+  }
 
   async function kePublik(
     row: SignVideoRow,
@@ -188,9 +231,10 @@ export function createSignVideosService(deps: SignVideosServiceDeps) {
 
       for (const jenis of ["videoKey", "thumbnailKey", "captionKey"] as const) {
         const key = input[jenis];
-        if (typeof key === "string" && !mediaKeySah(id, jenis, key)) {
-          throw appError("MEDIA_VIDEO_ISYARAT_TIDAK_VALID");
-        }
+        if (typeof key !== "string" || key === sebelum[jenis]) continue;
+        if (!mediaKeySah(id, jenis, key)) throw appError("MEDIA_VIDEO_ISYARAT_TIDAK_VALID");
+        if (storage === undefined) throw appError("BELUM_SIAP");
+        await periksaObjek(storage, jenis, key);
       }
 
       const patch: SignVideoUpdatePatch = {};
@@ -226,6 +270,53 @@ export function createSignVideosService(deps: SignVideosServiceDeps) {
       if (row === null) throw appError("VIDEO_ISYARAT_SUDAH_TERBIT");
       catat(actor, id, "publish");
       return keAdmin(row);
+    },
+
+    /**
+     * POST /api/v1/admin/sign-videos/:id/unpublish — published → draft (PR-085,
+     * keputusan owner 2026-10-03): video keliru bisa segera hilang dari publik.
+     * Media & transkrip tetap utuh, jadi entri bisa langsung diterbitkan lagi.
+     */
+    async unpublish(actor: SignVideosActor, id: string): Promise<SignVideoAdmin> {
+      const sebelum = await repository.findById(id);
+      if (sebelum === null) throw appError("VIDEO_ISYARAT_TIDAK_DITEMUKAN");
+      if (sebelum.status === "draft") throw appError("VIDEO_ISYARAT_BELUM_TERBIT");
+
+      const row = await repository.unpublish(id);
+      if (row === null) throw appError("VIDEO_ISYARAT_BELUM_TERBIT");
+      catat(actor, id, "unpublish");
+      return keAdmin(row);
+    },
+
+    /**
+     * POST /api/v1/admin/sign-videos/presign — izin unggah SATU berkas langsung
+     * dari browser ke bucket. Tipe & ukuran sudah disaring zod; key selalu baru
+     * (`{kind}-{uuid}.{ext}`) supaya unggahan tidak pernah menimpa media yang
+     * sedang tayang — publik baru melihatnya setelah key disimpan lewat PUT.
+     */
+    async presign(input: SignVideoPresign): Promise<SignVideoPresignResult> {
+      if (storage === undefined) throw appError("BELUM_SIAP");
+      const entri = await repository.findById(input.videoId);
+      if (entri === null) throw appError("VIDEO_ISYARAT_TIDAK_DITEMUKAN");
+
+      const aturan = SIGN_VIDEO_MEDIA[input.kind];
+      const ext = (aturan.tipe as Record<string, string>)[input.contentType];
+      if (ext === undefined) throw appError("MEDIA_VIDEO_ISYARAT_TIDAK_VALID");
+      const key = buildStorageKey("sign-videos", entri.id, `${input.kind}-${uuidV7()}.${ext}`);
+
+      const izin = await storage.presignUpload({
+        key,
+        contentType: input.contentType,
+        contentLength: input.size,
+        maxBytes: aturan.maksByte,
+      });
+      return {
+        key,
+        uploadUrl: izin.url,
+        method: izin.method,
+        headers: izin.headers,
+        expiresAt: izin.expiresAt.toISOString(),
+      };
     },
   };
 }

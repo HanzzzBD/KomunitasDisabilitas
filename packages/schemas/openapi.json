@@ -4356,6 +4356,88 @@
         }
       }
     },
+    "/admin/sign-videos/presign": {
+      "post": {
+        "operationId": "presignSignVideoMediaAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Izin unggah satu berkas media kamus (admin)",
+        "description": "URL PUT presigned langsung ke bucket (PR-085). Tipe & ukuran dibatasi per jenis: video mp4/webm ≤ 50 MB, caption text/vtt ≤ 200 KB, thumbnail jpg/png/webp ≤ 1 MB. Ukuran ikut ditandatangani. Kirim `headers` apa adanya, lalu simpan `key` lewat PUT /admin/sign-videos/{id} — server memeriksa objeknya sudah ada.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignVideoPresign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Izin unggah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoPresignResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tipe/ukuran tidak diterima atau input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Entri kamus tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi atau object storage belum diatur di server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/sign-videos/{id}": {
       "put": {
         "operationId": "updateSignVideoAdmin",
@@ -4440,7 +4522,7 @@
             }
           },
           "422": {
-            "description": "Key media tidak valid, atau entri terbit menjadi tidak lengkap",
+            "description": "Key media tidak valid, objeknya belum diunggah, atau entri terbit menjadi tidak lengkap",
             "content": {
               "application/json": {
                 "schema": {
@@ -4450,7 +4532,7 @@
             }
           },
           "503": {
-            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "description": "Sesi atau object storage belum diatur di server",
             "content": {
               "application/json": {
                 "schema": {
@@ -4547,6 +4629,102 @@
           },
           "422": {
             "description": "Video, caption, atau transkrip belum ada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sign-videos/{id}/unpublish": {
+      "post": {
+        "operationId": "unpublishSignVideoAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Tarik entri kamus ke draft (admin)",
+        "description": "published → draft (PR-085), audit `ADMIN_RESOURCE_CHANGED {operation: unpublish}`. Media & transkrip tetap utuh; entri bisa diterbitkan lagi.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entri setelah ditarik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoAdminResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Belum diterbitkan",
             "content": {
               "application/json": {
                 "schema": {
@@ -9982,6 +10160,90 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "SignVideoPresign": {
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SignVideoMediaKind"
+          },
+          "contentType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "videoId",
+          "kind",
+          "contentType",
+          "size"
+        ],
+        "additionalProperties": false
+      },
+      "SignVideoMediaKind": {
+        "type": "string",
+        "enum": [
+          "video",
+          "caption",
+          "thumbnail"
+        ]
+      },
+      "SignVideoPresignResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignVideoPresignResult"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SignVideoPresignResult": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "method": {
+            "type": "string",
+            "const": "PUT"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "key",
+          "uploadUrl",
+          "method",
+          "headers",
+          "expiresAt"
         ]
       },
       "UpdateSignVideo": {

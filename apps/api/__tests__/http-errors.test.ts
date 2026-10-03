@@ -95,6 +95,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Layanan sedang tidak siap",
           "status": 503,
         },
+        "BERKAS_VIDEO_ISYARAT_TIDAK_ADA": {
+          "hint": "Unggah ulang berkasnya, lalu tunggu sampai selesai 100%",
+          "message": "Berkas belum sampai di penyimpanan",
+          "status": 422,
+        },
         "CARA_KONFIRMASI_TIDAK_COCOK": {
           "hint": "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
           "message": "Cara konfirmasi itu tidak bisa dipakai untuk akun Anda",
@@ -299,6 +304,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Lengkapi video, caption (.vtt), dan transkrip terlebih dahulu",
           "message": "Video isyarat ini belum lengkap untuk diterbitkan",
           "status": 422,
+        },
+        "VIDEO_ISYARAT_BELUM_TERBIT": {
+          "hint": "Muat ulang daftar kamus untuk melihat status terbaru",
+          "message": "Video isyarat ini belum diterbitkan",
+          "status": 409,
         },
         "VIDEO_ISYARAT_SUDAH_TERBIT": {
           "hint": "Muat ulang daftar kamus untuk melihat status terbaru",

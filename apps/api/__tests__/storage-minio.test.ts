@@ -61,4 +61,30 @@ integration("ObjectStorage + MinIO", () => {
     const afterExpiry = await fetch(signed.url);
     expect(afterExpiry.status).toBe(403);
   }, 10_000);
+
+  // PR-085: unggah presigned dari browser. Ukuran ikut ditandatangani, jadi
+  // berkas yang lebih besar dari yang dideklarasikan saat presign ditolak.
+  it("presigned PUT: ukuran sesuai diterima + stat; ukuran lain ditolak", async () => {
+    const storage = createObjectStorage({ ...config, presignTtlSeconds: 60 });
+    const putKey = "sign-videos/video-integration/caption-uji.vtt";
+    const isi = new TextEncoder().encode("WEBVTT\n");
+    expect(await storage.stat(putKey)).toBeNull();
+
+    const izin = await storage.presignUpload({
+      key: putKey,
+      contentType: "text/vtt",
+      contentLength: isi.byteLength,
+    });
+    const curang = await fetch(izin.url, {
+      method: "PUT",
+      headers: izin.headers,
+      body: new TextEncoder().encode("WEBVTT\nlebih panjang dari izin\n"),
+    });
+    expect(curang.ok).toBe(false);
+
+    const sah = await fetch(izin.url, { method: "PUT", headers: izin.headers, body: isi });
+    expect(sah.status).toBe(200);
+    expect(await storage.stat(putKey)).toEqual({ size: isi.byteLength, contentType: "text/vtt" });
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: putKey }));
+  }, 10_000);
 });
