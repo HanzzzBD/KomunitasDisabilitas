@@ -59,12 +59,14 @@ Bisnis: BISINDO Support nyata di MVP (ADR-010 v1) — bukan sekadar roadmap. Tek
 **Database Changes:**
 
 * Tidak ada (tabel dari PR-011).
+* **Realisasi:** migrasi 23 (keputusan owner 2026-10-03) — tabel PR-011 belum punya kolom caption/transkrip. `video_url`/`thumbnail_url` → `video_key`/`thumbnail_key` (key storage, nullable selama draft), + `caption_key` (.vtt) + `transcript`, CHECK `sign_videos_terbit_lengkap`. Kategori = daftar tertutup zod.
 
 **API Changes:**
 
 * GET /api/v1/sign-videos?query&category
 * GET/POST /api/v1/admin/sign-videos ; PUT /api/v1/admin/sign-videos/:id
 * POST /api/v1/admin/sign-videos/:id/publish
+* **Realisasi:** publik mengembalikan URL media presigned (bukan key) + `mediaExpiresAt`; `limit` maks 50, tanpa cursor.
 
 **Security Considerations:**
 
@@ -72,11 +74,11 @@ Bisnis: BISINDO Support nyata di MVP (ADR-010 v1) — bukan sekadar roadmap. Tek
 
 **Testing Checklist:**
 
-* [ ] Unit Test (validasi)
-* [ ] Integration Test (lifecycle + search)
+* [x] Unit Test (validasi)
+* [x] Integration Test (lifecycle + search)
 * [ ] E2E Test (via PR-086)
-* [ ] Accessibility Test (N/A backend)
-* [ ] Manual Verification (curl)
+* [x] Accessibility Test (N/A backend)
+* [x] Manual Verification (curl) — digantikan integrasi HTTP nyata `signbridge-db.test.ts`
 
 **Deliverables:**
 
@@ -92,11 +94,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Publish tanpa caption/transkrip → 422 (server-enforced).
-* [ ] Pencarian frasa menemukan video (FTS test).
-* [ ] Hanya published tampil publik.
-* [ ] Kategori tervalidasi.
-* [ ] Audit publish.
+* [x] Publish tanpa caption/transkrip → 422 (server-enforced).
+* [x] Pencarian frasa menemukan video (FTS test).
+* [x] Hanya published tampil publik.
+* [x] Kategori tervalidasi.
+* [x] Audit publish.
 
 #### Dependencies
 

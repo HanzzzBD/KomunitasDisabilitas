@@ -205,6 +205,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Lowongan tidak ditemukan",
           "status": 404,
         },
+        "MEDIA_VIDEO_ISYARAT_TIDAK_VALID": {
+          "hint": "Unggah ulang berkasnya lewat halaman kamus, lalu simpan lagi",
+          "message": "Berkas media tidak cocok untuk video isyarat ini",
+          "status": 422,
+        },
         "PENGGUNA_TIDAK_BISA_DIMODERASI": {
           "hint": "Hanya akun pencari kerja yang bisa ditangguhkan",
           "message": "Akun ini tidak bisa ditangguhkan",
@@ -289,6 +294,21 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Periksa kembali data yang Anda isi",
           "message": "Input tidak valid",
           "status": 400,
+        },
+        "VIDEO_ISYARAT_BELUM_LENGKAP": {
+          "hint": "Lengkapi video, caption (.vtt), dan transkrip terlebih dahulu",
+          "message": "Video isyarat ini belum lengkap untuk diterbitkan",
+          "status": 422,
+        },
+        "VIDEO_ISYARAT_SUDAH_TERBIT": {
+          "hint": "Muat ulang daftar kamus untuk melihat status terbaru",
+          "message": "Video isyarat ini sudah diterbitkan",
+          "status": 409,
+        },
+        "VIDEO_ISYARAT_TIDAK_DITEMUKAN": {
+          "hint": "Muat ulang daftar kamus, lalu coba lagi",
+          "message": "Video isyarat tidak ditemukan",
+          "status": 404,
         },
       }
     `);

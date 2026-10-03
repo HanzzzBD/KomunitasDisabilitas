@@ -322,6 +322,32 @@ export const ERROR_CATALOG = {
     message: "Status akun ini sudah berubah",
     hint: "Muat ulang daftar pengguna untuk melihat status terbaru",
   },
+  // --- Kamus video BISINDO (PR-084) ---
+  VIDEO_ISYARAT_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Video isyarat tidak ditemukan",
+    hint: "Muat ulang daftar kamus, lalu coba lagi",
+  },
+  // 422: caption & transkrip adalah kontrol aksesibilitas (SDD §7.4), bukan
+  // pelengkap. `hint` diganti saat dilempar dengan daftar yang masih kurang.
+  VIDEO_ISYARAT_BELUM_LENGKAP: {
+    status: 422,
+    message: "Video isyarat ini belum lengkap untuk diterbitkan",
+    hint: "Lengkapi video, caption (.vtt), dan transkrip terlebih dahulu",
+  },
+  // 422: key bukan milik video ini (`sign-videos/{id}/...`) atau ekstensinya
+  // tidak cocok dengan jenis medianya.
+  MEDIA_VIDEO_ISYARAT_TIDAK_VALID: {
+    status: 422,
+    message: "Berkas media tidak cocok untuk video isyarat ini",
+    hint: "Unggah ulang berkasnya lewat halaman kamus, lalu simpan lagi",
+  },
+  // 409: diterbitkan dua kali — biasanya admin lain baru saja menerbitkannya.
+  VIDEO_ISYARAT_SUDAH_TERBIT: {
+    status: 409,
+    message: "Video isyarat ini sudah diterbitkan",
+    hint: "Muat ulang daftar kamus untuk melihat status terbaru",
+  },
   LAMARAN_TIDAK_DITEMUKAN: {
     status: 404,
     message: "Lamaran tidak ditemukan",
