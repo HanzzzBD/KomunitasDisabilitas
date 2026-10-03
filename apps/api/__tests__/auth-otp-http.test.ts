@@ -85,7 +85,7 @@ function fakePrisma(): PrismaClient {
             (where.id === undefined || u.id === where.id),
         );
         if (found === undefined) return Promise.resolve(null);
-        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0 });
+        return Promise.resolve({ ...found, role: "seeker", tokenVersion: 0, suspendedAt: null });
       },
       create: ({ data }: { data: { id: string; phone: string } }) => {
         users.push({ id: data.id, phone: data.phone, deletedAt: null });

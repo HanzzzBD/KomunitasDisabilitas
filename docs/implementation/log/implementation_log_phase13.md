@@ -242,3 +242,100 @@ Kirim `aria-disabled` + menolak selama daftar CV dimuat; test regresi di `lamar.
 
 1. PR-083 — moderasi suspend user.
 2. PR-097 (Phase 16) — bayar U-33.
+
+---
+
+## PR-083a — Moderasi — Suspend User (API)
+
+> **Phase:** [13 - Admin Dashboard & Analytics](../phase-13-admin-analytics.md#pr-083---moderasi--suspend-user)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai (bagian API; halaman admin "Pengguna" = PR-083b)
+> **Branch:** `pr-083a-suspend-api` → `phase-13-admin-analytics`
+
+### Ringkasan hasil
+
+Admin bisa menangguhkan dan memulihkan akun pencari kerja dengan alasan wajib yang tercatat di
+audit. Akun yang ditangguhkan seketika kehilangan semua sesinya. Login berikutnya, lewat OTP
+maupun Google, ditolak dengan `403 AKUN_DITANGGUHKAN` beserta alamat banding. Data akun tidak
+disentuh. Pemulihan mengembalikan akses, tetapi sesi lama tidak hidup lagi: pengguna harus
+masuk ulang.
+
+### Keputusan owner (AskUserQuestion, 2026-10-03)
+
+1. **Bagian "Pengguna" baru** — `GET /admin/users` (cari nama/nomor/email, saring status, cursor
+   50) untuk halaman PR-083b.
+2. **Hanya pencari kerja** yang bisa ditangguhkan; admin tidak bisa menangguhkan admin lain
+   maupun dirinya sendiri.
+3. **Pesan umum + cara banding** — alasan admin TIDAK ditampilkan ke pengguna; status hanya
+   terungkap SESUDAH kredensial terbukti (orang lain yang mengetik nomornya tidak tahu).
+4. **Alamat banding dari env `SUPPORT_EMAIL`** — opsional di dev (bawaan
+   `dukungan@nawasena.local`), wajib di production.
+5. **Disembunyikan dari listing normal:** daftar lamaran admin, kabar admin, dan kohort metrik.
+6. **PR dipecah** 083a (API) / 083b (web) — preseden PR-077a/b.
+
+### Scope selesai
+
+* **DB** — migrasi 21: `users.suspended_at`, `users.suspend_reason` + CHECK
+  `users_suspend_berpasangan`. Migrasi 22: nilai enum `RefreshRevokedReason.suspended`. Migrasi
+  21 sudah terlanjur diterapkan di DB dev sebelum kebutuhan enum ditemukan; mengubahnya akan
+  memicu ketidakcocokan checksum. Keduanya aditif, `down.sql` ada.
+* **Auth** — `findActiveSessionUser` menyaring `suspendedAt: null`, sehingga penjaga tiap
+  permintaan dan refresh menolak seketika. Login OTP & Google bermuara di `sessionService.issue()`
+  → `findLoginTarget` → `AKUN_DITANGGUHKAN` dengan `hint` berisi alamat banding.
+  `createSessionRevoker(prisma)`: `ver` naik dulu, lalu refresh token dicabut (`suspended`).
+* **Users** — `moderation.repository` (daftar keyset `created_at`, cari `contains` tak peka
+  huruf; suspend/unsuspend sebagai CAS), `moderation.service` (aturan sasaran, cabut sesi, audit),
+  controller, rute `role("admin")`. Rute hanya didaftarkan bila pencabut sesi disediakan.
+* **Kontrak** — `packages/schemas/src/admin-users.ts`. Berkas terpisah dari `users.ts`, yang ikut
+  bundel awal web. Audit `USER_SUSPENDED` / `USER_UNSUSPENDED { reason }`; OpenAPI 3 path +
+  `termasuk_ditangguhkan`.
+* **Galat** — `AKUN_DITANGGUHKAN` 403, `PENGGUNA_TIDAK_DITEMUKAN` 404,
+  `PENGGUNA_TIDAK_BISA_DIMODERASI` 422, `STATUS_PENGGUNA_TIDAK_BERUBAH` 409.
+* **Penyaring** — daftar lamaran admin menyembunyikan akun ditangguhkan bawaan
+  (`?termasuk_ditangguhkan=true` untuk melihatnya). Kohort metrik PR-080
+  `AND u.suspended_at IS NULL`. Kabar admin: pelanggan notifikasi tidak perlu diubah. Kabar admin
+  hanya lahir dari tindakan pelamar (melamar, menarik, konfirmasi), dan akun ditangguhkan tidak
+  punya sesi untuk bertindak. Test siklus membuktikan access token lama sudah 401.
+* **Env & dokumen** — `SUPPORT_EMAIL` (+ `.env.example`, superRefine production); katalog audit;
+  ekspor PDP: `suspended_at`/`suspend_reason` dikecualikan dengan alasan tertulis.
+
+### Acceptance Criteria (bagian API)
+
+| AC | Bukti |
+|---|---|
+| Suspended tidak bisa login/refresh | unit `auth-session.test.ts`: issue → `AKUN_DITANGGUHKAN` + alamat banding, tanpa sesi; refresh lama 401. DB `moderasi-db.test.ts`: access token lama 401 (penjaga produksi), refresh lama 401, login 403, refresh token tercabut `suspended` |
+| Alasan wajib; audit tercatat | 400 bila alasan kosong; `USER_SUSPENDED`/`USER_UNSUSPENDED` ber-actor admin + `reason` |
+| Unsuspend memulihkan akses | login baru berhasil; refresh LAMA tetap 401 (pemulihan = masuk ulang) |
+| Suspended tidak di listing normal | daftar lamaran admin (bawaan tersembunyi / tampil dengan flag), kohort metrik, kabar admin (lihat Scope) |
+| Konfirmasi dua langkah di FE | PR-083b |
+
+### Verifikasi
+
+* `turbo run lint typecheck test --concurrency=1`: **27/27**, DB hidup (API 2124 lulus). Test
+  baru: `moderasi-db.test.ts` 5, unit suspend 2, env `SUPPORT_EMAIL` 2.
+* Test yang ikut diperbarui:
+  - prisma palsu auth kini mengembalikan `suspendedAt: null` seperti Prisma sungguhan;
+  - test storage `production` mengisi `SUPPORT_EMAIL`;
+  - snapshot katalog galat: tepat 4 kode baru.
+* `check:openapi` sinkron.
+
+### Insiden: database dev terhapus (2026-10-03)
+
+Saat memeriksa drift skema, saya menjalankan `prisma migrate diff` dengan **database dev sebagai
+`--shadow-database-url`**. Prisma mereset shadow DB, sehingga seluruh baris DB dev lokal (5433)
+dan riwayat migrasinya hilang. Pemulihan otomatis ditolak pengaman. Atas izin owner, DB dibangun
+ulang dengan `prisma migrate reset --force`: 21 migrasi + seed (5 pengguna, 5 perusahaan,
+20 lowongan, 6 lamaran, 4 CV). Data uji manual sebelumnya tidak bisa dikembalikan, dan vektor
+embedding perlu `embed:ulang` lagi. Pelajaran dicatat di memori agen: jangan pernah memakai DB
+berisi data sebagai shadow.
+
+### Risiko & catatan
+
+* Selama ditangguhkan, pengguna tidak bisa mengekspor datanya sendiri (perlu masuk). Hak akses
+  PDP dilayani lewat alamat banding — dicatat juga di alasan pengecualian ekspor.
+* Pencarian `contains` tanpa indeks trigram pada `users` — cukup untuk skala pilot.
+
+### Next steps
+
+1. PR-083b — halaman admin "Pengguna" (daftar, cari, saring) + dialog tangguhkan/pulihkan dua
+   langkah + pesan `AKUN_DITANGGUHKAN` di halaman masuk.

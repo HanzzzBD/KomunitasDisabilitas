@@ -109,7 +109,11 @@ export function createAdminApplicationsService(deps: AdminApplicationsServiceDep
     async list(query: AdminApplicationListQuery): Promise<AdminApplicationListResponse> {
       const posisi = query.cursor === undefined ? undefined : decodeKursor(query.cursor);
       const rows = await repo.listAdmin(
-        { jobId: query.job_id, status: query.status },
+        {
+          jobId: query.job_id,
+          status: query.status,
+          termasukDitangguhkan: query.termasuk_ditangguhkan === "true",
+        },
         query.limit + 1,
         posisi === undefined ? undefined : { updatedAt: posisi.sortAt, id: posisi.id },
       );

@@ -60,6 +60,8 @@ export function kueriFunnel(j: JendelaMetrik): Prisma.Sql {
       FROM "users" u
       WHERE u."role" = 'seeker'
         AND u."deleted_at" IS NULL
+        -- PR-083: akun ditangguhkan bukan bagian kohort (keputusan owner 2026-10-03).
+        AND u."suspended_at" IS NULL
         AND ${batasBawah(Prisma.sql`u."created_at"`, j.dari)}
         AND u."created_at" < ${j.sampai}
     ),

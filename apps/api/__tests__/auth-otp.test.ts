@@ -95,6 +95,9 @@ function createFakeUserRepository(existing: string | null = null): AuthUserRepos
     findActiveSessionUser() {
       throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
     },
+    findLoginTarget() {
+      throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
+    },
     bumpTokenVersion() {
       throw new Error("Alur OTP belum menerbitkan sesi (PR-018b)");
     },

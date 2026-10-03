@@ -75,6 +75,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Lowongan ini belum mencantumkan akomodasi apa pun",
           "status": 422,
         },
+        "AKUN_DITANGGUHKAN": {
+          "hint": "Hubungi tim Nawasena bila menurut Anda ini keliru",
+          "message": "Akun Anda sedang ditangguhkan",
+          "status": 403,
+        },
         "ALASAN_AKSES_DIPERLUKAN": {
           "hint": "Tulis alasan singkat (maksimal 200 karakter), lalu ulangi permintaan",
           "message": "Akses data disabilitas harus menyertakan alasan",
@@ -200,6 +205,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Lowongan tidak ditemukan",
           "status": 404,
         },
+        "PENGGUNA_TIDAK_BISA_DIMODERASI": {
+          "hint": "Hanya akun pencari kerja yang bisa ditangguhkan",
+          "message": "Akun ini tidak bisa ditangguhkan",
+          "status": 422,
+        },
+        "PENGGUNA_TIDAK_DITEMUKAN": {
+          "hint": "Muat ulang daftar pengguna, lalu coba lagi",
+          "message": "Pengguna tidak ditemukan",
+          "status": 404,
+        },
         "PERUSAHAAN_TIDAK_DITEMUKAN": {
           "hint": "Periksa kembali tautan atau ID perusahaan",
           "message": "Perusahaan tidak ditemukan",
@@ -223,6 +238,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
         "STATUS_LAMARAN_TIDAK_VALID": {
           "hint": "Muat ulang lamaran untuk melihat statusnya yang terbaru",
           "message": "Lamaran ini tidak bisa diubah dari statusnya sekarang",
+          "status": 409,
+        },
+        "STATUS_PENGGUNA_TIDAK_BERUBAH": {
+          "hint": "Muat ulang daftar pengguna untuk melihat status terbaru",
+          "message": "Status akun ini sudah berubah",
           "status": 409,
         },
         "SUDAH_MELAMAR": {

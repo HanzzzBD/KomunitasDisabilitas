@@ -99,6 +99,8 @@ function routeNyata(): { method: string; path: string }[] {
     routes: registry.forModule(PREFIX),
     auditLog: stub(),
     notificationPrefs: stub(),
+    // PR-083 — rute moderasi `/admin/users*` hanya terdaftar dengan pencabut sesi.
+    cabutSemuaSesi: stub(),
   });
   createAccessibilityModule({
     prisma: stub(),

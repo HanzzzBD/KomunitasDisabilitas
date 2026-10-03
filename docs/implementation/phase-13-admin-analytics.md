@@ -276,6 +276,7 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 **Backend Changes:**
 
 * `modules/admin/moderation`.
+* **Realisasi:** di `modules/users` (penulis tabel `users`; preseden endpoint admin di modul domain PR-051/077a), pencabut sesi dari modul `auth` lewat composition root. PR dipecah: **PR-083a** API, **PR-083b** halaman admin "Pengguna".
 
 **Frontend Changes:**
 
@@ -284,11 +285,13 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 **Database Changes:**
 
 * Kolom `suspended_at`, `suspend_reason` di users (additive).
+* **Realisasi:** migrasi 21 (kolom + CHECK berpasangan) dan migrasi 22 (nilai enum `RefreshRevokedReason.suspended`).
 
 **API Changes:**
 
 * POST /api/v1/admin/users/:id/suspend
 * POST /api/v1/admin/users/:id/unsuspend
+* **Realisasi:** + `GET /api/v1/admin/users?q&status&cursor` (daftar untuk halaman "Pengguna", keputusan owner 2026-10-03); `GET /admin/applications?termasuk_ditangguhkan=true`.
 
 **Security Considerations:**
 
@@ -296,8 +299,8 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 
 **Testing Checklist:**
 
-* [ ] Unit Test (guard login)
-* [ ] Integration Test (siklus suspend)
+* [x] Unit Test (guard login)
+* [x] Integration Test (siklus suspend)
 * [ ] E2E Test (admin flow)
 * [ ] Accessibility Test (dialog)
 * [ ] Manual Verification (akun uji)
@@ -316,11 +319,11 @@ Migrasi additive; RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Suspended tidak bisa login/refresh (test).
-* [ ] Alasan wajib; audit tercatat.
-* [ ] Unsuspend memulihkan akses.
+* [x] Suspended tidak bisa login/refresh (test).
+* [x] Alasan wajib; audit tercatat.
+* [x] Unsuspend memulihkan akses.
 * [ ] Konfirmasi dua langkah di FE.
-* [ ] Suspended tidak muncul di feed employer/admin listing normal (flag).
+* [x] Suspended tidak muncul di feed employer/admin listing normal (flag).
 
 #### Dependencies
 

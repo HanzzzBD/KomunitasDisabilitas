@@ -36,6 +36,8 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
   [AUDIT_ACTION.APPLICATION_STATUS_CHANGED]: { from: "viewed", to: "interview" },
   [AUDIT_ACTION.APPLICATION_HIRED_CONFIRMED]: { from: "offered" },
   [AUDIT_ACTION.APPLICATION_DISCLOSURE_READ]: { reason: "tiket #12 — meneruskan ke perusahaan" },
+  [AUDIT_ACTION.USER_SUSPENDED]: { reason: "laporan penyalahgunaan tiket #31" },
+  [AUDIT_ACTION.USER_UNSUSPENDED]: { reason: "banding diterima tiket #31" },
   [AUDIT_ACTION.COMPANY_VERIFIED]: { from: "selfClaimed", to: "verified" },
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: { operation: "publish" },
   [AUDIT_ACTION.DATA_EXPORTED]: { format: "json", formatVersion: 1, sections: ["account"] },

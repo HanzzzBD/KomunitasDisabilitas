@@ -58,6 +58,12 @@ model User {
   lastActiveAt DateTime? @map("last_active_at") @db.Timestamptz(6)
   /// Soft delete (fondasi hak hapus UU PDP); purge/anonimisasi ≤30 hari (job worker).
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// Penangguhan oleh admin (PR-083, migrasi 21). NULL = aktif. Ditangguhkan ≠
+  /// dihapus: data utuh, login/refresh/sesi diblok. Berpasangan dengan
+  /// `suspendReason` (CHECK `users_suspend_berpasangan`).
+  suspendedAt   DateTime? @map("suspended_at") @db.Timestamptz(6)
+  /// Catatan INTERNAL admin — tidak pernah ditampilkan ke pengguna ybs.
+  suspendReason String?   @map("suspend_reason")
 
   refreshTokens        RefreshToken[]
   accessibilityProfile AccessibilityProfile?
@@ -98,6 +104,8 @@ enum RefreshRevokedReason {
   reuse
   /// Akun dihapus (PR-021).
   account_deleted
+  /// Akun ditangguhkan admin (PR-083, migrasi 22).
+  suspended
 }
 
 /// Refresh token ROTATING (SDD §8.1): hanya hash yang disimpan; familyId
