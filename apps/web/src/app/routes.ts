@@ -369,6 +369,17 @@ export const ruteApp: RouteObject[] = [
             },
           },
           {
+            // Moderasi akun (PR-083b) — tangguhkan / pulihkan pencari kerja.
+            path: "pengguna",
+            lazy: async () => {
+              const [{ AdminPengguna }] = await Promise.all([
+                import("../routes/admin-pengguna.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminPengguna };
+            },
+          },
+          {
             path: "lamaran/:id",
             lazy: async () => {
               const [{ AdminLamaranDetail }] = await Promise.all([

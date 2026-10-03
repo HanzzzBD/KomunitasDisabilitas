@@ -339,3 +339,70 @@ berisi data sebagai shadow.
 
 1. PR-083b — halaman admin "Pengguna" (daftar, cari, saring) + dialog tangguhkan/pulihkan dua
    langkah + pesan `AKUN_DITANGGUHKAN` di halaman masuk.
+
+---
+
+## PR-083b — Moderasi — Suspend User (halaman admin)
+
+> **Phase:** [13 - Admin Dashboard & Analytics](../phase-13-admin-analytics.md#pr-083---moderasi--suspend-user)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai — PR-083 lengkap (083a API + 083b web); seluruh PR Phase 13 selesai
+> **Branch:** `pr-083b-suspend-web` → `phase-13-admin-analytics`
+
+### Ringkasan hasil
+
+Bagian admin baru **"Pengguna"** (`/admin/pengguna`): cari nama/nomor/email (dikirim saat
+formulir dikirim, bukan per ketukan), saring status, "Muat lebih banyak", dan tombol
+Tangguhkan/Pulihkan per pencari kerja. Baris admin tidak punya tombol aksi. Aksi lewat
+**dialog dua langkah**: (1) alasan wajib (catatan internal), (2) tinjau akibat + alasan yang akan
+dicatat, lalu tombol final. "Kembali" tidak membuang isian, dan fokus pindah ke judul langkah.
+
+### Scope selesai
+
+* **`@nawasena/api-client`** — `listUsersAdmin` (q dipangkas; kosong tidak dikirim),
+  `suspendUserAdmin`, `unsuspendUserAdmin` (alasan divalidasi sebelum berangkat),
+  `adminKeys.users`. `listApplicationsAdmin` mendapat `termasukDitangguhkan`.
+* **Web**
+  - `features/admin/pengguna-daftar.tsx` dan `pengguna-moderasi.tsx` (satu dialog dua langkah;
+    dialog bertumpuk dilarang `@nawasena/ui`).
+  - `routes/admin-pengguna.tsx` + rute `admin/pengguna`; entri navigasi dan kartu Ringkasan
+    admin.
+  - Kotak "Tampilkan lamaran dari akun yang ditangguhkan" di daftar lamaran admin; sesudah
+    moderasi, daftar pengguna & lamaran di-invalidasi.
+  - 56 entri katalog (`admin.pengguna.*` + saringan lamaran).
+* **Masuk dengan Google** — `AKUN_DITANGGUHKAN` tidak lagi ditelan menjadi "gagal umum". Layar
+  menampilkan status + alamat banding dari server (alasan admin tidak pernah dikirim). Jalur OTP
+  sudah menampilkan pesan + saran server lewat `pesanGalatApi`.
+* **Test & verifikasi** — `admin-pengguna.test.tsx` 3, `masuk-google` +1, test navigasi admin
+  lima entri. Registry a11y "admin — pengguna" dan pemalsu `/admin/users*` (stateful).
+  `e2e/admin-pengguna.spec.ts` 2. Harness `verifikasi/admin-pengguna-nvda.verifikasi.ts`.
+
+### Acceptance Criteria (PR-083 utuh)
+
+| AC | Bukti |
+|---|---|
+| Suspended tidak bisa login/refresh | 083a (unit + DB); web: layar Google menampilkan status + banding |
+| Alasan wajib; audit tercatat | 083a; web: Lanjut tanpa alasan → galat, tidak ada POST |
+| Unsuspend memulihkan akses | 083a; e2e: Pulihkan → tombol kembali "Tangguhkan" |
+| Konfirmasi dua langkah di FE | jsdom: POST hanya sesudah "Ya, tangguhkan" di langkah 2; fokus ke judul langkah; e2e keyboard-only + axe di kedua langkah; NVDA |
+| Tidak di listing normal (flag) | 083a + kotak saringan di daftar lamaran admin |
+
+### Verifikasi
+
+* `turbo run lint typecheck test --concurrency=1`: **27/27** (DB hidup).
+* Playwright sesudah `build`: **149/149**. Dua lari sebelumnya masing-masing gagal di spec
+  BERBEDA (`aksesibilitas-matriks`, `admin-lamaran`), dan keduanya lulus diulang 4× (44/44),
+  jadi itu flake akibat beban mesin, bukan regresi.
+* `cek:budget` 108,8 KB.
+* NVDA: satu run sah — [checklist](pr-083-nvda-checklist.md).
+
+### Risiko & catatan
+
+* Manual Verification "akun uji" (staging) belum — siklus penuh sudah dibuktikan integrasi DB 083a.
+* Pengumuman status sesudah berhasil tertutup pengumuman fokus; nama tombol yang berubah menjadi
+  penanda utamanya (checklist NVDA).
+
+### Next steps
+
+1. Seluruh PR Phase 13 (080, 081, 082, 083a/b) selesai — `phase-13-admin-analytics → main`
+   menunggu perintah eksplisit owner.
