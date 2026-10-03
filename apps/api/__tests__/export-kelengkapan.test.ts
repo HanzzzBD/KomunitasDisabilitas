@@ -241,6 +241,13 @@ const KOLOM_USERS_DIKECUALIKAN: Readonly<Record<string, string>> = {
   deleted_at:
     "Penanda soft delete. Berkas ekspor hanya bisa diminta akun AKTIF, jadi kolom ini " +
     "selalu NULL bagi setiap ekspor yang pernah dibuat.",
+  suspended_at:
+    "Penangguhan (PR-083). Akun yang ditangguhkan tidak bisa masuk, jadi ekspor swalayan " +
+    "selalu dibuat oleh akun aktif dan kolom ini selalu NULL di berkasnya. Permintaan akses " +
+    "data selama ditangguhkan lewat alamat banding (SUPPORT_EMAIL).",
+  suspend_reason:
+    "Catatan INTERNAL admin (PR-083), berpasangan dengan suspended_at — selalu NULL bagi " +
+    "akun yang bisa mengekspor; alasannya juga tercatat di audit_logs.",
 };
 
 /** Kolom `users` yang benar-benar ikut, dipetakan ke bagian berkasnya. */

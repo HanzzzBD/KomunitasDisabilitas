@@ -71,6 +71,8 @@ export interface AuthModuleDeps {
   sessionKeys?: SessionKeys;
   /** `Secure` pada cookie refresh; dimatikan hanya untuk dev di http localhost. */
   cookieSecure?: boolean;
+  /** env SUPPORT_EMAIL (PR-083) — alamat banding akun yang ditangguhkan. */
+  alamatBanding?: string;
   /** Jendela toleransi rotasi refresh token, detik (utang U-10). Bawaan 0 = tanpa toleransi. */
   toleransiRotasiDetik?: number;
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
@@ -109,6 +111,7 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
       refreshTokenRepository: createRefreshTokenRepository(deps.prisma),
       auditLog: deps.auditLog,
       toleransiRotasiMs: (deps.toleransiRotasiDetik ?? 0) * 1000,
+      alamatBanding: deps.alamatBanding,
     });
     controllers.session = createSessionController({ service: sessionService, cookie });
   }
@@ -215,6 +218,25 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
 export function createSessionUserSource(prisma: AppPrisma): SessionUserLookup {
   const repository = createAuthUserRepository(prisma);
   return (userId) => repository.findActiveSessionUser(userId);
+}
+
+/**
+ * Pencabut SEMUA sesi satu akun (PR-083, penangguhan) — untuk modul lain lewat
+ * composition root, bukan lewat repository auth. Urutannya sama dengan
+ * `logoutAll`: `ver` dinaikkan DULU (access token lama mati), baru refresh
+ * token dicabut. Tanpa pencabutan refresh, sesi lama di perangkat lain hidup
+ * lagi begitu akun dipulihkan — pemulihan harus berarti masuk ulang.
+ */
+export function createSessionRevoker(
+  prisma: AppPrisma,
+  clock: () => Date = () => new Date(),
+): (userId: string) => Promise<void> {
+  const users = createAuthUserRepository(prisma);
+  const refresh = createRefreshTokenRepository(prisma);
+  return async (userId) => {
+    await users.bumpTokenVersion(userId);
+    await refresh.revokeAllForUser(userId, clock(), "suspended");
+  };
 }
 
 /**

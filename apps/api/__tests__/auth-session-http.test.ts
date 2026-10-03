@@ -34,7 +34,9 @@ function fakePrisma(deleted = false) {
     user: {
       findFirst: ({ where }: { where: { id?: string } }) =>
         Promise.resolve(
-          deleted || where.id !== USER_ID ? null : { id: USER_ID, role: "seeker", tokenVersion },
+          deleted || where.id !== USER_ID
+            ? null
+            : { id: USER_ID, role: "seeker", tokenVersion, suspendedAt: null },
         ),
       // bumpTokenVersion (logout-all, PR-018c).
       update: ({ where }: { where: { id: string } }) => {

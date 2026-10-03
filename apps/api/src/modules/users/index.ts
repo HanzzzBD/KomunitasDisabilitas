@@ -4,6 +4,9 @@
 // akun tidak bergantung pada kredensial eksternal apa pun. Yang menjaganya
 // adalah guard sesi dari registrar — bila kunci RS256 belum di-set, kedua route
 // menjawab 503 lewat `requireAuth`, bukan lewat cabang khusus di sini.
+import { createModerationRepository } from "./repositories/moderation.repository.js";
+import { createModerationService } from "./services/moderation.service.js";
+import { createModerationController } from "./controllers/moderation.controller.js";
 import type { Router } from "express";
 import type { AppPrisma } from "../../core/db/index.js";
 import type { RouteRegistrar } from "../../core/auth/index.js";
@@ -21,10 +24,15 @@ import {
 } from "./services/export.service.js";
 import { createUsersController } from "./controllers/users.controller.js";
 import type { NotificationPrefsService } from "./services/notification-prefs.service.js";
-import { createUsersRouter } from "./routers/index.js";
+import { createUsersRouter, daftarkanRuteModerasi } from "./routers/index.js";
 
 export interface UsersModuleDeps {
   prisma: AppPrisma;
+  /**
+   * Pencabut semua sesi satu akun (`createSessionRevoker` modul auth, PR-083).
+   * Tanpa ini rute moderasi `/admin/users*` TIDAK didaftarkan.
+   */
+  cabutSemuaSesi?: (userId: string) => Promise<void>;
   /** Klien Redis CACHE — kuota ekspor boleh hilang saat evict (batasnya harian). */
   redis: ExportRedisLike;
   /** Registrar route (PR-019) — prefix `/api/v1` dipegang olehnya. */
@@ -50,6 +58,21 @@ export interface UsersModuleDeps {
 
 export function createUsersModule(deps: UsersModuleDeps): Router {
   const userRepository = createUserProfileRepository(deps.prisma);
+
+  // PR-083 — moderasi akun admin. Opsional supaya perakitan test lama yang
+  // tidak menyentuh moderasi tidak dipaksa menyediakan pencabut sesi.
+  if (deps.cabutSemuaSesi !== undefined) {
+    daftarkanRuteModerasi(
+      createModerationController(
+        createModerationService({
+          repo: createModerationRepository(deps.prisma),
+          auditLog: deps.auditLog,
+          cabutSemuaSesi: deps.cabutSemuaSesi,
+        }),
+      ),
+      deps.routes,
+    );
+  }
 
   return createUsersRouter(
     createUsersController(

@@ -12,10 +12,17 @@
 // TIDAK ADA saluran input untuk menyebut pengguna lain. Saat endpoint ber-param
 // lahir (mis. admin membaca profil orang), itulah tempat `access.self` dipakai.
 import type { Router } from "express";
-import { updateMeSchema, updateNotificationChannelPrefsSchema } from "@nawasena/schemas";
+import {
+  adminUserIdParamsSchema,
+  adminUserListQuerySchema,
+  moderateUserSchema,
+  updateMeSchema,
+  updateNotificationChannelPrefsSchema,
+} from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { UsersController } from "../controllers/users.controller.js";
+import type { ModerationController } from "../controllers/moderation.controller.js";
 
 export function createUsersRouter(controller: UsersController, routes: RouteRegistrar): Router {
   routes.get("/me", access.authenticated(), asyncHandler(controller.me));
@@ -47,4 +54,32 @@ export function createUsersRouter(controller: UsersController, routes: RouteRegi
     asyncHandler(controller.updateNotificationPrefs),
   );
   return routes.router;
+}
+
+/**
+ * Moderasi akun (PR-083) — role("admin"). Didaftarkan pada registrar yang SAMA
+ * dengan rute `/me`, supaya modul ini tetap satu router.
+ */
+export function daftarkanRuteModerasi(
+  controller: ModerationController,
+  routes: RouteRegistrar,
+): void {
+  routes.get(
+    "/admin/users",
+    access.role("admin"),
+    validate({ query: adminUserListQuerySchema }),
+    asyncHandler(controller.list),
+  );
+  routes.post(
+    "/admin/users/:id/suspend",
+    access.role("admin"),
+    validate({ params: adminUserIdParamsSchema, body: moderateUserSchema }),
+    asyncHandler(controller.suspend),
+  );
+  routes.post(
+    "/admin/users/:id/unsuspend",
+    access.role("admin"),
+    validate({ params: adminUserIdParamsSchema, body: moderateUserSchema }),
+    asyncHandler(controller.unsuspend),
+  );
 }

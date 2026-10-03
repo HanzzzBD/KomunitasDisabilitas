@@ -45,7 +45,12 @@ export interface SessionActor {
   requestId: string;
 }
 
+/** Bawaan dev/test — production WAJIB mengisi SUPPORT_EMAIL (core/config). */
+export const ALAMAT_BANDING_BAWAAN = "dukungan@nawasena.local";
+
 export interface SessionServiceDeps {
+  /** Alamat banding akun yang ditangguhkan (env SUPPORT_EMAIL, PR-083). */
+  alamatBanding?: string;
   tokenService: TokenService;
   userRepository: AuthUserRepository;
   refreshTokenRepository: RefreshTokenRepository;
@@ -96,10 +101,18 @@ export function createSessionService(deps: SessionServiceDeps) {
      * lain dicabut karena reuse.
      */
     async issue(userId: string): Promise<SessionTokens> {
-      const user = await userRepository.findActiveSessionUser(userId);
+      const target = await userRepository.findLoginTarget(userId);
       // Pemanggil baru saja membuat/menemukan akun ini, jadi ketiadaannya
       // berarti kondisi balapan yang tidak sah untuk dilanjutkan.
-      if (user === null) throw appError("SESI_TIDAK_VALID");
+      if (target === null) throw appError("SESI_TIDAK_VALID");
+      // PR-083 — dilempar SESUDAH kredensial terbukti (OTP/Google): hanya
+      // pemilik nomor/akun yang tahu statusnya. Alasan admin tidak disertakan.
+      if (target.suspendedAt !== null) {
+        throw appError("AKUN_DITANGGUHKAN", {
+          hint: `Bila menurut Anda ini keliru, hubungi ${deps.alamatBanding ?? ALAMAT_BANDING_BAWAAN}`,
+        });
+      }
+      const user = { id: target.id, role: target.role, tokenVersion: target.tokenVersion };
 
       const familyId = uuidV7();
       const { tokens, refresh } = await terbitkan(user);

@@ -15,6 +15,7 @@ export * from "./applications.js";
 export * from "./applications-api.js";
 export * from "./notifications.js";
 export * from "./admin.js";
+export * from "./admin-users.js";
 export * from "./analytics.js";
 export * from "./signbridge.js";
 export * from "./audit.js";

@@ -36,6 +36,15 @@ export const ERROR_CATALOG = {
     message: "Anda tidak berhak mengakses ini",
     hint: "Hubungi admin bila Anda merasa seharusnya punya akses",
   },
+  // 403 (PR-083): login/refresh akun yang ditangguhkan admin. Muncul HANYA
+  // sesudah kode OTP / identitas Google terbukti — orang lain yang mengetik
+  // nomornya tidak pernah tahu status akun. `hint` diganti saat dilempar dengan
+  // alamat banding dari env SUPPORT_EMAIL. Alasan admin TIDAK disertakan.
+  AKUN_DITANGGUHKAN: {
+    status: 403,
+    message: "Akun Anda sedang ditangguhkan",
+    hint: "Hubungi tim Nawasena bila menurut Anda ini keliru",
+  },
   RUTE_TIDAK_DITEMUKAN: {
     status: 404,
     message: "Halaman atau data tidak ditemukan",
@@ -293,6 +302,26 @@ export const ERROR_CATALOG = {
   // --- Pipeline status lamaran (PR-076) ---
   // 404 juga untuk lamaran milik orang lain — alasan yang sama dengan
   // CV_TIDAK_DITEMUKAN: membedakannya memberi tahu siapa melamar ke mana.
+  // --- Moderasi pengguna (PR-083) ---
+  PENGGUNA_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Pengguna tidak ditemukan",
+    hint: "Muat ulang daftar pengguna, lalu coba lagi",
+  },
+  // 422: sasaran bukan pencari kerja (admin tidak saling mengunci — keputusan
+  // owner 2026-10-03), atau admin mencoba menangguhkan dirinya sendiri.
+  PENGGUNA_TIDAK_BISA_DIMODERASI: {
+    status: 422,
+    message: "Akun ini tidak bisa ditangguhkan",
+    hint: "Hanya akun pencari kerja yang bisa ditangguhkan",
+  },
+  // 409: sudah dalam keadaan yang diminta (ditangguhkan dua kali / pulihkan
+  // akun aktif) — biasanya admin lain baru saja melakukannya.
+  STATUS_PENGGUNA_TIDAK_BERUBAH: {
+    status: 409,
+    message: "Status akun ini sudah berubah",
+    hint: "Muat ulang daftar pengguna untuk melihat status terbaru",
+  },
   LAMARAN_TIDAK_DITEMUKAN: {
     status: 404,
     message: "Lamaran tidak ditemukan",

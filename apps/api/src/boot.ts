@@ -26,6 +26,7 @@ import {
   createAuthModule,
   createGoogleConfigFromEnv,
   createPhoneSenderFromEnv,
+  createSessionRevoker,
   createSessionUserSource,
 } from "./modules/auth/index.js";
 import {
@@ -318,6 +319,7 @@ export async function startApi(options: BootOptions): Promise<void> {
       // Endpoint klien selalu di bawah /api/v1 (SDD §11).
       app.use(
         createAuthModule({
+          alamatBanding: env.SUPPORT_EMAIL,
           prisma,
           redis: redis.cache,
           otpHashSecret: env.OTP_HASH_SECRET,
@@ -349,6 +351,8 @@ export async function startApi(options: BootOptions): Promise<void> {
       app.use(
         createUsersModule({
           prisma,
+          // PR-083 — moderasi: penangguhan mencabut SEMUA sesi akun ybs.
+          cabutSemuaSesi: createSessionRevoker(prisma),
           // Kuota ekspor PDP (PR-022) — cache, bukan queue: batasnya harian dan
           // kehilangannya saat evict hanya mengembalikan jatah, bukan merusak.
           redis: redis.cache,

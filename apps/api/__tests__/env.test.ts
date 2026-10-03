@@ -147,3 +147,18 @@ describe("kunci sesi JWT RS256 (PR-018)", () => {
     expect((caught as EnvError).issues.map(([nama]) => nama)).toContain(hilang);
   });
 });
+
+describe("SUPPORT_EMAIL — alamat banding akun ditangguhkan (PR-083)", () => {
+  it("opsional di development/test", () => {
+    expect(loadEnv({ ...VALID }).SUPPORT_EMAIL).toBeUndefined();
+  });
+
+  it("WAJIB di production; harus alamat email", () => {
+    expect(() => loadEnv({ ...VALID, NODE_ENV: "production" })).toThrow(/SUPPORT_EMAIL/);
+    expect(() => loadEnv({ ...VALID, SUPPORT_EMAIL: "bukan-email" })).toThrow(/SUPPORT_EMAIL/);
+    expect(
+      loadEnv({ ...VALID, NODE_ENV: "production", SUPPORT_EMAIL: "dukungan@contoh.test" })
+        .SUPPORT_EMAIL,
+    ).toBe("dukungan@contoh.test");
+  });
+});

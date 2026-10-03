@@ -178,6 +178,11 @@ const envSchema = z.object({
   // Sengaja OPSIONAL: .env lama tetap valid. Bila tidak di-set, /internal/*
   // menolak semua permintaan (deny-by-default) — bukan terbuka.
   INTERNAL_TOKEN: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  // --- Kontak dukungan (PR-083) — jalan banding akun yang ditangguhkan ---
+  // Opsional di dev/test (bawaan `SUPPORT_EMAIL_BAWAAN`); WAJIB di production
+  // (superRefine di bawah): pengguna yang ditangguhkan tanpa alamat banding
+  // yang nyata tidak punya jalan keluar.
+  SUPPORT_EMAIL: z.string().email({ message: "harus alamat email" }).optional(),
   // --- AI Gateway / Gemini (PR-041, ADR-005, ADR-012) ---
   // Kunci OPSIONAL sendirian (bukan GRUP_KREDENSIAL: hanya satu rahasia, tidak
   // ada pasangan yang bisa terpotong separuh). Tanpa kunci, gateway tetap
@@ -523,6 +528,14 @@ const envSchemaLengkap = envSchema.superRefine((env, ctx) => {
         message: `wajib diisi bila ${terisi.join(" / ")} di-set (${label} harus lengkap)`,
       });
     }
+  }
+
+  if (env.NODE_ENV === "production" && env.SUPPORT_EMAIL === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SUPPORT_EMAIL"],
+      message: "wajib diisi pada production (alamat banding akun yang ditangguhkan)",
+    });
   }
 
   if (
