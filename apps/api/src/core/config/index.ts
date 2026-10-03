@@ -1,2 +1,2 @@
 // core/config — barrel export.
-export { loadEnv, EnvError, type Env } from "./env.js";
+export { loadEnv, EnvError, regionDariEndpointB2, type Env } from "./env.js";

@@ -1,4 +1,4 @@
-import type { Env } from "../config/index.js";
+import { regionDariEndpointB2, type Env } from "../config/index.js";
 import { StorageNotConfiguredError } from "./errors.js";
 
 export interface StorageConfig {
@@ -13,6 +13,9 @@ export interface StorageConfig {
   maxUploadBytes: number;
   presignTtlSeconds: number;
 }
+
+/** Region bawaan untuk endpoint selain B2 — MinIO menerima apa pun, S3 standar memakai ini. */
+export const REGION_BAWAAN_NON_B2 = "us-east-1";
 
 export type StorageEnvironment = "development" | "test" | "staging" | "production";
 
@@ -41,7 +44,9 @@ export function storageConfigFromEnv(env: Env): StorageConfig {
     ...(env.STORAGE_PUBLIC_ENDPOINT === undefined
       ? {}
       : { publicEndpoint: env.STORAGE_PUBLIC_ENDPOINT }),
-    region: env.STORAGE_REGION,
+    // Env sudah menolak region yang bertentangan dengan host B2 (ADR-020).
+    region:
+      env.STORAGE_REGION ?? regionDariEndpointB2(env.STORAGE_ENDPOINT) ?? REGION_BAWAAN_NON_B2,
     accessKeyId: env.STORAGE_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
     bucket: buildStorageBucketName(env.STORAGE_BUCKET_PREFIX, env.STORAGE_BUCKET_ENV),

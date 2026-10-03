@@ -317,7 +317,7 @@ Aturan anti-merge-conflict: kontrak zod dibuat lebih dulu (PR kecil terpisah bil
 | PR-055 | Jobs BE CRUD | M | 051 | 5 |
 | PR-056 | Jobs Search FTS | M | 055 | 5 |
 | PR-060 | Resumes BE Manual | S | 019, 010 | 5 |
-| PR-062 | core/storage R2 | S | 006 | 5 |
+| PR-062 | core/storage B2 (ADR-020) | S | 006 | 5 |
 | PR-103 | Kuma + Metrics + Alerts | M | 100, 015 | 5 |
 | PR-104 | Backup + Restore Drill | M | 103, 062 | 5 |
 | PR-057 | Admin Jobs FE | M | 055, 052 | 6 |
@@ -428,7 +428,7 @@ Catatan kapasitas: Sprint 6–8 paling padat — bila tim = 3 engineer, geser PR
 | §15 Module design + typed events | PR-002, PR-038, PR-047, PR-055 |
 | §16 Queue design (retry/timeout/DLQ per queue) | PR-015, PR-023, PR-024, PR-048, PR-049, PR-063, PR-067, PR-069, PR-072, PR-104 |
 | §17 Monitoring & logging (Sentry/Kuma/metrics/pino) | PR-006, PR-102, PR-103 |
-| §18 Backup & recovery (age→R2/drill/RTO) | PR-104 |
+| §18 Backup & recovery (age→B2/drill/RTO) | PR-104 |
 | §19 Scalability plan (pemicu terdokumentasi, bukan kerja MVP) | dicatat di PR-056, PR-070, PR-103 |
 | §20 Risk T1–T10 | T1=PR-002, T2=PR-042/046, T3=PR-096/104, T4=PR-063, T5=PR-067, T6=PR-071, T7=PR-045/065, T8=PR-013/097, T9=PR-101, T10=PR-110 |
 | §21 ADR-001..018 | docs/adr/ (artefak dokumen, di luar backlog kode) |

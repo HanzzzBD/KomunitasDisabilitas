@@ -607,19 +607,19 @@ ke database. Amplifikasi tersisa dibatasi lagi oleh concurrency queue 1 dan limi
 | **Jenis** | Pengalaman pengembang |
 | **Ditemukan** | PR-064a (2026-09-27) |
 | **Pemilik** | **PR-064b** |
-| **Pemicu** | Saat unduh PDF diuji end-to-end dari browser terhadap stack `docker compose` penuh, atau saat core/storage butuh endpoint publik yang berbeda dari endpoint internal (mis. CDN R2) |
+| **Pemicu** | Saat unduh PDF diuji end-to-end dari browser terhadap stack `docker compose` penuh, atau saat core/storage butuh endpoint publik yang berbeda dari endpoint internal (mis. CDN di depan object storage) |
 
 Di `docker-compose.dev.yml`, API dan worker memakai `STORAGE_ENDPOINT=http://minio:9000`.
 `presignDownload` menandatangani URL untuk host itu, yang hanya dapat di-resolve di dalam
 jaringan compose — browser di host mendapat URL yang tidak bisa dibuka. Tidak mengenai alur
-`pnpm dev` (endpoint `127.0.0.1:9000`) dan tidak mengenai produksi (endpoint R2 publik).
+`pnpm dev` (endpoint `127.0.0.1:9000`) dan tidak mengenai produksi (endpoint object storage publik — B2 sejak ADR-020).
 Perbaikan yang wajar: variabel opsional `STORAGE_PUBLIC_ENDPOINT` khusus untuk presign.
 
 **Penyelesaian PR-064b.** `STORAGE_PUBLIC_ENDPOINT` opsional ditambahkan. Bila diisi, driver S3
 memakai client kedua yang hanya untuk presign — URL **ditandatangani** untuk host publik (host
 adalah bagian dari SigV4, jadi mengganti host setelah sign akan membatalkan tanda tangan);
 upload tetap lewat `STORAGE_ENDPOINT`. Presign berjalan offline, client kedua tidak pernah
-membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bila
+membuka koneksi. Kosong = perilaku lama (produksi tidak berubah). Ditolak bila
 `STORAGE_ENDPOINT` kosong, dan wajib HTTPS pada production. Compose dev mengisi API dengan
 `http://127.0.0.1:9000` (port host kemudian dipindah ke 9010 — 9000 bentrok dengan MinIO proyek lain).
 

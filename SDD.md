@@ -60,7 +60,7 @@ Dokumen ini mendefinisikan desain teknis **Nawasena** — platform karier inklus
        │           │            │            │            │
        ▼           ▼            ▼            ▼            ▼
  ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
- │ Gemini   │ │ Groq    │ │ Fonnte   │ │ FCM      │ │ Cloudflare R2│
+ │ Gemini   │ │ Groq    │ │ Fonnte   │ │ FCM      │ │ Backblaze B2 │
  │ API      │ │ (Whisper│ │ (OTP WA) │ │ (push    │ │ (object      │
  │ (LLM +   │ │  STT,   │ │ +Twilio  │ │  notif)  │ │  storage: PDF│
  │ embedding│ │  LLM    │ │  SMS     │ │          │ │  CV, video   │
@@ -87,7 +87,7 @@ Dokumen ini mendefinisikan desain teknis **Nawasena** — platform karier inklus
 | Fonnte / Twilio | out | REST | OTP WhatsApp / fallback SMS |
 | Gemini / Groq | out | REST | LLM, embedding, STT — via AI Gateway saja |
 | FCM | out | HTTP v1 | Push notification |
-| Cloudflare R2 | out | S3 API | PDF CV, media, backup |
+| Backblaze B2 (ADR-020) | out | S3 API | PDF CV, media, backup |
 | Resend | out | REST | Email transaksional |
 | Sentry | out | SDK | Error tracking FE+BE |
 
@@ -127,7 +127,7 @@ RUNTIME (per environment: prod & staging, compose project terpisah di 1 VPS):
                    │                         │ embed,   │
         ┌──────────┼──────────┐              │ purge    │
         ▼          ▼          ▼              └────┬─────┘
-   PostgreSQL   Redis     R2 (S3)                 │
+   PostgreSQL   Redis     B2 (S3)                 │
    18+pgvector  cache/queue/quota                 ▼
                                         Gemini/Groq/FCM/Fonnte/Resend
 ```
@@ -204,7 +204,7 @@ Onboarding wizard ─► PUT /me/accessibility ─► Postgres
 
 ### 4.5 Kinerja frontend
 
-Budget: JS awal < 200 KB gzip (route lain lazy); font sistem (tanpa webfont); gambar via R2 + Cloudflare (format AVIF/WebP, `loading="lazy"`); skeleton aksesibel (`aria-busy`) untuk konten async; Lighthouse CI di pipeline dengan ambang performa ≥ 80 & aksesibilitas = 100.
+Budget: JS awal < 200 KB gzip (route lain lazy); font sistem (tanpa webfont); gambar via B2 + Cloudflare (format AVIF/WebP, `loading="lazy"`); skeleton aksesibel (`aria-busy`) untuk konten async; Lighthouse CI di pipeline dengan ambang performa ≥ 80 & aksesibilitas = 100.
 
 ---
 
@@ -344,11 +344,11 @@ Kebijakan: mulai dengan indeks di atas saja; tambahan wajib lewat bukti `pg_stat
 | Akun dihapus (soft delete) | purge/anonimisasi ≤ 30 hari | job `pdp-purge` harian (worker) |
 | `ai_usage` | 90 hari (agregat bulanan dipertahankan) | job harian |
 | `match_scores` | 7 hari sejak `computed_at` | job harian |
-| `audit_logs` | 2 tahun | arsip ke R2 lalu hapus |
+| `audit_logs` | 2 tahun | arsip ke B2 lalu hapus |
 | Transkrip sesi cv-chat | 30 hari setelah finalize | job harian |
 | Post/komentar Community milik akun dihapus | identitas dianonimkan <= 30 hari; audit moderasi tetap sesuai retensi audit | job `pdp-purge` harian |
 | `community_reports` | 2 tahun setelah resolusi | arsip dan purge mengikuti kebijakan audit |
-| Backup | 30 hari | lifecycle rule R2 |
+| Backup | 30 hari | lifecycle rule B2 |
 
 Anonimisasi mempertahankan agregat North Star (hired count) tanpa PII.
 
@@ -356,7 +356,7 @@ Anonimisasi mempertahankan agregat North Star (hired count) tanpa PII.
 
 - **At rest, level aplikasi:** util `core/crypto` — AES-256-GCM, kunci 32-byte dari env (`FIELD_KEY_V1`), prefix versi untuk rotasi (rotasi = tambah `FIELD_KEY_V2`, job re-encrypt bertahap, dekripsi mendukung multi-versi).
 - Kunci **tidak pernah** menyentuh Postgres/Redis/log; pino redaction menolak field sensitif.
-- Backup DB berisi ciphertext; file backup dienkripsi lagi dengan `age` sebelum diunggah ke R2 (kunci backup terpisah dari kunci field).
+- Backup DB berisi ciphertext; file backup dienkripsi lagi dengan `age` sebelum diunggah ke B2 (kunci backup terpisah dari kunci field).
 - In transit: TLS 1.2+ di seluruh hop eksternal; koneksi antar container via network Docker internal.
 
 ---
@@ -420,7 +420,7 @@ Modul fitur ──► aiGateway.chat()/embed()/stt()/rerank()
 ### 7.4 SignBridge — desain bertahap
 
 **v1 (MVP–Fase 2, feasible):**
-- Kamus video BISINDO: modul `signbridge` (CRUD admin + endpoint list/search publik, video di R2 + Cloudflare CDN, caption & transkrip wajib).
+- Kamus video BISINDO: modul `signbridge` (CRUD admin + endpoint list/search publik, video di B2 + Cloudflare CDN, caption & transkrip wajib).
 - Fase 2: STT real-time (Whisper via Groq) untuk caption simulasi wawancara; TTS (Web Speech API di klien = gratis; server-side TTS opsional).
 
 **v2 (Fase 3, kontrak dirancang sekarang — implementasi riset):**
@@ -526,7 +526,7 @@ Rollback: `deploy.sh --rollback` → compose kembali ke digest sebelumnya
 
 ### 9.4 Nginx & Cloudflare
 
-- Cloudflare (free): DNS, TLS edge, CDN aset & video R2, mode "Full (strict)" ke origin (cert Let's Encrypt via certbot), WAF managed rules dasar, rate limit L7 kasar.
+- Cloudflare (free): DNS, TLS edge, CDN aset & video B2 (egress B2→Cloudflare gratis, Bandwidth Alliance), mode "Full (strict)" ke origin (cert Let's Encrypt via certbot), WAF managed rules dasar, rate limit L7 kasar.
 - Nginx: serve `apps/web` build (immutable cache untuk aset ber-hash), reverse proxy `/api/v1` (timeout SSE 120 dtk, `proxy_buffering off` untuk stream), limit_req per IP untuk endpoint auth/otp.
 
 ---
@@ -597,7 +597,7 @@ User        Web            API(auth/ai)      Redis        Worker        Gemini
  │            │                │               │             │ simpan draft│
  │ review&edit│ GET /me/resumes/:id → edit → PUT             │ resume      │
  │            │ POST enqueue render-pdf ────────────────────►│ Puppeteer   │
- │            │ notifikasi "CV siap diunduh" ◄───────────────│ → R2        │
+ │            │ notifikasi "CV siap diunduh" ◄───────────────│ → B2        │
 ```
 
 ### 12.2 Feed matching → apply dengan disclosure → hired (North Star)
@@ -715,9 +715,9 @@ Kebijakan umum: `removeOnComplete: 100, removeOnFail: 1000`; **DLQ** per queue �
 
 | Aset | Metode | Jadwal | Retensi | Target |
 |---|---|---|---|---|
-| PostgreSQL | `pg_dump -Fc` → enkripsi `age` → R2 | harian 02:07 | 30 hari + 1 bulanan×6 | RPO ≤ 24 jam |
+| PostgreSQL | `pg_dump -Fc` → enkripsi `age` → B2 | harian 02:07 | 30 hari + 1 bulanan×6 | RPO ≤ 24 jam |
 | Redis | tidak di-backup (cache/queue rekonstruksi) | — | — | antrean in-flight hilang = acceptable, job idempotent |
-| R2 (PDF, video) | objek sudah durable; versioning bucket aktif | — | 30 hari versi | — |
+| B2 (PDF, video) | objek sudah durable; lifecycle B2 menyimpan versi tersembunyi 30 hari lalu menghapusnya (ADR-020) | — | 30 hari versi | — |
 | Konfigurasi VPS | `infra/` di git + `.env` di password manager | per perubahan | — | — |
 
 - **Restore drill wajib bulanan** (staging): unduh backup → decrypt → restore → smoke test; hasil dicatat. Backup yang tidak pernah diuji dianggap tidak ada.
