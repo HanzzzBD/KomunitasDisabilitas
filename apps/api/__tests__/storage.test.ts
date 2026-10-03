@@ -360,6 +360,8 @@ describe("Backblaze B2", () => {
     });
     const parsed = new URL(url);
     expect(parsed.host).toBe("nawasena-uji-production.s3.eu-central-003.backblazeb2.com");
-    expect(parsed.searchParams.get("X-Amz-Credential")).toContain("/eu-central-003/s3/aws4_request");
+    expect(parsed.searchParams.get("X-Amz-Credential")).toContain(
+      "/eu-central-003/s3/aws4_request",
+    );
   });
 });
