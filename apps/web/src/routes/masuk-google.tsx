@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { googleAuth, ApiError } from "@nawasena/api-client";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
+import { track } from "../shared/analitik.js";
 import { useTeks, type KunciTeks } from "../shared/i18n/index.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
@@ -98,6 +99,8 @@ export function MasukGoogle() {
           client: "web",
         });
         masukKeSesi(data.accessToken);
+        // PR-082 — funnel "daftar": hanya akun yang BARU dibuat pada login ini.
+        if (data.isNewUser) track("daftar", { metode: "google" });
         navigate(titipan.tujuan, { replace: true });
       } catch (kegagalan) {
         // Kode server dibedakan hanya jika saran tindakannya berbeda. Untuk

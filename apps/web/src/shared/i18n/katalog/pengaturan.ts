@@ -497,4 +497,34 @@ export const katalogPengaturan = {
     "id-simple":
       "Semua pilihan Anda di halaman ini dihapus. Aplikasi ikut setelan HP atau komputer Anda lagi.",
   },
+  // PR-082 — opt-out analytics (per perangkat).
+  "pengaturan.analitik.judul": {
+    id: "Statistik pemakaian",
+    "id-simple": "Data cara aplikasi dipakai",
+  },
+  "pengaturan.analitik.penjelasan": {
+    id: "Kami menghitung langkah penting (mis. mendaftar, melamar) dan halaman yang dibuka, tanpa nama, nomor, email, atau data disabilitas Anda, di server milik Nawasena sendiri. Angka ini membantu kami tahu apakah Nawasena benar-benar membantu orang mendapat kerja.",
+    "id-simple":
+      "Kami hitung langkah penting, misalnya daftar dan melamar. Tanpa nama, nomor, email, atau data disabilitas. Datanya di server Nawasena sendiri.",
+  },
+  "pengaturan.analitik.kotak": {
+    id: "Kirim statistik pemakaian tanpa identitas",
+    "id-simple": "Boleh kirim data pemakaian tanpa identitas",
+  },
+  "pengaturan.analitik.bantuan": {
+    id: "Pilihan ini hanya berlaku di peramban ini. Di perangkat lain, atur lagi dari sana.",
+    "id-simple": "Hanya untuk peramban ini. Di HP atau komputer lain, atur lagi.",
+  },
+  "pengaturan.analitik.dnt": {
+    id: "Peramban Anda meminta untuk tidak dilacak, jadi Nawasena tidak mengirim statistik apa pun dari sini.",
+    "id-simple": "Peramban Anda minta tidak dilacak. Jadi kami tidak kirim data apa pun.",
+  },
+  "pengaturan.analitik.disimpanNyala": {
+    id: "Statistik pemakaian dinyalakan untuk peramban ini.",
+    "id-simple": "Data pemakaian boleh dikirim dari peramban ini.",
+  },
+  "pengaturan.analitik.disimpanMati": {
+    id: "Statistik pemakaian dimatikan untuk peramban ini.",
+    "id-simple": "Data pemakaian tidak dikirim lagi dari peramban ini.",
+  },
 } as const satisfies KatalogFitur;

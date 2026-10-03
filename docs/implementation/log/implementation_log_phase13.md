@@ -156,3 +156,89 @@ Test DB: pendaftar Des 2000 → `previous {registered:1, applied:1}`.
 ### Next steps
 
 1. PR-082 — analytics Umami privacy-first + funnel KPI.
+
+---
+
+## PR-082 — Analytics Instrumentation — Umami + Funnel (Gap G2)
+
+> **Phase:** [13 - Admin Dashboard & Analytics](../phase-13-admin-analytics.md#pr-082---analytics-instrumentation--umami--funnel-gap-g2)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai (AC "funnel di Umami staging" → utang **U-33**, staging belum ada)
+> **Branch:** `pr-082-analytics-umami` → `phase-13-admin-analytics`
+
+### Ringkasan hasil
+
+Analytics privacy-first tanpa skrip pihak ketiga: web mengirim pageview (path ternormal) dan enam
+event funnel KPI langsung ke Umami self-host di origin sendiri (`/analitik/api/send`). Kontrak
+event no-PII hidup di `packages/schemas` (dipakai mobile PR-094). Opt-out per perangkat di
+Pengaturan; Do Not Track/GPC dihormati; tanpa website id (dev/test/CI) semuanya no-op.
+
+### Keputusan owner (AskUserQuestion, 2026-10-03)
+
+1. **Opt-out + hormati DNT/GPC** (menyala bawaan, tanpa PII).
+2. **Util sendiri ke `/api/send`**, bukan skrip resmi Umami.
+3. **Pageview ikut**, path tanpa id/query (KPI retensi).
+4. **Opt-out per perangkat** (localStorage) — tanpa ubah backend.
+5. **`profil_lengkap`** = profil berisi headline + kota/provinsi + ≥1 keahlian, sekali per akun
+   per perangkat.
+6. **`wawancara`** dikirim dari peramban PELAMAR saat melihat lamarannya sampai wawancara atau
+   lebih jauh, sekali per lamaran.
+7. **Umami di compose dev profil `analitik`** (tidak naik dengan `up` biasa).
+
+### Scope selesai
+
+* **Kontrak** `packages/schemas/src/analytics.ts` — enum 6 event; `data` per event `.strict()`
+  (hanya `daftar.metode`, `cv_dibuat.via`); `normalkanPath` (UUID/angka → `:id`, buang
+  query/hash); `analyticsPayloadSchema` (path ber-id/beremail/ber-query ditolak). Tidak ada data
+  disabilitas — termasuk pilihan pengungkapan saat melamar.
+* **Web** — `shared/analitik.ts` (pintu: config env / seam uji `window.__nawasenaAnalitik`,
+  DNT/GPC, opt-out, `track`, `trackPageview`, `sekaliSaja`) dan `shared/analitik-kirim.ts`
+  (dimuat malas: validasi + `POST` keepalive, `credentials: omit`, tanpa `title`/`referrer`,
+  galat ditelan). Pageview di `TataLetak` lewat **impor dinamis**.
+* **Titik funnel** — `daftar` (OTP & Google, hanya `isNewUser`), `profil_lengkap`
+  (`features/profil/analitik-profil.ts`; simpan profil & tambah keahlian), `cv_dibuat` (dari
+  profil; sesi AI selesai dengan CV, sekali per CV), `lamar` (lamaran baru), `wawancara`,
+  `hired_confirmed`.
+* **Opt-out** — kartu "Statistik pemakaian" di Pengaturan → Akun & Data Saya (KotakCentang +
+  status; diganti penjelasan bila DNT).
+* **Infra dev** — `umami` + `umami-db` (database sendiri) di compose profil `analitik`; proxy Vite
+  `/analitik` → `:3010`.
+* **Dokumen** — `docs/katalog-event-analitik.md` (event ↔ KPI PRD §15, kebijakan privasi,
+  konfigurasi); utang **U-33**.
+
+### Temuan sampingan — bug dialog lamar PR-078 (diperbaiki)
+
+E2E analytics menekan "Kirim lamaran" sebelum daftar CV tiba → muncul galat palsu "Pilih CV…",
+padahal sesaat kemudian CV bawaan tampil terpilih. Di 3G lambat ini pengalaman nyata. Perbaikan:
+Kirim `aria-disabled` + menolak selama daftar CV dimuat; test regresi di `lamar.test.tsx`.
+
+### Acceptance Criteria
+
+| AC | Bukti |
+|---|---|
+| Funnel lengkap terlihat di Umami staging | **Belum** (staging = Phase 16, U-33). Umami DEV sungguhan: ke-6 event + pageview `/lowongan/:id` tercatat dari `badanUmami` yang sama |
+| Payload lolos schema no-PII (test) | `packages/schemas/__tests__/analytics.test.ts` 15 (UUID, query, email, event liar, data liar, pengungkapan, kolom tambahan ditolak); e2e: tidak ada id/query/`disclose`/`+62`/`@` di payload |
+| Analytics gagal → aplikasi tidak terganggu | unit: fetch ditolak → resolve; e2e: endpoint 500 → lamaran tetap berhasil |
+| Event terdokumentasi | `docs/katalog-event-analitik.md` |
+| Opt-out di settings | e2e: matikan di Pengaturan → nol kiriman sesudahnya; DNT → nol kiriman + kotak diganti penjelasan |
+
+### Verifikasi
+
+* Unit/jsdom: schemas `analytics.test.ts` 15/15, web `analitik.test.ts` 7/7, `lamar.test.tsx` 13/13.
+* Playwright sesudah `build`: `analitik.spec.ts` 4/4, `lamar.spec.ts` 3/3.
+* `cek:budget` 108,7 KB; **Lighthouse 3G lokal 0,76** (impor statis pageview sempat menurunkannya
+  ke 0,75 = tepat ambang → diganti impor dinamis).
+* Umami dev: dinaikkan, diverifikasi, lalu dimatikan lagi.
+
+### Risiko & catatan
+
+* Opt-out per perangkat — login di perangkat lain perlu mematikan lagi (dikatakan di UI).
+* Umami bukan sumber angka resmi: perangkat opt-out/DNT tidak tercatat; North Star resmi tetap
+  `GET /admin/metrics` (PR-080).
+* Seam uji `window.__nawasenaAnalitik` hanya dibaca bila env kosong; yang bisa dinyalakan hanyalah
+  pengiriman ke origin sendiri lewat skema no-PII.
+
+### Next steps
+
+1. PR-083 — moderasi suspend user.
+2. PR-097 (Phase 16) — bayar U-33.

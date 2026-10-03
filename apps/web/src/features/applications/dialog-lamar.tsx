@@ -165,9 +165,14 @@ function IsiDialog({ klien, jobId, onSelesai }: DialogLamarProps) {
     el?.focus();
   }
 
+  // Daftar CV belum tiba = CV bawaan belum bisa dipilih. Mengirim di saat itu
+  // menampilkan "Pilih CV…" padahal sesaat kemudian CV terpilih sendiri —
+  // ditemukan e2e PR-082 (klik cepat; di 3G lambat ini pengalaman nyata).
+  const belumSiap = daftarCv.isPending;
+
   function onSubmit(e: FormEvent): void {
     e.preventDefault();
-    if (kirim.isPending) return;
+    if (kirim.isPending || belumSiap) return;
     const hasil = periksaIsian({ ...isian, resumeId }, bolehUngkap);
     if (!hasil.ok) {
       setGalat(hasil.galat);
@@ -341,7 +346,11 @@ function IsiDialog({ klien, jobId, onSelesai }: DialogLamarProps) {
             {t("lowongan.lamar.batal")}
           </Tombol>
         </TutupDialog>
-        <Tombol type="submit" aria-disabled={kirim.isPending} aria-busy={kirim.isPending}>
+        <Tombol
+          type="submit"
+          aria-disabled={kirim.isPending || belumSiap}
+          aria-busy={kirim.isPending || belumSiap}
+        >
           {kirim.isPending ? t("lowongan.lamar.mengirim") : t("lowongan.lamar.kirim")}
         </Tombol>
       </div>

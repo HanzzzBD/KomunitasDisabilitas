@@ -33,6 +33,7 @@ import { Dialog, Tombol, TutupDialog, WilayahMemuat } from "@nawasena/ui";
 import { useJudulHalaman } from "../../shared/judul-halaman.js";
 import { useTeks } from "../../shared/i18n/index.js";
 import { idPenggunaSaatIni } from "../onboarding/identitas.js";
+import { sekaliSaja, track } from "../../shared/analitik.js";
 import { TANGGAL_LAMARAN } from "./daftar-lamaran.js";
 import { petakanLiniMasa } from "./lini-masa.js";
 import { pesanGalatLamaranSaya } from "./pesan-galat-lamaran-saya.js";
@@ -45,6 +46,8 @@ const WAKTU = new Intl.DateTimeFormat("id-ID", {
 });
 
 const KELAS_H2 = "text-2xl font-semibold text-gray-900";
+
+const STATUS_SAMPAI_WAWANCARA: ReadonlySet<string> = new Set(["interview", "offered", "hired"]);
 
 function tidakDitemukan(galat: unknown): boolean {
   return galat instanceof ApiError && galat.code === "LAMARAN_TIDAK_DITEMUKAN";
@@ -152,6 +155,8 @@ function IsiDetail({ klien, lamaran, judul }: IsiDetailProps) {
     mutationFn: () => confirmHiredMyApplication(klien, lamaran.id),
     onSuccess: (hasil) => {
       simpan(hasil);
+      // PR-082 — funnel "hired_confirmed" (North Star).
+      track("hired_confirmed");
       setBaruDikonfirmasi(true);
     },
   });
@@ -167,6 +172,17 @@ function IsiDetail({ klien, lamaran, judul }: IsiDetailProps) {
   useEffect(() => {
     if (baruDikonfirmasi && terkonfirmasi !== null) judulSelamat.current?.focus();
   }, [baruDikonfirmasi, terkonfirmasi]);
+
+  // PR-082 — funnel "wawancara" (keputusan owner 2026-10-03): dikirim dari
+  // peramban PELAMAR saat ia melihat lamarannya sudah sampai wawancara atau
+  // lebih jauh (admin boleh melompat status). Sekali per lamaran.
+  const sampaiWawancara = STATUS_SAMPAI_WAWANCARA.has(lamaran.status);
+  useEffect(() => {
+    if (!sampaiWawancara) return;
+    sekaliSaja(`wawancara.${lamaran.id}`, () => {
+      track("wawancara");
+    });
+  }, [sampaiWawancara, lamaran.id]);
 
   const bolehTarik = statusLamaranAktif(lamaran.status);
   const bolehKonfirmasi =

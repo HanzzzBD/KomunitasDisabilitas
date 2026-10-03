@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { KolomForm, Masukan, Tombol } from "@nawasena/ui";
 import { requestOtp, verifyOtp } from "@nawasena/api-client";
+import { track } from "../shared/analitik.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
@@ -146,6 +147,8 @@ export function Masuk() {
         client: "web",
       });
       masukKeSesi(data.accessToken);
+      // PR-082 — funnel "daftar": hanya akun yang BARU dibuat pada verifikasi ini.
+      if (data.isNewUser) track("daftar", { metode: "otp" });
       // `replace`: halaman masuk tidak boleh tertinggal di riwayat, kalau tidak
       // tombol kembali mengembalikan pengguna ke form yang sudah selesai.
       navigate(bacaTujuan(lokasi.search), { replace: true });

@@ -28,6 +28,8 @@ import type { z } from "zod";
 import { AreaTeks, KolomForm, Masukan, Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { periksa, pesanGalatSimpan, type GalatKolom } from "./pesan-galat.js";
+import { periksaProfilLengkap } from "./analitik-profil.js";
+import { idPenggunaSaatIni } from "../onboarding/identitas.js";
 
 /** Nilai formulir satu baris — SELALU string, konversinya di `keBadan`. */
 export type NilaiBaris = Readonly<Record<string, string>>;
@@ -63,6 +65,8 @@ export interface KonfigKarier<Item> {
   skemaBuat: z.ZodType<unknown, z.ZodTypeDef, unknown>;
   api: BagianKarierApi<Item, never, never>;
   kunciQuery: QueryKey;
+  /** Bagian keahlian (PR-082: menambah keahlian bisa melengkapi profil). */
+  keahlian?: boolean;
   /** Item → nilai formulir saat tombol Ubah ditekan. */
   keNilai: (item: Item) => NilaiBaris;
   /** Nilai formulir → badan permintaan (di sinilah "" menjadi null/angka). */
@@ -225,6 +229,10 @@ export function DaftarKarier<Item>({ konfig, klien }: DaftarKarierProps<Item>) {
         ? konfig.api.create(klien, arg.badan as never)
         : konfig.api.update(klien, arg.id, arg.badan as never),
     onSuccess: (item, arg) => {
+      // PR-082 — keahlian pertama bisa melengkapi profil (`profil_lengkap`).
+      if (arg.id === null && konfig.keahlian === true) {
+        periksaProfilLengkap(klienQuery, idPenggunaSaatIni(), { keahlianBaru: true });
+      }
       selesai(
         t(arg.id === null ? "profil.karier.ditambah" : "profil.karier.diubah", {
           judul: konfig.judulItem(item),

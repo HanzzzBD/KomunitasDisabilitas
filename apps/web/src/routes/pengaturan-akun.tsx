@@ -23,6 +23,7 @@ import { namaBerkasEkspor, pesanGalatEkspor } from "../features/akun/ekspor.js";
 import { DialogHapusAkun, type CaraKonfirmasi } from "../features/akun/dialog-hapus-akun.js";
 import { clientIdGoogle, siapkanHapusAkunGoogle } from "../features/auth/google.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
+import { PrivasiAnalitik } from "../features/akun/privasi-analitik.js";
 
 /**
  * Tanggal dalam zona WIB, ditulis EKSPLISIT.
@@ -328,6 +329,9 @@ export function PengaturanAkun() {
         karena kegagalan yang tidak ada hubungannya.
       */}
       <UnduhData />
+
+      {/* PR-082 — opt-out statistik pemakaian (per perangkat). */}
+      <PrivasiAnalitik />
 
       {/*
         Hapus akun, SEBALIKNYA, menunggu identitas termuat — dan itu bukan
