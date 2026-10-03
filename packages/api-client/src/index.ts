@@ -93,6 +93,18 @@ export {
   type OpsiPencarianLowongan,
 } from "./endpoints/jobs.js";
 export {
+  listSignVideosAdmin,
+  createSignVideoAdmin,
+  updateSignVideoAdmin,
+  publishSignVideoAdmin,
+  unpublishSignVideoAdmin,
+  presignSignVideoMedia,
+  signVideosKeys,
+  type BuatEntriKamus,
+  type UbahEntriKamus,
+  type IzinUnggahKamus,
+} from "./endpoints/signbridge.js";
+export {
   listResumes,
   getResume,
   createResume,

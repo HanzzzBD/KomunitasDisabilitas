@@ -398,6 +398,44 @@ const PENGGUNA_UJI = [
 ];
 
 /**
+ * Kamus BISINDO admin (PR-085b): satu draft yang baru punya video (Terbitkan
+ * nonaktif + daftar kurang), satu entri terbit lengkap (Tarik ke draf).
+ */
+export const KAMUS_UJI_ID = "01912345-89ab-7def-8123-4567890aac01";
+/** Asal URL unggah palsu — dicegat `palsukanApi`, tidak pernah keluar mesin. */
+export const STORAGE_UJI = "https://storage.uji.test";
+const KAMUS_UJI = [
+  {
+    id: KAMUS_UJI_ID,
+    phrase: "Terima kasih",
+    category: "salam",
+    status: "draft" as "draft" | "published",
+    videoKey: `sign-videos/${KAMUS_UJI_ID}/video-uji.mp4` as string | null,
+    thumbnailKey: null as string | null,
+    captionKey: null as string | null,
+    transcript: null as string | null,
+    durationS: null,
+    createdBy: null,
+    createdAt: "2026-10-03T03:00:00.000Z",
+    updatedAt: "2026-10-03T03:00:00.000Z",
+  },
+  {
+    id: "01912345-89ab-7def-8123-4567890aac02",
+    phrase: "Selamat pagi",
+    category: "salam",
+    status: "published" as "draft" | "published",
+    videoKey: "sign-videos/01912345-89ab-7def-8123-4567890aac02/video-uji.mp4" as string | null,
+    thumbnailKey: null as string | null,
+    captionKey: "sign-videos/01912345-89ab-7def-8123-4567890aac02/caption-uji.vtt" as string | null,
+    transcript: "Tangan kanan terbuka di depan dahi, lalu bergerak ke depan." as string | null,
+    durationS: null,
+    createdBy: null,
+    createdAt: "2026-10-02T03:00:00.000Z",
+    updatedAt: "2026-10-02T03:00:00.000Z",
+  },
+];
+
+/**
  * Metrik admin (PR-081, `GET /admin/metrics`) — angka "berbentuk": ada tahap yang
  * naik, turun, dan tetap terhadap periode sebelumnya, supaya ketiga kalimat
  * tren dirender dan diperiksa axe. `semua` tanpa `previous`, seperti server.
@@ -676,6 +714,20 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   // "Lamaran Saya" (PR-079) — tarik/konfirmasi mengubahnya per pemanggilan.
   // Moderasi akun (PR-083b) — status berubah per pemanggilan.
   const pengguna = PENGGUNA_UJI.map((u) => ({ ...u }));
+  // Kamus BISINDO (PR-085b) — status & key media berubah per pemanggilan.
+  const kamus = KAMUS_UJI.map((v) => ({ ...v }));
+  let urutanUnggah = 0;
+
+  // Bucket palsu (PR-085b): PUT presigned dari browser berakhir di sini. Lintas
+  // asal, jadi preflight dan header CORS dijawab seperti bucket ber-CORS.
+  await page.route(`${STORAGE_UJI}/**`, async (route) => {
+    const cors = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "PUT",
+      "access-control-allow-headers": "content-type",
+    };
+    return route.fulfill({ status: 200, headers: cors, body: "" });
+  });
   const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
   let pdfDiminta = false;
   let pembacaanPdf = 0;
@@ -1146,6 +1198,64 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
         );
       }
       return route.fulfill(jsonkan(200, { data: detailLamaranAdmin() }));
+    }
+    // --- Kamus BISINDO (PR-085b) ---
+    //
+    // SEBELUM kurasi lowongan: cabang `/publish` di sana generik (`endsWith`)
+    // dan akan menelan `/admin/sign-videos/:id/publish`.
+    if (jalur === "/api/v1/admin/sign-videos") {
+      if (route.request().method() === "POST") {
+        const kirim = route.request().postDataJSON() as { phrase: string; category: string };
+        const baru = {
+          ...KAMUS_UJI[0]!,
+          ...kirim,
+          id: "01912345-89ab-7def-8123-4567890aac09",
+          videoKey: null,
+          transcript: null,
+        };
+        kamus.unshift(baru);
+        return route.fulfill(jsonkan(201, { data: baru }));
+      }
+      return route.fulfill(jsonkan(200, { data: kamus }));
+    }
+    if (jalur === "/api/v1/admin/sign-videos/presign") {
+      const { videoId, kind, contentType } = route.request().postDataJSON() as {
+        videoId: string;
+        kind: string;
+        contentType: string;
+      };
+      urutanUnggah += 1;
+      const ext = contentType.split("/").pop();
+      const key = `sign-videos/${videoId}/${kind}-uji${urutanUnggah}.${ext}`;
+      return route.fulfill(
+        jsonkan(200, {
+          data: {
+            key,
+            uploadUrl: `${STORAGE_UJI}/${key}?sig=uji`,
+            method: "PUT",
+            headers: { "content-type": contentType },
+            expiresAt: "2026-10-03T03:05:00.000Z",
+          },
+        }),
+      );
+    }
+    if (/\/admin\/sign-videos\/[^/]+(\/(publish|unpublish))?$/.test(jalur)) {
+      const bagian = jalur.split("/");
+      const aksi =
+        bagian.at(-1) === "publish" || bagian.at(-1) === "unpublish" ? bagian.pop() : null;
+      const baris = kamus.find((v) => v.id === bagian.pop());
+      if (baris === undefined) {
+        return route.fulfill(
+          jsonkan(404, {
+            code: "VIDEO_ISYARAT_TIDAK_DITEMUKAN",
+            message: "Video isyarat tidak ditemukan",
+          }),
+        );
+      }
+      if (aksi === "publish") baris.status = "published";
+      else if (aksi === "unpublish") baris.status = "draft";
+      else Object.assign(baris, route.request().postDataJSON() as Record<string, unknown>);
+      return route.fulfill(jsonkan(200, { data: { ...baris } }));
     }
     // --- Kurasi lowongan (PR-057) ---
     //
