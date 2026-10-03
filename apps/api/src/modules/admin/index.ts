@@ -39,6 +39,7 @@ export {
   createMetricsService,
   jendelaAi,
   jendelaDari,
+  jendelaSebelumnya,
   kunciCache,
   METRICS_POLICY,
   type MetricsService,

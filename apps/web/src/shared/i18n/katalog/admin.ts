@@ -969,4 +969,105 @@ export const katalogAdmin = {
     id: "Data disabilitas ditampilkan.",
     "id-simple": "Data disabilitas sekarang terlihat.",
   },
+  // ---------------------------------------------------------------------
+  // Dasbor metrik pilot (PR-081). Label tile menyebut periodenya sendiri —
+  // screen reader yang melompat ke satu tile tidak perlu mencari konteks.
+  // ---------------------------------------------------------------------
+  "admin.metrik.judul": { id: "Kesehatan pilot", "id-simple": "Keadaan program sekarang" },
+  "admin.metrik.memuat": { id: "Memuat metrik…", "id-simple": "Angka sedang dimuat…" },
+  "admin.metrik.gagal": {
+    id: "Metrik belum bisa ditampilkan.",
+    "id-simple": "Angka gagal dimuat.",
+  },
+  "admin.metrik.cobaLagi": { id: "Coba lagi", "id-simple": "Ulangi" },
+  "admin.metrik.periode.legend": { id: "Periode", "id-simple": "Rentang waktu" },
+  "admin.metrik.periode.7d": { id: "7 hari terakhir", "id-simple": "Seminggu ini" },
+  "admin.metrik.periode.30d": { id: "30 hari terakhir", "id-simple": "Sebulan ini" },
+  "admin.metrik.periode.semua": { id: "Sepanjang waktu", "id-simple": "Semua waktu" },
+  "admin.metrik.periodeLalu.7d": { id: "7 hari sebelumnya", "id-simple": "minggu lalu" },
+  "admin.metrik.periodeLalu.30d": { id: "30 hari sebelumnya", "id-simple": "bulan lalu" },
+  "admin.metrik.labelPeriode": { id: "{label}, {periode}", "id-simple": "{label} ({periode})" },
+  "admin.metrik.dataPer": {
+    id: "Data per {waktu} WIB. Diperbarui otomatis tiap 5 menit.",
+    "id-simple": "Angka dari {waktu} WIB. Berganti sendiri tiap 5 menit.",
+  },
+  "admin.metrik.segarkan": { id: "Perbarui sekarang", "id-simple": "Muat ulang angka" },
+  "admin.metrik.menyegarkan": { id: "Memperbarui…", "id-simple": "Sedang dimuat…" },
+  "admin.metrik.tren.naik": {
+    id: "Naik {selisih} dibanding {pembanding} ({lalu})",
+    "id-simple": "Bertambah {selisih} dari {pembanding} ({lalu})",
+  },
+  "admin.metrik.tren.turun": {
+    id: "Turun {selisih} dibanding {pembanding} ({lalu})",
+    "id-simple": "Berkurang {selisih} dari {pembanding} ({lalu})",
+  },
+  "admin.metrik.tren.sama": {
+    id: "Sama dengan {pembanding} ({lalu})",
+    "id-simple": "Tidak berubah dari {pembanding} ({lalu})",
+  },
+  "admin.metrik.funnel.judul": {
+    id: "Perjalanan pencari kerja",
+    "id-simple": "Langkah pencari kerja",
+  },
+  "admin.metrik.funnel.penjelasan": {
+    id: "Pencari kerja yang mendaftar dalam periode ini, dan berapa yang sudah mencapai tiap langkah. Langkah diukur terpisah, jadi angkanya tidak selalu menurun.",
+    "id-simple":
+      "Orang yang daftar di rentang ini, dan sampai mana mereka. Tiap langkah dihitung sendiri.",
+  },
+  "admin.metrik.tahap.registered": { id: "Pendaftar baru", "id-simple": "Orang baru daftar" },
+  "admin.metrik.tahap.profileReady": {
+    id: "Profil siap dicocokkan",
+    "id-simple": "Profil sudah siap",
+  },
+  "admin.metrik.tahap.applied": { id: "Sudah melamar", "id-simple": "Sudah kirim lamaran" },
+  "admin.metrik.tahap.interviewed": {
+    id: "Sampai wawancara",
+    "id-simple": "Sudah diwawancara",
+  },
+  "admin.metrik.tahap.hired": {
+    id: "Diterima bekerja (dikonfirmasi)",
+    "id-simple": "Sudah dapat kerja",
+  },
+  "admin.metrik.northStar.judul": {
+    id: "Penempatan kerja dan antrean",
+    "id-simple": "Orang dapat kerja dan antrean",
+  },
+  "admin.metrik.northStar.periode": {
+    id: "Konfirmasi diterima bekerja",
+    "id-simple": "Orang bilang sudah dapat kerja",
+  },
+  "admin.metrik.northStar.total": {
+    id: "Konfirmasi diterima bekerja, sepanjang waktu",
+    "id-simple": "Semua orang yang sudah dapat kerja",
+  },
+  "admin.metrik.dlq.label": {
+    id: "Pekerjaan gagal di antrean (DLQ)",
+    "id-simple": "Tugas sistem yang gagal",
+  },
+  "admin.metrik.dlq.takTerbaca": { id: "Tidak terbaca", "id-simple": "Tidak bisa dicek" },
+  "admin.metrik.dlq.catatan": {
+    id: "Angka di atas 0 perlu diperiksa tim teknis.",
+    "id-simple": "Kalau lebih dari 0, beri tahu tim teknis.",
+  },
+  "admin.metrik.ai.judul": { id: "Pemakaian AI", "id-simple": "Pemakaian bantuan AI" },
+  "admin.metrik.ai.kosong": {
+    id: "Belum ada pemakaian AI dalam periode ini.",
+    "id-simple": "AI belum dipakai di rentang ini.",
+  },
+  "admin.metrik.ai.caption": {
+    id: "Pemakaian AI per fitur sejak {sejak} WIB (data mentah disimpan 90 hari).",
+    "id-simple": "Pemakaian AI sejak {sejak} WIB. Data disimpan 90 hari.",
+  },
+  "admin.metrik.ai.kolom.fitur": { id: "Fitur", "id-simple": "Fitur AI" },
+  "admin.metrik.ai.kolom.permintaan": { id: "Permintaan", "id-simple": "Jumlah pakai" },
+  "admin.metrik.ai.kolom.tokenMasuk": { id: "Token masuk", "id-simple": "Token dikirim" },
+  "admin.metrik.ai.kolom.tokenKeluar": { id: "Token keluar", "id-simple": "Token diterima" },
+  "admin.metrik.ai.cv_chat": { id: "Obrolan CV", "id-simple": "Ngobrol buat CV" },
+  "admin.metrik.ai.cv_finalize": { id: "Penyusunan CV", "id-simple": "Menyusun CV" },
+  "admin.metrik.ai.cv_check": { id: "Pemeriksa CV", "id-simple": "Cek CV" },
+  "admin.metrik.ai.simplify_text": { id: "Penyederhana teks", "id-simple": "Membuat teks mudah" },
+  "admin.metrik.ai.interview_sim": { id: "Simulasi wawancara", "id-simple": "Latihan wawancara" },
+  "admin.metrik.ai.rerank": { id: "Urutan rekomendasi", "id-simple": "Mengurutkan saran kerja" },
+  "admin.metrik.ai.embed": { id: "Vektor profil & lowongan", "id-simple": "Data pencocokan" },
+  "admin.metrik.ai.lainnya": { id: "Fitur lain", "id-simple": "Lainnya" },
 } as const satisfies KatalogFitur;

@@ -14,6 +14,8 @@
 // Di luar kohort (tidak boleh terhitung di funnel):
 //   F  seeker soft-delete berlamaran; G admin; H seeker daftar Des 2000 yang
 //   konfirmasi diterimanya JATUH di jendela → hanya menambah North Star periode.
+// Jendela SEBELUMNYA (3 Des 2000 – 2 Jan 2001, tren PR-081):
+//   I  seeker daftar 15 Des 2000, 1 lamaran submitted → previous.registered/applied
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Writable } from "node:stream";
 import { PrismaClient, type ApplicationStatus, type Prisma } from "@prisma/client";
@@ -164,6 +166,8 @@ beforeAll(async () => {
   await buatLamaran(f, "interview", { riwayat: [{ from: "submitted", to: "interview" }] });
   const adminId = await buatUser("admin", tgl(12));
   const h = await buatUser("seeker", new Date(Date.UTC(2000, 11, 1)));
+  const i = await buatUser("seeker", new Date(Date.UTC(2000, 11, 15)));
+  await buatLamaran(i, "submitted");
   await buatLamaran(h, "hired", { dikonfirmasi: tgl(21) });
 
   // --- pemakaian AI dalam jendela ---
@@ -281,6 +285,12 @@ describe("GET /admin/metrics — angka cocok dengan fixture", () => {
       { feature: "rerank", requests: 1, tokensIn: 3, tokensOut: 0 },
     ]);
     expect(data.dlqTotal).toBe(3);
+    expect(data.previous).toEqual({
+      from: "2000-12-03T00:00:00.000Z",
+      to: "2001-01-02T00:00:00.000Z",
+      funnel: { registered: 1, profileReady: 0, applied: 1, interviewed: 0, hired: 0 },
+      confirmedInPeriod: 0,
+    });
     expect(data).toMatchObject({
       period: "30d",
       from: "2001-01-02T00:00:00.000Z",

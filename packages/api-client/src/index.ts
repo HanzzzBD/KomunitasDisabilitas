@@ -71,6 +71,7 @@ export {
   type BuatPerusahaan,
   type UbahPerusahaan,
 } from "./endpoints/companies.js";
+export { adminKeys, getAdminMetrics } from "./endpoints/admin.js";
 export {
   listJobsAdmin,
   createJobAdmin,

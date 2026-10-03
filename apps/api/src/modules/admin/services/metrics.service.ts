@@ -49,6 +49,13 @@ export function jendelaDari(periode: AdminMetricsPeriod, sekarang: Date): Jendel
   };
 }
 
+/** Jendela tepat sebelum `j`, sama panjang — `null` untuk `semua`. */
+export function jendelaSebelumnya(j: JendelaMetrik): (JendelaMetrik & { dari: Date }) | null {
+  if (j.dari === null) return null;
+  const panjang = j.sampai.getTime() - j.dari.getTime();
+  return { dari: new Date(j.dari.getTime() - panjang), sampai: j.dari };
+}
+
 /** Jendela AI: sama dengan periode, tetapi tidak pernah lebih tua dari retensi. */
 export function jendelaAi(j: JendelaMetrik): JendelaMetrik & { dari: Date } {
   const batasRetensi = new Date(j.sampai.getTime() - METRICS_POLICY.retensiAiHari * HARI_MS);
@@ -56,7 +63,8 @@ export function jendelaAi(j: JendelaMetrik): JendelaMetrik & { dari: Date } {
   return { dari, sampai: j.sampai };
 }
 
-export const kunciCache = (periode: AdminMetricsPeriod) => `admin:metrics:v1:${periode}`;
+// v2 (PR-081): bentuk respons bertambah `previous` — isi v1 lama tidak dibaca ulang.
+export const kunciCache = (periode: AdminMetricsPeriod) => `admin:metrics:v2:${periode}`;
 
 export function createMetricsService(deps: MetricsServiceDeps) {
   const now = deps.clock ?? (() => new Date());
@@ -65,9 +73,12 @@ export function createMetricsService(deps: MetricsServiceDeps) {
     const sekarang = now();
     const j = jendelaDari(periode, sekarang);
     const ai = jendelaAi(j);
-    const [funnel, northStar, fitur, dlqTotal] = await Promise.all([
+    const lalu = jendelaSebelumnya(j);
+    const [funnel, northStar, funnelLalu, northStarLalu, fitur, dlqTotal] = await Promise.all([
       deps.repo.funnel(j),
       deps.repo.northStar(j),
+      lalu === null ? null : deps.repo.funnel(lalu),
+      lalu === null ? null : deps.repo.northStar(lalu),
       deps.repo.aiUsage(ai),
       deps.bacaDlqTotal().catch((err: unknown) => {
         deps.logger.warn({ err }, "DLQ tidak terjangkau — metrik admin tanpa dlqTotal");
@@ -83,6 +94,15 @@ export function createMetricsService(deps: MetricsServiceDeps) {
       generatedAt: sekarang.toISOString(),
       funnel,
       northStar,
+      previous:
+        lalu === null || funnelLalu === null || northStarLalu === null
+          ? null
+          : {
+              from: lalu.dari.toISOString(),
+              to: lalu.sampai.toISOString(),
+              funnel: funnelLalu,
+              confirmedInPeriod: northStarLalu.confirmedInPeriod,
+            },
       aiUsage: { since: ai.dari.toISOString(), features: fitur },
       dlqTotal,
     });
