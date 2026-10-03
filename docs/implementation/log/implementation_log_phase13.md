@@ -78,3 +78,81 @@ dibaca. Cache 5 menit per periode di Redis cache.
 ### Next steps
 
 1. PR-081 — dashboard admin (tiles aksesibel: angka + label + tren tekstual) mengonsumsi endpoint ini.
+
+---
+
+## PR-081 — Admin Dashboard FE
+
+> **Phase:** [13 - Admin Dashboard & Analytics](../phase-13-admin-analytics.md#pr-081---admin-dashboard-fe)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai
+> **Branch:** `pr-081-admin-dashboard` → `phase-13-admin-analytics`
+
+### Ringkasan hasil
+
+Ringkasan `/admin` kini dibuka dengan dasbor "Kesehatan pilot": pilihan periode (7 hari / 30 hari
+/ sepanjang waktu), tile funnel lima tahap, tile penempatan kerja (dalam periode + sepanjang
+waktu) dan DLQ, serta tabel pemakaian AI per fitur. Tiap tile menyebut label DAN periodenya,
+angkanya, dan tren dalam kalimat ("Naik 3 dibanding 30 hari sebelumnya (12)"). Diperbarui
+otomatis tiap 5 menit tanpa pengumuman dan tanpa memindah fokus.
+
+### Keputusan owner (AskUserQuestion, 2026-10-02/03)
+
+1. **Tren dari API** — respons `GET /admin/metrics` bertambah `previous` (jendela sebelumnya yang
+   sama panjang); `null` untuk `semua`. Perubahan aditif di PR ini (dokumen: "Backend: tidak ada").
+2. **Lokasi: Ringkasan `/admin`**, di atas kartu tautan yang sudah ada.
+3. **Refresh tiap 5 menit, diam** (ikut umur cache server; berhenti saat tab tak terlihat) +
+   tombol "Perbarui sekarang".
+4. **NVDA dijalankan sekarang.**
+
+### Scope selesai
+
+**API (aditif)** — `adminMetricsPreviousSchema`; service menghitung jendela sebelumnya
+(`jendelaSebelumnya`) — kohort yang daftar di jendela itu dengan tahap yang dicapai sampai
+sekarang, plus konfirmasi diterima di jendela itu. Kunci cache `v1 → v2` (bentuk berubah).
+Test DB: pendaftar Des 2000 → `previous {registered:1, applied:1}`.
+
+**`@nawasena/api-client`** — `getAdminMetrics(client, periode)`, `adminKeys.metrics(periode)`.
+
+**Web**
+
+* `features/admin/metrik-tren.ts` — fungsi murni `hitungTren`/`kalimatTren`: arah, selisih, DAN
+  nilai pembanding disebut; `semua` tanpa tren.
+* `features/admin/metrik-dasbor.tsx` — radio grup periode; tile = `<dt>` (label + periode) /
+  `<dd>` (angka + tren; panah `aria-hidden`); tabel AI ber-`caption`, `th scope=col/row`; tidak
+  ada live region di atas angka (dua belas angka dibacakan tiap 5 menit = gangguan); "Data per
+  … WIB" dari `generatedAt`.
+* `routes/admin.tsx` — `AdminRingkasan` memasang dasbor di atas kartu tautan.
+* Katalog `admin.metrik.*` (±50 entri id + id-simple).
+* Pemalsu e2e `metrikAdminUji` (naik/turun/sama sekaligus) → registry "admin — ringkasan" kini
+  memeriksa dasbor dengan axe.
+
+### Acceptance Criteria
+
+| AC | Bukti |
+|---|---|
+| Semua metrik terbaca SR dengan konteks (label+nilai+periode) | jsdom `<dt>` "Pendaftar baru, 30 hari terakhir" / `<dd>`; NVDA membacakan label → "15. Naik 3 …" |
+| Tren naik/turun tekstual | unit `metrik-tren.test.ts` (naik/turun/sama, ribuan id-ID, `semua` tanpa tren); panah `aria-hidden` |
+| Auto-refresh tidak mencuri fokus | jsdom: refetch → fokus tetap, wilayah status kosong; e2e: jam palsu maju 5 menit → permintaan baru, radio tetap terfokus |
+| axe pass | `admin-metrik.spec.ts` (30d, 7d) + registry; suite a11y 141/141 |
+| Angka cocok fixture E2E | e2e: 15 / naik 3 (12) / turun 2 (8) / total 4 / 1.250 permintaan AI |
+
+### Verifikasi
+
+* jsdom `admin-metrik.test.tsx` 4/4, unit `metrik-tren.test.ts`; api-client `admin.test.ts`; API
+  `admin-metrics(-db)` 20/20 (DB hidup).
+* Playwright sesudah `build`: `admin-metrik.spec.ts` 2/2, suite penuh **141/141**.
+* `cek:budget`: 108,6 KB (tidak berubah — dasbor di chunk admin).
+* `turbo run lint typecheck test --concurrency=1`: **27/27**.
+* NVDA: 3 run sah — [checklist](pr-081-nvda-checklist.md). **Cacat nyata ditemukan & diperbaiki:**
+  angka dan tren terbaca menempel ("15Naik 3…") → pemisah `sr-only`, dijaga test.
+
+### Risiko & catatan
+
+* "Perbarui sekarang" dalam 5 menit sejak hitungan terakhir mengembalikan angka yang sama (cache
+  server) — "Data per … WIB" menunjukkan umur angkanya dengan jujur.
+* Manual Verification "data staging" belum — staging belum ada (Phase 16).
+
+### Next steps
+
+1. PR-082 — analytics Umami privacy-first + funnel KPI.

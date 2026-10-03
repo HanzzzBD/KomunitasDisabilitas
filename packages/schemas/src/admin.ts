@@ -89,6 +89,23 @@ export const adminAiUsageSchema = z
   })
   .openapi({ ref: "AdminAiUsage" });
 
+/**
+ * Jendela SEBELUMNYA yang sama panjang (PR-081, keputusan owner 2026-10-02) —
+ * dasar tren tekstual "naik 3 dari 30 hari sebelumnya". Kohortnya pengguna yang
+ * daftar di jendela itu, dengan tahap yang dicapai SAMPAI SEKARANG; North Star
+ * = konfirmasi yang terjadi di jendela itu.
+ */
+export const adminMetricsPreviousSchema = z
+  .object({
+    from: timestampSchema,
+    to: timestampSchema,
+    funnel: adminFunnelSchema,
+    confirmedInPeriod: cacahSchema,
+  })
+  .openapi({ ref: "AdminMetricsPrevious" });
+
+export type AdminMetricsPrevious = z.infer<typeof adminMetricsPreviousSchema>;
+
 export const adminMetricsSchema = z
   .object({
     period: adminMetricsPeriodSchema,
@@ -99,6 +116,8 @@ export const adminMetricsSchema = z
     generatedAt: timestampSchema,
     funnel: adminFunnelSchema,
     northStar: adminNorthStarSchema,
+    /** `null` untuk periode `semua` — tidak ada "sebelumnya". */
+    previous: adminMetricsPreviousSchema.nullable(),
     aiUsage: adminAiUsageSchema,
     /** Total pekerjaan di DLQ seluruh antrean; `null` = antrean tidak terjangkau saat dihitung. */
     dlqTotal: cacahSchema.nullable(),

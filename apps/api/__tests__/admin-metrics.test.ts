@@ -9,6 +9,7 @@ import {
   createMetricsService,
   jendelaAi,
   jendelaDari,
+  jendelaSebelumnya,
   kunciCache,
   kueriAiUsage,
   kueriFunnel,
@@ -59,6 +60,15 @@ describe("jendela periode", () => {
     expect(jendelaDari("semua", SEKARANG)).toEqual({ dari: null, sampai: SEKARANG });
   });
 
+  it("jendela sebelumnya (tren PR-081): tepat sebelum, sama panjang; 'semua' tidak punya", () => {
+    const j = jendelaDari("30d", SEKARANG);
+    expect(jendelaSebelumnya(j)).toEqual({
+      dari: new Date(SEKARANG.getTime() - 60 * HARI),
+      sampai: j.dari,
+    });
+    expect(jendelaSebelumnya(jendelaDari("semua", SEKARANG))).toBeNull();
+  });
+
   it("jendela AI dipotong ke retensi ai_usage (90 hari) — 'semua' tidak berpura-pura", () => {
     const batas = new Date(SEKARANG.getTime() - METRICS_POLICY.retensiAiHari * HARI);
     expect(jendelaAi(jendelaDari("semua", SEKARANG)).dari).toEqual(batas);
@@ -82,7 +92,8 @@ describe("metrics service", () => {
 
     const pertama = await svc.get("30d");
     const kedua = await svc.get("30d");
-    expect(repo.panggilan).toBe(1);
+    // Satu hitungan = funnel jendela ini + jendela sebelumnya (tren, PR-081).
+    expect(repo.panggilan).toBe(2);
     expect(kedua).toEqual(pertama);
     expect(cache.set).toHaveBeenCalledWith(
       kunciCache("30d"),
@@ -94,7 +105,7 @@ describe("metrics service", () => {
 
     // Periode lain = kunci lain = hitung sendiri.
     await svc.get("7d");
-    expect(repo.panggilan).toBe(2);
+    expect(repo.panggilan).toBe(4);
   });
 
   it("bentuk respons: North Star, AI per fitur, DLQ, jendela", async () => {
@@ -114,7 +125,9 @@ describe("metrics service", () => {
       northStar: { confirmedInPeriod: 1, confirmedTotal: 3 },
       aiUsage: { features: [{ feature: "cv_chat", requests: 5 }] },
       dlqTotal: 4,
+      previous: { funnel: { registered: 10 }, confirmedInPeriod: 1 },
     });
+    expect((await svc.get("semua")).previous).toBeNull();
   });
 
   it("Redis sakit → tetap menjawab (dihitung langsung), peringatan dicatat", async () => {
@@ -156,7 +169,7 @@ describe("metrics service", () => {
       clock: () => SEKARANG,
     });
     expect((await svc.get("30d")).funnel.registered).toBe(10);
-    expect(repo.panggilan).toBe(1);
+    expect(repo.panggilan).toBe(2);
   });
 });
 

@@ -8930,6 +8930,16 @@
           "northStar": {
             "$ref": "#/components/schemas/AdminNorthStar"
           },
+          "previous": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AdminMetricsPrevious"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "aiUsage": {
             "$ref": "#/components/schemas/AdminAiUsage"
           },
@@ -8948,6 +8958,7 @@
           "generatedAt",
           "funnel",
           "northStar",
+          "previous",
           "aiUsage",
           "dlqTotal"
         ]
@@ -8999,6 +9010,36 @@
         "required": [
           "confirmedInPeriod",
           "confirmedTotal"
+        ]
+      },
+      "AdminMetricsPrevious": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "funnel": {
+            "$ref": "#/components/schemas/AdminFunnel"
+          },
+          "confirmedInPeriod": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "funnel",
+          "confirmedInPeriod"
         ]
       },
       "AdminAiUsage": {

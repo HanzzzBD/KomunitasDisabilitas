@@ -16,6 +16,8 @@
 // untuk seluruh aplikasi.
 import { Link, NavLink, Outlet } from "react-router";
 import { gabungKelas, Kartu } from "@nawasena/ui";
+import { useKlienApi } from "../app/klien-api.js";
+import { DasborMetrik } from "../features/admin/metrik-dasbor.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
@@ -35,65 +37,70 @@ const SEKSI = [
  */
 export function AdminRingkasan() {
   const t = useTeks();
+  const klien = useKlienApi();
 
   return (
-    <section aria-labelledby="admin-ringkasan-judul" className="flex flex-col gap-4">
-      <h2 id="admin-ringkasan-judul" className="text-2xl font-semibold text-gray-900">
-        {t("admin.ringkasan.judul")}
-      </h2>
-      <p className="text-base text-gray-900">{t("admin.ringkasan.penjelasan")}</p>
+    <div className="flex flex-col gap-10">
+      {/* PR-081 — metrik pilot DI ATAS kartu tautan (keputusan owner 2026-10-02). */}
+      <DasborMetrik klien={klien} />
+      <section aria-labelledby="admin-ringkasan-judul" className="flex flex-col gap-4">
+        <h2 id="admin-ringkasan-judul" className="text-2xl font-semibold text-gray-900">
+          {t("admin.ringkasan.judul")}
+        </h2>
+        <p className="text-base text-gray-900">{t("admin.ringkasan.penjelasan")}</p>
 
-      <ul className="flex list-none flex-col gap-3 p-0">
-        <li>
-          <Kartu
-            judul={t("admin.ringkasan.companies.judul")}
-            tingkatJudul={3}
-            aksi={
-              <Link
-                to="/admin/companies"
-                className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
-              >
-                {t("admin.ringkasan.companies.tautan")}
-              </Link>
-            }
-          >
-            <p className="text-base text-gray-900">{t("admin.ringkasan.companies.penjelasan")}</p>
-          </Kartu>
-        </li>
-        <li>
-          <Kartu
-            judul={t("admin.ringkasan.jobs.judul")}
-            tingkatJudul={3}
-            aksi={
-              <Link
-                to="/admin/jobs"
-                className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
-              >
-                {t("admin.ringkasan.jobs.tautan")}
-              </Link>
-            }
-          >
-            <p className="text-base text-gray-900">{t("admin.ringkasan.jobs.penjelasan")}</p>
-          </Kartu>
-        </li>
-        <li>
-          <Kartu
-            judul={t("admin.ringkasan.lamaran.judul")}
-            tingkatJudul={3}
-            aksi={
-              <Link
-                to="/admin/lamaran"
-                className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
-              >
-                {t("admin.ringkasan.lamaran.tautan")}
-              </Link>
-            }
-          >
-            <p className="text-base text-gray-900">{t("admin.ringkasan.lamaran.penjelasan")}</p>
-          </Kartu>
-        </li>
-      </ul>
-    </section>
+        <ul className="flex list-none flex-col gap-3 p-0">
+          <li>
+            <Kartu
+              judul={t("admin.ringkasan.companies.judul")}
+              tingkatJudul={3}
+              aksi={
+                <Link
+                  to="/admin/companies"
+                  className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
+                >
+                  {t("admin.ringkasan.companies.tautan")}
+                </Link>
+              }
+            >
+              <p className="text-base text-gray-900">{t("admin.ringkasan.companies.penjelasan")}</p>
+            </Kartu>
+          </li>
+          <li>
+            <Kartu
+              judul={t("admin.ringkasan.jobs.judul")}
+              tingkatJudul={3}
+              aksi={
+                <Link
+                  to="/admin/jobs"
+                  className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
+                >
+                  {t("admin.ringkasan.jobs.tautan")}
+                </Link>
+              }
+            >
+              <p className="text-base text-gray-900">{t("admin.ringkasan.jobs.penjelasan")}</p>
+            </Kartu>
+          </li>
+          <li>
+            <Kartu
+              judul={t("admin.ringkasan.lamaran.judul")}
+              tingkatJudul={3}
+              aksi={
+                <Link
+                  to="/admin/lamaran"
+                  className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
+                >
+                  {t("admin.ringkasan.lamaran.tautan")}
+                </Link>
+              }
+            >
+              <p className="text-base text-gray-900">{t("admin.ringkasan.lamaran.penjelasan")}</p>
+            </Kartu>
+          </li>
+        </ul>
+      </section>
+    </div>
   );
 }
 

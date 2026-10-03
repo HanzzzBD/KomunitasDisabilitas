@@ -360,6 +360,39 @@ const RIWAYAT_LAMARAN_UJI = [
 ];
 
 /**
+ * Metrik admin (PR-081, `GET /admin/metrics`) — angka "berbentuk": ada tahap yang
+ * naik, turun, dan tetap terhadap periode sebelumnya, supaya ketiga kalimat
+ * tren dirender dan diperiksa axe. `semua` tanpa `previous`, seperti server.
+ */
+export function metrikAdminUji(periode: string) {
+  return {
+    period: periode,
+    from: periode === "semua" ? null : "2026-09-02T00:00:00.000Z",
+    to: "2026-10-02T00:00:00.000Z",
+    generatedAt: "2026-10-02T03:15:00.000Z",
+    funnel: { registered: 15, profileReady: 9, applied: 6, interviewed: 3, hired: 1 },
+    northStar: { confirmedInPeriod: 1, confirmedTotal: 4 },
+    previous:
+      periode === "semua"
+        ? null
+        : {
+            from: "2026-08-03T00:00:00.000Z",
+            to: "2026-09-02T00:00:00.000Z",
+            funnel: { registered: 12, profileReady: 9, applied: 8, interviewed: 3, hired: 0 },
+            confirmedInPeriod: 2,
+          },
+    aiUsage: {
+      since: "2026-09-02T00:00:00.000Z",
+      features: [
+        { feature: "cv_chat", requests: 1250, tokensIn: 40000, tokensOut: 52000 },
+        { feature: "rerank", requests: 80, tokensIn: 9000, tokensOut: 1200 },
+      ],
+    },
+    dlqTotal: 0,
+  };
+}
+
+/**
  * Lamaran milik PELAMAR uji (PR-079, "Lamaran Saya"). Status `offered` dengan
  * tiga langkah riwayat: halaman detail menampilkan KEDUA aksi (tarik lamaran +
  * "Saya diterima") dan lini masa empat titik — keadaan terpadat untuk axe.
@@ -992,6 +1025,11 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     //
     // Sub-jalur (`/status`, `/disclosure`) diperiksa SEBELUM detail generik,
     // alasan yang sama dengan `/publish` di bawah.
+    // --- Metrik admin (PR-081) ---
+    if (jalur === "/api/v1/admin/metrics") {
+      const periode = new URL(route.request().url()).searchParams.get("periode") ?? "30d";
+      return route.fulfill(jsonkan(200, { data: metrikAdminUji(periode) }));
+    }
     if (jalur === "/api/v1/admin/applications") {
       return route.fulfill(
         jsonkan(200, {

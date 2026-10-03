@@ -73,7 +73,7 @@ Bisnis: keputusan pilot berbasis data (KPI PRD §15). Teknis: agregasi SQL read-
 
 * [x] Unit Test (agregator)
 * [x] Integration Test (fixture)
-* [ ] E2E Test (via PR-081)
+* [x] E2E Test (via PR-081 — `e2e/admin-metrik.spec.ts`, API dipalsukan)
 * [ ] Accessibility Test (N/A)
 * [x] Manual Verification (bandingkan manual count) — DB dev: periode `semua` = hitungan psql
 
@@ -124,10 +124,12 @@ Bisnis: admin melihat kesehatan pilot dalam satu layar. Teknis: tiles aksesibel 
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi (keputusan owner 2026-10-02):** respons `GET /admin/metrics` bertambah `previous` (funnel + konfirmasi diterima untuk jendela sebelumnya yang sama panjang) — dasar tren tekstual; `null` untuk `semua`. Kunci cache naik ke v2.
 
 **Frontend Changes:**
 
 * Feature admin/dashboard.
+* **Realisasi:** `features/admin/metrik-dasbor.tsx` + `metrik-tren.ts`, dipasang di Ringkasan `/admin` di atas kartu tautan; api-client `getAdminMetrics`/`adminKeys`.
 
 **Database Changes:**
 
@@ -143,10 +145,10 @@ Bisnis: admin melihat kesehatan pilot dalam satu layar. Teknis: tiles aksesibel 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (tile)
+* [x] Unit Test (tile)
 * [ ] Integration Test (N/A)
-* [ ] E2E Test (render + angka)
-* [ ] Accessibility Test (axe + NVDA)
+* [x] E2E Test (render + angka)
+* [x] Accessibility Test (axe + NVDA) — [checklist](log/pr-081-nvda-checklist.md)
 * [ ] Manual Verification (data staging)
 
 **Deliverables:**
@@ -163,11 +165,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Semua metrik terbaca SR dengan konteks (label+nilai+periode).
-* [ ] Tren naik/turun tekstual (bukan panah warna saja).
-* [ ] Auto-refresh tidak mencuri fokus.
-* [ ] axe pass.
-* [ ] Angka cocok fixture E2E.
+* [x] Semua metrik terbaca SR dengan konteks (label+nilai+periode).
+* [x] Tren naik/turun tekstual (bukan panah warna saja).
+* [x] Auto-refresh tidak mencuri fokus.
+* [x] axe pass.
+* [x] Angka cocok fixture E2E.
 
 #### Dependencies
 
