@@ -250,3 +250,8 @@ export const signVideoSearchResponseSchema = z
   .openapi({ ref: "SignVideoSearchResponse" });
 
 export type SignVideoSearchResponse = z.infer<typeof signVideoSearchResponseSchema>;
+
+/** GET /sign-videos/:id — satu entri terbit (halaman detail PR-086). */
+export const signVideoPublicResponseSchema = z
+  .object({ data: signVideoPublicSchema })
+  .openapi({ ref: "SignVideoPublicResponse" });

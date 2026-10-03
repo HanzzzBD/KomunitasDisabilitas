@@ -409,3 +409,35 @@ describe("unpublish (PR-085)", () => {
     );
   });
 });
+
+describe("getPublic — halaman detail (PR-086)", () => {
+  it("entri terbit → URL presigned; draft & tidak ada → 404 yang sama; storage absen → 503", async () => {
+    const terbit = createSignVideosService({
+      repository: repoPalsu(baris({ ...LENGKAP, status: "published" })),
+      auditLog: vi.fn(),
+      storage: storagePalsu(),
+    });
+    const entri = await terbit.getPublic(ID);
+    expect(entri.videoUrl).toBe(`https://minio.test/${LENGKAP.videoKey}?sig=1`);
+    expect(entri).not.toHaveProperty("videoKey");
+
+    const draft = createSignVideosService({
+      repository: repoPalsu(baris(LENGKAP)),
+      auditLog: vi.fn(),
+      storage: storagePalsu(),
+    });
+    expect((await galat(() => draft.getPublic(ID))).code).toBe("VIDEO_ISYARAT_TIDAK_DITEMUKAN");
+    const kosong = createSignVideosService({
+      repository: repoPalsu(null),
+      auditLog: vi.fn(),
+      storage: storagePalsu(),
+    });
+    expect((await galat(() => kosong.getPublic(ID))).code).toBe("VIDEO_ISYARAT_TIDAK_DITEMUKAN");
+    const tanpaStorage = createSignVideosService({
+      repository: repoPalsu(baris({ ...LENGKAP, status: "published" })),
+      auditLog: vi.fn(),
+      storage: undefined,
+    });
+    expect((await galat(() => tanpaStorage.getPublic(ID))).code).toBe("BELUM_SIAP");
+  });
+});

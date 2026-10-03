@@ -201,10 +201,12 @@ Bisnis: pengguna Tuli mendapat nilai BISINDO sejak MVP. Teknis: grid hasil, play
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi:** `GET /api/v1/sign-videos/:id` (publik, hanya terbit) untuk halaman detail `/kamus/:id` — keputusan owner 2026-10-03.
 
 **Frontend Changes:**
 
 * Feature signbridge.
+* **Realisasi:** `features/kamus` — pencarian + kartu berlabel, halaman detail, pemutar berkontrol sendiri (putar/jeda, geser, volume, caption, kecepatan 0,5–1×); pintasan kerangka + bagian beranda.
 
 **Database Changes:**
 
@@ -220,10 +222,10 @@ Bisnis: pengguna Tuli mendapat nilai BISINDO sejak MVP. Teknis: grid hasil, play
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (cari→tonton)
-* [ ] Accessibility Test (axe + player keyboard + caption manual)
+* [x] Unit Test (kartu)
+* [x] Integration Test (N/A) — tetap ada: `GET /sign-videos/:id` di `signbridge-db.test.ts`
+* [x] E2E Test (cari→tonton)
+* [x] Accessibility Test (axe + player keyboard + caption manual) — caption diperiksa di Chromium sungguhan
 * [ ] Manual Verification (penguji Tuli — sprint review)
 
 **Deliverables:**
@@ -240,11 +242,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Cari→tonton end-to-end.
-* [ ] Caption default menyala; transkrip tampil di bawah.
-* [ ] Player operable penuh keyboard (play/pause/seek/volume).
-* [ ] Grid hasil aksesibel (kartu berlabel).
-* [ ] axe pass + reduce-motion dihormati (tanpa autoplay).
+* [x] Cari→tonton end-to-end.
+* [x] Caption default menyala; transkrip tampil di bawah.
+* [x] Player operable penuh keyboard (play/pause/seek/volume).
+* [x] Grid hasil aksesibel (kartu berlabel).
+* [x] axe pass + reduce-motion dihormati (tanpa autoplay).
 
 #### Dependencies
 

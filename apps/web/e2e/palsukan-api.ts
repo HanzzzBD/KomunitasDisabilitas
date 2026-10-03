@@ -435,6 +435,25 @@ const KAMUS_UJI = [
   },
 ];
 
+/** Caption WebVTT uji (PR-086) — satu cue, cukup untuk `<track>` yang sah. */
+export const CAPTION_UJI = "WEBVTT\n\n00:00.000 --> 00:02.000\nSelamat pagi\n";
+
+/** Bentuk publik entri kamus (`GET /sign-videos`) — URL media ke bucket palsu. */
+function kamusPublik(v: (typeof KAMUS_UJI)[number]) {
+  return {
+    id: v.id,
+    phrase: v.phrase,
+    category: v.category,
+    transcript: v.transcript ?? "",
+    durationS: v.durationS,
+    videoUrl: `${STORAGE_UJI}/${v.videoKey ?? ""}?sig=uji`,
+    captionUrl: `${STORAGE_UJI}/${v.captionKey ?? ""}?sig=uji`,
+    thumbnailUrl: null,
+    // Jauh di depan: pemutar tidak mengambil ulang URL selama test.
+    mediaExpiresAt: "2099-01-01T00:00:00.000Z",
+  };
+}
+
 /**
  * Metrik admin (PR-081, `GET /admin/metrics`) — angka "berbentuk": ada tahap yang
  * naik, turun, dan tetap terhadap periode sebelumnya, supaya ketiga kalimat
@@ -723,9 +742,20 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   await page.route(`${STORAGE_UJI}/**`, async (route) => {
     const cors = {
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "PUT",
+      "access-control-allow-methods": "GET, PUT",
       "access-control-allow-headers": "content-type",
     };
+    // PR-086: caption kamus publik dibaca `<track>` lintas asal.
+    if (
+      route.request().method() === "GET" &&
+      new URL(route.request().url()).pathname.endsWith(".vtt")
+    ) {
+      return route.fulfill({
+        status: 200,
+        headers: { ...cors, "content-type": "text/vtt" },
+        body: CAPTION_UJI,
+      });
+    }
     return route.fulfill({ status: 200, headers: cors, body: "" });
   });
   const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
@@ -1198,6 +1228,32 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
         );
       }
       return route.fulfill(jsonkan(200, { data: detailLamaranAdmin() }));
+    }
+    // --- Kamus BISINDO publik (PR-086) --- hanya entri terbit.
+    if (jalur === "/api/v1/sign-videos") {
+      const url = new URL(route.request().url());
+      const q = (url.searchParams.get("query") ?? "").toLowerCase();
+      const kategori = url.searchParams.get("category");
+      const data = kamus
+        .filter(
+          (v) =>
+            v.status === "published" &&
+            (q === "" || v.phrase.toLowerCase().includes(q)) &&
+            (kategori === null || v.category === kategori),
+        )
+        .map(kamusPublik);
+      return route.fulfill(jsonkan(200, { data }));
+    }
+    if (/^\/api\/v1\/sign-videos\/[^/]+$/.test(jalur)) {
+      const baris = kamus.find((v) => v.id === jalur.split("/").pop() && v.status === "published");
+      return baris === undefined
+        ? route.fulfill(
+            jsonkan(404, {
+              code: "VIDEO_ISYARAT_TIDAK_DITEMUKAN",
+              message: "Video isyarat tidak ditemukan",
+            }),
+          )
+        : route.fulfill(jsonkan(200, { data: kamusPublik(baris) }));
     }
     // --- Kamus BISINDO (PR-085b) ---
     //
