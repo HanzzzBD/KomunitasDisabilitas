@@ -70,6 +70,7 @@ import {
   signVideoIdParamsSchema,
   signVideoPresignResponseSchema,
   signVideoPresignSchema,
+  signVideoPublicResponseSchema,
   signVideoSearchQuerySchema,
   signVideoSearchResponseSchema,
   updateSignVideoSchema,
@@ -1242,6 +1243,24 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           responses: {
             "200": jsonOk("Entri kamus", signVideoSearchResponseSchema),
             "400": errorResponse("Query tidak valid (mis. kategori tidak dikenal)"),
+            "503": errorResponse("Object storage belum diatur"),
+          },
+        },
+      },
+      "/sign-videos/{id}": {
+        get: {
+          operationId: "getSignVideo",
+          tags: ["signbridge"],
+          summary: "Satu entri kamus BISINDO (publik)",
+          security: [], // sama sifatnya dengan GET /sign-videos
+          description:
+            "Halaman detail kamus (PR-086). Hanya entri `published`; draft dan id yang tidak ada " +
+            "sama-sama 404. URL media presigned kedaluwarsa pada `mediaExpiresAt`.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri kamus", signVideoPublicResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan atau belum terbit"),
             "503": errorResponse("Object storage belum diatur"),
           },
         },

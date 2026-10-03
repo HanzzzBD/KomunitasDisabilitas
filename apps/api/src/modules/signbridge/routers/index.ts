@@ -24,6 +24,12 @@ export function createSignbridgeRouter(
     validate({ query: signVideoSearchQuerySchema }),
     asyncHandler(controller.search),
   );
+  routes.get(
+    "/sign-videos/:id",
+    access.public("Halaman detail entri kamus — sama sifatnya dengan pencarian kamus"),
+    validate({ params: signVideoIdParamsSchema }),
+    asyncHandler(controller.getPublic),
+  );
 
   routes.get("/admin/sign-videos", access.role("admin"), asyncHandler(controller.listAdmin));
   // Didaftarkan SEBELUM `/admin/sign-videos/:id` — tidak bentrok (metode beda),

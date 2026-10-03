@@ -102,9 +102,12 @@ Langkah operator, sekali per environment:
 4. **Endpoint** dari halaman bucket → `STORAGE_ENDPOINT`. Kosongkan
    `STORAGE_REGION`: region diturunkan dari host, dan nilai yang bertentangan
    membuat boot gagal (SigV4 menandatangani region).
-5. **CORS** hanya bila browser mengunggah langsung (presigned PUT, kamus video
-   SignBridge PR-085): atur _CORS rules_ bucket untuk origin web Nawasena saja,
-   operasi `s3_put` dan `s3_get`. Unduhan CV tidak butuh CORS karena dibuka
+5. **CORS** untuk kamus video SignBridge: atur _CORS rules_ bucket untuk origin
+   web Nawasena saja, operasi `s3_put` (unggah presigned dari halaman admin,
+   PR-085) dan `s3_get` (pemutar publik `<video crossorigin>` + `<track>`
+   caption, PR-086). Izinkan header `range` dan `content-type`; expose
+   `content-range`, `accept-ranges`, `content-length` — tanpa itu caption tidak
+   tampil dan seek video gagal. Unduhan CV tidak butuh CORS karena dibuka
    sebagai navigasi biasa.
 
 ```dotenv

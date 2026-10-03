@@ -304,6 +304,11 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     jalur: "/lowongan/:id",
   },
 
+  // PR-086 — kamus BISINDO publik: daftar tanpa filter (satu entri terbit)
+  // dan detail entri itu (pemutar caption-on + transkrip). Tanpa sesi.
+  { nama: "kamus — cari (tanpa filter)", jalur: "/kamus" },
+  { nama: "kamus — detail", jalur: "/kamus/01912345-89ab-7def-8123-4567890aac02" },
+
   // PR-079 — "Lamaran Saya". Detail dibuka LANGSUNG pada lamaran `offered`:
   // tombol tarik + "Saya diterima" + lini masa empat titik.
   { nama: "lamaran saya — daftar", jalur: "/lamaran", butuhSesi: true },

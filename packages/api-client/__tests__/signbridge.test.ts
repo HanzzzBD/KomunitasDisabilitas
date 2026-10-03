@@ -7,9 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createApiClient,
   createSignVideoAdmin,
+  getSignVideo,
   listSignVideosAdmin,
   presignSignVideoMedia,
   publishSignVideoAdmin,
+  searchSignVideos,
   signVideosKeys,
   unpublishSignVideoAdmin,
   updateSignVideoAdmin,
@@ -123,5 +125,39 @@ describe("presignSignVideoMedia", () => {
     });
     expect(hasil).toEqual(izin);
     expect(permintaan(fetch).url).toBe("https://x/api/v1/admin/sign-videos/presign");
+  });
+});
+
+describe("kamus publik (PR-086)", () => {
+  const PUBLIK = {
+    id: ID,
+    phrase: "Terima kasih",
+    category: "salam",
+    transcript: "Tangan kanan di dagu.",
+    durationS: null,
+    videoUrl: "https://storage.test/v.mp4?sig=1",
+    captionUrl: "https://storage.test/c.vtt?sig=1",
+    thumbnailUrl: null,
+    mediaExpiresAt: "2026-10-03T00:05:00.000Z",
+  };
+
+  it("search menyusun query hanya dari filter yang diisi", async () => {
+    const fetch = vi.fn(() => Promise.resolve(jsonResponse(200, { data: [PUBLIK] })));
+    expect(
+      await searchSignVideos(klien(fetch), { query: "terima kasih", category: "salam" }),
+    ).toEqual([PUBLIK]);
+    expect(permintaan(fetch).url).toBe(
+      "https://x/api/v1/sign-videos?query=terima+kasih&category=salam",
+    );
+    fetch.mockClear();
+    await searchSignVideos(klien(fetch), { query: "" });
+    expect(permintaan(fetch).url).toBe("https://x/api/v1/sign-videos");
+  });
+
+  it("detail membuka amplop; key cache dilingkupi id", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: PUBLIK }));
+    expect(await getSignVideo(klien(fetch), ID)).toEqual(PUBLIK);
+    expect(permintaan(fetch).url).toBe(`https://x/api/v1/sign-videos/${ID}`);
+    expect(signVideosKeys.detail(ID)).toEqual(["sign-video", { id: ID }]);
   });
 });

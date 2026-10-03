@@ -100,6 +100,11 @@ export const katalogShell = {
     id: "Lamaran Saya",
     "id-simple": "Lamaran saya",
   },
+  "shell.pintas.kamus": {
+    // Sama dengan judul halaman tujuannya — alasan sama dengan `shell.pintas.profil`.
+    id: "Kamus BISINDO",
+    "id-simple": "Kamus isyarat",
+  },
   "shell.pintas.aksesibilitas": {
     // Menyebut DUA kata yang akan ia temui di halaman tujuan: "Pengaturan"
     // (judul halaman) dan "Aksesibilitas" (judul panel). Pengguna mencocokkan

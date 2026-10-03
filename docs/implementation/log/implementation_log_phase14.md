@@ -251,3 +251,92 @@ caption & video bisa diunduh dari URL presigned. Berjalan di CI (MinIO yang sama
 ### Next steps
 
 * **PR-086** — halaman kamus publik: cari, kategori, pemutar caption-on + transkrip.
+
+---
+
+## PR-086 — Kamus BISINDO FE — Pencarian + Player
+
+> **Phase:** [14 - SignBridge v1 & Simplify](../phase-14-signbridge-simplify.md#pr-086---kamus-bisindo-fe--pencarian--player)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai (Manual Verification "penguji Tuli — sprint review" di luar jangkauan agent)
+> **Branch:** `pr-086-kamus-publik` → `phase-14-signbridge-simplify`
+
+### Ringkasan hasil
+
+Kamus BISINDO kini terbuka untuk siapa pun di `/kamus`, tanpa perlu masuk. Pengguna mencari kata,
+menyaring kategori, membuka entri di halaman sendiri (`/kamus/:id`), lalu menonton video dengan
+**caption menyala sejak awal** dan **transkrip di bawah** pemutar. Pemutarnya berkontrol sendiri
+dan bisa dipakai penuh dengan keyboard, termasuk **kecepatan 0,5×/0,75×/1×**.
+
+### Keputusan owner (AskUserQuestion, 2026-10-03)
+
+1. **Halaman detail `/kamus/:id`** (bukan pemutar di atas grid): bisa dibagikan dan di-bookmark,
+   alur paling bisa diprediksi. Konsekuensinya satu endpoint publik baru: `GET /sign-videos/:id`.
+2. **Kontrol pemutar sendiri + kecepatan** (bukan `<video controls>` bawaan browser).
+3. **Akses dari dua tempat:** pintasan "Kamus BISINDO" di kerangka (pengguna yang sudah masuk) dan
+   bagian di beranda publik.
+
+### Scope selesai
+
+**API** — `GET /api/v1/sign-videos/:id` (publik). Hanya entri terbit; draft dan id yang tidak ada
+**sama-sama 404**, supaya publik tidak tahu entri sedang disiapkan atau baru ditarik. URL media
+presigned; storage absen → 503. OpenAPI diperbarui. Unit + integrasi DB.
+
+**api-client** — `searchSignVideos`, `getSignVideo`, `signVideosKeys.search/detail`.
+
+**Web — `features/kamus/*`, `routes/kamus*.tsx`, katalog baru `kamus`:**
+
+* **Pencarian** — `<form role="search">` dikirim lewat tombol, bukan per ketukan (WCAG 3.2.2).
+  Filter masuk URL (`?q=&kategori=`). Jumlah hasil diumumkan `role="status"`. Fokus kartu
+  dipulihkan saat Kembali dari detail (pola `/lowongan`).
+* **Kartu berlabel** — `<li>` dengan `<h3>` berisi satu tautan bernama frasa. Gambar sampul
+  dekoratif (`alt=""`) karena isinya sudah dikatakan judul.
+* **Pemutar** (`pemutar.tsx`):
+  * `<track kind="captions" default>` + mode `showing` saat metadata termuat.
+  * `crossOrigin="anonymous"`, karena tanpa itu caption dari bucket diblokir.
+  * **Tanpa autoplay dan tanpa loop**; video baru bergerak saat pengguna meminta.
+  * Kontrol semuanya elemen natif, tanpa penangan keyboard buatan: Putar/Jeda, Mundur/Maju
+    2 detik, Caption (`aria-pressed`), slider Posisi (`aria-valuetext` "0:01 dari 0:03"), slider
+    Volume, pilihan Kecepatan.
+  * Video merujuk transkrip lewat `aria-describedby`.
+* **URL kedaluwarsa** — Putar setelah `mediaExpiresAt`, atau video gagal dimuat → entri diambil
+  ulang, lalu diputar setelah termuat. Permintaan tetap milik pengguna, bukan autoplay. Query
+  detail tidak diambil ulang saat fokus jendela kembali, karena `src` yang berganti akan memulai
+  video dari awal.
+* Durasi tak-hingga (WebM dari perekam browser) ditangani: slider menunggu angka yang terbatas.
+* Pintasan kerangka + bagian beranda; dua halaman masuk registry `HALAMAN`.
+
+### Acceptance Criteria
+
+* [x] Cari→tonton end-to-end — `e2e/kamus.spec.ts` (keyboard saja).
+* [x] Caption default menyala; transkrip tampil di bawah — jsdom + e2e (`textTracks[0].mode ===
+  "showing"` di Chromium sungguhan).
+* [x] Player operable penuh keyboard (play/pause/seek/volume) — e2e memutar media sungguhan.
+  Pakai **WAV hening 3 detik** karena WebM dari MediaRecorder tidak menyimpan durasi. Route
+  media menjawab **Range 206** seperti bucket sungguhan; tanpa itu Chrome menganggap media tidak
+  bisa di-seek.
+* [x] Grid hasil aksesibel (kartu berlabel).
+* [x] axe pass + reduce-motion dihormati (tanpa autoplay).
+
+### Verifikasi
+
+* `pnpm lint`, `pnpm typecheck`, `format:check`, `check:openapi` hijau; `cek:budget`
+  109.1 / 200 KB (rute kamus lazy, katalog `kamus` malas).
+* Unit: `kamus.test.tsx` (5), api-client `signbridge.test.ts` (+2), api `signbridge.test.ts`
+  (+1), `signbridge-db.test.ts` (+1). Playwright penuh: lihat badan PR.
+
+### Risiko & catatan
+
+* **CORS bucket untuk pemutaran (staging/produksi):** `<video crossorigin>` dan `<track>` membaca
+  dari bucket lintas asal. Aturan CORS B2 wajib mengizinkan **GET** dari origin web, dengan header
+  `Range` diterima dan `Content-Range`/`Accept-Ranges`/`Content-Length` di-expose. Tanpa itu caption
+  tidak tampil dan seek gagal. README core/storage langkah 5 sudah diperbarui.
+* **Manual Verification (penguji Tuli)** ada di sprint review. Itu bukan pekerjaan yang bisa
+  diwakili agent.
+* Preferensi "Utamakan konten BISINDO" (onboarding/aksesibilitas) belum mengubah apa pun di UI.
+  Teks bantuannya masih menyebut video "menyusul". Kini kamus sudah ada, jadi layak ditinjau saat
+  ada konten BISINDO di halaman lain (di luar scope PR-086).
+
+### Next steps
+
+* **PR-087** — simplify-text AI di detail lowongan.

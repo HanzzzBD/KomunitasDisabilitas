@@ -29,6 +29,12 @@ export function createSignVideosController(service: SignVideosService) {
       res.status(200).json({ data: await service.search(query) });
     },
 
+    /** GET /api/v1/sign-videos/:id → 200 satu entri terbit. */
+    async getPublic(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as SignVideoIdParams;
+      res.status(200).json({ data: await service.getPublic(id) });
+    },
+
     /** GET /api/v1/admin/sign-videos → 200 seluruh entri. */
     async listAdmin(_req: Request, res: Response): Promise<void> {
       res.status(200).json({ data: await service.listAdmin() });

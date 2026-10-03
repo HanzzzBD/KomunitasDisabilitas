@@ -222,4 +222,11 @@ export const katalogBeranda = {
   // kunci `beranda.meta.judul` tersendiri. Judul tab dan judul besar di layar
   // yang boleh berbeda akan berbeda — lalu pengguna yang mencari kembali
   // halamannya di antara belasan tab tidak menemukan kalimat yang tadi ia baca.
+  // PR-086 — kamus publik, terbuka sebelum mendaftar (ADR-010 v1).
+  "beranda.kamus.judul": { id: "Kamus BISINDO", "id-simple": "Kamus bahasa isyarat" },
+  "beranda.kamus.isi": {
+    id: "Pelajari isyarat untuk salam, wawancara kerja, dan tempat kerja. Gratis, tanpa perlu masuk.",
+    "id-simple": "Belajar bahasa isyarat untuk kerja. Gratis. Tidak perlu masuk.",
+  },
+  "beranda.kamus.tautan": { id: "Buka kamus", "id-simple": "Lihat kamus isyarat" },
 } as const satisfies KatalogFitur;

@@ -197,6 +197,20 @@ export function createSignVideosService(deps: SignVideosServiceDeps) {
       return Promise.all(rows.map((row) => kePublik(row, storage)));
     },
 
+    /**
+     * GET /api/v1/sign-videos/:id — satu entri untuk halaman detail (PR-086).
+     * Draft dijawab 404 yang SAMA dengan id yang tidak ada: publik tidak perlu
+     * tahu entri itu sedang disiapkan atau baru ditarik.
+     */
+    async getPublic(id: string): Promise<SignVideoPublic> {
+      if (storage === undefined) throw appError("BELUM_SIAP");
+      const row = await repository.findById(id);
+      if (row === null || row.status !== "published") {
+        throw appError("VIDEO_ISYARAT_TIDAK_DITEMUKAN");
+      }
+      return kePublik(row, storage);
+    },
+
     /** GET /api/v1/admin/sign-videos — seluruh entri termasuk draft. */
     async listAdmin(): Promise<SignVideoAdmin[]> {
       return (await repository.listAll()).map(keAdmin);

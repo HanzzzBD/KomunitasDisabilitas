@@ -222,6 +222,13 @@ export function TataLetak() {
           >
             {t("shell.pintas.lamaran")}
           </Link>
+          {/* PR-086 — kamus publik; pintasan bagi yang sudah masuk (keputusan owner). */}
+          <Link
+            to="/kamus"
+            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
+          >
+            {t("shell.pintas.kamus")}
+          </Link>
           <Link
             to="/pengaturan/aksesibilitas"
             className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"

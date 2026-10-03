@@ -318,6 +318,20 @@ describe("pencarian publik", () => {
     expect((await cari(`category=wawancara&query=${KATA}`)).map((v) => v.id)).toContain(terbit.id);
   });
 
+  it("detail publik: terbit 200, draft 404 tanpa sesi (PR-086)", async (ctx) => {
+    if (!tersedia) return ctx.skip();
+    const terbit = await buatDraft(`Detail ${KATA}`);
+    await lengkapiDanTerbitkan(terbit.id);
+    const draft = await buatDraft(`Detail rahasia ${KATA}`);
+
+    const ok = await panggil(null, "GET", `/sign-videos/${terbit.id}`);
+    expect(ok.status).toBe(200);
+    const { data } = (await ok.json()) as { data: SignVideoPublic };
+    expect(data.captionUrl).toContain("caption.vtt");
+    expect((await panggil(null, "GET", `/sign-videos/${draft.id}`)).status).toBe(404);
+    expect((await panggil(null, "GET", "/sign-videos/bukan-uuid")).status).toBe(400);
+  });
+
   it("kategori di luar daftar → 400", async (ctx) => {
     if (!tersedia) return ctx.skip();
     expect((await panggil(null, "GET", "/sign-videos?category=olahraga")).status).toBe(400);

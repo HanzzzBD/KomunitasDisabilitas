@@ -4234,6 +4234,73 @@
         }
       }
     },
+    "/sign-videos/{id}": {
+      "get": {
+        "operationId": "getSignVideo",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Satu entri kamus BISINDO (publik)",
+        "security": [],
+        "description": "Halaman detail kamus (PR-086). Hanya entri `published`; draft dan id yang tidak ada sama-sama 404. URL media presigned kedaluwarsa pada `mediaExpiresAt`.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entri kamus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoPublicResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan atau belum terbit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Object storage belum diatur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/sign-videos": {
       "get": {
         "operationId": "listSignVideosAdmin",
@@ -10008,6 +10075,17 @@
           "captionUrl",
           "thumbnailUrl",
           "mediaExpiresAt"
+        ]
+      },
+      "SignVideoPublicResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignVideoPublic"
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "SignVideoAdminListResponse": {

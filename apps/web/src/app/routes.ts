@@ -441,6 +441,29 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        // Kamus BISINDO publik (PR-086) — tanpa penjagaan, `GET /sign-videos`
+        // publik di server; pola sama `lowongan`.
+        path: "kamus",
+        lazy: async () => {
+          const [{ Kamus }] = await Promise.all([
+            import("../routes/kamus.js"),
+            muatKatalog("kamus"),
+          ]);
+          return { Component: Kamus };
+        },
+      },
+      {
+        // Detail entri kamus — SAUDARA `kamus`, halaman penuh (pola `lowongan/:id`).
+        path: "kamus/:id",
+        lazy: async () => {
+          const [{ KamusDetail }] = await Promise.all([
+            import("../routes/kamus-detail.js"),
+            muatKatalog("kamus"),
+          ]);
+          return { Component: KamusDetail };
+        },
+      },
+      {
         // Cari lowongan (PR-058, US-08) — SAUDARA `companies/:id`, alasan
         // yang sama: halaman publik, sering tanpa sesi, tanpa penjagaan sama
         // sekali (`GET /jobs` publik di server, PR-056).
