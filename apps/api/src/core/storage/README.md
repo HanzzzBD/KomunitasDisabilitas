@@ -58,11 +58,11 @@ Jalankan `docker compose -f docker-compose.dev.yml up minio`, isi nilai di bawah
 `apps/api/.env` (worker `pnpm dev` ikut membacanya), lalu buat bucket sekali dengan
 `pnpm --filter @nawasena/api storage:siapkan-bucket`. Skrip itu idempoten dan menolak
 staging/production. Di stack compose penuh, service `minio-init` menjalankannya otomatis,
-dan API memakai `STORAGE_PUBLIC_ENDPOINT=http://127.0.0.1:9000` agar URL presigned yang
+dan API memakai `STORAGE_PUBLIC_ENDPOINT=http://127.0.0.1:9010` agar URL presigned yang
 ditandatangani untuk host `minio` tetap dapat dibuka browser di host.
 
 ```dotenv
-STORAGE_ENDPOINT=http://127.0.0.1:9000
+STORAGE_ENDPOINT=http://127.0.0.1:9010
 STORAGE_ACCESS_KEY_ID=nawasena-minio
 STORAGE_SECRET_ACCESS_KEY=nawasena-minio-secret
 STORAGE_BUCKET_PREFIX=nawasena
