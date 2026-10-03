@@ -35,6 +35,7 @@ import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
 import { createApplicationsModule } from "../src/modules/applications/index.js";
 import { createAdminModule } from "../src/modules/admin/index.js";
+import { createSignbridgeModule } from "../src/modules/signbridge/index.js";
 import { BOBOT_SKOR_SDD, createMatchingFeedModule } from "../src/modules/matching/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
@@ -174,6 +175,13 @@ function routeNyata(): { method: string; path: string }[] {
     cache: stub(),
     bacaDlqTotal: stub(),
     logger,
+  });
+
+  createSignbridgeModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: auditLog as never,
+    storage: undefined,
   });
 
   // Permukaan operasional — ikut dirakit supaya test terakhir benar-benar

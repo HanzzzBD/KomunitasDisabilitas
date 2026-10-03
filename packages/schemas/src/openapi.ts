@@ -64,6 +64,15 @@ import {
   moderateUserSchema,
 } from "./admin-users.js";
 import {
+  createSignVideoSchema,
+  signVideoAdminListResponseSchema,
+  signVideoAdminResponseSchema,
+  signVideoIdParamsSchema,
+  signVideoSearchQuerySchema,
+  signVideoSearchResponseSchema,
+  updateSignVideoSchema,
+} from "./signbridge.js";
+import {
   companyActiveJobsResponseSchema,
   createJobSchema,
   jobAdminListResponseSchema,
@@ -1211,6 +1220,89 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "400": errorResponse("Alasan kosong / id tidak valid"),
             "404": errorResponse("Akun tidak ditemukan"),
             "409": errorResponse("Akun tidak sedang ditangguhkan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      // Kamus video BISINDO (PR-084, SignBridge v1, ADR-010). Pencarian publik;
+      // mutasi admin. Publish menuntut video + caption (.vtt) + transkrip.
+      "/sign-videos": {
+        get: {
+          operationId: "searchSignVideos",
+          tags: ["signbridge"],
+          summary: "Cari kamus video BISINDO (publik)",
+          security: [], // kamus terbuka bagi siapa pun, termasuk sebelum mendaftar
+          description:
+            "Hanya entri `published`. `query` dicari lewat full-text bahasa Indonesia " +
+            "ditambah kecocokan sebagian frasa; tanpa `query` diurutkan menurut frasa. " +
+            "URL media presigned dan kedaluwarsa pada `mediaExpiresAt`.",
+          requestParams: { query: signVideoSearchQuerySchema },
+          responses: {
+            "200": jsonOk("Entri kamus", signVideoSearchResponseSchema),
+            "400": errorResponse("Query tidak valid (mis. kategori tidak dikenal)"),
+            "503": errorResponse("Object storage belum diatur"),
+          },
+        },
+      },
+      "/admin/sign-videos": {
+        get: {
+          operationId: "listSignVideosAdmin",
+          tags: ["signbridge"],
+          summary: "Daftar seluruh entri kamus (admin)",
+          description: "Draft dan published, terbaru dulu. Tanpa pagination (skala pilot).",
+          responses: {
+            "200": jsonOk("Daftar entri", signVideoAdminListResponseSchema),
+            ...responsAdmin,
+          },
+        },
+        post: {
+          operationId: "createSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Tambah entri kamus (admin)",
+          description: "Selalu lahir `draft`. Key media diisi lewat PUT setelah unggah.",
+          requestBody: jsonBody(createSignVideoSchema),
+          responses: {
+            "201": jsonOk("Entri baru", signVideoAdminResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/sign-videos/{id}": {
+        put: {
+          operationId: "updateSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Perbarui entri kamus (admin)",
+          description:
+            "Field yang tidak dikirim tidak diubah; `null` mengosongkan. Key media wajib " +
+            "berbentuk `sign-videos/{id}/{berkas}` dengan ekstensi sesuai jenisnya. Pada entri " +
+            "`published`, mengosongkan video/caption/transkrip ditolak 422.",
+          requestParams: { path: signVideoIdParamsSchema },
+          requestBody: jsonBody(updateSignVideoSchema),
+          responses: {
+            "200": jsonOk("Entri setelah diperbarui", signVideoAdminResponseSchema),
+            "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "422": errorResponse("Key media tidak valid, atau entri terbit menjadi tidak lengkap"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/sign-videos/{id}/publish": {
+        post: {
+          operationId: "publishSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Terbitkan entri kamus (admin)",
+          description:
+            "draft → published (satu arah, audit `ADMIN_RESOURCE_CHANGED`). Ditolak 422 bila " +
+            "video, caption (.vtt), atau transkrip belum ada — `hint` menyebut yang kurang.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri setelah terbit", signVideoAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Sudah diterbitkan"),
+            "422": errorResponse("Video, caption, atau transkrip belum ada"),
             ...responsAdmin,
           },
         },

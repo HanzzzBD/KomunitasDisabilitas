@@ -4161,6 +4161,413 @@
         }
       }
     },
+    "/sign-videos": {
+      "get": {
+        "operationId": "searchSignVideos",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Cari kamus video BISINDO (publik)",
+        "security": [],
+        "description": "Hanya entri `published`. `query` dicari lewat full-text bahasa Indonesia ditambah kecocokan sebagian frasa; tanpa `query` diurutkan menurut frasa. URL media presigned dan kedaluwarsa pada `mediaExpiresAt`.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "description": "Cari frasa (full-text bahasa Indonesia)",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Cari frasa (full-text bahasa Indonesia)"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "$ref": "#/components/schemas/SignVideoCategory"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entri kamus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query tidak valid (mis. kategori tidak dikenal)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Object storage belum diatur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sign-videos": {
+      "get": {
+        "operationId": "listSignVideosAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Daftar seluruh entri kamus (admin)",
+        "description": "Draft dan published, terbaru dulu. Tanpa pagination (skala pilot).",
+        "responses": {
+          "200": {
+            "description": "Daftar entri",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoAdminListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSignVideoAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Tambah entri kamus (admin)",
+        "description": "Selalu lahir `draft`. Key media diisi lewat PUT setelah unggah.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSignVideo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Entri baru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoAdminResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sign-videos/{id}": {
+      "put": {
+        "operationId": "updateSignVideoAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Perbarui entri kamus (admin)",
+        "description": "Field yang tidak dikirim tidak diubah; `null` mengosongkan. Key media wajib berbentuk `sign-videos/{id}/{berkas}` dengan ekstensi sesuai jenisnya. Pada entri `published`, mengosongkan video/caption/transkrip ditolak 422.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSignVideo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entri setelah diperbarui",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoAdminResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid, atau `id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Key media tidak valid, atau entri terbit menjadi tidak lengkap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sign-videos/{id}/publish": {
+      "post": {
+        "operationId": "publishSignVideoAdmin",
+        "tags": [
+          "signbridge"
+        ],
+        "summary": "Terbitkan entri kamus (admin)",
+        "description": "draft → published (satu arah, audit `ADMIN_RESOURCE_CHANGED`). Ditolak 422 bila video, caption (.vtt), atau transkrip belum ada — `hint` menyebut yang kurang.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entri setelah terbit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignVideoAdminResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bukan admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sudah diterbitkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Video, caption, atau transkrip belum ada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/metrics": {
       "get": {
         "operationId": "getAdminMetrics",
@@ -9332,6 +9739,304 @@
         "required": [
           "data"
         ]
+      },
+      "SignVideoCategory": {
+        "type": "string",
+        "enum": [
+          "salam",
+          "perkenalan",
+          "wawancara",
+          "tempat_kerja",
+          "akomodasi",
+          "waktu",
+          "angka",
+          "umum"
+        ]
+      },
+      "SignVideoSearchResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignVideoPublic"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SignVideoPublic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "phrase": {
+            "type": "string"
+          },
+          "category": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SignVideoCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transcript": {
+            "type": "string"
+          },
+          "durationS": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "videoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "captionUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "mediaExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "phrase",
+          "category",
+          "transcript",
+          "durationS",
+          "videoUrl",
+          "captionUrl",
+          "thumbnailUrl",
+          "mediaExpiresAt"
+        ]
+      },
+      "SignVideoAdminListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignVideoAdmin"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SignVideoAdmin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "phrase": {
+            "type": "string"
+          },
+          "category": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SignVideoCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/SignVideoStatus"
+          },
+          "videoKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thumbnailKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "captionKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transcript": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationS": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "phrase",
+          "category",
+          "status",
+          "videoKey",
+          "thumbnailKey",
+          "captionKey",
+          "transcript",
+          "durationS",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "SignVideoStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published"
+        ]
+      },
+      "CreateSignVideo": {
+        "type": "object",
+        "properties": {
+          "phrase": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "category": {
+            "$ref": "#/components/schemas/SignVideoCategory"
+          },
+          "transcript": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "durationS": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          }
+        },
+        "required": [
+          "phrase",
+          "category"
+        ],
+        "additionalProperties": false
+      },
+      "SignVideoAdminResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignVideoAdmin"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateSignVideo": {
+        "type": "object",
+        "properties": {
+          "phrase": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "category": {
+            "$ref": "#/components/schemas/SignVideoCategory"
+          },
+          "transcript": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "durationS": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 600
+          },
+          "videoKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "thumbnailKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "captionKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "additionalProperties": false
       },
       "AdminMetricsResponse": {
         "type": "object",

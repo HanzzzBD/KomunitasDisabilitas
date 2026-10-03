@@ -608,12 +608,20 @@ model Notification {
 
 /// SignBridge v1: kamus video BISINDO (SDD §6.2 poin 5) — CRUD admin +
 /// list publik; FTS phrase via raw SQL.
+///
+/// Kolom `*Key` = key object storage (`sign-videos/{id}/...`), bukan URL —
+/// bucket privat, URL presigned dibuat saat dibaca (migrasi 23, PR-084).
+/// Kategori divalidasi zod (`signVideoCategorySchema`), bukan enum DB.
+/// CHECK `sign_videos_terbit_lengkap`: published wajib video+caption+transkrip.
 model SignVideo {
   id           String          @id @db.Uuid
   phrase       String
   category     String?
-  videoUrl     String          @map("video_url")
-  thumbnailUrl String?         @map("thumbnail_url")
+  videoKey     String?         @map("video_key")
+  thumbnailKey String?         @map("thumbnail_key")
+  /// Berkas WebVTT — dibaca elemen <track> pemutar (PR-086).
+  captionKey   String?         @map("caption_key")
+  transcript   String?
   durationS    Int?            @map("duration_s")
   status       SignVideoStatus @default(draft)
 
