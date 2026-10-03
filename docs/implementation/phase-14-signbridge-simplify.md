@@ -147,11 +147,11 @@ Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung
 
 **Testing Checklist:**
 
-* [ ] Unit Test (validasi file)
-* [ ] Integration Test (presign)
-* [ ] E2E Test (upload→publish)
-* [ ] Accessibility Test (axe + progress SR)
-* [ ] Manual Verification (video nyata staging)
+* [x] Unit Test (validasi file)
+* [x] Integration Test (presign) — termasuk PUT nyata ke MinIO (`signbridge-minio.test.ts`)
+* [x] E2E Test (upload→publish)
+* [x] Accessibility Test (axe + progress SR)
+* [ ] Manual Verification (video nyata staging) — staging belum ada (Phase 16)
 
 **Deliverables:**
 
@@ -167,11 +167,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Upload video+vtt+thumbnail → publish end-to-end (MinIO).
-* [ ] Progress upload diumumkan `aria-live` (persen).
-* [ ] Validasi tipe/ukuran di presign (server).
-* [ ] Form keyboard-only + axe pass.
-* [ ] Gagal upload → pesan jelas + retry.
+* [x] Upload video+vtt+thumbnail → publish end-to-end (MinIO).
+* [x] Progress upload diumumkan `aria-live` (persen).
+* [x] Validasi tipe/ukuran di presign (server).
+* [x] Form keyboard-only + axe pass.
+* [x] Gagal upload → pesan jelas + retry.
 
 #### Dependencies
 

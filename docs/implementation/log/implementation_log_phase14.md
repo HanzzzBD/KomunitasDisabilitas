@@ -173,3 +173,81 @@ ke draft.
 
 * **PR-085b** — `api-client` + halaman admin "Kamus BISINDO": daftar, formulir metadata +
   transkrip, tiga slot unggah ber-progres `aria-live`, terbitkan/tarik dengan konfirmasi.
+
+---
+
+## PR-085b — Admin Sign-Videos FE — Upload (halaman "Kamus BISINDO")
+
+> **Phase:** [14 - SignBridge v1 & Simplify](../phase-14-signbridge-simplify.md#pr-085---admin-sign-videos-fe--upload)
+> **Tanggal:** 2026-10-03
+> **Status:** Selesai (Manual Verification "video nyata staging" menunggu staging — lihat Risiko)
+> **Branch:** `pr-085b-admin-kamus-web` → `phase-14-signbridge-simplify`
+
+### Ringkasan hasil
+
+Tim konten (non-engineer) kini bisa mengelola kamus dari bagian admin **Kamus BISINDO**: daftar
+dengan kolom kelengkapan, formulir frasa + kategori + transkrip, tiga slot unggah (video, caption,
+gambar sampul) yang mengunggah **langsung ke bucket** dengan progres yang diumumkan, lalu
+Terbitkan atau Tarik ke draf.
+
+### Scope selesai
+
+**`@nawasena/api-client` — `endpoints/signbridge.ts`:** list/create/update/publish/unpublish +
+`presignSignVideoMedia` (skema yang sama dengan server; berkas yang pasti ditolak tidak memakan
+permintaan) + `signVideosKeys`.
+
+**Web — `features/admin/kamus-*`, `routes/admin-kamus*.tsx`:**
+
+* `kamus-unggah.ts` — `unggahKeStorage` memakai **XMLHttpRequest**, bukan fetch: hanya XHR yang
+  melaporkan progres unggah. Header izin dikirim apa adanya (ikut ditandatangani). `tipeBerkas`
+  mengenali `.vtt` dari ekstensi karena **Windows memberi `File.type` kosong untuk .vtt**; tanpa
+  itu caption sah tertolak. `periksaBerkas` memvalidasi dini dari `SIGN_VIDEO_MEDIA`.
+* `kamus-slot-unggah.tsx` — satu slot per berkas (keputusan owner): pilih → presign → PUT
+  (progres) → simpan key. `<progress>` memegang angka persis; `role="status"` mengumumkan
+  kelipatan 25% + selesai, tanpa membanjiri pembaca layar. Galat `role="alert"` + "Coba lagi"
+  yang mengulang berkas yang sama, plus "Batalkan" (AbortController). XHR dihentikan saat halaman
+  ditinggal.
+* `kamus-daftar.tsx` — filter status, urut frasa/status, kolom **Kelengkapan** sebagai teks
+  ("Kurang: caption (.vtt), transkrip"), bukan ikon.
+* `admin-kamus-formulir.tsx` — buat → langsung ke halaman ubah (pola jobs). **Terbitkan**
+  `aria-disabled` dengan `aria-describedby` ke daftar yang kurang (cermin 422 server).
+  **Tarik ke draf** wajib dialog konfirmasi (dampaknya publik).
+* Navigasi admin + kartu ringkasan "Kamus BISINDO"; 3 rute lazy; ±90 entri katalog `id` +
+  `id-simple` (tanpa varian identik).
+
+**API (test saja):** `signbridge-minio.test.ts` — HTTP + PostgreSQL + **MinIO nyata**: presign ×3
+→ PUT langsung ke bucket → simpan key (422 bila sebelum unggah) → publish → pencarian publik →
+caption & video bisa diunduh dari URL presigned. Berjalan di CI (MinIO yang sama dengan
+`storage-minio.test.ts`).
+
+### Acceptance Criteria
+
+* [x] Upload video+vtt+thumbnail → publish end-to-end (MinIO) — `signbridge-minio.test.ts`
+  (MinIO nyata) + `e2e/admin-kamus.spec.ts` (alur UI di browser, bucket dicegat).
+* [x] Progress upload diumumkan `aria-live` (persen) — `role="status"` per 25% + `<progress>`
+  berlabel (test jsdom + e2e).
+* [x] Validasi tipe/ukuran di presign (server) — PR-085a; klien memvalidasi lebih dulu.
+* [x] Form keyboard-only + axe pass — e2e keyboard-only, axe di tiap langkah termasuk dialog; 3
+  halaman masuk registry `HALAMAN`.
+* [x] Gagal upload → pesan jelas + retry — e2e (403 dari bucket → alert → Coba lagi berhasil) +
+  jsdom.
+
+### Verifikasi
+
+* `pnpm lint`, `pnpm typecheck` hijau; `cek:budget` 108.9 / 200 KB (rute kamus lazy).
+* Playwright penuh **157 lulus** (termasuk 3 halaman registry baru + 2 alur kamus).
+* Unit: `kamus-unggah.test.ts` (8), `admin-kamus.test.tsx` (5), api-client `signbridge.test.ts`
+  (7), `signbridge-minio.test.ts` (1, MinIO nyata).
+
+### Risiko & catatan
+
+* **Manual Verification "video nyata staging"** belum bisa dilakukan: staging belum ada (Phase 16).
+  Penggantinya: unggah nyata ke MinIO otomatis di CI. Saat staging lahir, CORS bucket B2 wajib
+  diatur (README core/storage langkah 5), atau unggah dari browser gagal di preflight.
+* Durasi video (`durationS`) belum diisi otomatis dari metadata video — opsional, tidak dipakai UI
+  publik PR-086 untuk keputusan apa pun.
+* Objek yatim di bucket → utang **U-34** (PR-085a).
+
+### Next steps
+
+* **PR-086** — halaman kamus publik: cari, kategori, pemutar caption-on + transkrip.

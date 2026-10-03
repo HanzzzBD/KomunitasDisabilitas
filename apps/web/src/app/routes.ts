@@ -380,6 +380,37 @@ export const ruteApp: RouteObject[] = [
             },
           },
           {
+            // Kamus video BISINDO (PR-085b) — daftar, buat, ubah + unggah media.
+            path: "kamus",
+            lazy: async () => {
+              const [{ AdminKamusDaftar }] = await Promise.all([
+                import("../routes/admin-kamus.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusDaftar };
+            },
+          },
+          {
+            path: "kamus/baru",
+            lazy: async () => {
+              const [{ AdminKamusFormulir }] = await Promise.all([
+                import("../routes/admin-kamus-formulir.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusFormulir };
+            },
+          },
+          {
+            path: "kamus/:id",
+            lazy: async () => {
+              const [{ AdminKamusFormulir }] = await Promise.all([
+                import("../routes/admin-kamus-formulir.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusFormulir };
+            },
+          },
+          {
             path: "lamaran/:id",
             lazy: async () => {
               const [{ AdminLamaranDetail }] = await Promise.all([
