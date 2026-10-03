@@ -30,7 +30,9 @@ services:
     image: redis:7.4-alpine
     command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
-      - "6379:6379"
+      # Port host 6381, bukan 6379: 6379 lazim sudah dipakai Redis proyek lain
+      # di mesin pengembang, dan klien lalu diam-diam tersambung ke Redis yang salah.
+      - "6381:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -66,8 +68,9 @@ services:
       MINIO_ROOT_USER: nawasena-minio
       MINIO_ROOT_PASSWORD: nawasena-minio-secret
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      # Port host 9010/9011, bukan 9000/9001 — alasan sama dengan redis-cache.
+      - "9010:9000"
+      - "9011:9001"
     volumes:
       - miniodata:/data
 
@@ -116,7 +119,7 @@ services:
       STORAGE_ENDPOINT: http://minio:9000
       # URL unduh dibuka browser di host, yang tidak mengenal nama `minio`
       # (U-23, PR-064b). Upload tetap lewat jaringan compose.
-      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9010
       STORAGE_ACCESS_KEY_ID: nawasena-minio
       STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
       STORAGE_BUCKET_PREFIX: nawasena

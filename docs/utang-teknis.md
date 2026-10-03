@@ -621,7 +621,7 @@ adalah bagian dari SigV4, jadi mengganti host setelah sign akan membatalkan tand
 upload tetap lewat `STORAGE_ENDPOINT`. Presign berjalan offline, client kedua tidak pernah
 membuka koneksi. Kosong = perilaku lama (R2/produksi tidak berubah). Ditolak bila
 `STORAGE_ENDPOINT` kosong, dan wajib HTTPS pada production. Compose dev mengisi API dengan
-`http://127.0.0.1:9000`.
+`http://127.0.0.1:9000` (port host kemudian dipindah ke 9010 — 9000 bentrok dengan MinIO proyek lain).
 
 ---
 

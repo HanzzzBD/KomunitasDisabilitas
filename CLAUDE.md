@@ -351,7 +351,7 @@ describe("matching service", () => {
 ```bash
 # apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
 DATABASE_URL="postgresql://nawasena:nawasena@localhost:5433/nawasena"
-REDIS_URL="redis://localhost:6379"
+REDIS_URL="redis://localhost:6381"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
 ```
