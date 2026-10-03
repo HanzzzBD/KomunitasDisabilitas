@@ -281,6 +281,7 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 **Frontend Changes:**
 
 * Aksi suspend di tabel user admin.
+* **Realisasi (PR-083b):** bagian admin baru `/admin/pengguna` (`features/admin/pengguna-daftar.tsx` + dialog dua langkah `pengguna-moderasi.tsx`), saringan "akun ditangguhkan" di daftar lamaran admin, pesan `AKUN_DITANGGUHKAN` di jalur masuk Google.
 
 **Database Changes:**
 
@@ -301,8 +302,8 @@ Bisnis: perlindungan komunitas dari penyalahgunaan (FR-6.2). Teknis: `suspended_
 
 * [x] Unit Test (guard login)
 * [x] Integration Test (siklus suspend)
-* [ ] E2E Test (admin flow)
-* [ ] Accessibility Test (dialog)
+* [x] E2E Test (admin flow)
+* [x] Accessibility Test (dialog) — axe + keyboard + [NVDA](log/pr-083-nvda-checklist.md)
 * [ ] Manual Verification (akun uji)
 
 **Deliverables:**
@@ -322,7 +323,7 @@ Migrasi additive; RB-Std.
 * [x] Suspended tidak bisa login/refresh (test).
 * [x] Alasan wajib; audit tercatat.
 * [x] Unsuspend memulihkan akses.
-* [ ] Konfirmasi dua langkah di FE.
+* [x] Konfirmasi dua langkah di FE.
 * [x] Suspended tidak muncul di feed employer/admin listing normal (flag).
 
 #### Dependencies

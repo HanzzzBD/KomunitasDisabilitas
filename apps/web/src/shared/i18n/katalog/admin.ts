@@ -1070,4 +1070,148 @@ export const katalogAdmin = {
   "admin.metrik.ai.rerank": { id: "Urutan rekomendasi", "id-simple": "Mengurutkan saran kerja" },
   "admin.metrik.ai.embed": { id: "Vektor profil & lowongan", "id-simple": "Data pencocokan" },
   "admin.metrik.ai.lainnya": { id: "Fitur lain", "id-simple": "Lainnya" },
+  // ---------------------------------------------------------------------
+  // Moderasi akun (PR-083b). Alasan = catatan INTERNAL: tidak pernah
+  // ditampilkan ke pengguna yang ditangguhkan (keputusan owner 2026-10-03).
+  // ---------------------------------------------------------------------
+  "admin.nav.pengguna": { id: "Pengguna", "id-simple": "Akun pengguna" },
+  "admin.ringkasan.pengguna.judul": { id: "Pengguna", "id-simple": "Akun pengguna" },
+  "admin.ringkasan.pengguna.penjelasan": {
+    id: "Cari akun dan tangguhkan pencari kerja yang menyalahgunakan Nawasena.",
+    "id-simple": "Cari akun. Hentikan sementara akun yang disalahgunakan.",
+  },
+  "admin.ringkasan.pengguna.tautan": { id: "Buka pengguna", "id-simple": "Lihat akun" },
+  "admin.pengguna.judul": { id: "Pengguna", "id-simple": "Akun pengguna" },
+  "admin.pengguna.penjelasan": {
+    id: "Akun yang ditangguhkan tidak bisa masuk sampai dipulihkan. Datanya tidak dihapus. Hanya akun pencari kerja yang bisa ditangguhkan.",
+    "id-simple":
+      "Akun yang dihentikan tidak bisa masuk sampai dibuka lagi. Datanya tetap ada. Hanya akun pencari kerja.",
+  },
+  "admin.pengguna.cari.label": { id: "Cari pengguna", "id-simple": "Cari akun" },
+  "admin.pengguna.cari.bantuan": {
+    id: "Nama, nomor HP, atau email — sebagian saja juga bisa.",
+    "id-simple": "Ketik nama, nomor HP, atau email.",
+  },
+  "admin.pengguna.cari.tombol": { id: "Cari", "id-simple": "Cari akun" },
+  "admin.pengguna.filterStatus.label": { id: "Status akun", "id-simple": "Keadaan akun" },
+  "admin.pengguna.filterStatus.semua": { id: "Semua status", "id-simple": "Semua akun" },
+  "admin.pengguna.status.aktif": { id: "Aktif", "id-simple": "Bisa dipakai" },
+  "admin.pengguna.status.ditangguhkan": { id: "Ditangguhkan", "id-simple": "Dihentikan sementara" },
+  "admin.pengguna.status.ditangguhkanSejak": {
+    id: "Ditangguhkan sejak {tanggal}",
+    "id-simple": "Dihentikan sejak {tanggal}",
+  },
+  "admin.pengguna.alasanTercatat": { id: "Alasan: {alasan}", "id-simple": "Sebab: {alasan}" },
+  "admin.pengguna.peran.seeker": { id: "Pencari kerja", "id-simple": "Pencari kerja (pelamar)" },
+  "admin.pengguna.peran.admin": { id: "Admin", "id-simple": "Admin Nawasena" },
+  "admin.pengguna.kolom.nama": { id: "Nama", "id-simple": "Nama orang" },
+  "admin.pengguna.kolom.kontak": { id: "Kontak", "id-simple": "HP / email" },
+  "admin.pengguna.kolom.peran": { id: "Peran", "id-simple": "Jenis akun" },
+  "admin.pengguna.kolom.status": { id: "Status", "id-simple": "Keadaan" },
+  "admin.pengguna.kolom.aksi": { id: "Aksi", "id-simple": "Tindakan" },
+  "admin.pengguna.tabelJudul": { id: "Daftar pengguna", "id-simple": "Semua akun" },
+  "admin.pengguna.tanpaNama": { id: "(nama belum diisi)", "id-simple": "(belum ada nama)" },
+  "admin.pengguna.tanpaKontak": { id: "—", "id-simple": "Tidak ada" },
+  "admin.pengguna.tanpaAksi": { id: "—", "id-simple": "Tidak bisa diubah" },
+  "admin.pengguna.memuat": { id: "Memuat pengguna…", "id-simple": "Sedang membuka akun…" },
+  "admin.pengguna.gagalMuat": {
+    id: "Daftar pengguna belum bisa ditampilkan.",
+    "id-simple": "Akun gagal dibuka.",
+  },
+  "admin.pengguna.cobaLagi": { id: "Coba lagi", "id-simple": "Ulangi" },
+  "admin.pengguna.kosong": {
+    id: "Tidak ada pengguna yang cocok dengan pencarian ini.",
+    "id-simple": "Tidak ada akun yang cocok.",
+  },
+  "admin.pengguna.muatLagi": { id: "Muat lebih banyak", "id-simple": "Tampilkan lagi" },
+  "admin.pengguna.memuatLagi": { id: "Memuat…", "id-simple": "Sebentar…" },
+  "admin.pengguna.kabar.ditangguhkan": {
+    id: "Akun {nama} ditangguhkan. Semua sesinya sudah berakhir.",
+    "id-simple": "Akun {nama} dihentikan. Ia sudah keluar dari semua perangkat.",
+  },
+  "admin.pengguna.kabar.dipulihkan": {
+    id: "Akun {nama} dipulihkan. Ia bisa masuk lagi.",
+    "id-simple": "Akun {nama} dibuka lagi. Ia bisa masuk.",
+  },
+  "admin.pengguna.tangguhkan.tombol": {
+    id: "Tangguhkan {nama}",
+    "id-simple": "Hentikan akun {nama}",
+  },
+  "admin.pengguna.pulihkan.tombol": { id: "Pulihkan {nama}", "id-simple": "Buka lagi akun {nama}" },
+  "admin.pengguna.tangguhkan.judul": {
+    id: "Tangguhkan akun {nama}?",
+    "id-simple": "Hentikan akun {nama}?",
+  },
+  "admin.pengguna.pulihkan.judul": {
+    id: "Pulihkan akun {nama}?",
+    "id-simple": "Buka lagi akun {nama}?",
+  },
+  "admin.pengguna.tangguhkan.akibat": {
+    id: "Semua sesinya langsung berakhir dan ia tidak bisa masuk sampai dipulihkan. Datanya tidak dihapus.",
+    "id-simple": "Ia langsung keluar dan tidak bisa masuk sampai dibuka lagi. Datanya tetap ada.",
+  },
+  "admin.pengguna.pulihkan.akibat": {
+    id: "Ia bisa masuk lagi. Sesi lamanya tidak hidup kembali — ia perlu masuk ulang.",
+    "id-simple": "Ia bisa masuk lagi. Ia perlu masuk dari awal.",
+  },
+  "admin.pengguna.langkah1": {
+    id: "Langkah 1 dari 2: tulis alasan",
+    "id-simple": "Langkah 1 dari 2: tulis sebabnya",
+  },
+  "admin.pengguna.langkah2": {
+    id: "Langkah 2 dari 2: periksa lalu konfirmasi",
+    "id-simple": "Langkah 2 dari 2: cek lagi, lalu setujui",
+  },
+  "admin.pengguna.alasan": {
+    id: "Alasan (catatan internal)",
+    "id-simple": "Sebab (untuk tim saja)",
+  },
+  "admin.pengguna.alasanBantuan": {
+    id: "Masuk ke jejak audit. Tidak ditampilkan ke pengguna. Jangan tulis nama, nomor, atau kondisi siapa pun — tulis apa yang terjadi, mis. nomor tiket laporan.",
+    "id-simple":
+      "Disimpan untuk tim. Pengguna tidak melihatnya. Jangan tulis data pribadi. Tulis apa yang terjadi.",
+  },
+  "admin.pengguna.alasanDicatat": {
+    id: "Alasan yang akan dicatat:",
+    "id-simple": "Sebab yang disimpan:",
+  },
+  "admin.pengguna.tangguhkan.tinjau": {
+    id: "Anda akan menangguhkan akun {nama}. Semua sesinya berakhir saat ini juga.",
+    "id-simple": "Akun {nama} akan dihentikan. Ia langsung keluar.",
+  },
+  "admin.pengguna.pulihkan.tinjau": {
+    id: "Anda akan memulihkan akun {nama}. Ia bisa masuk lagi.",
+    "id-simple": "Akun {nama} akan dibuka lagi. Ia bisa masuk.",
+  },
+  "admin.pengguna.lanjut": { id: "Lanjut", "id-simple": "Lanjut ke langkah 2" },
+  "admin.pengguna.kembali": { id: "Kembali ubah alasan", "id-simple": "Kembali" },
+  "admin.pengguna.batal": { id: "Batal", "id-simple": "Tidak jadi" },
+  "admin.pengguna.tutup": { id: "Tutup", "id-simple": "Tutup jendela ini" },
+  "admin.pengguna.menyimpan": { id: "Menyimpan…", "id-simple": "Sedang disimpan…" },
+  "admin.pengguna.tangguhkan.ya": { id: "Ya, tangguhkan", "id-simple": "Ya, hentikan" },
+  "admin.pengguna.pulihkan.ya": { id: "Ya, pulihkan", "id-simple": "Ya, buka lagi" },
+  "admin.pengguna.galat.alasanKosong": {
+    id: "Tulis alasannya dulu.",
+    "id-simple": "Isi sebabnya dulu.",
+  },
+  "admin.pengguna.galat.tidakDitemukan": {
+    id: "Akun ini sudah tidak ada. Muat ulang daftar pengguna.",
+    "id-simple": "Akun tidak ada. Buka lagi daftarnya.",
+  },
+  "admin.pengguna.galat.statusBerubah": {
+    id: "Status akun ini baru saja diubah admin lain. Tutup lalu muat ulang daftar.",
+    "id-simple": "Admin lain baru mengubah akun ini. Tutup, lalu buka lagi daftarnya.",
+  },
+  "admin.pengguna.galat.tidakBisa": {
+    id: "Akun ini tidak bisa ditangguhkan. Hanya akun pencari kerja yang bisa.",
+    "id-simple": "Akun ini tidak bisa dihentikan. Hanya akun pencari kerja.",
+  },
+  "admin.lamaran.filterDitangguhkan.label": {
+    id: "Tampilkan lamaran dari akun yang ditangguhkan",
+    "id-simple": "Tampilkan juga lamaran dari akun yang dihentikan",
+  },
+  "admin.lamaran.filterDitangguhkan.bantuan": {
+    id: "Bawaan: disembunyikan, supaya lamaran dari akun yang ditangguhkan tidak ikut diteruskan.",
+    "id-simple": "Biasanya disembunyikan, supaya tidak ikut dikirim ke perusahaan.",
+  },
 } as const satisfies KatalogFitur;

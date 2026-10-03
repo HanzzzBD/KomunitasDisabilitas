@@ -36,6 +36,9 @@ export function MasukGoogle() {
   const keluarDariSesi = useStoreSesi((s) => s.keluar);
 
   const [galat, setGalat] = useState<KunciTeks | null>(null);
+  // PR-083 — saran dari server untuk akun yang ditangguhkan (memuat alamat
+  // banding dari env SUPPORT_EMAIL; tidak bisa ditulis di katalog).
+  const [saranServer, setSaranServer] = useState<string | null>(null);
   /**
    * Cabang HAPUS AKUN (PR-033c-2).
    *
@@ -106,6 +109,14 @@ export function MasukGoogle() {
         // Kode server dibedakan hanya jika saran tindakannya berbeda. Untuk
         // pengguna, "code sudah dipakai" dan "code tidak sah" bermuara pada
         // satu hal yang sama: ulangi dari halaman masuk.
+        // PR-083 — akun DITANGGUHKAN: kredensial Google-nya sah, tetapi akses
+        // diblok admin. "Gagal umum" akan menyuruhnya mencoba lagi tanpa akhir
+        // dan menyembunyikan jalan bandingnya.
+        if (kegagalan instanceof ApiError && kegagalan.code === "AKUN_DITANGGUHKAN") {
+          setSaranServer(kegagalan.hint ?? null);
+          setGalat("auth.google.ditangguhkan");
+          return;
+        }
         setGalat(
           kegagalan instanceof ApiError && kegagalan.code === "GOOGLE_EXCHANGE_GAGAL"
             ? "auth.google.gagalKedaluwarsa"
@@ -151,6 +162,7 @@ export function MasukGoogle() {
             berikutnya. */}
         <p role="alert" className="text-base text-gray-900">
           {t(galat)}
+          {saranServer === null ? null : ` ${saranServer}`}
         </p>
         <Tombol onClick={() => navigate("/masuk", { replace: true })}>
           {t("auth.google.kembali")}

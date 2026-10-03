@@ -148,4 +148,10 @@ export const katalogAuth = {
   // Kegagalan JARINGAN tidak punya domain auth — ia berlaku sama di mana pun
   // permintaan gagal. Kuncinya pindah ke katalog shell di PR-033b, saat
   // pemakai keduanya lahir.
+  // PR-083 — akun ditangguhkan admin. Alasan admin tidak pernah ditampilkan;
+  // alamat banding datang dari server (`hint`) dan disambung di belakang.
+  "auth.google.ditangguhkan": {
+    id: "Akun Anda sedang ditangguhkan, jadi belum bisa masuk.",
+    "id-simple": "Akun Anda sedang dihentikan sementara. Anda belum bisa masuk.",
+  },
 } as const satisfies KatalogFitur;

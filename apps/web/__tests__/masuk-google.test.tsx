@@ -209,6 +209,29 @@ describe("kegagalan lain diberi jalan keluar", () => {
     expect(useStoreSesi.getState().status).not.toBe("masuk");
   });
 
+  it("akun DITANGGUHKAN (PR-083) → status + alamat banding dari server, bukan 'gagal umum'", async () => {
+    const { ApiError } = await import("@nawasena/api-client");
+    const state = await titipkan();
+    const klien = klienPalsu((path) => {
+      if (path !== "/auth/google") return OK_GOOGLE;
+      throw new ApiError(
+        {
+          code: "AKUN_DITANGGUHKAN",
+          message: "Akun Anda sedang ditangguhkan",
+          hint: "Bila menurut Anda ini keliru, hubungi dukungan@contoh.test",
+        },
+        403,
+      );
+    });
+
+    renderKembalian(klien, `?code=kode&state=${state}`);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/ditangguhkan/);
+    expect(alert).toHaveTextContent("dukungan@contoh.test");
+    expect(useStoreSesi.getState().status).not.toBe("masuk");
+  });
+
   it("selalu ada tombol kembali ke halaman masuk", async () => {
     // Halaman buntu tanpa jalan keluar adalah tempat pengguna berhenti memakai
     // produk — apalagi halaman yang tidak pernah ia minta.

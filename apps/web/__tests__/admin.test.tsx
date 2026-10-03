@@ -182,7 +182,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("navigasi punya EMPAT entri: Ringkasan, Perusahaan, Lowongan, dan Lamaran", async () => {
+  it("navigasi punya LIMA entri: Ringkasan, Perusahaan, Lowongan, Lamaran, Pengguna", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
@@ -191,7 +191,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
       within(nav)
         .getAllByRole("link")
         .map((l) => l.textContent),
-    ).toEqual(["Ringkasan", "Perusahaan", "Lowongan", "Lamaran"]);
+    ).toEqual(["Ringkasan", "Perusahaan", "Lowongan", "Lamaran", "Pengguna"]);
   });
 });
 

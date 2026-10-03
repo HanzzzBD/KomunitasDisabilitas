@@ -29,7 +29,15 @@ import {
   type AdminApplication,
   type ApplicationStatus,
 } from "@nawasena/schemas";
-import { KolomForm, Pilihan, Tabel, Tombol, WilayahMemuat, type KolomTabel } from "@nawasena/ui";
+import {
+  KolomForm,
+  KotakCentang,
+  Pilihan,
+  Tabel,
+  Tombol,
+  WilayahMemuat,
+  type KolomTabel,
+} from "@nawasena/ui";
 import { useTeks } from "../../shared/i18n/index.js";
 import { KUNCI_STATUS_LAMARAN, LamaranStatusBadge } from "./lamaran-status-badge.js";
 import { pesanGalatLamaran } from "./lamaran-pesan-galat.js";
@@ -49,10 +57,13 @@ export function DaftarLamaran({ klien }: { klien: ApiClient }) {
   const t = useTeks();
   const [status, setStatus] = useState<string>(SEMUA);
   const [jobId, setJobId] = useState<string>(SEMUA);
+  // PR-083 — lamaran dari akun DITANGGUHKAN disembunyikan bawaan.
+  const [termasukDitangguhkan, setTermasukDitangguhkan] = useState(false);
 
   const filter = {
     status: status === SEMUA ? undefined : (status as ApplicationStatus),
     jobId: jobId === SEMUA ? undefined : jobId,
+    termasukDitangguhkan,
   };
 
   const daftar = useInfiniteQuery({
@@ -147,6 +158,12 @@ export function DaftarLamaran({ klien }: { klien: ApiClient }) {
           />
         </KolomForm>
       </div>
+      <KotakCentang
+        label={t("admin.lamaran.filterDitangguhkan.label")}
+        bantuan={t("admin.lamaran.filterDitangguhkan.bantuan")}
+        dicentang={termasukDitangguhkan}
+        onUbah={setTermasukDitangguhkan}
+      />
 
       {daftar.isError ? (
         <div role="alert" className="flex flex-col items-start gap-2">
