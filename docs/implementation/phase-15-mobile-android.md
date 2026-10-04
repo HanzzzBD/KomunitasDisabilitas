@@ -104,7 +104,7 @@ RB-Std (build channel internal; tidak menyentuh produksi web).
 * [ ] Build EAS internal sukses & terinstal di device uji.
 * [ ] SecureStore roundtrip token teruji.
 * [ ] Deep link scheme membuka app.
-* [ ] `packages/api-client` & `schemas` terpakai tanpa patch (bukti platform-agnostic).
+* [x] `packages/api-client` & `schemas` terpakai tanpa patch (bukti platform-agnostic).
 * [ ] Boot < 3 dtk di device kelas menengah.
 
 #### Dependencies

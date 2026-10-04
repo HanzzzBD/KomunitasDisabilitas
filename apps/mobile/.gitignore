@@ -1,0 +1,8 @@
+# Keluaran Expo/Metro lokal
+.expo/
+dist/
+# Hasil `expo prebuild` — proyek ini managed workflow; native dibangun di EAS.
+android/
+ios/
+# Dibuat ulang otomatis oleh Expo CLI
+expo-env.d.ts

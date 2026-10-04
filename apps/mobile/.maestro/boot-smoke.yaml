@@ -1,0 +1,18 @@
+# Boot smoke PR-088 — dijalankan manual di device/emulator berisi APK internal:
+#   maestro test apps/mobile/.maestro/boot-smoke.yaml
+# Belum di CI: butuh emulator Android (menyusul bersama alur E2E mobile).
+appId: id.nawasena.app
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "layar-beranda"
+- assertVisible: "Nawasena"
+# Deep link membuka app di layar yang sama; tautan asing diabaikan tanpa crash.
+- stopApp
+- openLink: "nawasena://beranda"
+- assertVisible:
+    id: "layar-beranda"
+- openLink: "nawasena://admin"
+- assertVisible:
+    id: "layar-beranda"
