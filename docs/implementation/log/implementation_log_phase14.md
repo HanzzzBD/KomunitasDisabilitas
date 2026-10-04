@@ -340,3 +340,131 @@ presigned; storage absen → 503. OpenAPI diperbarui. Unit + integrasi DB.
 ### Next steps
 
 * **PR-087** — simplify-text AI di detail lowongan.
+
+---
+
+## PR-087 — Simplify-Text AI (Gap G1)
+
+> **Phase:** [14 - SignBridge v1 & Simplify](../phase-14-signbridge-simplify.md#pr-087---simplify-text-ai-gap-g1)
+> **Tanggal:** 2026-10-04
+> **Status:** Selesai (Manual Verification "kualitas hasil sampel" butuh kunci AI sungguhan — lihat Risiko)
+> **Branch:** `pr-087-simplify-text` → `phase-14-signbridge-simplify`
+
+### Ringkasan hasil
+
+Di detail lowongan, bagian **Deskripsi** dan **Persyaratan** kini punya tombol **"Sederhanakan
+teks ini"**. AI menulis ulang teksnya dengan kalimat pendek. Hasilnya tampil berlabel
+**"Disederhanakan oleh AI"**, dan teks asli selalu satu klik jauhnya. Ini melengkapi mode
+`id-simple` yang statis untuk konten dinamis (SDD §4.3, §11).
+
+### Keputusan owner (AskUserQuestion, 2026-10-04)
+
+1. **Body = rujukan lowongan, bukan teks bebas.** `{ sumber: "lowongan", id, bagian }`. Server
+   membaca teksnya sendiri lewat `jobs.service.getPublic`, jadi hanya lowongan aktif. Endpoint ini
+   tidak bisa dipakai sebagai LLM serba-guna. Karena masukannya data publik, cache memakai
+   **`lingkup: "bersama"`**: satu entri per konten untuk semua pengguna. Bentuknya discriminated
+   union, jadi sumber lain (mis. profil perusahaan) bisa ditambah tanpa mengubah bentuk.
+2. **Login saja.** Kuota 20/hari itu per pengguna. Pengunjung anonim melihat tautan "Masuk untuk
+   menyederhanakan teks ini" yang kembali ke lowongan yang sama.
+3. **Degradasi = tombol hilang + penjelasan** (ikut AC PR-087). Tabel pola degradasi di
+   `phase-06-ai-gateway.md` semula menulis "dinonaktifkan + `aria-disabled`". Baris itu sudah
+   diselaraskan.
+4. **Penjaga fakta = prompt + cek angka deterministik** (lihat di bawah).
+
+### Scope yang selesai
+
+**AI** — `core/ai/prompts/simplify.v1.ts`: output JSON `{teks}` berisi teks polos, dan larangan
+mengubah gaji, angka, tanggal, lokasi, atau syarat. `teks` dibungkus penanda data tak tepercaya
+(default `definePrompt`). TTL cache 24 jam (plafon), karena tidak ada data pengguna di masukan.
+Template terdaftar di registry dan di allow-list `prompt-cache-lingkup.test.ts` berikut alasannya.
+
+**API** — `POST /api/v1/ai/simplify-text` (`modules/ai`: `simplify.service.ts`,
+`simplify.controller.ts`, `createAiSimplifyRouter`, factory `createAiSimplifyModule`):
+
+* `access.authenticated()`, body divalidasi zod `.strict()`. Teks bebas atau sumber lain → 400.
+* Alurnya lewat `AiClient.prompt`: cache → kuota `simplify_text` → provider → jejak biaya.
+* **Selalu 200 untuk permintaan sah.** Saat degradasi, `data.teks` null, `data.alasan` ∈
+  `kuota_habis | ai_tidak_tersedia | dimatikan`, dan `meta.degraded: true`. Yang tetap error:
+  lowongan tidak ada (404 `LOWONGAN_TIDAK_DITEMUKAN`) dan bagian kosong (404 baru
+  `BAGIAN_LOWONGAN_KOSONG`). Keduanya tanpa memotong jatah.
+* **Penjaga fakta** (`angkaTerjaga`): setiap angka di hasil wajib ada di teks asli. Angka
+  dibandingkan tanpa pemisah, jadi "5.000.000" = "5000000". Segmen pertama juga sah, supaya
+  "Rp5 juta" lolos. Nomor daftar di awal baris diabaikan. Hasil yang gagal → `ai_tidak_tersedia`.
+  Log hanya mencatat kode, tanpa isi teks.
+* `teksPolos` membuang sisa markdown (`**`, `#`, `` ` ``). HTML sudah dibuang `bersihkanKeluaran`.
+* Tidak ada penanda "dari cache" di respons. Cache-nya bersama, jadi penanda itu akan jadi orakel
+  lintas akun (catatan `AiPromptResponse`).
+* **Tuas rollback `AI_SIMPLIFY_ENABLED`** (bawaan `true`). `false` → `alasan: "dimatikan"` tanpa
+  membaca lowongan, tanpa kuota, tanpa provider. Tercatat di `.env.example`.
+* Dirakit di `boot.ts` **sesudah** modul jobs, karena butuh `jobs.service`. Itu sebabnya factory-nya
+  terpisah dari `createAiModule`.
+
+**Kontrak** — `@nawasena/schemas`: `aiSimplifyTextRequestSchema`, `aiSimplifyTextResultSchema`
+(union: tepat satu dari `teks`/`alasan`), `aiSimplifyTextResponseSchema`. OpenAPI
+`simplifyText` + `openapi.json` digenerasi ulang. api-client: `simplifyText()`.
+
+**Web** — `features/job-feed/sederhanakan.tsx` (`TeksSederhanakan`), dipasang di bagian
+deskripsi & persyaratan `detail-lowongan.tsx`:
+
+* **Satu tombol, labelnya berganti**: "Sederhanakan teks ini" → "Tampilkan teks asli" ⇄
+  "Tampilkan versi sederhana". Karena elemennya sama, fokus keyboard tidak hilang saat konten
+  berganti.
+* Pergantian diumumkan lewat `role="status"` yang **selalu terpasang**.
+* Tombol punya `aria-describedby` ke kalimat "Ditulis ulang oleh AI … memakai 1 jatah harian".
+* Hasil disimpan di state, jadi bolak-balik asli/sederhana **tidak** meminta ulang (tiap
+  permintaan memotong jatah).
+* Degradasi: tombol diganti kalimat penjelasan sesuai `alasan`. Hanya kuota yang bilang "coba lagi
+  besok". **Fokus dipindah ke kalimat itu** (kalau tidak, fokus jatuh ke `<body>`). Kalimatnya
+  sengaja tidak diumumkan lewat status juga, supaya tidak terbaca dua kali.
+* Galat jaringan → `role="alert"`, tombol tetap ada untuk mencoba lagi.
+* Hasil dirender sebagai teks JSX (tanpa `dangerouslySetInnerHTML`).
+* 13 entri katalog `lowongan.sederhana.*` dengan varian `id-simple`.
+
+### Acceptance Criteria
+
+* [x] Konten sama → cache hit (tanpa panggilan kedua). Integrasi: dua pengguna dan dua lowongan
+  berisi sama → provider dipanggil **sekali**, cache berisi satu entri.
+* [x] Hasil diumumkan SR saat menggantikan konten; toggle kembali ke asli. Diuji di jsdom dan e2e
+  (status + fokus tetap di tombol yang sama).
+* [x] Fakta kunci tidak berubah. Guard prompt + penjaga angka deterministik (unit: gaji, jam, dan
+  lama pengalaman karangan ditolak; integrasi: hasil ber-angka karangan → degradasi). Gaji dan
+  lokasi adalah field terstruktur yang tidak ikut disederhanakan. Sampling hasil model sungguhan
+  belum dijalankan (lihat Risiko).
+* [x] Degraded → tombol hilang + penjelasan; konten asli tetap. jsdom + e2e (fokus ke penjelasan).
+* [x] Kuota 20/hari ditegakkan. Integrasi: permintaan ke-21 → `kuota_habis` tanpa menyentuh
+  provider, juga saat jawabannya sudah ada di cache. Cache hit tetap memotong jatah pengguna
+  (keputusan owner 2026-09-03).
+
+### Verifikasi
+
+* `pnpm lint`, `pnpm typecheck`, `format:check`, `check:openapi` hijau. `cek:budget` 109.1 / 200 KB
+  (tidak berubah).
+* API `ai-simplify.test.ts` (18): penjaga angka, `teksPolos`, kunci cache bersama, integrasi HTTP
+  (cache hit lintas pengguna, kuota ke-21, refund saat provider gagal, angka karangan ditolak, HTML
+  dibuang, fitur dimatikan, 401/404/400).
+* Web `sederhanakan.test.tsx` (5). api-client `ai-simplify.test.ts` (3).
+* `openapi-parity.test.ts` merakit `createAiSimplifyModule`. Snapshot katalog error
+  (`http-errors.test.ts`) diperbarui untuk `BAGIAN_LOWONGAN_KOSONG`.
+* Suite lokal: api 156 berkas lulus (32 test DB terlewat karena Docker mati; CI menjalankannya),
+  web 74, ui 14, worker, schemas, api-client, a11y, config hijau.
+* Playwright `lowongan-detail.spec.ts` +2 (alur keyboard-only + axe di keadaan hasil dan
+  degradasi), `lamar.spec.ts` tetap hijau.
+
+### Risiko & catatan
+
+* **Kualitas hasil sampel (Manual Verification)** belum dijalankan. Butuh kunci Gemini/Groq
+  sungguhan dan contoh lowongan nyata. Penjaga angka hanya menangkap angka karangan. Syarat yang
+  dihapus atau makna yang bergeser tidak tertangkap mesin. Mitigasinya label "oleh AI" + satu klik
+  ke teks asli.
+* **Hasil yang ditolak penjaga ikut tersimpan di cache** (`AiClient.prompt` menulisnya sebelum
+  service melihatnya). Konten yang sama terus ditolak sampai TTL habis (≤24 jam). Ini sengaja:
+  penolakan deterministik lebih aman daripada mencoba ulang model.
+* Penjaga angka bisa **salah menolak**, mis. "5,5 juta" dari "5.500.000". Hasilnya degradasi
+  (teks asli tetap), bukan informasi salah.
+* Fitur dimatikan baru diketahui klien setelah satu klik (tombol lalu diganti penjelasan). Belum
+  ada pra-cek ketersediaan. Bila perlu, `GET /ai/quota` bisa dipakai kelak.
+
+### Next steps
+
+* Exit Criteria Phase 14: seluruh PR-084..PR-087 merged, lalu `phase-14 → main` atas perintah owner.
+* Manual Verification sampel hasil dengan kunci AI sungguhan.

@@ -41,6 +41,9 @@ import { createCvChatController } from "./controllers/cv-chat.controller.js";
 import { createAiCvChatRouter, createAiCvFinalizeRouter } from "./routers/index.js";
 import { createCvEkstraksiJobs, createCvFinalizeService } from "./services/cv-finalize.service.js";
 import { createCvFinalizeController } from "./controllers/cv-finalize.controller.js";
+import { createSimplifyService, type SimplifyServiceDeps } from "./services/simplify.service.js";
+import { createSimplifyController } from "./controllers/simplify.controller.js";
+import { createAiSimplifyRouter } from "./routers/index.js";
 
 export interface AiModuleDeps {
   prisma: AppPrisma;
@@ -143,6 +146,47 @@ export function createAiModule(deps: AiModuleDeps): AiModule {
   };
 }
 
+export interface AiSimplifyModuleDeps {
+  /** Registrar route (PR-019) — Router-nya SENDIRI, lihat catatan di bawah. */
+  routes: RouteRegistrar;
+  /** `AiClient` yang dirakit di composition root — satu-satunya jalan ke LLM. */
+  ai: Pick<AiClient, "prompt">;
+  /** `jobs.service.getPublic` — dirakit di boot (ADR-001: lewat service). */
+  bacaLowongan: SimplifyServiceDeps["bacaLowongan"];
+  /** `env.AI_SIMPLIFY_ENABLED`. */
+  aktif: boolean;
+  logger: Pick<Logger, "warn">;
+}
+
+/**
+ * "Sederhanakan" (PR-087) — factory TERPISAH dari `createAiModule`, karena ia
+ * butuh service modul jobs, dan modul jobs baru dirakit di dalam callback
+ * `routes` boot, SESUDAH `createAiModule`. Memaksanya masuk `createAiModule`
+ * berarti memindahkan urutan perakitan jobs hanya demi satu endpoint.
+ */
+export function createAiSimplifyModule(deps: AiSimplifyModuleDeps): { router: Router } {
+  const service = createSimplifyService({
+    ai: deps.ai,
+    bacaLowongan: deps.bacaLowongan,
+    aktif: deps.aktif,
+    logger: deps.logger,
+  });
+  return { router: createAiSimplifyRouter(createSimplifyController(service), deps.routes) };
+}
+
+export {
+  createSimplifyService,
+  angkaTerjaga,
+  teksPolos,
+  type SimplifyService,
+  type SimplifyServiceDeps,
+  type TeksLowongan,
+} from "./services/simplify.service.js";
+export {
+  createSimplifyController,
+  type SimplifyController,
+} from "./controllers/simplify.controller.js";
+
 export {
   createAiQuotaService,
   type AiQuotaActor,
@@ -154,6 +198,7 @@ export {
   createAiCvChatRouter,
   createAiCvFinalizeRouter,
   createAiQuotaRouter,
+  createAiSimplifyRouter,
 } from "./routers/index.js";
 export {
   createCvEkstraksiJobs,

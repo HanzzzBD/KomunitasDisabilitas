@@ -288,6 +288,16 @@ const envSchema = z.object({
     .default("true")
     .transform((nilai) => nilai === "true"),
 
+  // Tuas rollback "Sederhanakan" (PR-087): `false` mematikan fitur tanpa efek
+  // lain — `POST /ai/simplify-text` menjawab 200 ber-degradasi (`dimatikan`),
+  // tanpa menyentuh kuota maupun penyedia, dan klien menyembunyikan tombolnya.
+  AI_SIMPLIFY_ENABLED: z
+    .enum(["true", "false"], {
+      errorMap: () => ({ message: "harus 'true' atau 'false'" }),
+    })
+    .default("true")
+    .transform((nilai) => nilai === "true"),
+
   // --- Push notification FCM HTTP v1 (PR-048b, SDD §16 `notify:push`) ---
   //
   // Kredensial service-account Google, bukan "server key" legacy: FCM HTTP v1

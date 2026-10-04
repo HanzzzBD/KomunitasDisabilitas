@@ -200,6 +200,15 @@ export const ERROR_CATALOG = {
     message: "Jatah bantuan AI Anda hari ini sudah habis",
     hint: "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
   },
+  // --- Sederhanakan teks (PR-087) ---
+  // 404: bagian yang diminta (mis. persyaratan) tidak diisi perusahaan. Klien
+  // tidak menampilkan tombolnya untuk bagian kosong, jadi ini hanya datang dari
+  // pemanggil yang menebak.
+  BAGIAN_LOWONGAN_KOSONG: {
+    status: 404,
+    message: "Bagian ini tidak ada di lowongan",
+    hint: "Pilih bagian lowongan yang berisi teks",
+  },
   // --- Perusahaan (PR-051) ---
   PERUSAHAAN_TIDAK_DITEMUKAN: {
     status: 404,

@@ -12,10 +12,14 @@ import {
   aiCvChatFinalizeResponseSchema,
   aiCvChatRequestSchema,
   aiQuotaResponseSchema,
+  aiSimplifyTextRequestSchema,
+  aiSimplifyTextResponseSchema,
   type AiChatSession,
   type AiCvChatFinalizeResult,
   type AiCvChatRequest,
   type AiQuotaSummary,
+  type AiSimplifyTextRequest,
+  type AiSimplifyTextResult,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { ApiError } from "../errors.js";
@@ -55,6 +59,26 @@ export async function finalizeAiChatSession(
   const response = await client.request(`/ai/cv-chat/${encodeURIComponent(id)}/finalize`, {
     method: "POST",
     responseSchema: aiCvChatFinalizeResponseSchema,
+  });
+  return response.data;
+}
+
+/**
+ * Sederhanakan satu bagian lowongan (PR-087). Memotong satu jatah
+ * `simplify_text` — karena itu POST/mutasi, bukan query yang boleh diulang
+ * diam-diam saat fokus jendela kembali.
+ *
+ * Degradasi BUKAN error: `alasan` terisi dan `teks` null. Yang dilempar hanya
+ * kegagalan non-AI (404 lowongan, 401 sesi, jaringan).
+ */
+export async function simplifyText(
+  client: ApiClient,
+  body: AiSimplifyTextRequest,
+): Promise<AiSimplifyTextResult> {
+  const response = await client.request("/ai/simplify-text", {
+    method: "POST",
+    body: aiSimplifyTextRequestSchema.parse(body),
+    responseSchema: aiSimplifyTextResponseSchema,
   });
   return response.data;
 }

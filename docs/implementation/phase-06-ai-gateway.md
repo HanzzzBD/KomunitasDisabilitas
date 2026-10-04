@@ -522,7 +522,7 @@ menetapkan tabel ini; PR fitur di kolom terakhir yang mengisinya dengan kode.
 |---|---|---|---|---|
 | CV Chat | `chatStream()` (`core/ai/stream.ts`) | CV builder berbasis formulir — tanpa AI | `meta.degraded: true`; banner "Bantuan AI sedang tidak tersedia, lanjutkan mengisi manual"; isian yang sudah ada TIDAK hilang | PR-066 (BE), PR-068 (FE) |
 | Feed Lowongan | Re-rank AI (`rerank`, `embed`) | Urutan dasar dari pgvector/FTS — tanpa re-rank | `meta.degraded: true`; feed TETAP tampil, tanpa label "direkomendasikan AI" | PR-072 (BE), PR-073 (endpoint), PR-074 (FE) |
-| Sederhanakan Teks | `chatJson()` (`simplify_text`) | Tidak ada versi sederhana — teks asli tetap tampil | `meta.degraded: true`; tombol "Sederhanakan" dinonaktifkan + `aria-disabled` beserta alasannya | PR-087 |
+| Sederhanakan Teks | `AiClient.prompt()` (`simplify.v1`, fitur `simplify_text`) | Tidak ada versi sederhana — teks asli tetap tampil | `meta.degraded: true` + `data.alasan`; tombol "Sederhanakan" **hilang** dan diganti kalimat penjelasan yang difokus (keputusan owner 2026-10-04, mengikuti AC PR-087 — semula tertulis "dinonaktifkan + `aria-disabled`") | PR-087 |
 
 Tiga aturan yang berlaku untuk SEMUA baris, dan tidak boleh ditawar per fitur:
 

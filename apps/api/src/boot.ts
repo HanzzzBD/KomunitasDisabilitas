@@ -63,7 +63,11 @@ import {
   createObjectStorage,
   storageConfigFromEnv,
 } from "./core/storage/index.js";
-import { createAiModule, createAiUsageRecorder } from "./modules/ai/index.js";
+import {
+  createAiModule,
+  createAiSimplifyModule,
+  createAiUsageRecorder,
+} from "./modules/ai/index.js";
 import { createAiQuota, rakitAiClient, type AiQuotaConfig } from "./core/ai/index.js";
 import {
   assertRoutesDeclared,
@@ -294,6 +298,12 @@ export async function startApi(options: BootOptions): Promise<void> {
       maksCv: env.RESUME_MAX_PER_USER,
     },
   });
+  if (!env.AI_SIMPLIFY_ENABLED) {
+    logger.warn(
+      { fitur: "simplify_text" },
+      "AI_SIMPLIFY_ENABLED=false — tombol Sederhanakan disembunyikan, teks asli tetap tampil",
+    );
+  }
   if (!env.AI_CV_CHAT_ENABLED) {
     logger.warn(
       { fitur: "cv_chat" },
@@ -407,6 +417,17 @@ export async function startApi(options: BootOptions): Promise<void> {
         events,
       });
       app.use(jobs.router);
+      // "Sederhanakan" teks lowongan (PR-087) — SESUDAH `jobs`: teksnya dibaca
+      // lewat `getPublic` (lowongan aktif saja), bukan dari body permintaan.
+      app.use(
+        createAiSimplifyModule({
+          routes: routeRegistry.forModule("/api/v1"),
+          ai: aiClient,
+          bacaLowongan: (id) => jobs.service.getPublic(id),
+          aktif: env.AI_SIMPLIFY_ENABLED,
+          logger,
+        }).router,
+      );
       // Apply + Disclosure Control (PR-075) — SESUDAH `jobs` dan `resumes`
       // (lowongan aktif & kepemilikan CV lewat service keduanya). Snapshot
       // pengungkapan dibaca lewat `sensitiveAccess` modul profiles (tujuan

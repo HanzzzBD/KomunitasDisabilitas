@@ -14,6 +14,7 @@ export {
   getAiChatSession,
   getAiQuota,
   resumeAiChatStream,
+  simplifyText,
   startAiChatSession,
   streamAiChat,
 } from "./endpoints/ai.js";
