@@ -502,8 +502,7 @@ sehingga entri cache lama tidak terpakai lagi.
    dalam kurung, larangan mengganti istilah dengan makna lain, dan "nada dewasa, bukan bahasa
    anak-anak" (selaras `docs/panduan-bahasa-sederhana.md`).
 3. **Daftar dipadatkan dalam satu baris** ("- A. - B. - C."). Perbaikan: satu butir per baris
-   (`
-`) dan paragraf pendek.
+   (`\n` di JSON) dan paragraf pendek.
 4. **Kata batas hilang.** "pengalaman minimal 1 tahun" menjadi "pengalaman 1 tahun" (Groq).
    Perbaikan: 'minimal', 'maksimal', 'wajib', 'diutamakan', dll. wajib tetap. Kalimat ajakan
    tambahan juga dilarang.
