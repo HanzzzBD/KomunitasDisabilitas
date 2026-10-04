@@ -1,10 +1,13 @@
 {
-  "extends": "@nawasena/config/tsconfig/react",
+  "extends": ["expo/tsconfig.base", "@nawasena/config/tsconfig/base"],
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "noEmit": true
+    "lib": ["ES2022"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["react-native"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["index.ts", "app.config.ts", "src/**/*.ts", "src/**/*.tsx", "__tests__/**/*.ts"],
+  "exclude": ["node_modules", "dist", ".expo"]
 }

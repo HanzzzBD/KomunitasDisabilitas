@@ -2,16 +2,36 @@
   "name": "@nawasena/mobile",
   "version": "0.0.0",
   "private": true,
-  "description": "React Native + Expo (Android) app. Placeholder — bootstrap menyusul di phase Mobile.",
-  "type": "module",
+  "description": "Aplikasi Android Nawasena — Expo managed + React Navigation (ADR-011, SDD §4.2).",
+  "main": "index.ts",
   "scripts": {
-    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "start": "expo start",
+    "android": "expo start --android",
+    "lint": "eslint src __tests__ index.ts app.config.ts metro.config.js --ext .ts,.tsx,.js --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "build:internal": "eas build --profile internal --platform android"
+  },
+  "dependencies": {
+    "@nawasena/api-client": "workspace:*",
+    "@nawasena/schemas": "workspace:*",
+    "@react-navigation/native": "7.5.0",
+    "@react-navigation/native-stack": "7.20.0",
+    "expo": "57.0.26",
+    "expo-constants": "57.0.20",
+    "expo-linking": "57.0.11",
+    "expo-secure-store": "57.0.4",
+    "expo-status-bar": "57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.0"
   },
   "devDependencies": {
     "@nawasena/config": "workspace:*",
+    "@types/react": "19.2.2",
     "eslint": "8.57.1",
+    "react-dom": "19.2.3",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   }

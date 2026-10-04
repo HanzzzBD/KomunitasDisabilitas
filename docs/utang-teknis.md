@@ -952,6 +952,25 @@ pembersih berkala yang membandingkan objek `sign-videos/*` dengan `video_key`/`c
 `thumbnail_key` di `sign_videos`, lalu menghapus yang tidak dirujuk dan berumur > 7 hari (lewat
 operasi hapus khusus job, bukan permukaan API).
 
+### U-35 — AC runtime PR-088 menunggu build EAS & device fisik
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual tertunda |
+| **Ditemukan** | PR-088 (2026-10-04) |
+| **Pemilik** | Owner (akun Expo) |
+| **Pemicu** | Sebelum PR-090 di-merge (login pertama yang menyimpan refresh token sungguhan) |
+
+Tiga AC PR-088 butuh akun Expo dan HP uji, dan tidak bisa dibuktikan di CI: (1) build EAS profil
+`internal` sukses dan terpasang di device, (2) boot < 3 detik di device kelas menengah,
+(3) TalkBack smoke shell. Yang sudah terbukti: unit test wrapper SecureStore + validasi deep link,
+bundle Hermes `expo export` (paket bersama tanpa patch). Uji emulator lokal tidak bisa
+dilakukan: build native di Windows mentok di MAX_PATH store pnpm (lihat log Phase 15), jadi
+roundtrip SecureStore dan deep link di runtime juga menunggu APK ini. Langkah owner: `eas init` → `EAS_PROJECT_ID`, isi `EXPO_PUBLIC_API_URL` (HTTPS) di
+environment EAS `preview`, `pnpm --filter @nawasena/mobile build:internal`, pasang APK, jalankan
+`.maestro/boot-smoke.yaml`, ukur boot dingin, dengarkan layar Beranda dengan TalkBack.
+
 ---
 
 ## Di luar scope — JANGAN ditarik ke PR berjalan
