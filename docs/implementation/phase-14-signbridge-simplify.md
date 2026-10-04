@@ -297,10 +297,10 @@ Bisnis: konten dinamis (deskripsi lowongan) dapat diakses pengguna autisme/kogni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (cache key)
-* [ ] Integration Test (kuota + cache)
-* [ ] E2E Test (tombol → hasil → kembali)
-* [ ] Accessibility Test (axe + pengumuman SR)
+* [x] Unit Test (cache key)
+* [x] Integration Test (kuota + cache)
+* [x] E2E Test (tombol → hasil → kembali)
+* [x] Accessibility Test (axe + pengumuman SR)
 * [ ] Manual Verification (kualitas hasil sampel)
 
 **Deliverables:**
@@ -317,11 +317,11 @@ RB-Std; flag mematikan fitur tanpa efek lain.
 
 #### Acceptance Criteria
 
-* [ ] Konten sama → cache hit (tanpa panggilan kedua).
-* [ ] Hasil diumumkan SR saat menggantikan konten; toggle kembali ke asli.
-* [ ] Fakta kunci (gaji, lokasi, syarat) tidak berubah (test sampling + guard prompt).
-* [ ] Degraded → tombol hilang + penjelasan; konten asli tetap.
-* [ ] Kuota 20/hari ditegakkan.
+* [x] Konten sama → cache hit (tanpa panggilan kedua).
+* [x] Hasil diumumkan SR saat menggantikan konten; toggle kembali ke asli.
+* [x] Fakta kunci (gaji, lokasi, syarat) tidak berubah (test sampling + guard prompt).
+* [x] Degraded → tombol hilang + penjelasan; konten asli tetap.
+* [x] Kuota 20/hari ditegakkan.
 
 #### Dependencies
 

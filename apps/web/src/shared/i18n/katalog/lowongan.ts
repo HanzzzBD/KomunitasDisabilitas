@@ -209,6 +209,65 @@ export const katalogLowongan = {
     "id-simple": "Cara melamar",
   },
   // ---------------------------------------------------------------------
+  // "Sederhanakan" (PR-087). Label "oleh AI" WAJIB terlihat selama versi
+  // sederhana tampil (Risks PR-087: AI bisa mengubah makna), dan teks asli
+  // selalu satu klik jauhnya.
+  // ---------------------------------------------------------------------
+  "lowongan.sederhana.tombol": {
+    id: "Sederhanakan teks ini",
+    "id-simple": "Buat teks ini lebih mudah dibaca",
+  },
+  "lowongan.sederhana.bantuan": {
+    id: "Ditulis ulang oleh AI dengan kalimat pendek. Memakai 1 dari jatah harian Anda.",
+    "id-simple":
+      "AI menulis ulang teks ini dengan kalimat pendek. Ini memakai 1 jatah Anda hari ini.",
+  },
+  "lowongan.sederhana.memproses": {
+    id: "Sedang menyederhanakan…",
+    "id-simple": "Sebentar, AI sedang menulis ulang…",
+  },
+  "lowongan.sederhana.lihatAsli": {
+    id: "Tampilkan teks asli",
+    "id-simple": "Lihat teks dari perusahaan",
+  },
+  "lowongan.sederhana.lihatSederhana": {
+    id: "Tampilkan versi sederhana",
+    "id-simple": "Lihat lagi versi yang mudah dibaca",
+  },
+  "lowongan.sederhana.label": {
+    id: "Disederhanakan oleh AI — periksa teks asli untuk detail resmi.",
+    "id-simple": "AI menulis ulang teks ini. Teks dari perusahaan tetap yang resmi.",
+  },
+  "lowongan.sederhana.diumumkanSederhana": {
+    id: "{bagian}: versi sederhana dari AI kini ditampilkan.",
+    "id-simple": "{bagian}: sekarang tampil versi yang mudah dibaca.",
+  },
+  "lowongan.sederhana.diumumkanAsli": {
+    id: "{bagian}: teks asli kini ditampilkan.",
+    "id-simple": "{bagian}: sekarang tampil teks dari perusahaan.",
+  },
+  "lowongan.sederhana.perluMasuk": {
+    id: "Masuk untuk menyederhanakan teks ini",
+    "id-simple": "Masuk dulu agar teks ini bisa dibuat lebih mudah",
+  },
+  "lowongan.sederhana.degradasi.kuota_habis": {
+    id: "Jatah menyederhanakan teks Anda hari ini sudah habis. Coba lagi besok — teks asli tetap bisa dibaca di bawah.",
+    "id-simple":
+      "Jatah Anda hari ini sudah habis. Coba lagi besok. Teks dari perusahaan tetap ada di bawah.",
+  },
+  "lowongan.sederhana.degradasi.ai_tidak_tersedia": {
+    id: "Versi sederhana belum bisa dibuat untuk teks ini. Teks asli tetap bisa dibaca di bawah.",
+    "id-simple": "AI belum bisa menulis ulang teks ini. Teks dari perusahaan tetap ada di bawah.",
+  },
+  "lowongan.sederhana.degradasi.dimatikan": {
+    id: "Fitur menyederhanakan teks sedang dimatikan. Teks asli tetap bisa dibaca di bawah.",
+    "id-simple": "Fitur ini sedang tidak dipakai. Teks dari perusahaan tetap ada di bawah.",
+  },
+  "lowongan.sederhana.gagal": {
+    id: "Permintaan gagal terkirim. Periksa koneksi Anda, lalu coba lagi.",
+    "id-simple": "Gagal terkirim. Cek internet Anda, lalu coba lagi.",
+  },
+  // ---------------------------------------------------------------------
   // Alur lamar (PR-078). Kalimat konsekuensi Ya/Tidak adalah bagian paling
   // sensitif katalog ini: keduanya ditulis SEPANJANG dan SETEGAS satu sama
   // lain, dan tidak ada yang menyebut salah satu pilihan "disarankan".

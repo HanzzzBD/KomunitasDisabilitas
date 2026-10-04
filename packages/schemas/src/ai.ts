@@ -6,7 +6,7 @@
 // kontrak bukan tempat menaruh mekanisme.
 import "zod-openapi/extend";
 import { z } from "zod";
-import { idSchema, timestampSchema } from "./common.js";
+import { degradedMetaSchema, idSchema, timestampSchema } from "./common.js";
 
 /**
  * Fitur AI yang punya jatah harian.
@@ -268,3 +268,90 @@ export type AiCvChatFinalizeResult = z.infer<typeof aiCvChatFinalizeResultSchema
 export const aiCvChatFinalizeResponseSchema = z
   .object({ data: aiCvChatFinalizeResultSchema })
   .openapi({ ref: "AiCvChatFinalizeResponse" });
+
+// ---------------------------------------------------------------------------
+// Sederhanakan teks (PR-087, Gap G1, SDD §4.3 & §11).
+// ---------------------------------------------------------------------------
+
+/**
+ * Bagian lowongan yang bisa disederhanakan — satu per permintaan, supaya
+ * hasilnya menggantikan tepat satu blok di halaman dan cache-nya per blok.
+ */
+export const aiSimplifyBagianLowonganSchema = z.enum(["deskripsi", "persyaratan"]);
+
+export type AiSimplifyBagianLowongan = z.infer<typeof aiSimplifyBagianLowonganSchema>;
+
+/**
+ * Body `POST /ai/simplify-text`.
+ *
+ * RUJUKAN, BUKAN TEKS (keputusan owner 2026-10-04). Klien menyebut KONTEN mana
+ * yang ingin disederhanakan; server membaca teksnya sendiri dari lowongan
+ * aktif. Body yang membawa teks bebas akan menjadikan endpoint ini LLM
+ * serba-guna bagi siapa pun yang punya akun, dan memaksa cache per pengguna.
+ *
+ * Discriminated union atas `sumber` walau anggotanya baru satu: sumber konten
+ * berikutnya (mis. profil perusahaan) menambah anggota, bukan mengubah bentuk.
+ */
+export const aiSimplifyTextRequestSchema = z
+  .discriminatedUnion("sumber", [
+    z
+      .object({
+        sumber: z.literal("lowongan"),
+        id: idSchema,
+        bagian: aiSimplifyBagianLowonganSchema,
+      })
+      .strict(),
+  ])
+  .openapi({ ref: "AiSimplifyTextRequest" });
+
+export type AiSimplifyTextRequest = z.infer<typeof aiSimplifyTextRequestSchema>;
+
+/**
+ * Kenapa tidak ada versi sederhana. Klien memilih kalimat penjelasannya dari
+ * sini — "coba lagi besok" hanya benar untuk kuota.
+ *
+ * - `kuota_habis` — jatah `simplify_text` hari ini habis (atau penghitung kuota
+ *   tak terbaca; satu kode, alasan yang sama dengan `KUOTA_AI_HABIS`).
+ * - `ai_tidak_tersedia` — penyedia AI gagal/tak dikonfigurasi, ATAU hasilnya
+ *   ditolak penjaga fakta (angka yang tidak ada di teks asli). Pengguna tidak
+ *   perlu tahu bedanya: keduanya berarti "baca teks aslinya".
+ * - `dimatikan` — fitur dimatikan operator (`AI_SIMPLIFY_ENABLED=false`).
+ */
+export const aiSimplifyAlasanDegradasiSchema = z.enum([
+  "kuota_habis",
+  "ai_tidak_tersedia",
+  "dimatikan",
+]);
+
+export type AiSimplifyAlasanDegradasi = z.infer<typeof aiSimplifyAlasanDegradasiSchema>;
+
+/**
+ * Hasil penyederhanaan. TEPAT SATU dari `teks`/`alasan` terisi — `teks` berisi
+ * teks polos (tanpa HTML/markdown) yang WAJIB dirender sebagai teks.
+ *
+ * Tidak ada penanda "dari cache": entri cache fitur ini dipakai bersama semua
+ * pengguna, dan penanda itu akan memberi tahu pemanggil apakah ORANG LAIN
+ * pernah menyederhanakan konten yang sama (catatan `AiPromptResponse`).
+ */
+export const aiSimplifyTextResultSchema = z
+  .union([
+    z.object({ teks: z.string().min(1), alasan: z.null() }).strict(),
+    z.object({ teks: z.null(), alasan: aiSimplifyAlasanDegradasiSchema }).strict(),
+  ])
+  .openapi({ ref: "AiSimplifyTextResult" });
+
+export type AiSimplifyTextResult = z.infer<typeof aiSimplifyTextResultSchema>;
+
+/**
+ * Response `POST /ai/simplify-text` — SELALU 200 untuk permintaan yang sah.
+ * Degradasi bukan kegagalan (aturan 1 tabel pola degradasi PR-046): `alasan`
+ * terisi dan `meta.degraded: true`; teks asli tetap milik klien.
+ */
+export const aiSimplifyTextResponseSchema = z
+  .object({
+    data: aiSimplifyTextResultSchema,
+    meta: degradedMetaSchema.optional(),
+  })
+  .openapi({ ref: "AiSimplifyTextResponse" });
+
+export type AiSimplifyTextResponse = z.infer<typeof aiSimplifyTextResponseSchema>;

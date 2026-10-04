@@ -7,6 +7,10 @@
 // akomodasi perusahaan.
 // Tidak ada tingkat yang dilompati.
 //
+// "SEDERHANAKAN" (PR-087) hidup di dalam bagian deskripsi & persyaratan —
+// `TeksSederhanakan` merender teks aslinya sendiri, lalu menggantinya dengan
+// versi AI berlabel saat diminta.
+//
 // ANTI-XSS (Security Considerations): deskripsi dan persyaratan hasil kurasi
 // dirender sebagai TEKS lewat JSX biasa — React meng-escape isinya. Tidak ada
 // `dangerouslySetInnerHTML` di mana pun di fitur ini; baris baru dipertahankan
@@ -38,6 +42,7 @@ import { RAGAM } from "../onboarding/langkah-ragam-disabilitas.js";
 import { kalimatGaji } from "./gaji.js";
 import { KUNCI_MODE, KUNCI_TIPE } from "./kartu-lowongan.js";
 import { pesanGalatLowongan } from "./pesan-galat.js";
+import { TeksSederhanakan } from "./sederhanakan.js";
 
 /** Tanggal WIB eksplisit — server menyimpan UTC (alasan sama `notifikasi/daftar.tsx`). */
 const TANGGAL = new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "Asia/Jakarta" });
@@ -203,7 +208,13 @@ function IsiDetail({
         <h2 id="lowongan-detail-deskripsi" className={KELAS_H2}>
           {t("lowongan.detail.deskripsi")}
         </h2>
-        <p className={`whitespace-pre-line break-words ${KELAS_TEKS}`}>{lowongan.description}</p>
+        <TeksSederhanakan
+          klien={klien}
+          jobId={lowongan.id}
+          bagian="deskripsi"
+          namaBagian={t("lowongan.detail.deskripsi")}
+          teksAsli={lowongan.description}
+        />
       </section>
 
       {lowongan.requirements !== null && (
@@ -211,7 +222,13 @@ function IsiDetail({
           <h2 id="lowongan-detail-persyaratan" className={KELAS_H2}>
             {t("lowongan.detail.persyaratan")}
           </h2>
-          <p className={`whitespace-pre-line break-words ${KELAS_TEKS}`}>{lowongan.requirements}</p>
+          <TeksSederhanakan
+            klien={klien}
+            jobId={lowongan.id}
+            bagian="persyaratan"
+            namaBagian={t("lowongan.detail.persyaratan")}
+            teksAsli={lowongan.requirements}
+          />
         </section>
       )}
 

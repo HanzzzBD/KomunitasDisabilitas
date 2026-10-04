@@ -85,6 +85,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Akses data disabilitas harus menyertakan alasan",
           "status": 403,
         },
+        "BAGIAN_LOWONGAN_KOSONG": {
+          "hint": "Pilih bagian lowongan yang berisi teks",
+          "message": "Bagian ini tidak ada di lowongan",
+          "status": 404,
+        },
         "BATAS_CV_TERCAPAI": {
           "hint": "Hapus salah satu CV lama sebelum membuat yang baru",
           "message": "Jumlah CV Anda sudah mencapai batas",

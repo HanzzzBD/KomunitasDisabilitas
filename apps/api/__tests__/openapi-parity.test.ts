@@ -25,7 +25,7 @@ import { parseFieldKeys } from "../src/core/crypto/index.js";
 import { createAuthModule } from "../src/modules/auth/index.js";
 import { createUsersModule } from "../src/modules/users/index.js";
 import { createAccessibilityModule } from "../src/modules/accessibility/index.js";
-import { createAiModule } from "../src/modules/ai/index.js";
+import { createAiModule, createAiSimplifyModule } from "../src/modules/ai/index.js";
 import { createNotificationsModule } from "../src/modules/notifications/index.js";
 import { createProfilesModule } from "../src/modules/profiles/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
@@ -127,6 +127,14 @@ function routeNyata(): { method: string; path: string }[] {
     routes: registry.forModule(PREFIX),
     auditLog: auditLog as never,
     events,
+  });
+  // PR-087 — dirakit sesudah jobs, sama seperti boot.ts.
+  createAiSimplifyModule({
+    routes: registry.forModule(PREFIX),
+    ai: stub(),
+    bacaLowongan: (id) => jobs.service.getPublic(id),
+    aktif: true,
+    logger: stub(),
   });
   createResumesModule({
     prisma: stub(),

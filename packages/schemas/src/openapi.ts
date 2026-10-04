@@ -28,6 +28,8 @@ import {
   aiChatSessionParamsSchema,
   aiChatSessionResponseSchema,
   aiCvChatFinalizeResponseSchema,
+  aiSimplifyTextRequestSchema,
+  aiSimplifyTextResponseSchema,
   aiCvChatRequestSchema,
   aiCvChatSessionStartResponseSchema,
   aiQuotaResponseSchema,
@@ -803,6 +805,31 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "503": errorResponse(
               "Fitur chat AI dimatikan atau server sedang penuh, atau kunci sesi server belum diatur. Klien beralih ke formulir CV biasa",
             ),
+          },
+        },
+      },
+      "/ai/simplify-text": {
+        post: {
+          operationId: "simplifyText",
+          tags: ["ai"],
+          summary: "Sederhanakan satu bagian teks lowongan",
+          description:
+            "Body hanya RUJUKAN (`sumber`, `id`, `bagian`); teksnya dibaca server dari lowongan " +
+            "aktif. Memakai satu jatah `simplify_text` (20/hari), juga saat hasilnya dari cache. " +
+            "Konten yang sama dilayani dari cache tanpa memanggil penyedia AI. SELALU 200 untuk " +
+            "permintaan sah: tanpa versi sederhana (kuota habis, AI tak tersedia, hasil ditolak " +
+            "penjaga fakta, fitur dimatikan) → `data.teks` null, `data.alasan` terisi, " +
+            "`meta.degraded: true` — klien tetap menampilkan teks asli. `data.teks` adalah teks " +
+            "polos dan wajib dirender sebagai teks.",
+          requestBody: jsonBody(aiSimplifyTextRequestSchema),
+          responses: {
+            "200": jsonOk(
+              "Teks sederhana, atau alasan tidak tersedia",
+              aiSimplifyTextResponseSchema,
+            ),
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("Lowongan tidak ditemukan, atau bagian yang diminta kosong"),
+            ...responsSesi,
           },
         },
       },

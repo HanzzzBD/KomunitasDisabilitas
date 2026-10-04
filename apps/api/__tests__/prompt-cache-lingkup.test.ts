@@ -53,7 +53,15 @@ const BERKAS_MEKANISME = ["definisi.ts", "tipe.ts"] as const;
  * dua berkas bernama sama di folder berbeda, dan pemisah `\` akan membuat
  * daftarnya hanya cocok di Windows.
  */
-const DIIZINKAN_BERSAMA: ReadonlyArray<{ file: string; alasan: string }> = [];
+const DIIZINKAN_BERSAMA: ReadonlyArray<{ file: string; alasan: string }> = [
+  {
+    file: "simplify.v1.ts",
+    alasan:
+      "Masukan satu-satunya adalah teks lowongan aktif (deskripsi/persyaratan) yang dibaca " +
+      "server dari jobs.getPublic — data publik yang sama dengan halaman /lowongan/:id untuk " +
+      "pengunjung anonim. Body permintaan tidak pernah membawa teks (PR-087).",
+  },
+];
 
 const bolehBersama = new Set(DIIZINKAN_BERSAMA.map((d) => d.file));
 

@@ -11,13 +11,18 @@
 // `/ai/quota/:userId` kelak berarti pindah ke `access.self("userId")`, bukan
 // menambah pemeriksaan di controller.
 import type { Router } from "express";
-import { aiChatSessionParamsSchema, aiCvChatRequestSchema } from "@nawasena/schemas";
+import {
+  aiChatSessionParamsSchema,
+  aiCvChatRequestSchema,
+  aiSimplifyTextRequestSchema,
+} from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { AiController } from "../controllers/ai.controller.js";
 import type { AiChatSessionsController } from "../controllers/chat-sessions.controller.js";
 import type { CvChatController } from "../controllers/cv-chat.controller.js";
 import type { CvFinalizeController } from "../controllers/cv-finalize.controller.js";
+import type { SimplifyController } from "../controllers/simplify.controller.js";
 
 /**
  * Bernama `createAiQuotaRouter`, bukan `createAiRouter` seperti pola modul lain:
@@ -93,6 +98,24 @@ export function createAiCvFinalizeRouter(
     access.authenticated(),
     validate({ params: aiChatSessionParamsSchema }),
     asyncHandler(controller.finalisasi),
+  );
+  return routes.router;
+}
+
+/**
+ * Sederhanakan teks (PR-087). `authenticated` walau halaman lowongannya publik:
+ * jatah 20/hari adalah jatah PER PENGGUNA, jadi butuh identitas (keputusan owner
+ * 2026-10-04). Body hanya membawa RUJUKAN lowongan; teksnya dibaca server.
+ */
+export function createAiSimplifyRouter(
+  controller: SimplifyController,
+  routes: RouteRegistrar,
+): Router {
+  routes.post(
+    "/ai/simplify-text",
+    access.authenticated(),
+    validate({ body: aiSimplifyTextRequestSchema }),
+    asyncHandler(controller.sederhanakan),
   );
   return routes.router;
 }

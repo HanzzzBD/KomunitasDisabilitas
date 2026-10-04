@@ -2151,6 +2151,78 @@
         }
       }
     },
+    "/ai/simplify-text": {
+      "post": {
+        "operationId": "simplifyText",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Sederhanakan satu bagian teks lowongan",
+        "description": "Body hanya RUJUKAN (`sumber`, `id`, `bagian`); teksnya dibaca server dari lowongan aktif. Memakai satu jatah `simplify_text` (20/hari), juga saat hasilnya dari cache. Konten yang sama dilayani dari cache tanpa memanggil penyedia AI. SELALU 200 untuk permintaan sah: tanpa versi sederhana (kuota habis, AI tak tersedia, hasil ditolak penjaga fakta, fitur dimatikan) → `data.teks` null, `data.alasan` terisi, `meta.degraded: true` — klien tetap menampilkan teks asli. `data.teks` adalah teks polos dan wajib dirender sebagai teks.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSimplifyTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Teks sederhana, atau alasan tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSimplifyTextResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lowongan tidak ditemukan, atau bagian yang diminta kosong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/cv-chat/{session}/finalize": {
       "post": {
         "operationId": "finalizeMyAiCvChat",
@@ -9043,6 +9115,105 @@
           "message"
         ],
         "additionalProperties": false
+      },
+      "AiSimplifyTextRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "sumber": {
+                "type": "string",
+                "const": "lowongan"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID",
+                "example": "01912345-89ab-7def-8123-456789abcdef"
+              },
+              "bagian": {
+                "type": "string",
+                "enum": [
+                  "deskripsi",
+                  "persyaratan"
+                ]
+              }
+            },
+            "required": [
+              "sumber",
+              "id",
+              "bagian"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AiSimplifyTextResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiSimplifyTextResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/DegradedMeta"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "AiSimplifyTextResult": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "teks": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alasan": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "teks",
+              "alasan"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "teks": {
+                "type": "null"
+              },
+              "alasan": {
+                "type": "string",
+                "enum": [
+                  "kuota_habis",
+                  "ai_tidak_tersedia",
+                  "dimatikan"
+                ]
+              }
+            },
+            "required": [
+              "teks",
+              "alasan"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "DegradedMeta": {
+        "type": "object",
+        "properties": {
+          "degraded": {
+            "type": "boolean",
+            "description": "true bila jawaban disajikan tanpa bantuan AI (jalur degradasi)",
+            "example": true
+          }
+        },
+        "description": "Penanda degradasi jalur AI"
       },
       "AiCvChatFinalizeResponse": {
         "type": "object",

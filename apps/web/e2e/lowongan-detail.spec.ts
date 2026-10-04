@@ -151,4 +151,77 @@ test.describe("detail lowongan — alur sungguhan", () => {
     const hasil = await new AxeBuilder({ page }).withTags(TAG).analyze();
     expect(hasil.violations).toEqual([]);
   });
+  test("PR-087 'Sederhanakan': tombol → hasil berlabel AI → kembali ke asli, keyboard saja, axe pass", async ({
+    page,
+  }) => {
+    await palsukanApi(page, { ...HALAMAN, butuhSesi: true });
+    const diminta: unknown[] = [];
+    await page.route("**/api/v1/ai/simplify-text", async (route) => {
+      diminta.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            teks: "Anda menjawab pertanyaan pelanggan.\n- Lewat surel dan obrolan teks.",
+            alasan: null,
+          },
+        }),
+      });
+    });
+    await page.goto(`/lowongan/${LOWONGAN_LENGKAP_ID}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    const deskripsi = page.getByRole("region", { name: "Deskripsi pekerjaan" });
+    const tombol = deskripsi.getByRole("button", { name: "Sederhanakan teks ini" });
+    await expect(tombol).toHaveAccessibleDescription(/Ditulis ulang oleh AI/);
+    await tombol.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(deskripsi.getByText(/Disederhanakan oleh AI/)).toBeVisible();
+    await expect(
+      deskripsi.getByText("Anda menjawab pertanyaan pelanggan.", { exact: false }),
+    ).toBeVisible();
+    await expect(deskripsi.getByText(/SOPLAYANANPELANGGAN/)).toHaveCount(0);
+    await expect(deskripsi.getByRole("status")).toHaveText(/versi sederhana dari AI/);
+    const alih = deskripsi.getByRole("button", { name: "Tampilkan teks asli" });
+    await expect(alih).toBeFocused();
+    expect(diminta).toEqual([{ sumber: "lowongan", id: LOWONGAN_LENGKAP_ID, bagian: "deskripsi" }]);
+
+    await tungguGayaTenang(page);
+    expect((await new AxeBuilder({ page }).withTags(TAG).analyze()).violations).toEqual([]);
+
+    await page.keyboard.press("Enter");
+    await expect(deskripsi.getByText(/SOPLAYANANPELANGGAN/)).toBeVisible();
+    await expect(deskripsi.getByText(/Disederhanakan oleh AI/)).toHaveCount(0);
+    await expect(deskripsi.getByRole("status")).toHaveText(/teks asli kini ditampilkan/);
+    expect(diminta).toHaveLength(1);
+  });
+
+  test("PR-087 degradasi: tombol hilang, penjelasan difokus, teks asli tetap, axe pass", async ({
+    page,
+  }) => {
+    await palsukanApi(page, { ...HALAMAN, butuhSesi: true });
+    await page.route("**/api/v1/ai/simplify-text", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { teks: null, alasan: "kuota_habis" },
+          meta: { degraded: true },
+        }),
+      }),
+    );
+    await page.goto(`/lowongan/${LOWONGAN_LENGKAP_ID}`);
+    const persyaratan = page.getByRole("region", { name: "Persyaratan" });
+    await persyaratan.getByRole("button", { name: "Sederhanakan teks ini" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(persyaratan.getByText(/Coba lagi besok/)).toBeFocused();
+    await expect(persyaratan.getByRole("button")).toHaveCount(0);
+    await expect(persyaratan.getByText(/Terbiasa mengetik\./)).toBeVisible();
+
+    await tungguGayaTenang(page);
+    expect((await new AxeBuilder({ page }).withTags(TAG).analyze()).violations).toEqual([]);
+  });
 });
