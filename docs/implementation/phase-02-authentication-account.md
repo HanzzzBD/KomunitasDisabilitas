@@ -821,7 +821,7 @@ Syarat yang menyertainya:
 
 **Out of Scope:**
 
-* Arsip audit_logs 2 tahun ke R2 (pasca-MVP, dicatat).
+* Arsip audit_logs 2 tahun ke B2 (pasca-MVP, dicatat; semula R2, ADR-020).
 
 **Rollback Strategy:**
 

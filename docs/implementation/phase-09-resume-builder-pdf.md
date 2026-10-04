@@ -12,7 +12,7 @@ conventions: see README.md (Konvensi Global & RB-Std)
 
 ## Overview
 
-CV jalur manual (fallback wajib graceful degradation): CRUD + resumeSchema, editor aksesibel, storage R2, dan pipeline render PDF Puppeteer.
+CV jalur manual (fallback wajib graceful degradation): CRUD + resumeSchema, editor aksesibel, object storage (Backblaze B2, ADR-020), dan pipeline render PDF Puppeteer.
 
 > Konvensi global (lint boundaries, zod, error envelope, a11y gate, AI via gateway, no-PII log, <500 LOC) dan definisi **RB-Std** berlaku untuk semua PR - lihat [README.md](README.md#konvensi-global).
 
@@ -180,7 +180,7 @@ RB-Std.
 * Editor kompleks di layar kecil. Mitigasi: section collapsible responsif.
 
 
-### PR-062 - core/storage — Cloudflare R2
+### PR-062 - core/storage — object storage S3-compatible (Backblaze B2, ADR-020)
 
 #### Objective
 
@@ -190,7 +190,7 @@ Bisnis: penyimpanan objek murah (PDF CV, video BISINDO). Teknis: util storage de
 
 #### Scope
 
-* Client R2 + helper upload/presign
+* Client S3 (B2; semula R2, diganti ADR-020) + helper upload/presign
 * Konvensi path per domain
 
 #### Technical Notes
@@ -221,7 +221,7 @@ Bisnis: penyimpanan objek murah (PDF CV, video BISINDO). Teknis: util storage de
 * [x] Integration Test (MinIO roundtrip + expiry) — `storage-minio.test.ts` — **berjalan di CI sejak PR-064c** (sebelumnya selalu skip)
 * [ ] E2E Test (N/A)
 * [ ] Accessibility Test (N/A)
-* [ ] Manual Verification (R2 nyata staging)
+* [ ] Manual Verification (B2 nyata staging)
 
 **Deliverables:**
 
@@ -425,7 +425,7 @@ Phase 09 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 > sebagai U-24 di [`docs/utang-teknis.md`](../utang-teknis.md).
 >
 > Kotak Testing Checklist yang kosong selain itu: `N/A` (4), Manual curl PR-060 (tidak ada jejak
-> curl — digantikan test HTTP + DB nyata), R2 staging PR-062 (belum ada lingkungan staging, lahir
+> curl — digantikan test HTTP + DB nyata), B2 staging PR-062 (semula R2, ADR-020; belum ada lingkungan staging, lahir
 > di Phase 16), dan pembukaan PDF di reader (PR-063/064, bagian dari U-24).
 
 ## Next Phase

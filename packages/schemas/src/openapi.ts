@@ -28,6 +28,8 @@ import {
   aiChatSessionParamsSchema,
   aiChatSessionResponseSchema,
   aiCvChatFinalizeResponseSchema,
+  aiSimplifyTextRequestSchema,
+  aiSimplifyTextResponseSchema,
   aiCvChatRequestSchema,
   aiCvChatSessionStartResponseSchema,
   aiQuotaResponseSchema,
@@ -63,6 +65,18 @@ import {
   adminUserResponseSchema,
   moderateUserSchema,
 } from "./admin-users.js";
+import {
+  createSignVideoSchema,
+  signVideoAdminListResponseSchema,
+  signVideoAdminResponseSchema,
+  signVideoIdParamsSchema,
+  signVideoPresignResponseSchema,
+  signVideoPresignSchema,
+  signVideoPublicResponseSchema,
+  signVideoSearchQuerySchema,
+  signVideoSearchResponseSchema,
+  updateSignVideoSchema,
+} from "./signbridge.js";
 import {
   companyActiveJobsResponseSchema,
   createJobSchema,
@@ -794,6 +808,31 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      "/ai/simplify-text": {
+        post: {
+          operationId: "simplifyText",
+          tags: ["ai"],
+          summary: "Sederhanakan satu bagian teks lowongan",
+          description:
+            "Body hanya RUJUKAN (`sumber`, `id`, `bagian`); teksnya dibaca server dari lowongan " +
+            "aktif. Memakai satu jatah `simplify_text` (20/hari), juga saat hasilnya dari cache. " +
+            "Konten yang sama dilayani dari cache tanpa memanggil penyedia AI. SELALU 200 untuk " +
+            "permintaan sah: tanpa versi sederhana (kuota habis, AI tak tersedia, hasil ditolak " +
+            "penjaga fakta, fitur dimatikan) → `data.teks` null, `data.alasan` terisi, " +
+            "`meta.degraded: true` — klien tetap menampilkan teks asli. `data.teks` adalah teks " +
+            "polos dan wajib dirender sebagai teks.",
+          requestBody: jsonBody(aiSimplifyTextRequestSchema),
+          responses: {
+            "200": jsonOk(
+              "Teks sederhana, atau alasan tidak tersedia",
+              aiSimplifyTextResponseSchema,
+            ),
+            "400": errorResponse("Input tidak valid"),
+            "404": errorResponse("Lowongan tidak ditemukan, atau bagian yang diminta kosong"),
+            ...responsSesi,
+          },
+        },
+      },
       "/ai/cv-chat/{session}/finalize": {
         post: {
           operationId: "finalizeMyAiCvChat",
@@ -1211,6 +1250,148 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "400": errorResponse("Alasan kosong / id tidak valid"),
             "404": errorResponse("Akun tidak ditemukan"),
             "409": errorResponse("Akun tidak sedang ditangguhkan"),
+            ...responsAdmin,
+          },
+        },
+      },
+      // Kamus video BISINDO (PR-084, SignBridge v1, ADR-010). Pencarian publik;
+      // mutasi admin. Publish menuntut video + caption (.vtt) + transkrip.
+      "/sign-videos": {
+        get: {
+          operationId: "searchSignVideos",
+          tags: ["signbridge"],
+          summary: "Cari kamus video BISINDO (publik)",
+          security: [], // kamus terbuka bagi siapa pun, termasuk sebelum mendaftar
+          description:
+            "Hanya entri `published`. `query` dicari lewat full-text bahasa Indonesia " +
+            "ditambah kecocokan sebagian frasa; tanpa `query` diurutkan menurut frasa. " +
+            "URL media presigned dan kedaluwarsa pada `mediaExpiresAt`.",
+          requestParams: { query: signVideoSearchQuerySchema },
+          responses: {
+            "200": jsonOk("Entri kamus", signVideoSearchResponseSchema),
+            "400": errorResponse("Query tidak valid (mis. kategori tidak dikenal)"),
+            "503": errorResponse("Object storage belum diatur"),
+          },
+        },
+      },
+      "/sign-videos/{id}": {
+        get: {
+          operationId: "getSignVideo",
+          tags: ["signbridge"],
+          summary: "Satu entri kamus BISINDO (publik)",
+          security: [], // sama sifatnya dengan GET /sign-videos
+          description:
+            "Halaman detail kamus (PR-086). Hanya entri `published`; draft dan id yang tidak ada " +
+            "sama-sama 404. URL media presigned kedaluwarsa pada `mediaExpiresAt`.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri kamus", signVideoPublicResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan atau belum terbit"),
+            "503": errorResponse("Object storage belum diatur"),
+          },
+        },
+      },
+      "/admin/sign-videos": {
+        get: {
+          operationId: "listSignVideosAdmin",
+          tags: ["signbridge"],
+          summary: "Daftar seluruh entri kamus (admin)",
+          description: "Draft dan published, terbaru dulu. Tanpa pagination (skala pilot).",
+          responses: {
+            "200": jsonOk("Daftar entri", signVideoAdminListResponseSchema),
+            ...responsAdmin,
+          },
+        },
+        post: {
+          operationId: "createSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Tambah entri kamus (admin)",
+          description: "Selalu lahir `draft`. Key media diisi lewat PUT setelah unggah.",
+          requestBody: jsonBody(createSignVideoSchema),
+          responses: {
+            "201": jsonOk("Entri baru", signVideoAdminResponseSchema),
+            "400": errorResponse("Input tidak valid"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/sign-videos/presign": {
+        post: {
+          operationId: "presignSignVideoMediaAdmin",
+          tags: ["signbridge"],
+          summary: "Izin unggah satu berkas media kamus (admin)",
+          description:
+            "URL PUT presigned langsung ke bucket (PR-085). Tipe & ukuran dibatasi per jenis: " +
+            "video mp4/webm ≤ 50 MB, caption text/vtt ≤ 200 KB, thumbnail jpg/png/webp ≤ 1 MB. " +
+            "Ukuran ikut ditandatangani. Kirim `headers` apa adanya, lalu simpan `key` lewat " +
+            "PUT /admin/sign-videos/{id} — server memeriksa objeknya sudah ada.",
+          requestBody: jsonBody(signVideoPresignSchema),
+          responses: {
+            "200": jsonOk("Izin unggah", signVideoPresignResponseSchema),
+            "400": errorResponse("Tipe/ukuran tidak diterima atau input tidak valid"),
+            "404": errorResponse("Entri kamus tidak ditemukan"),
+            ...responsAdmin,
+            "503": errorResponse("Sesi atau object storage belum diatur di server"),
+          },
+        },
+      },
+      "/admin/sign-videos/{id}": {
+        put: {
+          operationId: "updateSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Perbarui entri kamus (admin)",
+          description:
+            "Field yang tidak dikirim tidak diubah; `null` mengosongkan. Key media wajib " +
+            "berbentuk `sign-videos/{id}/{berkas}` dengan ekstensi sesuai jenisnya. Pada entri " +
+            "`published`, mengosongkan video/caption/transkrip ditolak 422.",
+          requestParams: { path: signVideoIdParamsSchema },
+          requestBody: jsonBody(updateSignVideoSchema),
+          responses: {
+            "200": jsonOk("Entri setelah diperbarui", signVideoAdminResponseSchema),
+            "400": errorResponse("Input tidak valid, atau `id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "422": errorResponse(
+              "Key media tidak valid, objeknya belum diunggah, atau entri terbit menjadi tidak lengkap",
+            ),
+            ...responsAdmin,
+            "503": errorResponse("Sesi atau object storage belum diatur di server"),
+          },
+        },
+      },
+      "/admin/sign-videos/{id}/publish": {
+        post: {
+          operationId: "publishSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Terbitkan entri kamus (admin)",
+          description:
+            "draft → published (satu arah, audit `ADMIN_RESOURCE_CHANGED`). Ditolak 422 bila " +
+            "video, caption (.vtt), atau transkrip belum ada — `hint` menyebut yang kurang.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri setelah terbit", signVideoAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Sudah diterbitkan"),
+            "422": errorResponse("Video, caption, atau transkrip belum ada"),
+            ...responsAdmin,
+          },
+        },
+      },
+      "/admin/sign-videos/{id}/unpublish": {
+        post: {
+          operationId: "unpublishSignVideoAdmin",
+          tags: ["signbridge"],
+          summary: "Tarik entri kamus ke draft (admin)",
+          description:
+            "published → draft (PR-085), audit `ADMIN_RESOURCE_CHANGED {operation: unpublish}`. " +
+            "Media & transkrip tetap utuh; entri bisa diterbitkan lagi.",
+          requestParams: { path: signVideoIdParamsSchema },
+          responses: {
+            "200": jsonOk("Entri setelah ditarik", signVideoAdminResponseSchema),
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("Tidak ditemukan"),
+            "409": errorResponse("Belum diterbitkan"),
             ...responsAdmin,
           },
         },

@@ -240,7 +240,8 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: z.object({
     // "delete" (PR-055): penghapusan lowongan TANPA lamaran (DB menolak yang
     // punya lamaran lewat FK Restrict sebelum baris ini sempat ditulis).
-    operation: z.enum(["create", "update", "publish", "close", "delete", "moderate"]),
+    // "unpublish" (PR-085): entri kamus BISINDO ditarik kembali ke draft.
+    operation: z.enum(["create", "update", "publish", "unpublish", "close", "delete", "moderate"]),
   }),
   // Nama BAGIAN yang ikut diekspor, bukan isinya. Berguna persis saat ada
   // sengketa "data saya tidak lengkap": ia menunjukkan apa yang platform

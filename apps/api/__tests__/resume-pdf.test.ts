@@ -134,6 +134,8 @@ function storagePalsu(): ObjectStorage & { uploads: unknown[] } {
     },
     presignDownload: () =>
       Promise.resolve({ url: "https://storage.test/signed", expiresAt: new Date() }),
+    presignUpload: () => Promise.reject(new Error("tidak dipakai PDF CV")),
+    stat: () => Promise.resolve(null),
   };
 }
 

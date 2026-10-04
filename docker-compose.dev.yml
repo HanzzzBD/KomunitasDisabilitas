@@ -30,7 +30,9 @@ services:
     image: redis:7.4-alpine
     command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
-      - "6379:6379"
+      # Port host 6381, bukan 6379: 6379 lazim sudah dipakai Redis proyek lain
+      # di mesin pengembang, dan klien lalu diam-diam tersambung ke Redis yang salah.
+      - "6381:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -53,21 +55,22 @@ services:
 
   # S3-compatible object storage untuk roundtrip lokal PR-062. Build Alpine
   # dipin ke tag + digest dari source MinIO rilis terakhir dan HANYA untuk
-  # dev/test; production memakai R2.
+  # dev/test; production memakai Backblaze B2 (ADR-020).
   # Bucket dibuat oleh `minio-init`, bukan aplikasi (core/storage sengaja
   # tidak memiliki izin create/list bucket).
   minio:
     image: alpine/minio:RELEASE.2025-10-15T17-29-55Z@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
     # Named volume baru dimiliki root. Root hanya berlaku di container dev
-    # terisolasi ini agar /data bisa diinisialisasi; production memakai R2.
+    # terisolasi ini agar /data bisa diinisialisasi; production memakai Backblaze B2 (ADR-020).
     user: "0:0"
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: nawasena-minio
       MINIO_ROOT_PASSWORD: nawasena-minio-secret
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      # Port host 9010/9011, bukan 9000/9001 — alasan sama dengan redis-cache.
+      - "9010:9000"
+      - "9011:9001"
     volumes:
       - miniodata:/data
 
@@ -116,7 +119,7 @@ services:
       STORAGE_ENDPOINT: http://minio:9000
       # URL unduh dibuka browser di host, yang tidak mengenal nama `minio`
       # (U-23, PR-064b). Upload tetap lewat jaringan compose.
-      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9010
       STORAGE_ACCESS_KEY_ID: nawasena-minio
       STORAGE_SECRET_ACCESS_KEY: nawasena-minio-secret
       STORAGE_BUCKET_PREFIX: nawasena

@@ -25,7 +25,7 @@ import { parseFieldKeys } from "../src/core/crypto/index.js";
 import { createAuthModule } from "../src/modules/auth/index.js";
 import { createUsersModule } from "../src/modules/users/index.js";
 import { createAccessibilityModule } from "../src/modules/accessibility/index.js";
-import { createAiModule } from "../src/modules/ai/index.js";
+import { createAiModule, createAiSimplifyModule } from "../src/modules/ai/index.js";
 import { createNotificationsModule } from "../src/modules/notifications/index.js";
 import { createProfilesModule } from "../src/modules/profiles/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
@@ -35,6 +35,7 @@ import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
 import { createApplicationsModule } from "../src/modules/applications/index.js";
 import { createAdminModule } from "../src/modules/admin/index.js";
+import { createSignbridgeModule } from "../src/modules/signbridge/index.js";
 import { BOBOT_SKOR_SDD, createMatchingFeedModule } from "../src/modules/matching/index.js";
 import { busUji } from "./helpers/events.js";
 import { SESSION_KEYS } from "./helpers/session.js";
@@ -127,6 +128,14 @@ function routeNyata(): { method: string; path: string }[] {
     auditLog: auditLog as never,
     events,
   });
+  // PR-087 — dirakit sesudah jobs, sama seperti boot.ts.
+  createAiSimplifyModule({
+    routes: registry.forModule(PREFIX),
+    ai: stub(),
+    bacaLowongan: (id) => jobs.service.getPublic(id),
+    aktif: true,
+    logger: stub(),
+  });
   createResumesModule({
     prisma: stub(),
     routes: registry.forModule(PREFIX),
@@ -174,6 +183,13 @@ function routeNyata(): { method: string; path: string }[] {
     cache: stub(),
     bacaDlqTotal: stub(),
     logger,
+  });
+
+  createSignbridgeModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: auditLog as never,
+    storage: undefined,
   });
 
   // Permukaan operasional — ikut dirakit supaya test terakhir benar-benar

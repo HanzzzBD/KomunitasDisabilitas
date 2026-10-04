@@ -27,6 +27,7 @@ Sumber kebenaran hulu: PRD (kebutuhan bisnis) dan SDD (keputusan teknis).
 | [ADR-017](ADR-017-observability-hemat.md) | Observability Hemat: Sentry + Uptime Kuma + pino/Dozzle | Accepted | Infrastruktur |
 | [ADR-018](ADR-018-postgres-fts-search.md) | PostgreSQL FTS + pg_trgm untuk Pencarian Lowongan | Accepted | Database |
 | [ADR-019](ADR-019-tailwind-v4-styling-web.md) | Tailwind CSS v4 sebagai Styling Framework Web | Accepted | Frontend |
+| [ADR-020](ADR-020-backblaze-b2-object-storage.md) | Backblaze B2 sebagai Object Storage (menggantikan Cloudflare R2) | Accepted | Infrastruktur |
 
 ## Pemetaan dari SDD §21 (penomoran lama v1.0/v1.1 → resmi)
 

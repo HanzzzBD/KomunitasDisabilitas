@@ -380,6 +380,37 @@ export const ruteApp: RouteObject[] = [
             },
           },
           {
+            // Kamus video BISINDO (PR-085b) — daftar, buat, ubah + unggah media.
+            path: "kamus",
+            lazy: async () => {
+              const [{ AdminKamusDaftar }] = await Promise.all([
+                import("../routes/admin-kamus.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusDaftar };
+            },
+          },
+          {
+            path: "kamus/baru",
+            lazy: async () => {
+              const [{ AdminKamusFormulir }] = await Promise.all([
+                import("../routes/admin-kamus-formulir.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusFormulir };
+            },
+          },
+          {
+            path: "kamus/:id",
+            lazy: async () => {
+              const [{ AdminKamusFormulir }] = await Promise.all([
+                import("../routes/admin-kamus-formulir.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminKamusFormulir };
+            },
+          },
+          {
             path: "lamaran/:id",
             lazy: async () => {
               const [{ AdminLamaranDetail }] = await Promise.all([
@@ -407,6 +438,29 @@ export const ruteApp: RouteObject[] = [
             muatKatalog("companies", "profil"),
           ]);
           return { Component: ProfilPerusahaanPublik };
+        },
+      },
+      {
+        // Kamus BISINDO publik (PR-086) — tanpa penjagaan, `GET /sign-videos`
+        // publik di server; pola sama `lowongan`.
+        path: "kamus",
+        lazy: async () => {
+          const [{ Kamus }] = await Promise.all([
+            import("../routes/kamus.js"),
+            muatKatalog("kamus"),
+          ]);
+          return { Component: Kamus };
+        },
+      },
+      {
+        // Detail entri kamus — SAUDARA `kamus`, halaman penuh (pola `lowongan/:id`).
+        path: "kamus/:id",
+        lazy: async () => {
+          const [{ KamusDetail }] = await Promise.all([
+            import("../routes/kamus-detail.js"),
+            muatKatalog("kamus"),
+          ]);
+          return { Component: KamusDetail };
         },
       },
       {

@@ -177,6 +177,20 @@ function BerandaPublik() {
         </ol>
       </section>
 
+      {/* PR-086 — kamus publik: nilai bagi pengguna Tuli SEBELUM mendaftar. */}
+      <section aria-labelledby="kamus-judul" className="flex flex-col gap-4">
+        <h2 id="kamus-judul" className="text-2xl font-semibold text-gray-900">
+          {t("beranda.kamus.judul")}
+        </h2>
+        <p className="text-base text-gray-900">{t("beranda.kamus.isi")}</p>
+        <Link
+          to="/kamus"
+          className="inline-flex min-h-sentuh items-center justify-center rounded-md border border-gray-900 px-6 text-base font-semibold text-gray-900"
+        >
+          {t("beranda.kamus.tautan")}
+        </Link>
+      </section>
+
       <section aria-labelledby="penutup-judul" className="flex flex-col gap-4">
         <h2 id="penutup-judul" className="text-2xl font-semibold text-gray-900">
           {t("beranda.penutup.judul")}

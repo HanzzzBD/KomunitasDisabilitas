@@ -33,6 +33,11 @@ export const katalogAdmin = {
     id: "Lowongan",
     "id-simple": "Lowongan",
   },
+  "admin.nav.kamus": {
+    // Harus SAMA dengan `admin.kamus.judul` — alasan sama dengan `admin.nav.companies`.
+    id: "Kamus BISINDO",
+    "id-simple": "Kamus isyarat",
+  },
   "admin.memuat": {
     id: "Memeriksa hak akses Anda…",
     "id-simple": "Sebentar, kami cek dulu hak akses Anda…",
@@ -1213,5 +1218,209 @@ export const katalogAdmin = {
   "admin.lamaran.filterDitangguhkan.bantuan": {
     id: "Bawaan: disembunyikan, supaya lamaran dari akun yang ditangguhkan tidak ikut diteruskan.",
     "id-simple": "Biasanya disembunyikan, supaya tidak ikut dikirim ke perusahaan.",
+  },
+  // --- Kamus video BISINDO (PR-085b) ---
+  "admin.ringkasan.kamus.judul": { id: "Kamus BISINDO", "id-simple": "Kamus isyarat" },
+  "admin.ringkasan.kamus.penjelasan": {
+    id: "Unggah video isyarat beserta caption dan transkripnya, lalu terbitkan.",
+    "id-simple": "Unggah video bahasa isyarat, teks di video, dan tulisan isinya. Lalu terbitkan.",
+  },
+  "admin.ringkasan.kamus.tautan": { id: "Kelola kamus", "id-simple": "Buka kamus isyarat" },
+  "admin.kamus.judul": { id: "Kamus BISINDO", "id-simple": "Kamus isyarat" },
+  "admin.kamus.penjelasan": {
+    id: "Setiap entri baru tampil di kamus publik setelah video, caption, dan transkripnya lengkap lalu diterbitkan.",
+    "id-simple":
+      "Kata baru muncul untuk umum kalau video, teks di video, dan tulisan isinya sudah ada, lalu Anda terbitkan.",
+  },
+  "admin.kamus.tambah": { id: "Tambah entri", "id-simple": "Tambah kata baru" },
+  "admin.kamus.filterStatus.label": { id: "Status entri", "id-simple": "Keadaan kata" },
+  "admin.kamus.filterStatus.semua": { id: "Semua status", "id-simple": "Semua kata" },
+  "admin.kamus.filterStatus.draft": { id: "Draf", "id-simple": "Belum terbit" },
+  "admin.kamus.filterStatus.published": { id: "Diterbitkan", "id-simple": "Sudah terbit" },
+  "admin.kamus.kolom.frasa": { id: "Frasa", "id-simple": "Kata" },
+  "admin.kamus.kolom.kategori": { id: "Kategori", "id-simple": "Kelompok" },
+  "admin.kamus.kolom.status": { id: "Status", "id-simple": "Keadaan" },
+  "admin.kamus.kolom.kelengkapan": { id: "Kelengkapan", "id-simple": "Yang sudah ada" },
+  "admin.kamus.kolom.aksi": { id: "Aksi", "id-simple": "Tindakan" },
+  "admin.kamus.tanpaKategori": { id: "—", "id-simple": "Belum ada kelompok" },
+  "admin.kamus.kategori.salam": { id: "Salam", "id-simple": "Salam (sapaan)" },
+  "admin.kamus.kategori.perkenalan": { id: "Perkenalan", "id-simple": "Kenalan" },
+  "admin.kamus.kategori.wawancara": {
+    id: "Wawancara kerja",
+    "id-simple": "Wawancara (tanya jawab kerja)",
+  },
+  "admin.kamus.kategori.tempat_kerja": { id: "Tempat kerja", "id-simple": "Di kantor" },
+  "admin.kamus.kategori.akomodasi": { id: "Akomodasi", "id-simple": "Bantuan di tempat kerja" },
+  "admin.kamus.kategori.waktu": { id: "Waktu", "id-simple": "Jam dan hari" },
+  "admin.kamus.kategori.angka": { id: "Angka", "id-simple": "Angka (bilangan)" },
+  "admin.kamus.kategori.umum": { id: "Umum", "id-simple": "Lain-lain" },
+  "admin.kamus.lengkap": { id: "Lengkap, siap terbit", "id-simple": "Sudah lengkap" },
+  "admin.kamus.kurangDaftar": { id: "Kurang: {daftar}", "id-simple": "Belum ada: {daftar}" },
+  "admin.kamus.kurang.video": { id: "video", "id-simple": "video isyarat" },
+  "admin.kamus.kurang.caption": { id: "caption (.vtt)", "id-simple": "teks di video (.vtt)" },
+  "admin.kamus.kurang.transkrip": { id: "transkrip", "id-simple": "tulisan isi video" },
+  "admin.kamus.ubah": { id: "Ubah", "id-simple": "Ubah kata" },
+  "admin.kamus.ubahLabel": { id: "Ubah entri {frasa}", "id-simple": "Ubah kata {frasa}" },
+  "admin.kamus.memuat": { id: "Memuat kamus…", "id-simple": "Sedang membuka kamus…" },
+  "admin.kamus.gagalMuat": {
+    id: "Kamus belum bisa dimuat.",
+    "id-simple": "Kamus belum bisa dibuka.",
+  },
+  "admin.kamus.cobaLagi": { id: "Coba lagi", "id-simple": "Ulangi" },
+  "admin.kamus.tabelJudul": { id: "Daftar entri kamus", "id-simple": "Semua kata di kamus" },
+  "admin.kamus.kosong.judul": { id: "Belum ada entri", "id-simple": "Kamus masih kosong" },
+  "admin.kamus.kosong.penjelasan": {
+    id: "Tekan “Tambah entri” untuk membuat entri pertama.",
+    "id-simple": "Tekan “Tambah entri” untuk menambah kata pertama.",
+  },
+  "admin.kamus.galat.tidakDitemukan": {
+    id: "Entri ini tidak ditemukan. Mungkin sudah tidak ada di daftar.",
+    "id-simple": "Kata ini tidak ada. Kembali ke daftar kamus.",
+  },
+  "admin.kamus.galat.storageBelumSiap": {
+    id: "Penyimpanan berkas belum siap di server. Hubungi tim teknis.",
+    "id-simple": "Tempat simpan berkas belum siap. Hubungi tim teknis.",
+  },
+  "admin.kamus.form.judulBuat": { id: "Tambah entri kamus", "id-simple": "Tambah kata baru" },
+  "admin.kamus.form.judulUbah": { id: "Ubah entri: {frasa}", "id-simple": "Ubah kata: {frasa}" },
+  "admin.kamus.form.disimpan": {
+    id: "Entri {frasa} tersimpan.",
+    "id-simple": "Kata {frasa} sudah disimpan.",
+  },
+  "admin.kamus.form.periksaKolom": {
+    id: "Ada isian yang perlu diperbaiki. Periksa kolom bertanda merah.",
+    "id-simple": "Ada isian yang salah. Lihat kolom yang merah.",
+  },
+  "admin.kamus.form.kembali": { id: "Kembali ke daftar kamus", "id-simple": "Kembali ke kamus" },
+  "admin.kamus.form.bagianIsi": { id: "Isi entri", "id-simple": "Kata dan isinya" },
+  "admin.kamus.form.frasa": { id: "Frasa", "id-simple": "Kata atau kalimat" },
+  "admin.kamus.form.kategori": { id: "Kategori", "id-simple": "Kelompok" },
+  "admin.kamus.form.kategoriPlaceholder": { id: "Pilih kategori", "id-simple": "Pilih kelompok" },
+  "admin.kamus.form.transkrip": { id: "Transkrip", "id-simple": "Tulisan isi video" },
+  "admin.kamus.form.transkripBantuan": {
+    id: "Jelaskan isi video dalam kalimat, termasuk gerakan isyaratnya. Wajib sebelum terbit.",
+    "id-simple": "Tulis isi video, juga gerakan tangannya. Harus diisi sebelum terbit.",
+  },
+  "admin.kamus.form.simpan": { id: "Simpan", "id-simple": "Simpan isian" },
+  "admin.kamus.form.menyimpan": { id: "Menyimpan…", "id-simple": "Sedang menyimpan…" },
+  "admin.kamus.form.batal": { id: "Batal", "id-simple": "Batal, kembali" },
+  "admin.kamus.form.bagianMedia": { id: "Berkas media", "id-simple": "Berkas video dan teks" },
+  "admin.kamus.form.mediaPenjelasan": {
+    id: "Setiap berkas diunggah sendiri-sendiri. Bila satu gagal, yang lain tidak perlu diulang.",
+    "id-simple": "Unggah berkas satu per satu. Kalau satu gagal, yang lain tetap aman.",
+  },
+  "admin.kamus.terbitkan.tombol": { id: "Terbitkan", "id-simple": "Terbitkan untuk umum" },
+  "admin.kamus.terbitkan.sedang": { id: "Menerbitkan…", "id-simple": "Sedang menerbitkan…" },
+  "admin.kamus.terbitkan.berhasil": {
+    id: "{frasa} sudah terbit di kamus publik.",
+    "id-simple": "{frasa} sekarang bisa dilihat semua orang.",
+  },
+  "admin.kamus.terbitkan.syarat": {
+    id: "Belum bisa terbit. Lengkapi dulu: {daftar}.",
+    "id-simple": "Belum bisa terbit. Yang belum ada: {daftar}.",
+  },
+  "admin.kamus.tarik.tombol": { id: "Tarik ke draf", "id-simple": "Sembunyikan dari umum" },
+  "admin.kamus.tarik.sedang": { id: "Menarik…", "id-simple": "Sedang menyembunyikan…" },
+  "admin.kamus.tarik.berhasil": {
+    id: "{frasa} ditarik ke draf dan tidak lagi tampil di kamus publik.",
+    "id-simple": "{frasa} sudah disembunyikan dari umum.",
+  },
+  "admin.kamus.tarik.dialogJudul": {
+    id: "Tarik {frasa} ke draf?",
+    "id-simple": "Sembunyikan {frasa}?",
+  },
+  "admin.kamus.tarik.dialogDeskripsi": {
+    id: "Entri ini langsung hilang dari kamus publik. Video, caption, dan transkrip tetap tersimpan, jadi bisa diterbitkan lagi.",
+    "id-simple":
+      "Kata ini langsung hilang untuk umum. Berkasnya tidak dihapus. Anda bisa menerbitkannya lagi.",
+  },
+  "admin.kamus.tarik.dialogYa": { id: "Ya, tarik ke draf", "id-simple": "Ya, sembunyikan" },
+  "admin.kamus.tarik.dialogBatal": { id: "Batal", "id-simple": "Jangan sembunyikan" },
+  "admin.kamus.unggah.label.video": { id: "Video isyarat", "id-simple": "Video bahasa isyarat" },
+  "admin.kamus.unggah.label.caption": { id: "Caption (.vtt)", "id-simple": "Teks di video (.vtt)" },
+  "admin.kamus.unggah.label.thumbnail": {
+    id: "Gambar sampul",
+    "id-simple": "Gambar kecil untuk daftar",
+  },
+  "admin.kamus.unggah.bantuan.video": {
+    id: "MP4 atau WebM, maksimal 50 MB. Disarankan 720p, H.264, tanpa suara.",
+    "id-simple": "Berkas MP4 atau WebM. Paling besar 50 MB.",
+  },
+  "admin.kamus.unggah.bantuan.caption": {
+    id: "Berkas WebVTT (.vtt), maksimal 200 KB. Wajib sebelum terbit.",
+    "id-simple": "Berkas .vtt, paling besar 200 KB. Harus ada sebelum terbit.",
+  },
+  "admin.kamus.unggah.bantuan.thumbnail": {
+    id: "JPG, PNG, atau WebP, maksimal 1 MB. Boleh dikosongkan.",
+    "id-simple": "Gambar JPG, PNG, atau WebP, paling besar 1 MB. Boleh tidak ada.",
+  },
+  "admin.kamus.unggah.belumAda": { id: "Belum ada berkas.", "id-simple": "Berkas belum diunggah." },
+  "admin.kamus.unggah.sudahAda": { id: "Tersimpan: {nama}", "id-simple": "Sudah ada: {nama}" },
+  "admin.kamus.unggah.mulai": { id: "Mengunggah {label}…", "id-simple": "{label} mulai dikirim…" },
+  "admin.kamus.unggah.progres": {
+    id: "Mengunggah {label}: {persen}%",
+    "id-simple": "{label} sudah terkirim {persen} persen",
+  },
+  "admin.kamus.unggah.progresLabel": {
+    id: "Kemajuan unggah {label}",
+    "id-simple": "Seberapa jauh {label} terkirim",
+  },
+  "admin.kamus.unggah.menyimpan": {
+    id: "{label} terunggah. Menyimpan…",
+    "id-simple": "{label} sudah terkirim. Sedang disimpan…",
+  },
+  "admin.kamus.unggah.berhasil": {
+    id: "{label} tersimpan.",
+    "id-simple": "{label} sudah disimpan.",
+  },
+  "admin.kamus.unggah.batal": { id: "Batalkan", "id-simple": "Hentikan" },
+  "admin.kamus.unggah.batalLabel": {
+    id: "Batalkan unggah {label}",
+    "id-simple": "Hentikan kirim {label}",
+  },
+  "admin.kamus.unggah.cobaLagi": { id: "Coba lagi", "id-simple": "Kirim ulang" },
+  "admin.kamus.unggah.cobaLagiLabel": {
+    id: "Coba unggah {label} lagi",
+    "id-simple": "Kirim ulang {label}",
+  },
+  "admin.kamus.unggah.gagal.jaringan": {
+    id: "{label} gagal diunggah karena koneksi terputus. Periksa internet, lalu coba lagi.",
+    "id-simple": "{label} gagal dikirim. Internet terputus. Cek internet, lalu kirim ulang.",
+  },
+  "admin.kamus.unggah.gagal.ditolak": {
+    id: "Penyimpanan menolak {label}. Izin unggah mungkin kedaluwarsa — coba lagi.",
+    "id-simple": "{label} ditolak tempat simpan. Coba kirim ulang.",
+  },
+  "admin.kamus.unggah.gagal.dibatalkan": {
+    id: "Unggah {label} dibatalkan.",
+    "id-simple": "Kirim {label} dihentikan.",
+  },
+  "admin.kamus.unggah.galat.kosong": {
+    id: "Berkas ini kosong. Pilih berkas lain.",
+    "id-simple": "Berkas ini tidak ada isinya. Pilih yang lain.",
+  },
+  "admin.kamus.unggah.galat.tipe.video": {
+    id: "Video harus berformat MP4 atau WebM.",
+    "id-simple": "Video harus MP4 atau WebM.",
+  },
+  "admin.kamus.unggah.galat.tipe.caption": {
+    id: "Caption harus berkas WebVTT (.vtt).",
+    "id-simple": "Teks di video harus berkas .vtt.",
+  },
+  "admin.kamus.unggah.galat.tipe.thumbnail": {
+    id: "Gambar sampul harus JPG, PNG, atau WebP.",
+    "id-simple": "Gambar harus JPG, PNG, atau WebP.",
+  },
+  "admin.kamus.unggah.galat.ukuran.video": {
+    id: "Video lebih dari 50 MB. Kompres dulu (720p, H.264), lalu unggah lagi.",
+    "id-simple": "Video terlalu besar (lebih dari 50 MB). Perkecil dulu.",
+  },
+  "admin.kamus.unggah.galat.ukuran.caption": {
+    id: "Caption lebih dari 200 KB. Periksa apakah berkasnya benar.",
+    "id-simple": "Berkas teks terlalu besar. Cek lagi berkasnya.",
+  },
+  "admin.kamus.unggah.galat.ukuran.thumbnail": {
+    id: "Gambar sampul lebih dari 1 MB. Perkecil dulu, lalu unggah lagi.",
+    "id-simple": "Gambar terlalu besar (lebih dari 1 MB). Perkecil dulu.",
   },
 } as const satisfies KatalogFitur;

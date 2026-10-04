@@ -21,8 +21,8 @@ const VALID_ENV: NodeJS.ProcessEnv = {
 };
 
 const CONFIG: StorageConfig = {
-  endpoint: "https://akun.r2.cloudflarestorage.com",
-  region: "auto",
+  endpoint: "https://s3.us-west-004.backblazeb2.com",
+  region: "us-west-004",
   accessKeyId: "access-uji",
   secretAccessKey: "secret-uji",
   bucket: "nawasena-test",
@@ -34,10 +34,14 @@ const CONFIG: StorageConfig = {
 function fakeDriver(): StorageDriver & {
   put: ReturnType<typeof vi.fn>;
   presignGet: ReturnType<typeof vi.fn>;
+  presignPut: ReturnType<typeof vi.fn>;
+  head: ReturnType<typeof vi.fn>;
 } {
   return {
     put: vi.fn(() => Promise.resolve()),
     presignGet: vi.fn(() => Promise.resolve("https://signed.example/object?signature=uji")),
+    presignPut: vi.fn(() => Promise.resolve("https://signed.example/put?signature=uji")),
+    head: vi.fn(() => Promise.resolve(null)),
   };
 }
 
@@ -108,7 +112,7 @@ describe("storage config", () => {
     expect(() =>
       loadEnv({
         ...VALID_ENV,
-        STORAGE_ENDPOINT: "https://example.r2.cloudflarestorage.com",
+        STORAGE_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
       }),
     ).toThrow(/STORAGE_ACCESS_KEY_ID/);
   });
@@ -240,6 +244,71 @@ describe("ObjectStorage policy", () => {
   });
 });
 
+// PR-085 — unggah langsung dari browser. Kebijakan (key, ukuran, TTL) diperiksa
+// SEBELUM provider disentuh, sama seperti `upload`.
+describe("presignUpload", () => {
+  const KEY = "sign-videos/video-1/video-uji.mp4";
+
+  it("meneruskan ukuran persis + tipe ke driver dan mengembalikan header wajib", async () => {
+    const driver = fakeDriver();
+    const now = new Date("2026-10-03T00:00:00.000Z");
+    const storage = createObjectStorage(CONFIG, { driver, clock: () => now });
+
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 6 }),
+    ).resolves.toEqual({
+      url: "https://signed.example/put?signature=uji",
+      method: "PUT",
+      headers: { "content-type": "video/mp4" },
+      expiresAt: new Date("2026-10-03T00:05:00.000Z"),
+    });
+    expect(driver.presignPut).toHaveBeenCalledWith({
+      bucket: "nawasena-test",
+      key: KEY,
+      contentType: "video/mp4",
+      contentLength: 6,
+      expiresInSeconds: 300,
+    });
+  });
+
+  it.each([
+    ["melebihi batas global", { contentLength: 9 }],
+    ["melebihi batas domain", { contentLength: 6, maxBytes: 5 }],
+  ])("%s ditolak sebelum provider disentuh", async (_nama, extra) => {
+    const driver = fakeDriver();
+    const storage = createObjectStorage(CONFIG, { driver });
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", ...extra }),
+    ).rejects.toBeInstanceOf(StorageUploadTooLargeError);
+    expect(driver.presignPut).not.toHaveBeenCalled();
+  });
+
+  it("ukuran 0/pecahan dan key liar ditolak", async () => {
+    const storage = createObjectStorage(CONFIG, { driver: fakeDriver() });
+    await expect(
+      storage.presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 0 }),
+    ).rejects.toBeInstanceOf(RangeError);
+    await expect(
+      storage.presignUpload({
+        key: "sign-videos/../x.mp4",
+        contentType: "video/mp4",
+        contentLength: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("driver asli: content-type & content-length terikat sebagai header bertanda tangan", async () => {
+    const { url } = await createObjectStorage({
+      ...CONFIG,
+      endpoint: "http://minio:9000",
+      region: "us-east-1",
+      forcePathStyle: true,
+    }).presignUpload({ key: KEY, contentType: "video/mp4", contentLength: 6 });
+    const signed = new URL(url).searchParams.get("X-Amz-SignedHeaders")?.split(";") ?? [];
+    expect(signed).toEqual(expect.arrayContaining(["content-length", "content-type", "host"]));
+  });
+});
+
 // U-23 (PR-064b): di jaringan compose, API mengunggah ke `minio:9000` tetapi
 // browser hanya bisa membuka `127.0.0.1:9000`. Driver asli dipakai di sini —
 // presign SigV4 berjalan offline, jadi tidak ada koneksi yang dibuka.
@@ -252,7 +321,7 @@ describe("URL presigned untuk browser", () => {
   };
   const KEY = "resumes/user-1/resume-1/cv.pdf";
 
-  it("tanpa endpoint publik, URL memakai endpoint internal (perilaku R2/produksi)", async () => {
+  it("tanpa endpoint publik, URL memakai endpoint internal (perilaku B2/produksi)", async () => {
     const { url } = await createObjectStorage(MINIO).presignDownload({ key: KEY });
     expect(new URL(url).host).toBe("minio:9000");
   });
@@ -294,7 +363,7 @@ describe("URL presigned untuk browser", () => {
       loadEnv({
         ...VALID_ENV,
         NODE_ENV: "production",
-        STORAGE_ENDPOINT: "https://akun.r2.cloudflarestorage.com",
+        STORAGE_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
         STORAGE_PUBLIC_ENDPOINT: "http://cdn.nawasena.id",
         STORAGE_ACCESS_KEY_ID: "access",
         STORAGE_SECRET_ACCESS_KEY: "secret",
@@ -302,5 +371,66 @@ describe("URL presigned untuk browser", () => {
         STORAGE_BUCKET_ENV: "production",
       }),
     ).toThrow(/STORAGE_PUBLIC_ENDPOINT/);
+  });
+});
+
+// ADR-020: region B2 ikut ditandatangani SigV4. Region yang salah tidak gagal
+// saat boot melainkan pada upload pertama, sebagai `SignatureDoesNotMatch`.
+describe("Backblaze B2", () => {
+  const B2_ENV: NodeJS.ProcessEnv = {
+    ...VALID_ENV,
+    NODE_ENV: "production",
+    SUPPORT_EMAIL: "dukungan@contoh.test",
+    STORAGE_ENDPOINT: "https://s3.eu-central-003.backblazeb2.com",
+    STORAGE_ACCESS_KEY_ID: "key-id-b2",
+    STORAGE_SECRET_ACCESS_KEY: "application-key-b2",
+    STORAGE_BUCKET_PREFIX: "nawasena-uji",
+    STORAGE_BUCKET_ENV: "production",
+  };
+
+  it("region diturunkan dari host endpoint bila STORAGE_REGION kosong", () => {
+    expect(storageConfigFromEnv(loadEnv(B2_ENV)).region).toBe("eu-central-003");
+  });
+
+  it("STORAGE_REGION yang sama dengan host diterima", () => {
+    const env = loadEnv({ ...B2_ENV, STORAGE_REGION: "eu-central-003" });
+    expect(storageConfigFromEnv(env).region).toBe("eu-central-003");
+  });
+
+  it("STORAGE_REGION yang bertentangan dengan host ditolak saat boot", () => {
+    expect(() => loadEnv({ ...B2_ENV, STORAGE_REGION: "auto" })).toThrow(
+      /STORAGE_REGION: tidak cocok dengan endpoint B2 \(region-nya eu-central-003\)/,
+    );
+  });
+
+  it("endpoint selain B2 tanpa STORAGE_REGION memakai us-east-1", () => {
+    const env = loadEnv({
+      ...VALID_ENV,
+      NODE_ENV: "test",
+      STORAGE_ENDPOINT: "http://127.0.0.1:9010",
+      STORAGE_ACCESS_KEY_ID: "minio",
+      STORAGE_SECRET_ACCESS_KEY: "minio-rahasia",
+      STORAGE_BUCKET_PREFIX: "nawasena",
+      STORAGE_BUCKET_ENV: "test",
+    });
+    expect(storageConfigFromEnv(env).region).toBe("us-east-1");
+  });
+
+  it("prefix bucket berawalan b2- ditolak (dicadangkan Backblaze)", () => {
+    expect(() => loadEnv({ ...B2_ENV, STORAGE_BUCKET_PREFIX: "b2-nawasena" })).toThrow(
+      /STORAGE_BUCKET_PREFIX/,
+    );
+  });
+
+  it("URL presigned ditandatangani untuk region B2", async () => {
+    const config = storageConfigFromEnv(loadEnv(B2_ENV));
+    const { url } = await createObjectStorage(config).presignDownload({
+      key: "resumes/user-1/resume-1/cv.pdf",
+    });
+    const parsed = new URL(url);
+    expect(parsed.host).toBe("nawasena-uji-production.s3.eu-central-003.backblazeb2.com");
+    expect(parsed.searchParams.get("X-Amz-Credential")).toContain(
+      "/eu-central-003/s3/aws4_request",
+    );
   });
 });

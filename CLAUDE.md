@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-08-21  
 > **Project:** Nawasena — Masa Depan Karier Tanpa Batas  
-> **Documentation Source:** PRD v1.2, SDD v1.2, ADRs 001–019, docs/implementation/ (backlog)
+> **Documentation Source:** PRD v1.2, SDD v1.2, ADRs 001–020, docs/implementation/ (backlog)
 
 ---
 
@@ -65,6 +65,7 @@
 
 ### Infrastructure & DevOps
 - **Containerization:** Docker + Docker Compose (ADR-006)
+- **Object Storage:** Backblaze B2 via API S3-compatible (ADR-020); MinIO di dev/CI
 - **Deployment Target:** VPS 4 vCPU / 8 GB (≤ Rp300rb/bulan)
 - **CI/CD:** GitHub Actions (ADR-016, PR-003)
 - **Secrets Management:** `.env` files (development local), env vars (production/CI) — **NEVER commit secrets** (ADR-015)
@@ -212,6 +213,7 @@ Database (PostgreSQL)
 | **ADR-017** | Observability Hemat | Structured JSON logs; minimal stack MVP (Fase 2: centralized logging) |
 | **ADR-018** | PostgreSQL FTS + pg_trgm | Job search: native FTS, tidak external search engine MVP |
 | **ADR-019** | Tailwind CSS v4 (styling web) | `@theme` CSS menggantikan preset JS; mekanisme token ADR-008 terwakili langsung |
+| **ADR-020** | Backblaze B2 (object storage) | Menggantikan Cloudflare R2 via API S3 (`core/storage`); region diturunkan dari endpoint; lifecycle versi wajib (UU PDP). Cloudflare tetap jadi edge |
 
 ---
 
@@ -351,7 +353,7 @@ describe("matching service", () => {
 ```bash
 # apps/api/.env (NEVER commit — .env.example hidup per app, tidak di root)
 DATABASE_URL="postgresql://nawasena:nawasena@localhost:5433/nawasena"
-REDIS_URL="redis://localhost:6379"
+REDIS_URL="redis://localhost:6381"
 GEMINI_API_KEY="..."
 NODE_ENV="development"
 ```
@@ -468,7 +470,7 @@ ProjectKomunitasDisabilitas/
 | [docs/implementation/README.md](./docs/implementation/README.md) | **Engineering backlog & implementation plan index** — 20 phases, 126 PR, sprint roadmap, dependency graph, matriks traceability FR/NFR. Ini pengganti rujukan docs/PR-PLAN.md di dokumen lama — file itu tidak pernah ada di repo. |
 | [docs/implementation/phase-01-foundation.md](./docs/implementation/phase-01-foundation.md) | Phase 1 foundation PRs and execution scope |
 | [docs/implementation/phase-02-authentication-account.md](./docs/implementation/phase-02-authentication-account.md) | Phase 2 authentication and account flows |
-| [docs/adr/](./docs/adr/) | Architecture Decision Records 001–018 — decision rationale, consequences, mitigations |
+| [docs/adr/](./docs/adr/) | Architecture Decision Records 001–020 — decision rationale, consequences, mitigations |
 | [docs/adr/README.md](./docs/adr/README.md) | ADR index & navigation |
 | `apps/api/.env.example` | Template env backend — salin ke `apps/api/.env` (`.env.example` hidup per app, tidak di root; NEVER commit `.env` nyata) |
 | `docker-compose.dev.yml` | Stack dev: PostgreSQL, `redis-cache`, `redis-queue`, api, worker. **Dua Redis terpisah dengan sengaja** (ADR-004): cache boleh di-evict (`allkeys-lru`), queue tidak boleh (`noeviction` + AOF). Overlay staging/produksi menyusul di Phase 16. |
@@ -610,7 +612,7 @@ pnpm turbo prune --scope=@nawasena/api
 ## 12. Communication & Escalation
 
 - **Product/Design questions:** Refer to PRD §3, DESIGN.md
-- **Architecture questions:** Check ADRs 001–018; if unclear, escalate to tech lead
+- **Architecture questions:** Check ADRs 001–020; if unclear, escalate to tech lead
 - **Accessibility questions:** Review WCAG 2.2 Level AA; persona testing; refer to DESIGN.md §accessibility
 - **Database design:** Consult SDD §6–7; Prisma schema is source of truth; raw SQL changes need review
 - **Deployment/DevOps:** Refer to ADR-006, PR-003; `deploy.sh` is standard; RB-Std is rollback procedure
@@ -639,6 +641,7 @@ pnpm turbo prune --scope=@nawasena/api
 | 1.0 | 2026-07-17 | Initial creation from PRD v1.1, SDD v1.1, ADRs, backlog v3.0 |
 | 1.1 | 2026-08-07 | Sinkronisasi dokumen: rujukan docs/PR-PLAN.md (tidak pernah ada) diarahkan ke docs/implementation/, perintah Docker/compose dibetulkan, deploy.sh & deploy.yml ditandai belum ada, Phase 19 masuk total (119 PR / 19 phase). Ditambah tiga penjaga otomatis agar dokumen tidak melenceng lagi. |
 | 1.2 | 2026-08-21 | Dasar Phase 19 diselamatkan dari `e9855f8`: PRD v1.2, SDD v1.2 (§5.4 modul `community`), dan amandemen ADR-013 2026-07-24 ditempelkan ke atas dokumen yang berlaku. Nama produk mengikuti PRD v1.2 — **Masa Depan Karier Tanpa Batas**. Rujukan ADR dibetulkan 018 → 019 (ADR-019 sudah ada sejak Tailwind v4). Hitungan backlog 119 PR / 19 phase → 126 / 20 menyusul Phase 20 (PR #103). |
+| 1.3 | 2026-10-03 | Object storage Cloudflare R2 → **Backblaze B2** (ADR-020); Cloudflare tetap jadi edge. Port host dev: redis-cache 6381, MinIO 9010/9011. |
 
 ---
 

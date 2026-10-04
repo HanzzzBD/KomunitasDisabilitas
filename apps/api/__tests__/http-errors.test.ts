@@ -85,6 +85,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Akses data disabilitas harus menyertakan alasan",
           "status": 403,
         },
+        "BAGIAN_LOWONGAN_KOSONG": {
+          "hint": "Pilih bagian lowongan yang berisi teks",
+          "message": "Bagian ini tidak ada di lowongan",
+          "status": 404,
+        },
         "BATAS_CV_TERCAPAI": {
           "hint": "Hapus salah satu CV lama sebelum membuat yang baru",
           "message": "Jumlah CV Anda sudah mencapai batas",
@@ -94,6 +99,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Tunggu sebentar, lalu coba lagi",
           "message": "Layanan sedang tidak siap",
           "status": 503,
+        },
+        "BERKAS_VIDEO_ISYARAT_TIDAK_ADA": {
+          "hint": "Unggah ulang berkasnya, lalu tunggu sampai selesai 100%",
+          "message": "Berkas belum sampai di penyimpanan",
+          "status": 422,
         },
         "CARA_KONFIRMASI_TIDAK_COCOK": {
           "hint": "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
@@ -205,6 +215,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Lowongan tidak ditemukan",
           "status": 404,
         },
+        "MEDIA_VIDEO_ISYARAT_TIDAK_VALID": {
+          "hint": "Unggah ulang berkasnya lewat halaman kamus, lalu simpan lagi",
+          "message": "Berkas media tidak cocok untuk video isyarat ini",
+          "status": 422,
+        },
         "PENGGUNA_TIDAK_BISA_DIMODERASI": {
           "hint": "Hanya akun pencari kerja yang bisa ditangguhkan",
           "message": "Akun ini tidak bisa ditangguhkan",
@@ -289,6 +304,26 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Periksa kembali data yang Anda isi",
           "message": "Input tidak valid",
           "status": 400,
+        },
+        "VIDEO_ISYARAT_BELUM_LENGKAP": {
+          "hint": "Lengkapi video, caption (.vtt), dan transkrip terlebih dahulu",
+          "message": "Video isyarat ini belum lengkap untuk diterbitkan",
+          "status": 422,
+        },
+        "VIDEO_ISYARAT_BELUM_TERBIT": {
+          "hint": "Muat ulang daftar kamus untuk melihat status terbaru",
+          "message": "Video isyarat ini belum diterbitkan",
+          "status": 409,
+        },
+        "VIDEO_ISYARAT_SUDAH_TERBIT": {
+          "hint": "Muat ulang daftar kamus untuk melihat status terbaru",
+          "message": "Video isyarat ini sudah diterbitkan",
+          "status": 409,
+        },
+        "VIDEO_ISYARAT_TIDAK_DITEMUKAN": {
+          "hint": "Muat ulang daftar kamus, lalu coba lagi",
+          "message": "Video isyarat tidak ditemukan",
+          "status": 404,
         },
       }
     `);

@@ -59,12 +59,14 @@ Bisnis: BISINDO Support nyata di MVP (ADR-010 v1) — bukan sekadar roadmap. Tek
 **Database Changes:**
 
 * Tidak ada (tabel dari PR-011).
+* **Realisasi:** migrasi 23 (keputusan owner 2026-10-03) — tabel PR-011 belum punya kolom caption/transkrip. `video_url`/`thumbnail_url` → `video_key`/`thumbnail_key` (key storage, nullable selama draft), + `caption_key` (.vtt) + `transcript`, CHECK `sign_videos_terbit_lengkap`. Kategori = daftar tertutup zod.
 
 **API Changes:**
 
 * GET /api/v1/sign-videos?query&category
 * GET/POST /api/v1/admin/sign-videos ; PUT /api/v1/admin/sign-videos/:id
 * POST /api/v1/admin/sign-videos/:id/publish
+* **Realisasi:** publik mengembalikan URL media presigned (bukan key) + `mediaExpiresAt`; `limit` maks 50, tanpa cursor.
 
 **Security Considerations:**
 
@@ -72,11 +74,11 @@ Bisnis: BISINDO Support nyata di MVP (ADR-010 v1) — bukan sekadar roadmap. Tek
 
 **Testing Checklist:**
 
-* [ ] Unit Test (validasi)
-* [ ] Integration Test (lifecycle + search)
+* [x] Unit Test (validasi)
+* [x] Integration Test (lifecycle + search)
 * [ ] E2E Test (via PR-086)
-* [ ] Accessibility Test (N/A backend)
-* [ ] Manual Verification (curl)
+* [x] Accessibility Test (N/A backend)
+* [x] Manual Verification (curl) — digantikan integrasi HTTP nyata `signbridge-db.test.ts`
 
 **Deliverables:**
 
@@ -92,11 +94,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Publish tanpa caption/transkrip → 422 (server-enforced).
-* [ ] Pencarian frasa menemukan video (FTS test).
-* [ ] Hanya published tampil publik.
-* [ ] Kategori tervalidasi.
-* [ ] Audit publish.
+* [x] Publish tanpa caption/transkrip → 422 (server-enforced).
+* [x] Pencarian frasa menemukan video (FTS test).
+* [x] Hanya published tampil publik.
+* [x] Kategori tervalidasi.
+* [x] Audit publish.
 
 #### Dependencies
 
@@ -112,9 +114,9 @@ RB-Std.
 
 #### Objective
 
-**Upload presigned R2 + thumbnail + metadata + publish.**
+**Upload presigned B2 + thumbnail + metadata + publish.**
 
-Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung ke R2 via presigned, progress aksesibel, form metadata + file caption (vtt) + transkrip.
+Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung ke B2 via presigned (aturan CORS bucket untuk origin web saja — README core/storage), progress aksesibel, form metadata + file caption (vtt) + transkrip.
 
 #### Scope
 
@@ -125,6 +127,7 @@ Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung
 **Backend Changes:**
 
 * Endpoint presign untuk video/caption/thumbnail.
+* **Realisasi:** PR dipecah — **PR-085a** API (`core/storage` `presignUpload` + `stat`, presign, verifikasi objek saat simpan key, `POST /admin/sign-videos/:id/unpublish` atas keputusan owner 2026-10-03), **PR-085b** UI. Batas: video 50 MB, caption 200 KB, thumbnail 1 MB (`SIGN_VIDEO_MEDIA`).
 
 **Frontend Changes:**
 
@@ -144,11 +147,11 @@ Bisnis: tim konten (non-engineer) mampu mengelola kamus. Teknis: upload langsung
 
 **Testing Checklist:**
 
-* [ ] Unit Test (validasi file)
-* [ ] Integration Test (presign)
-* [ ] E2E Test (upload→publish)
-* [ ] Accessibility Test (axe + progress SR)
-* [ ] Manual Verification (video nyata staging)
+* [x] Unit Test (validasi file)
+* [x] Integration Test (presign) — termasuk PUT nyata ke MinIO (`signbridge-minio.test.ts`)
+* [x] E2E Test (upload→publish)
+* [x] Accessibility Test (axe + progress SR)
+* [ ] Manual Verification (video nyata staging) — staging belum ada (Phase 16)
 
 **Deliverables:**
 
@@ -164,11 +167,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Upload video+vtt+thumbnail → publish end-to-end (MinIO).
-* [ ] Progress upload diumumkan `aria-live` (persen).
-* [ ] Validasi tipe/ukuran di presign (server).
-* [ ] Form keyboard-only + axe pass.
-* [ ] Gagal upload → pesan jelas + retry.
+* [x] Upload video+vtt+thumbnail → publish end-to-end (MinIO).
+* [x] Progress upload diumumkan `aria-live` (persen).
+* [x] Validasi tipe/ukuran di presign (server).
+* [x] Form keyboard-only + axe pass.
+* [x] Gagal upload → pesan jelas + retry.
 
 #### Dependencies
 
@@ -198,10 +201,12 @@ Bisnis: pengguna Tuli mendapat nilai BISINDO sejak MVP. Teknis: grid hasil, play
 **Backend Changes:**
 
 * Tidak ada.
+* **Realisasi:** `GET /api/v1/sign-videos/:id` (publik, hanya terbit) untuk halaman detail `/kamus/:id` — keputusan owner 2026-10-03.
 
 **Frontend Changes:**
 
 * Feature signbridge.
+* **Realisasi:** `features/kamus` — pencarian + kartu berlabel, halaman detail, pemutar berkontrol sendiri (putar/jeda, geser, volume, caption, kecepatan 0,5–1×); pintasan kerangka + bagian beranda.
 
 **Database Changes:**
 
@@ -217,10 +222,10 @@ Bisnis: pengguna Tuli mendapat nilai BISINDO sejak MVP. Teknis: grid hasil, play
 
 **Testing Checklist:**
 
-* [ ] Unit Test (kartu)
-* [ ] Integration Test (N/A)
-* [ ] E2E Test (cari→tonton)
-* [ ] Accessibility Test (axe + player keyboard + caption manual)
+* [x] Unit Test (kartu)
+* [x] Integration Test (N/A) — tetap ada: `GET /sign-videos/:id` di `signbridge-db.test.ts`
+* [x] E2E Test (cari→tonton)
+* [x] Accessibility Test (axe + player keyboard + caption manual) — caption diperiksa di Chromium sungguhan
 * [ ] Manual Verification (penguji Tuli — sprint review)
 
 **Deliverables:**
@@ -237,11 +242,11 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Cari→tonton end-to-end.
-* [ ] Caption default menyala; transkrip tampil di bawah.
-* [ ] Player operable penuh keyboard (play/pause/seek/volume).
-* [ ] Grid hasil aksesibel (kartu berlabel).
-* [ ] axe pass + reduce-motion dihormati (tanpa autoplay).
+* [x] Cari→tonton end-to-end.
+* [x] Caption default menyala; transkrip tampil di bawah.
+* [x] Player operable penuh keyboard (play/pause/seek/volume).
+* [x] Grid hasil aksesibel (kartu berlabel).
+* [x] axe pass + reduce-motion dihormati (tanpa autoplay).
 
 #### Dependencies
 
@@ -292,10 +297,10 @@ Bisnis: konten dinamis (deskripsi lowongan) dapat diakses pengguna autisme/kogni
 
 **Testing Checklist:**
 
-* [ ] Unit Test (cache key)
-* [ ] Integration Test (kuota + cache)
-* [ ] E2E Test (tombol → hasil → kembali)
-* [ ] Accessibility Test (axe + pengumuman SR)
+* [x] Unit Test (cache key)
+* [x] Integration Test (kuota + cache)
+* [x] E2E Test (tombol → hasil → kembali)
+* [x] Accessibility Test (axe + pengumuman SR)
 * [ ] Manual Verification (kualitas hasil sampel)
 
 **Deliverables:**
@@ -312,11 +317,11 @@ RB-Std; flag mematikan fitur tanpa efek lain.
 
 #### Acceptance Criteria
 
-* [ ] Konten sama → cache hit (tanpa panggilan kedua).
-* [ ] Hasil diumumkan SR saat menggantikan konten; toggle kembali ke asli.
-* [ ] Fakta kunci (gaji, lokasi, syarat) tidak berubah (test sampling + guard prompt).
-* [ ] Degraded → tombol hilang + penjelasan; konten asli tetap.
-* [ ] Kuota 20/hari ditegakkan.
+* [x] Konten sama → cache hit (tanpa panggilan kedua).
+* [x] Hasil diumumkan SR saat menggantikan konten; toggle kembali ke asli.
+* [x] Fakta kunci (gaji, lokasi, syarat) tidak berubah (test sampling + guard prompt).
+* [x] Degraded → tombol hilang + penjelasan; konten asli tetap.
+* [x] Kuota 20/hari ditegakkan.
 
 #### Dependencies
 

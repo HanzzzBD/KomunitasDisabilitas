@@ -241,6 +241,21 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   },
   // PR-083b — moderasi akun: satu pencari kerja aktif, satu ditangguhkan, satu admin.
   { nama: "admin — pengguna", jalur: "/admin/pengguna", butuhSesi: true, butuhAdmin: true },
+  // PR-085b — kamus BISINDO: daftar (draft + terbit), tambah, dan ubah draft
+  // yang baru punya video (Terbitkan nonaktif + daftar kurang + tiga slot).
+  { nama: "admin — kamus BISINDO", jalur: "/admin/kamus", butuhSesi: true, butuhAdmin: true },
+  {
+    nama: "admin — tambah entri kamus",
+    jalur: "/admin/kamus/baru",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
+  {
+    nama: "admin — ubah entri kamus (draft)",
+    jalur: "/admin/kamus/01912345-89ab-7def-8123-4567890aac01",
+    butuhSesi: true,
+    butuhAdmin: true,
+  },
   {
     nama: "admin — tambah lowongan",
     jalur: "/admin/jobs/baru",
@@ -288,6 +303,11 @@ export const HALAMAN: readonly HalamanDijaga[] = [
     nama: "lowongan — detail (tidak ditemukan)",
     jalur: "/lowongan/:id",
   },
+
+  // PR-086 — kamus BISINDO publik: daftar tanpa filter (satu entri terbit)
+  // dan detail entri itu (pemutar caption-on + transkrip). Tanpa sesi.
+  { nama: "kamus — cari (tanpa filter)", jalur: "/kamus" },
+  { nama: "kamus — detail", jalur: "/kamus/01912345-89ab-7def-8123-4567890aac02" },
 
   // PR-079 — "Lamaran Saya". Detail dibuka LANGSUNG pada lamaran `offered`:
   // tombol tarik + "Saya diterima" + lini masa empat titik.

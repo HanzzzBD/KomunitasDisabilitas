@@ -57,12 +57,17 @@ import {
   createMatchingModule,
 } from "./modules/matching/index.js";
 import { createResumePdfJobs, createResumesModule } from "./modules/resumes/index.js";
+import { createSignbridgeModule } from "./modules/signbridge/index.js";
 import {
   StorageNotConfiguredError,
   createObjectStorage,
   storageConfigFromEnv,
 } from "./core/storage/index.js";
-import { createAiModule, createAiUsageRecorder } from "./modules/ai/index.js";
+import {
+  createAiModule,
+  createAiSimplifyModule,
+  createAiUsageRecorder,
+} from "./modules/ai/index.js";
 import { createAiQuota, rakitAiClient, type AiQuotaConfig } from "./core/ai/index.js";
 import {
   assertRoutesDeclared,
@@ -121,24 +126,21 @@ export async function startApi(options: BootOptions): Promise<void> {
   // API membuat presigned URL dan memproduksi job; binary Chromium tetap hanya
   // ada di worker. Storage opsional pada boot, tetapi endpoint tetap terdaftar
   // dan menjawab 503 bila grup konfigurasinya belum tersedia.
-  let resumePdf:
-    | {
-        jobs: ReturnType<typeof createResumePdfJobs>;
-        storage: ReturnType<typeof createObjectStorage>;
-      }
-    | undefined;
+  // Satu adapter dipakai bersama PDF CV dan kamus BISINDO (PR-084).
+  let objectStorage: ReturnType<typeof createObjectStorage> | undefined;
   try {
-    resumePdf = {
-      jobs: createResumePdfJobs(queues),
-      storage: createObjectStorage(storageConfigFromEnv(env)),
-    };
+    objectStorage = createObjectStorage(storageConfigFromEnv(env));
   } catch (err) {
     if (err instanceof StorageNotConfiguredError) {
-      logger.warn({}, "Object storage belum diatur — endpoint PDF menjawab 503");
+      logger.warn({}, "Object storage belum diatur — endpoint PDF & kamus BISINDO menjawab 503");
     } else {
       throw err;
     }
   }
+  const resumePdf =
+    objectStorage === undefined
+      ? undefined
+      : { jobs: createResumePdfJobs(queues), storage: objectStorage };
 
   // Kuota AI (PR-043) di atas klien `redis.queue`, BUKAN `redis.cache`.
   // Instans cache berjalan `allkeys-lru` (ADR-004): kunci yang terusir di sana
@@ -296,6 +298,12 @@ export async function startApi(options: BootOptions): Promise<void> {
       maksCv: env.RESUME_MAX_PER_USER,
     },
   });
+  if (!env.AI_SIMPLIFY_ENABLED) {
+    logger.warn(
+      { fitur: "simplify_text" },
+      "AI_SIMPLIFY_ENABLED=false — tombol Sederhanakan disembunyikan, teks asli tetap tampil",
+    );
+  }
   if (!env.AI_CV_CHAT_ENABLED) {
     logger.warn(
       { fitur: "cv_chat" },
@@ -409,6 +417,17 @@ export async function startApi(options: BootOptions): Promise<void> {
         events,
       });
       app.use(jobs.router);
+      // "Sederhanakan" teks lowongan (PR-087) — SESUDAH `jobs`: teksnya dibaca
+      // lewat `getPublic` (lowongan aktif saja), bukan dari body permintaan.
+      app.use(
+        createAiSimplifyModule({
+          routes: routeRegistry.forModule("/api/v1"),
+          ai: aiClient,
+          bacaLowongan: (id) => jobs.service.getPublic(id),
+          aktif: env.AI_SIMPLIFY_ENABLED,
+          logger,
+        }).router,
+      );
       // Apply + Disclosure Control (PR-075) — SESUDAH `jobs` dan `resumes`
       // (lowongan aktif & kepemilikan CV lewat service keduanya). Snapshot
       // pengungkapan dibaca lewat `sensitiveAccess` modul profiles (tujuan
@@ -495,6 +514,16 @@ export async function startApi(options: BootOptions): Promise<void> {
           // Penerbit `company.verified`; belum ada pelanggan (core/events).
           events,
           jobsService: jobs.service,
+        }).router,
+      );
+      // Kamus video BISINDO (PR-084, SignBridge v1) — pencarian publik +
+      // CRUD admin. URL media presigned dari storage yang sama dengan PDF CV.
+      app.use(
+        createSignbridgeModule({
+          prisma,
+          routes: routeRegistry.forModule("/api/v1"),
+          auditLog,
+          storage: objectStorage,
         }).router,
       );
     },
