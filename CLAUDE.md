@@ -81,7 +81,7 @@
 ### Monorepo Tooling
 - **Package Manager:** pnpm (workspaces)
 - **Monorepo Orchestrator:** Turborepo
-- **Workspace Structure:** `apps/{api, worker, web, mobile}` + `packages/{config, schemas, api-client, ui, a11y}`
+- **Workspace Structure:** `apps/{api, worker, web, mobile}` + `packages/{config, schemas, api-client, ui, ui-native, a11y}`
 
 ---
 
@@ -431,6 +431,7 @@ ProjectKomunitasDisabilitas/
 │   ├── schemas/          (zod schemas, shared validation)
 │   ├── api-client/       (generated/manual client SDK)
 │   ├── ui/               (shared React components, a11y)
+│   ├── ui-native/        (komponen React Native aksesibel — PR-089; test pakai jest-expo)
 │   └── a11y/             (accessibility utilities & hooks)
 ├── docs/
 │   ├── adr/              (architecture decision records + README.md sebagai indexnya)

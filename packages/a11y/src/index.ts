@@ -14,6 +14,7 @@ export {
 } from "./store.js";
 
 export { rekonsiliasi, dipilihPengguna, type SinyalOS } from "./rekonsiliasi.js";
+export { TARGET_SENTUH } from "./target-sentuh.js";
 
 /**
  * Kontrak penyimpanan yang harus disediakan pemanggil.

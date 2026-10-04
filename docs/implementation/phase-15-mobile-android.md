@@ -177,10 +177,10 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Komponen interaktif tanpa label → lint error (fixture).
-* [ ] Target sentuh mengikuti token (44→56dp).
+* [x] Komponen interaktif tanpa label → lint error (fixture).
+* [x] Target sentuh mengikuti token (44→56dp).
 * [ ] TalkBack membaca role+label benar (checklist per komponen).
-* [ ] Token a11y (font scale dsb.) diterapkan.
+* [x] Token a11y (font scale dsb.) diterapkan.
 * [ ] Dialog: fokus aksesibilitas pindah masuk/keluar benar.
 
 #### Dependencies

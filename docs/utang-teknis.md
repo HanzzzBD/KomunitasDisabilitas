@@ -952,7 +952,7 @@ pembersih berkala yang membandingkan objek `sign-videos/*` dengan `video_key`/`c
 `thumbnail_key` di `sign_videos`, lalu menghapus yang tidak dirujuk dan berumur > 7 hari (lewat
 operasi hapus khusus job, bukan permukaan API).
 
-### U-35 — AC runtime PR-088 menunggu build EAS & device fisik
+### U-35 — AC runtime PR-088/089 menunggu build EAS & device fisik
 
 | | |
 |---|---|
@@ -970,6 +970,12 @@ dilakukan: build native di Windows mentok di MAX_PATH store pnpm (lihat log Phas
 roundtrip SecureStore dan deep link di runtime juga menunggu APK ini. Langkah owner: `eas init` → `EAS_PROJECT_ID`, isi `EXPO_PUBLIC_API_URL` (HTTPS) di
 environment EAS `preview`, `pnpm --filter @nawasena/mobile build:internal`, pasang APK, jalankan
 `.maestro/boot-smoke.yaml`, ukur boot dingin, dengarkan layar Beranda dengan TalkBack.
+
+**Ditambah PR-089 (2026-10-04).** Dua AC PR-089 menumpang build yang sama: TalkBack membaca
+role+label komponen `@nawasena/ui-native`, dan fokus Dialog pindah masuk/keluar. Role, label,
+state, dan event fokus sudah teruji di jest-expo. Yang belum terbukti adalah ucapan dan
+perpindahan fokus nyata, diuji di dua versi Android lewat
+`docs/implementation/log/pr-089-talkback-checklist.md`.
 
 ---
 
