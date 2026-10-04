@@ -10,8 +10,10 @@
 // layar yang mengabaikan pengguna.
 import type { AccessibilityPreferences } from "@nawasena/schemas";
 
-/** Target sentuh minimum, SDD §4.3 & WCAG 2.2 §2.5.8 (24px minimum absolut). */
-export const TARGET_SENTUH_PX = { normal: 44, besar: 56 } as const;
+import { TARGET_SENTUH } from "../target-sentuh.js";
+
+/** Target sentuh minimum dalam px CSS — nilainya dari inti (`TARGET_SENTUH`). */
+export const TARGET_SENTUH_PX = TARGET_SENTUH;
 
 /**
  * Nilai token untuk satu profil preferensi.
