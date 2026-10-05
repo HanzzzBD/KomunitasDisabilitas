@@ -81,7 +81,7 @@ Bisnis: jangkauan Android — mayoritas pengguna target (ADR-011). Teknis: Expo 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (storage wrapper)
+* [x] Unit Test (storage wrapper)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro: boot smoke)
 * [ ] Accessibility Test (TalkBack smoke shell)
@@ -101,7 +101,7 @@ RB-Std (build channel internal; tidak menyentuh produksi web).
 
 #### Acceptance Criteria
 
-* [ ] Build EAS internal sukses & terinstal di device uji.
+* [x] Build EAS internal sukses & terinstal di device uji - APK `fb6b98bd`, dipasang owner 2026-10-05 (lihat log).
 * [ ] SecureStore roundtrip token teruji.
 * [ ] Deep link scheme membuka app.
 * [x] `packages/api-client` & `schemas` terpakai tanpa patch (bukti platform-agnostic).
@@ -157,7 +157,7 @@ Bisnis: janji aksesibel berlaku juga di Android (TalkBack). Teknis: Button, Inpu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (render + props)
+* [x] Unit Test (render + props)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (N/A)
 * [ ] Accessibility Test (TalkBack checklist)
@@ -238,7 +238,7 @@ Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode),
 
 **Testing Checklist:**
 
-* [ ] Unit Test (session store)
+* [x] Unit Test (session store)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro OTP mock)
 * [ ] Accessibility Test (TalkBack alur login)
@@ -314,7 +314,7 @@ Bisnis: Accessibility Profile konsisten lintas platform (ADR-008). Teknis: wizar
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapping)
+* [x] Unit Test (mapping)
 * [ ] Integration Test (sinkron)
 * [ ] E2E Test (Maestro wizard)
 * [ ] Accessibility Test (TalkBack + font scale)
@@ -391,7 +391,7 @@ Bisnis: seeker lengkap dari Android tanpa perlu web. Teknis: paritas PR-040/061;
 
 **Testing Checklist:**
 
-* [ ] Unit Test (reuse hooks shared)
+* [x] Unit Test (reuse hooks shared)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro profil+CV)
 * [ ] Accessibility Test (TalkBack)
@@ -467,7 +467,7 @@ Bisnis: discovery utama di perangkat utama pengguna. Teknis: paritas PR-074/059 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (reuse)
+* [x] Unit Test (reuse)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro feed→detail)
 * [ ] Accessibility Test (TalkBack feed)
@@ -667,6 +667,36 @@ Phase 15 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+> **Penutupan atas perintah owner - 2026-10-05.** Seluruh implementasi
+> PR-088..PR-095 telah merged ke `phase-15-mobile-android`. Owner meminta
+> closing Phase 15 dan merge ke `main`; merge tetap menunggu kedua check wajib
+> `lint-typecheck-test` dan `a11y` hijau. Bukti acceptance runtime di bawah
+> belum lengkap, sehingga keputusan ini mengesampingkan bagian Exit Criteria
+> yang menuntut seluruh AC terverifikasi. Kotak runtime tetap terbuka sesuai
+> bukti dan diteruskan sebagai U-35/U-19 di [utang teknis](../utang-teknis.md).
+>
+> | PR | Verifikasi perangkat yang masih terbuka |
+> |---|---|
+> | PR-088 | SecureStore/deep link nyata, boot < 3 detik, smoke TalkBack. Build dan instalasi APK sudah terbukti. |
+> | PR-089 | Ucapan role/label dan fokus Dialog di dua versi Android. |
+> | PR-090 | OTP/Google end-to-end, autofill, sesi setelah restart, dan TalkBack. Registrasi OAuth Android dilaporkan selesai; hasil login ulang belum diberikan. |
+> | PR-091 | Preferensi web/mobile, prioritas OS, preview, wizard TalkBack, font OS 200%. |
+> | PR-092 | Profil/CV/consent dari HP, reorder, PDF di viewer, TalkBack form. |
+> | PR-093 | Feed/filter/detail, degradasi, tombol refresh, pemulihan posisi daftar, TalkBack/3G di HP. |
+> | PR-094 | Disclosure/apply/tracking, push cold/warm dan logout, funnel Umami, TalkBack. |
+> | PR-095 | Badge/read/rollback/navigasi, satu banner tanpa duplikasi OS, resume, TalkBack/font ekstrem. |
+>
+> CI mencakup unit/integrasi, kontrak OpenAPI, regresi web dengan Playwright,
+> axe, dan Lighthouse desktop/3G. CI web tidak membuktikan TalkBack atau FCM
+> Android nyata. Checklist perangkat PR-089..PR-095 dan flow `.maestro/`
+> tetap tersedia untuk menutup utang tersebut.
+>
+> APK terakhir `fb6b98bd` berhasil pada 2026-10-05 20:33 WIB dan sudah dipasang.
+> APK ini memuat notification center PR-095, tetapi belum memuat perbaikan
+> umpan balik login Google yang kemudian ikut merged di PR-095. Untuk menguji
+> pesan baru, build/install ulang diperlukan. Penutupan Git tidak menerbitkan
+> APK baru atau menyatakan kanal push siap bagi pengguna sungguhan.
 
 ## Next Phase
 

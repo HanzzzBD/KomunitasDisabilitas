@@ -496,7 +496,7 @@ phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti p
 | U-12 | **NVDA sampling** untuk lima komponen (Dialog, Toast, Kerangka, Tab, Kartu) + tiga halaman auth | Log Phase 03 (PR-027/028/030/032a/033) | Menuntut manusia + alat; seluruh klaim "diumumkan" bersandar pada struktur ARIA, bukan pendengaran alat sungguhan |
 | U-13 | **Review copy oleh non-engineer** | Log Phase 03 (PR-029) | Paket teks sudah disiapkan, belum ada yang mereview |
 | U-14 | **AC PR-030 #1** — login OTP end-to-end | Log Phase 03 | Menunggu kredensial provider OTP |
-| U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b (2026-09-05) | Menunggu kredensial FCM + perangkat uji. Yang hanya bisa dijawab FCM sungguhan: apakah bentuk payload `notification` + `data` benar-benar memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti yang diklasifikasikan |
+| U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b dan closing Phase 15 (2026-10-05) | Firebase Android/EAS dan bentuk kunci backend sudah diperiksa. Pengiriman FCM + worker nyata, izin IAM, push background/cold/warm, satu banner foreground, resume, serta logout/ganti akun belum terverifikasi; lihat checklist PR-094/095. Tetap terbuka sebelum kanal dipakai pengguna sungguhan. |
 | U-20 | **Email nyata di staging** (Resend) | Log PR-049a/b (2026-09-06) | Menunggu kredensial Resend + domain ber-SPF/DKIM. Yang hanya bisa dijawab pengiriman nyata: tampilan HTML di Gmail/Outlook (keduanya menulis ulang CSS) dan lolos tidaknya penyaring spam |
 | U-21 | **Notification center multi-tab** | Log PR-050 (2026-09-06) | Yang hanya bisa dijawab dua tab sungguhan: apakah lencana di tab kedua ikut turun sesudah tab pertama menandai. Jawaban yang DIHARAPKAN: tidak, sampai tab kedua kembali fokus — cache TanStack tidak dibagi antar-tab. Perlu dipastikan itu memang yang terjadi, bukan sesuatu yang lebih buruk |
 
@@ -952,7 +952,7 @@ pembersih berkala yang membandingkan objek `sign-videos/*` dengan `video_key`/`c
 `thumbnail_key` di `sign_videos`, lalu menghapus yang tidak dirujuk dan berumur > 7 hari (lewat
 operasi hapus khusus job, bukan permukaan API).
 
-### U-35 — AC runtime PR-088/089 menunggu build EAS & device fisik
+### U-35 - AC runtime PR-088..PR-095 menunggu verifikasi perangkat
 
 | | |
 |---|---|
@@ -960,7 +960,7 @@ operasi hapus khusus job, bukan permukaan API).
 | **Jenis** | Verifikasi manual tertunda |
 | **Ditemukan** | PR-088 (2026-10-04) |
 | **Pemilik** | Owner (akun Expo) |
-| **Pemicu** | Sebelum PR-090 di-merge (login pertama yang menyimpan refresh token sungguhan) |
+| **Pemicu** | Tindak lanjut penerimaan runtime/rilis Android; gerbang semula sebelum PR-090 sudah dilewati atas perintah owner (closing 2026-10-05) |
 
 Tiga AC PR-088 butuh akun Expo dan HP uji, dan tidak bisa dibuktikan di CI: (1) build EAS profil
 `internal` sukses dan terpasang di device, (2) boot < 3 detik di device kelas menengah,
@@ -1030,6 +1030,20 @@ Checklist: `docs/implementation/log/pr-095-talkback-checklist.md`; Maestro:
 `.maestro/notification-read.yaml`, `.maestro/notification-foreground.yaml`.
 U-19 masih mencakup push nyata, cold/warm, satu banner tanpa duplikasi OS,
 dan resume. U-35 tetap terbuka sampai TalkBack/font ekstrem terverifikasi.
+
+**Rekonsiliasi closing Phase 15 (2026-10-05).** Seluruh PR-088..PR-095 sudah
+merged ke phase dan owner memerintahkan closing ke main. Build EAS `fb6b98bd`
+berhasil, APK terpasang, dan konfigurasi OAuth Android dilaporkan sudah dibuat.
+Build/instalasi sudah terbukti; hasil login ulang, SecureStore/deep link runtime,
+boot < 3 detik, TalkBack/font 200%, alur profil/CV/PDF/feed/apply/notifikasi,
+dan checklist dua versi/vendor Android belum lengkap. U-35 tetap **TERBUKA**;
+perintah merge tidak menggantikan bukti perangkat.
+
+APK itu belum memuat perbaikan pesan login Google yang ikut merged di PR-095;
+uji pesan baru memerlukan build/install ulang. U-19 tetap terbuka untuk FCM
+nyata. Daftar bukti dan pekerjaan tersisa ada pada
+[Exit Criteria Phase 15](implementation/phase-15-mobile-android.md#exit-criteria)
+dan [log closing](implementation/log/implementation_log_phase15.md#pr-095a---closing-phase-15-ke-main).
 
 ---
 

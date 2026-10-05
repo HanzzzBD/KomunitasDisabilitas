@@ -915,7 +915,76 @@ percobaan owner; konfigurasi OAuth Android masih perlu dikonfirmasi di Cloud.
   tetap keluar, dan penyimpanan tertunda yang harus selesai sebelum sukses.
 * Lint, typecheck, dan format perubahan mobile lulus. Export bundle Android
   berhasil: Hermes 2,9 MB, 1158 modul. Pemeriksaan diff lulus.
-* Perubahan masih lokal pada branch PR-095; belum push/merge atau build APK baru.
+* Perbaikan kemudian ikut merged lewat PR-095 (#212); belum ada build APK baru untuk perubahan ini.
   APK `fb6b98bd` tetap bisa dipakai untuk mencoba registrasi OAuth di Cloud,
   tetapi belum memuat perbaikan pesan ini.
 * Keberhasilan login di HP dan TalkBack pesan baru belum diverifikasi.
+
+
+---
+
+## PR-095a - Closing Phase 15 ke main
+
+> **Tanggal:** 2026-10-05
+> **Keputusan owner:** "sekarang closing phase 15 dan merge ke main".
+> **Scope:** rekonsiliasi dokumentasi penutupan; implementasi PR-088..PR-095 sudah merged.
+> **Branch:** `pr-095a-phase15-closing` -> `phase-15-mobile-android`, lalu `phase-15-mobile-android` -> `main`.
+
+### Implementasi dan bukti merge
+
+PR-091 di-merge terlebih dahulu, lalu PR yang tersisa direbase ke phase terbaru.
+Urutan yang sama diulang sampai PR-095 merged. Semua rebase mempertahankan isi
+source pada tip stack, dan perubahan lokal owner dipertahankan.
+
+| PR | GitHub | Merge ke phase | CI commit PR |
+|---|---|---|---|
+| PR-088 | [#205](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/205) | `87d5596` | lint-typecheck-test + a11y lulus |
+| PR-089 | [#206](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/206) | `bab775c` | lint-typecheck-test + a11y lulus |
+| PR-090 | [#207](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/207) | `5bfc41d` | lint-typecheck-test + a11y lulus |
+| PR-091 | [#208](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/208) | `daf73d1` | lint-typecheck-test + a11y lulus |
+| PR-092 | [#209](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/209) | `ce1762a` | lint-typecheck-test + a11y lulus |
+| PR-093 | [#210](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/210) | `05ec95d` | lint-typecheck-test + a11y lulus |
+| PR-094 | [#211](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/211) | `bdbd5f4` | lint-typecheck-test + a11y lulus |
+| PR-095 | [#212](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/212) | `6a8c34f` | lint-typecheck-test + a11y lulus |
+
+Tip phase setelah implementasi adalah `6a8c34f`. Auth OTP/Google, onboarding
+aksesibilitas, profil/CV/PDF, feed/pencarian/detail, lamar/tracking/push, serta
+notification center/badge/banner seluruhnya tersedia di source. Endpoint
+pelepas perangkat saat logout ikut PR-094 sesuai persetujuan owner.
+
+### Rekonsiliasi acceptance
+
+* Build EAS internal PR-095 `fb6b98bd-fccd-47b1-81aa-9819c0c6ec45` selesai
+  20:33 WIB; APK dipasang owner. AC build/instalasi PR-088 ditandai sesuai bukti.
+* Testing Checklist unit pada PR-088..PR-093 diperbarui berdasarkan suite yang
+  sudah dijalankan dan CI PR yang lulus. Checklist perangkat tidak dinyatakan lulus.
+* Owner melaporkan pembuatan client OAuth Android selesai. Hasil login ulang
+  sesudah konfigurasi itu belum diberikan; keberhasilan sesi di HP belum terbukti.
+* Perbaikan pesan pembatalan Google dan kegagalan SecureStore ikut PR-095.
+  Suite mobile akhir 179 test lulus dan export Android berhasil, tetapi APK
+  `fb6b98bd` belum memuat perbaikan pesan ini.
+* U-35 tetap terbuka untuk alur HP, SecureStore/deep link, boot, dua versi/vendor
+  Android, TalkBack/font 200%, dan flow Maestro. U-19 tetap terbuka untuk FCM
+  nyata, tap cold/warm, foreground dedup, resume, serta logout/ganti akun.
+* U-36 (hint OTP tanpa SMS Retriever), U-37 (katalog i18n umum mobile), dan
+  U-38 (ragam disabilitas wizard belum disimpan) tetap mengikuti keputusan
+  owner sebelumnya. Closing tidak melunasi ketiganya.
+
+### Keputusan closing dan verifikasi
+
+Perintah eksplisit owner memenuhi otorisasi `phase-15 -> main`. Bagian Exit
+Criteria yang belum terpenuhi dicatat pada dokumen phase dan U-35/U-19,
+mengikuti precedent penutupan Phase 03/09. Merge Git tidak menjadi bukti
+TalkBack, alur native end-to-end, atau kelayakan push bagi pengguna sungguhan.
+
+PR dokumentasi ke phase dan PR phase ke main tetap menunggu `lint-typecheck-test`
+serta `a11y` lulus dan di-merge manual. Pemeriksaan dokumentasi meliputi
+tautan lokal, bukti ancestor seluruh merge implementasi, serta `git diff --check`.
+Konfigurasi EAS/tunnel dan skrip uji lokal owner yang belum committed tetap
+dipertahankan di working tree, di luar commit closing.
+
+### Tindak lanjut
+
+Phase berikutnya adalah [Phase 16 - Infrastructure & Observability](../phase-16-infrastructure-observability.md).
+Uji perangkat tetap mengikuti checklist PR-089..PR-095 dan `.maestro/`.
+U-19 harus lunas sebelum kanal push dinyalakan bagi pengguna sungguhan.
