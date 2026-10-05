@@ -2029,6 +2029,65 @@
         }
       }
     },
+    "/me/devices/{id}": {
+      "delete": {
+        "operationId": "unregisterMyDevice",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Lepas perangkat push saat keluar",
+        "description": "Hanya menghapus perangkat milik sesi. Idempoten: id yang tidak ada atau milik akun lain juga menjawab 204 tanpa mengungkap kepemilikan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Perangkat dilepas"
+          },
+          "400": {
+            "description": "id bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sesi belum dikonfigurasi (kunci RS256 tidak tersedia)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/devices": {
       "post": {
         "operationId": "registerMyDevice",

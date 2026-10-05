@@ -9,11 +9,13 @@
 //
 // `URL` di React Native tidak lengkap untuk skema kustom, jadi parsing manual.
 
+import { idSchema } from "@nawasena/schemas";
+
 export const SKEMA = "nawasena";
 export const PREFIKS = `${SKEMA}://`;
 
 /** Path yang boleh dibuka dari luar. Bertambah per PR fitur (090+). */
-export const PATH_DIIZINKAN = ["", "beranda"] as const;
+export const PATH_DIIZINKAN = ["", "beranda", "lamaran"] as const;
 
 const BATAS_PANJANG_URL = 512;
 // Huruf kecil, angka, `-`, dan `/` antarsegmen. Tanpa `..`, `%`, `@`, atau `:`.
@@ -28,9 +30,28 @@ export function pathDeepLink(url: string): string | null {
   const path = (sisa.split(/[?#]/, 1)[0] ?? "").replace(/^\/+|\/+$/g, "");
   if (path !== "" && !POLA_PATH.test(path)) return null;
 
-  return (PATH_DIIZINKAN as readonly string[]).includes(path) ? path : null;
+  if ((PATH_DIIZINKAN as readonly string[]).includes(path)) return path;
+  const segmen = path.split("/");
+  return segmen.length === 2 &&
+    (segmen[0] === "lamaran" || segmen[0] === "lowongan") &&
+    idSchema.safeParse(segmen[1]).success
+    ? path
+    : null;
 }
 
 export function deepLinkDiizinkan(url: string): boolean {
   return pathDeepLink(url) !== null;
+}
+
+export type TujuanTautan =
+  | { layar: "Utama"; tab: "Beranda" | "Lamaran" }
+  | { layar: "LamaranDetail" | "LowonganDetail"; id: string };
+
+export function tujuanDeepLink(url: string): TujuanTautan | null {
+  const path = pathDeepLink(url);
+  if (path === null) return null;
+  if (path === "" || path === "beranda") return { layar: "Utama", tab: "Beranda" };
+  if (path === "lamaran") return { layar: "Utama", tab: "Lamaran" };
+  const [jenis, id] = path.split("/");
+  return id ? { layar: jenis === "lamaran" ? "LamaranDetail" : "LowonganDetail", id } : null;
 }

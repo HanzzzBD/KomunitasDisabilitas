@@ -121,3 +121,66 @@ sender uji), `.maestro/onboarding.yaml` (wizard, akun baru), dan `.maestro/profi
 (profil + consent + CV + PDF), dan `.maestro/feed-detail.yaml` (feed → detail → cari), dijalankan
 manual:
 `maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.
+
+## Lamar, tracking, push, dan statistik (PR-094)
+
+Tab kini: Beranda, Cari, Lamaran, Profil, dan CV. Detail lowongan membuka dialog
+lamar dengan CV terbaru, pratinjau data sensitif, dan pilihan Ya/Tidak yang
+**mulai kosong** (keputusan owner PR-078). Logika CV/disclosure/timeline berasal
+dari `@nawasena/formulir`, sama dengan web. Lamaran punya timeline, tarik dengan
+konfirmasi, dan Saya diterima satu ketukan. Semua data query tetap di memori.
+
+### Konfigurasi push FCM langsung
+
+1. Firebase Console: daftarkan aplikasi Android **id.nawasena.app** di proyek
+   yang sama dengan `FCM_PROJECT_ID` backend. Unduh `google-services.json`.
+2. Lokal: simpan di `apps/mobile/google-services.json` (di-ignore), lalu isi
+   `GOOGLE_SERVICES_JSON=./google-services.json` di `.env` mobile.
+3. EAS: isi `GOOGLE_SERVICES_JSON` sebagai environment variable **File** di
+   environment `preview`. Nilainya menjadi path berkas di mesin EAS; plugin
+   membaca path itu melalui `android.googleServicesFile`. Jangan mengisi JSON
+   mentah sebagai String. Berkas service account/private key hanya milik backend.
+4. Backend/worker: set `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`
+   sesuai `.env.example` API, jalankan Redis queue dan worker.
+5. Buat APK internal baru, pasang, masuk, buka Lamaran, lalu tekan **Aktifkan
+   notifikasi lamaran**. Izin diberikan secara eksplisit melalui tombol.
+
+Native `getDevicePushTokenAsync()` menghasilkan token FCM yang dikirim ke
+`POST /me/devices`; tidak memakai Expo Push Service. Channel Android `lamaran`
+dibuat sebelum izin. Tanpa `GOOGLE_SERVICES_JSON`, push dinonaktifkan dan alur
+lamar/tracking tetap berfungsi. Modul notifications tidak dimuat sebelum siap.
+Kompilasi dan push nyata wajib diuji di APK baru, bukan Expo Go.
+Referensi: [Expo Notifications](https://docs.expo.dev/versions/latest/sdk/notifications/).
+
+Tap memakai payload PR-048 (`notificationId`, `type`, `applicationId`, `jobId`,
+`status`), dengan validasi skema sebelum memilih layar. `nawasena://lamaran`,
+`nawasena://lamaran/<uuid>`, dan `nawasena://lowongan/<uuid>` juga didukung.
+Antrean menunggu sesi, wizard, dan navigator siap; respons tap didedup. Detail
+lamaran dibaca melalui `/me/applications/:id`, jadi kepemilikan ditegakkan server.
+
+Logout menahan registrasi baru, menunggu registrasi yang berjalan, memanggil
+`DELETE /me/devices/:id` selagi access token tersedia, lalu mencabut token FCM
+native dan membersihkan tray. Hapus backend dibatasi 5 detik, token native juga
+5 detik; kegagalan tidak menahan logout. Jika **keduanya** gagal ketika offline,
+server bisa masih memegang token sampai FCM menyatakan token mati atau perangkat
+didaftarkan oleh akun berikutnya. Uji kondisi ini dalam checklist #25.
+
+Foreground push OS tidak ditampilkan; banner dalam aplikasi dan notification
+center dilanjutkan PR-095.
+
+### Statistik anonim
+
+Opsional: `EXPO_PUBLIC_UMAMI_URL` (HTTPS) dan `EXPO_PUBLIC_UMAMI_WEBSITE_ID`
+(UUID website mobile). Kosong/tidak valid = no-op. Website mobile memakai
+hostname tetap `android.nawasena.app`. Event mengikuti kontrak PR-082: daftar,
+profil_lengkap, cv_dibuat, lamar, wawancara, hired_confirmed. Path berasal dari
+pemetaan layar tertutup, tanpa UUID/query; tidak ada disclosure, nama, judul
+lowongan, kontak, access token, atau identitas akun pada request.
+
+Opt-out di Profil disimpan per HP. Penanda sekali per profil/lamaran hanya lokal,
+tidak ikut dikirim. Gagal membaca preferensi = statistik diam. Kegagalan Umami
+tidak mengganggu aplikasi.
+
+Uji: [checklist PR-094](../../docs/implementation/log/pr-094-talkback-checklist.md),
+`.maestro/apply-tracking.yaml` (JOB_ID lowongan baru) dan `.maestro/push-lamaran.yaml`
+(push nyata di tray). Keduanya disiapkan untuk uji perangkat, belum dijalankan.

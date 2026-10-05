@@ -1,0 +1,49 @@
+# PR-094. APK internal, akun sudah masuk + onboarding selesai + CV tersedia.
+# JOB_ID = UUID lowongan aktif yang BELUM dilamar akun uji.
+# maestro test -e JOB_ID=<uuid> apps/mobile/.maestro/apply-tracking.yaml
+# Alur Ya, status offered/hired, dan push nyata: checklist PR-094 (butuh fixture/admin/FCM).
+appId: id.nawasena.app
+---
+- launchApp
+- openLink: "nawasena://lowongan/${JOB_ID}"
+- assertVisible:
+    id: "layar-lowongan-detail"
+- scrollUntilVisible:
+    element:
+      id: "tombol-lamar"
+- tapOn:
+    id: "tombol-lamar"
+- assertVisible:
+    id: "dialog-lamar"
+- scrollUntilVisible:
+    element:
+      id: "tombol-kirim-lamaran"
+- tapOn:
+    id: "tombol-kirim-lamaran"
+- assertVisible:
+    id: "galat-lamar"
+- scrollUntilVisible:
+    element:
+      id: "pilihan-ungkap-tidak"
+    direction: UP
+- tapOn:
+    id: "pilihan-ungkap-tidak"
+- scrollUntilVisible:
+    element:
+      id: "tombol-kirim-lamaran"
+- tapOn:
+    id: "tombol-kirim-lamaran"
+- assertVisible:
+    id: "layar-lamaran-detail"
+- assertVisible: "Status sekarang: Terkirim"
+- scrollUntilVisible:
+    element: "Riwayat lamaran"
+- back
+- scrollUntilVisible:
+    element: "Lihat lamaran"
+- assertNotVisible:
+    id: "tombol-lamar"
+- back
+- tapOn: "Lamaran"
+- assertVisible:
+    id: "layar-lamaran"

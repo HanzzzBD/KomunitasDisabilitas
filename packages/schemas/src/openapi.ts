@@ -92,6 +92,7 @@ import {
 } from "./jobs.js";
 import {
   deviceResponseSchema,
+  deviceIdParamsSchema,
   notificationIdParamsSchema,
   notificationListQuerySchema,
   notificationChannelPrefsResponseSchema,
@@ -761,6 +762,21 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
 
       // Perangkat penerima push (PR-048a). Dipakai klien mobile (PR-088/094);
       // web push di luar scope MVP.
+      "/me/devices/{id}": {
+        delete: {
+          operationId: "unregisterMyDevice",
+          tags: ["notifications"],
+          summary: "Lepas perangkat push saat keluar",
+          description:
+            "Hanya menghapus perangkat milik sesi. Idempoten: id yang tidak ada atau milik akun lain juga menjawab 204 tanpa mengungkap kepemilikan.",
+          requestParams: { path: deviceIdParamsSchema },
+          responses: {
+            "204": { description: "Perangkat dilepas" },
+            "400": errorResponse("id bukan UUID"),
+            ...responsSesi,
+          },
+        },
+      },
       "/me/devices": {
         post: {
           operationId: "registerMyDevice",

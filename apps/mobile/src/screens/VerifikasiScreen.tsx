@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, Text } from "react-native";
 
 import { apiClient, sesiStore } from "../api";
+import { track } from "../analitik/instans";
 import { formatHitungMundur, pesanGalat, rapikanKode } from "../auth/alur-masuk";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -53,6 +54,7 @@ export function VerifikasiScreen({ route }: Props) {
       const { data } = await verifyOtp(apiClient, { phone, code: kode, client: "mobile" });
       // Navigasi tidak perlu: status "masuk" mengganti seluruh stack (App.tsx).
       await sesiStore.getState().masuk(data);
+      if (data.isNewUser) track("daftar", { metode: "otp" });
     } catch (err) {
       setGalatKode(pesanGalat(err));
       setMemeriksa(false);

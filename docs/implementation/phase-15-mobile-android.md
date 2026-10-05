@@ -514,12 +514,13 @@ Bisnis: alur konversi penuh di Android (gate paritas MVP). Teknis: paritas PR-07
 #### Scope
 
 * Apply flow + tracking + push handling + analytics mobile
+* Pelepasan perangkat saat logout (perluasan scope backend disetujui owner).
 
 #### Technical Notes
 
 **Backend Changes:**
 
-* Tidak ada.
+* `DELETE /api/v1/me/devices/:id` untuk melepas perangkat milik sesi saat logout (disetujui owner 2026-10-05). Idempoten 204 untuk id yang tidak ada/milik akun lain; tanpa migrasi DB.
 
 **Frontend Changes:**
 
@@ -535,16 +536,17 @@ Bisnis: alur konversi penuh di Android (gate paritas MVP). Teknis: paritas PR-07
 
 **API Changes:**
 
-* Tidak ada (konsumsi).
+* Endpoint DELETE perangkat (aditif), skema parameter UUID + OpenAPI, dan `registerMyDevice`/`unregisterMyDevice` pada api-client. Endpoint lamaran tetap dikonsumsi tanpa perubahan.
 
 **Security Considerations:**
 
-* Disclosure paritas (default TIDAK, eksplisit); deep link tervalidasi (tidak membuka entitas milik user lain — requireSelf BE tetap benteng).
+* Disclosure paritas keputusan owner PR-078: kedua opsi mulai kosong, pilihan wajib; tidak memakai disclosureDefault profil.
+* Deep link/payload tervalidasi; backend memeriksa kepemilikan lamaran/perangkat. Analytics memakai kontrak no-PII PR-082 dan opt-out per HP.
 
 **Testing Checklist:**
 
-* [ ] Unit Test (deep link parser)
-* [ ] Integration Test (N/A)
+* [x] Unit Test (deep link parser, antrean cold/warm, registrasi/rotasi/logout, payload analytics)
+* [x] Integration Test (DELETE perangkat: sesi/pemilik/idempotensi, HTTP + DB)
 * [ ] E2E Test (Maestro apply→status→push)
 * [ ] Accessibility Test (TalkBack alur penuh)
 * [ ] Manual Verification (push nyata staging)

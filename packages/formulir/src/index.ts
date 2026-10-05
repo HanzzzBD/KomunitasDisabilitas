@@ -28,3 +28,17 @@ export {
   type LabelResume,
   type SumberPrefillResume,
 } from "./resume.js";
+
+export {
+  ISIAN_AWAL,
+  cvBawaan,
+  dataUntukDiungkap,
+  periksaIsian,
+  type GalatIsian,
+  type IsianLamar,
+  type PilihanUngkap,
+  type HasilPeriksaLamar,
+} from "./lamar.js";
+export { petakanLiniMasa, type EntriLiniMasa } from "./lini-masa.js";
+
+export { profilCukupLengkap } from "./aktivasi.js";

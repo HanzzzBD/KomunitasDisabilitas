@@ -16,6 +16,7 @@ import type { Resume } from "@nawasena/schemas";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { apiClient } from "../api";
+import { track } from "../analitik/instans";
 
 export const JUDUL_CV_BAWAAN = "CV Baru Saya";
 
@@ -45,6 +46,7 @@ export function useBuatCvDariProfil(sub: string | null, onBerhasil: (r: Resume) 
       });
     },
     onSuccess: (resume) => {
+      track("cv_dibuat", { via: "profil" });
       qc.setQueryData(resumesKeys.detail(sub, resume.id), resume);
       void qc.invalidateQueries({ queryKey: resumesKeys.list(sub) });
       onBerhasil(resume);

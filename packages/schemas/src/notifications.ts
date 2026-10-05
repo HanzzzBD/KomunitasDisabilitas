@@ -314,6 +314,8 @@ export const registerDeviceSchema = z
 
 export type RegisterDevice = z.infer<typeof registerDeviceSchema>;
 
+export const deviceIdParamsSchema = z.object({ id: idSchema }).openapi({ ref: "DeviceIdParams" });
+
 /**
  * Perangkat sebagaimana dijawab API.
  *

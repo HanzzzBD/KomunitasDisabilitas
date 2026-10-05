@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { apiClient } from "../../api";
+import { periksaProfilLengkap } from "../../analitik/profil";
 import { pesanGalat } from "../../auth/alur-masuk";
 import { GagalMuat } from "../../komponen/GagalMuat";
 import { Judul, LayarGulir, Memuat, Paragraf, PesanStatus } from "../../komponen/Layar";
@@ -55,6 +56,7 @@ export function ProfilDasarScreen() {
     mutationFn: (badan: Parameters<typeof updateProfile>[1]) => updateProfile(apiClient, badan),
     onSuccess: (baru) => {
       qc.setQueryData(profilesKeys.me(sub), baru);
+      periksaProfilLengkap(qc, sub, { profil: baru });
       setNilai(keNilaiDasar(baru));
       setPesan({ teks: "Data dasar tersimpan.", galat: false });
     },

@@ -16,6 +16,7 @@ import { Text, View } from "react-native";
 import { apiClient } from "../../api";
 import { GagalMuat } from "../../komponen/GagalMuat";
 import { Judul, LayarGulir, Memuat, Paragraf } from "../../komponen/Layar";
+import { BagianLamar } from "../../lamaran/BagianLamar";
 import { TeksSederhanakan } from "../../lowongan/TeksSederhanakan";
 import { TEKS_INKLUSIF, teksGaji, teksLokasi, teksMode, teksTipe } from "../../lowongan/teks";
 import type { RootStackParamList } from "../../navigation/types";
@@ -162,11 +163,7 @@ export function LowonganDetailScreen({ route }: Props) {
         </View>
       )}
 
-      <Judul tingkat={2}>Cara melamar</Judul>
-      <Paragraf>
-        Melamar langsung dari aplikasi segera hadir. Sementara itu, Anda bisa melamar lewat situs
-        web Nawasena.
-      </Paragraf>
+      <BagianLamar key={j.id} jobId={j.id} judul={j.title} />
     </LayarGulir>
   );
 }

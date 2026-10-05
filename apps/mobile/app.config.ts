@@ -3,6 +3,8 @@ import type { ExpoConfig } from "expo/config";
 // projectId EAS dibaca dari env, bukan ditulis di repo: ia baru ada setelah
 // pemilik akun menjalankan `eas init` (lihat README.md).
 const projectId = process.env.EAS_PROJECT_ID;
+// EAS: environment variable bertipe File; lokal: path berkas yang di-ignore.
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
 
 // Build EAS adalah build release: URL API wajib HTTPS dan datang dari environment
 // EAS (`preview` untuk profil internal), tidak pernah dari repo. Gagal di sini —
@@ -30,14 +32,18 @@ const config: ExpoConfig = {
   android: {
     // Permanen setelah rilis ke Play Store.
     package: "id.nawasena.app",
+    ...(googleServicesFile ? { googleServicesFile } : {}),
     // Refresh token di SecureStore tidak ikut backup; sisa data lain juga tidak
     // perlu — sesi dipulihkan dengan login ulang, bukan dari backup.
     allowBackup: false,
-    // Tanpa izin tambahan di PR-088 (kamera/notifikasi menyusul per fitur).
+    // POST_NOTIFICATIONS ditambahkan plugin; izin diminta atas tindakan pengguna.
     permissions: [],
   },
-  plugins: ["expo-secure-store"],
-  extra: projectId ? { eas: { projectId } } : {},
+  plugins: ["expo-secure-store", ["expo-notifications", { defaultChannel: "lamaran" }]],
+  extra: {
+    ...(projectId ? { eas: { projectId } } : {}),
+    pushConfigure: Boolean(googleServicesFile),
+  },
 };
 
 export default config;

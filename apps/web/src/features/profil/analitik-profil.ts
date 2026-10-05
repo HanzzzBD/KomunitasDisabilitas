@@ -9,15 +9,8 @@ import { profilesKeys } from "@nawasena/api-client";
 import type { SeekerProfile } from "@nawasena/schemas";
 import { sekaliSaja, track } from "../../shared/analitik.js";
 
-export function profilCukupLengkap(
-  profil: Pick<SeekerProfile, "headline" | "city" | "province"> | undefined,
-  jumlahKeahlian: number,
-): boolean {
-  if (profil === undefined) return false;
-  const adaHeadline = (profil.headline ?? "").trim() !== "";
-  const adaLokasi = (profil.city ?? "").trim() !== "" || (profil.province ?? "").trim() !== "";
-  return adaHeadline && adaLokasi && jumlahKeahlian >= 1;
-}
+import { profilCukupLengkap } from "@nawasena/formulir";
+export { profilCukupLengkap } from "@nawasena/formulir";
 
 /**
  * Periksa dari cache TanStack sesudah profil/keahlian tersimpan. `petunjuk`
