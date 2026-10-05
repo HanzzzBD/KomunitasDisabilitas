@@ -997,6 +997,18 @@ menunggu: profil + CV lengkap dari HP, consent beri/cabut, checklist TalkBack fo
 dan PDF terbuka di viewer — lewat `docs/implementation/log/pr-092-talkback-checklist.md` +
 `.maestro/profil-cv.yaml`.
 
+**Ditambah PR-093 (2026-10-05).** Feed + cari + detail menumpang build yang sama. AC yang menunggu:
+feed + filter + detail end-to-end, kartu satu kesatuan bagi TalkBack, banner degradasi, refresh
+lewat tombol, posisi daftar pulih, dan uji 3G (Android Developer options → *Network speed* /
+emulator `-netspeed edge`) — lewat `docs/implementation/log/pr-093-talkback-checklist.md` +
+`.maestro/feed-detail.yaml`. Catatan: `boot-smoke.yaml` (PR-088) dibetulkan di PR ini. Sejak
+PR-090, app tanpa sesi membuka layar Masuk, bukan Beranda.
+
+**Kemajuan 2026-10-05.** Build EAS internal pertama sukses dikompilasi (modul Kotlin terbukti),
+tetapi APK tertutup saat dibuka karena dua instance zod di bundle Metro. Sudah diperbaiki di resolver
+Metro dan dijaga test (log Phase 15, "Temuan build EAS internal pertama"). Sisa langkah: build kedua,
+lalu seluruh checklist PR-088..093.
+
 ---
 
 ### U-36 — OTP autofill hanya hint, tanpa SMS Retriever

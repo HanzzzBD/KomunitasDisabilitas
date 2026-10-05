@@ -1,0 +1,29 @@
+{
+  "name": "@nawasena/lowongan",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Logika discovery lowongan yang murni (skor kecocokan, gaji, filter, taksonomi) — dipakai web & mobile (PR-093).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src __tests__ --ext .ts --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nawasena/schemas": "workspace:*",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@nawasena/config": "workspace:*",
+    "@types/node": "22.10.2",
+    "eslint": "8.57.1",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

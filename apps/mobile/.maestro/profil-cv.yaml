@@ -6,7 +6,7 @@ appId: id.nawasena.app
 ---
 - launchApp
 - assertVisible:
-    id: "layar-beranda"
+    id: "layar-feed"
 # --- Profil: data dasar ---
 - tapOn: "Profil"
 - tapOn:

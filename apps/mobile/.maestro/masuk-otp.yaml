@@ -1,6 +1,7 @@
 # Alur masuk OTP PR-090 — dijalankan manual di device/emulator berisi APK internal
 # yang menunjuk API dengan sender uji (kode OTP terbaca dari log sender, bukan SMS):
 #   maestro test -e NOMOR=081234567890 -e KODE=123456 apps/mobile/.maestro/masuk-otp.yaml
+# Pakai akun yang SUDAH melewati onboarding (akun baru diarahkan ke wizard, PR-091).
 # Belum di CI: butuh emulator Android + API staging (Phase 16).
 appId: id.nawasena.app
 ---
@@ -21,13 +22,18 @@ appId: id.nawasena.app
 - tapOn:
     id: "tombol-masuk"
 - assertVisible:
-    id: "layar-beranda"
+    id: "layar-feed"
 # Sesi bertahan restart: tanpa clearState, app langsung kembali ke Beranda.
 - stopApp
 - launchApp
 - assertVisible:
-    id: "layar-beranda"
+    id: "layar-feed"
 # Keluar → kembali ke layar masuk, dan restart tidak memulihkan sesi.
+# Tombol Keluar ada di tab Profil sejak PR-093.
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element:
+      id: "tombol-keluar"
 - tapOn:
     id: "tombol-keluar"
 - tapOn:

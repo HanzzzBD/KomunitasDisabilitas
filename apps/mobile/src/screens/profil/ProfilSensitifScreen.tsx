@@ -21,8 +21,6 @@ import {
   ACCOMMODATION_NEEDS,
   DISABILITY_TYPES,
   updateSeekerProfileSchema,
-  type AccommodationNeed,
-  type DisabilityType,
   type UpdateSeekerProfile,
 } from "@nawasena/schemas";
 import { Dialog, KotakCentang, Masukan, Tombol } from "@nawasena/ui-native";
@@ -34,21 +32,8 @@ import { apiClient } from "../../api";
 import { pesanGalat } from "../../auth/alur-masuk";
 import { GagalMuat } from "../../komponen/GagalMuat";
 import { Judul, LayarGulir, Memuat, Paragraf, PesanStatus } from "../../komponen/Layar";
-import { RAGAM } from "../../onboarding/Langkah";
+import { LABEL_AKOMODASI, LABEL_RAGAM } from "../../profil/label";
 import { useSub } from "../../query";
-
-const LABEL_RAGAM: Readonly<Record<DisabilityType, string>> = Object.fromEntries(
-  RAGAM.map((r) => [r.nilai, r.label]),
-) as Record<DisabilityType, string>;
-
-export const LABEL_AKOMODASI: Readonly<Record<AccommodationNeed, string>> = {
-  akses_kursi_roda: "Akses kursi roda",
-  ramah_screen_reader: "Aplikasi kerja bisa dipakai pembaca layar",
-  wawancara_via_teks: "Wawancara lewat tulisan",
-  jam_kerja_fleksibel: "Jam kerja fleksibel",
-  ruang_kerja_tenang: "Ruang kerja yang tenang",
-  juru_bahasa_isyarat: "Juru bahasa isyarat",
-};
 
 const TANGGAL = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",

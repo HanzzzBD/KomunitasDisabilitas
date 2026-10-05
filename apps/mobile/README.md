@@ -7,12 +7,15 @@ Aplikasi Android Nawasena — Expo SDK 57 (managed), React Navigation, SecureSto
 
 ```bash
 pnpm install
+cp apps/mobile/.env.example apps/mobile/.env   # opsional; semua isian boleh kosong untuk dev
 pnpm --filter @nawasena/mobile start      # Metro; tekan `a` untuk emulator Android
 pnpm --filter @nawasena/mobile test       # Vitest (logika murni, tanpa runtime RN)
 ```
 
 Build dev memakai API `http://10.0.2.2:3000/api/v1` (localhost mesin host dilihat
 dari emulator). Untuk HP fisik di LAN, isi `EXPO_PUBLIC_API_URL=http://<ip-laptop>:3000/api/v1`.
+Daftar lengkap variabel ada di `.env.example` (dijaga `__tests__/env-example.test.ts`). Build EAS
+tidak membaca `.env`; nilainya diisi di environment EAS `preview`.
 
 Sengaja **tidak** ada script `dev`: `pnpm dev` di root menjalankan `dev` semua
 workspace, dan Metro interaktif tidak cocok berjalan di dalamnya.
@@ -98,9 +101,23 @@ Penyiapan Google Cloud Console (sekali, oleh pemilik proyek GCP):
   lembar Bagikan (`src/cv/pdf.ts`).
 - Chat AI untuk CV tidak ada di mobile MVP — jalur utamanya web.
 
+## Discovery lowongan (PR-093)
+
+- **Tab**: Beranda (feed rekomendasi) · Cari · Profil · CV. Tombol Keluar ada di tab Profil.
+- **Feed**: `GET /me/matches` per halaman (tombol "Muat lebih banyak", tanpa gulir tak berujung);
+  banner "AI sedang menyusun" (tidak mengubah urutan sendiri) dan banner degradasi; "Muat ulang
+  daftar" sebagai alternatif tarik-untuk-muat-ulang; "Perbarui rekomendasi" memakai jatah harian.
+  Matikan dengan `EXPO_PUBLIC_MATCHING_FEED_ENABLED=false` (Beranda cadangan → Cari).
+- **Cari**: filter baru berlaku saat "Cari" ditekan; jumlah hasil diumumkan.
+- **Detail**: ringkasan, deskripsi/persyaratan + "Sederhanakan" (AI, berkuota), dukungan,
+  perusahaan + status verifikasi. Posisi daftar pulih karena detail didorong ke stack root di atas tab.
+- Ambang skor, kalimat gaji, filter, dan kunci taksonomi dari `@nawasena/lowongan` (paket yang sama
+  dengan web).
+
 ## Smoke test
 
 `.maestro/boot-smoke.yaml` (boot + deep link), `.maestro/masuk-otp.yaml` (OTP dengan
 sender uji), `.maestro/onboarding.yaml` (wizard, akun baru), dan `.maestro/profil-cv.yaml`
-(profil + consent + CV + PDF), dijalankan manual:
+(profil + consent + CV + PDF), dan `.maestro/feed-detail.yaml` (feed → detail → cari), dijalankan
+manual:
 `maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.

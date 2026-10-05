@@ -20,28 +20,16 @@
 // halaman detail tahu ia boleh memakai riwayat (bukan membuka daftar baru).
 import type { ReactNode, Ref } from "react";
 import { Link } from "react-router";
-import type { EmploymentType, JobSearchResult, WorkMode } from "@nawasena/schemas";
+import type { JobSearchResult } from "@nawasena/schemas";
 import { Kartu } from "@nawasena/ui";
-import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
+import { useTeks } from "../../shared/i18n/index.js";
 import { DaftarAkomodasi } from "../companies-publik/akomodasi-daftar.js";
-
-/** Sama persis dengan `KUNCI_TIPE` di `companies-publik/lowongan-daftar.tsx`. Dipakai juga halaman detail. */
-export const KUNCI_TIPE: Readonly<Record<EmploymentType, KunciTeks>> = {
-  full_time: "companies.lowongan.tipe.full_time",
-  part_time: "companies.lowongan.tipe.part_time",
-  contract: "companies.lowongan.tipe.contract",
-  internship: "companies.lowongan.tipe.internship",
-  freelance: "companies.lowongan.tipe.freelance",
-};
-
-/** Sama persis dengan `KUNCI_MODE` di `companies-publik/lowongan-daftar.tsx`. Dipakai juga halaman detail. */
-export const KUNCI_MODE: Readonly<Record<WorkMode, KunciTeks>> = {
-  onsite: "companies.lowongan.mode.onsite",
-  hybrid: "companies.lowongan.mode.hybrid",
-  remote: "companies.lowongan.mode.remote",
-};
+import { KUNCI_MODE, KUNCI_TIPE } from "@nawasena/lowongan";
 
 /** State navigasi yang dibawa tautan kartu ke halaman detail. */
+// Peta kunci taksonomi: `@nawasena/lowongan` (PR-093), sama dengan mobile.
+export { KUNCI_MODE, KUNCI_TIPE };
+
 export interface StateDariDaftar {
   dariDaftar: true;
 }

@@ -12,9 +12,10 @@
 // native (`<input>`, `<textarea>` tidak dipakai) atau Radix `Pilihan`/
 // `KotakCentang` yang sudah teruji keyboard-only (PR-027/036). Tidak ada
 // modal, popover custom, atau `tabIndex` manual.
-import { ACCOMMODATION_NEEDS, type AccommodationNeed, type WorkMode } from "@nawasena/schemas";
+import { ACCOMMODATION_NEEDS, type AccommodationNeed } from "@nawasena/schemas";
 import { KolomForm, KotakCentang, Masukan, Pilihan, Tombol } from "@nawasena/ui";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
+import { FILTER_KOSONG, MODE_KERJA_SEMUA, type NilaiFilterLowongan } from "@nawasena/lowongan";
 
 /** Sama persis dengan `KUNCI_AKOMODASI` di `companies-formulir.tsx`/`akomodasi-daftar.tsx`. */
 const KUNCI_AKOMODASI: Readonly<Record<AccommodationNeed, KunciTeks>> = {
@@ -27,24 +28,8 @@ const KUNCI_AKOMODASI: Readonly<Record<AccommodationNeed, KunciTeks>> = {
 };
 
 /** Sentinel nilai Pilihan untuk "tanpa filter mode kerja" — Radix menolak nilai `""` pada Item. */
-export const MODE_KERJA_SEMUA = "semua" as const;
-
-/** Nilai form filter — SELALU string/array pilihan, pola sama formulir lain di repo ini. */
-export interface NilaiFilterLowongan {
-  query: string;
-  city: string;
-  province: string;
-  workMode: WorkMode | typeof MODE_KERJA_SEMUA;
-  accommodations: readonly AccommodationNeed[];
-}
-
-export const FILTER_KOSONG: NilaiFilterLowongan = {
-  query: "",
-  city: "",
-  province: "",
-  workMode: MODE_KERJA_SEMUA,
-  accommodations: [],
-};
+// Nilai filter: `@nawasena/lowongan` (PR-093), sama dengan mobile.
+export { FILTER_KOSONG, MODE_KERJA_SEMUA, type NilaiFilterLowongan };
 
 export interface FilterPanelProps {
   nilai: NilaiFilterLowongan;
