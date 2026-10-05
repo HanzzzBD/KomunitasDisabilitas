@@ -17,6 +17,10 @@ export function createAntreanTautan(buka: (tujuan: TujuanTautan) => void) {
       siap = nilai;
       teruskan();
     },
+    tujuan(tujuan: TujuanTautan) {
+      menunggu = tujuan;
+      teruskan();
+    },
     url(url: string) {
       const tujuan = tujuanDeepLink(url);
       if (tujuan) {

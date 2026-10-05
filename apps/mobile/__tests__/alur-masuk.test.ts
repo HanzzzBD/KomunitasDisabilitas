@@ -12,6 +12,8 @@ import {
   rapikanKode,
 } from "../src/auth/alur-masuk";
 import { masukDenganGoogle, serverClientIdGoogle, type DepsGoogle } from "../src/auth/google";
+import { createSesiStore } from "../src/auth/sesi";
+import { createTokenStorage } from "../src/storage/token-storage";
 
 describe("normalisasiNomor", () => {
   it.each([
@@ -74,6 +76,7 @@ function deps(ubah: Partial<DepsGoogle> = {}): DepsGoogle {
     mintaNonce: vi.fn(async () => "nonce-server"),
     pilihAkun: vi.fn(async () => "id-token"),
     tukar: vi.fn(async () => SESI),
+    simpanSesi: vi.fn(async () => undefined),
     ...ubah,
   };
 }
@@ -88,10 +91,17 @@ describe("masukDenganGoogle", () => {
     expect(d.tukar).toHaveBeenCalledWith("id-token");
   });
 
-  it("pengguna menutup pemilih akun → dibatalkan, tanpa pesan galat dan tanpa tukar", async () => {
+  it("pembatalan native → pesan netral, tanpa tukar/simpan atau percobaan otomatis", async () => {
     const d = deps({ pilihAkun: vi.fn(async () => Promise.reject(galatNative("DIBATALKAN"))) });
-    expect(await masukDenganGoogle(d)).toEqual({ ok: false, sebab: "dibatalkan" });
+    expect(await masukDenganGoogle(d)).toEqual({
+      ok: false,
+      sebab: "dibatalkan",
+      pesan: "Masuk dengan Google belum selesai. Coba lagi, atau masuk dengan nomor HP.",
+    });
+    expect(d.mintaNonce).toHaveBeenCalledTimes(1);
+    expect(d.pilihAkun).toHaveBeenCalledTimes(1);
     expect(d.tukar).not.toHaveBeenCalled();
+    expect(d.simpanSesi).not.toHaveBeenCalled();
   });
 
   it("tidak ada akun Google → arahan menambah akun atau memakai nomor HP", async () => {
@@ -122,6 +132,68 @@ describe("masukDenganGoogle", () => {
       pesan: "Belum tersedia",
     });
     expect(d.pilihAkun).not.toHaveBeenCalled();
+  });
+
+  it("penyimpanan HP gagal setelah token terbit → pesan aman dan tetap keluar", async () => {
+    const store = createSesiStore({
+      penyimpanan: createTokenStorage({
+        getItemAsync: async () => null,
+        setItemAsync: async () => {
+          throw new Error("Keystore gagal: detail internal tidak untuk pengguna");
+        },
+        deleteItemAsync: async () => undefined,
+      }),
+      perpanjang: async () => ({ ok: false, sebab: "ditolak" }),
+      keluarDiServer: async () => undefined,
+    });
+    await store.getState().pulihkan();
+
+    await expect(
+      masukDenganGoogle(deps({ simpanSesi: (tokens) => store.getState().masuk(tokens) })),
+    ).resolves.toEqual({
+      ok: false,
+      sebab: "galat",
+      pesan: "Tidak bisa menyimpan sesi di HP ini. Coba lagi.",
+    });
+    expect(store.getState()).toMatchObject({ status: "keluar", accessToken: null });
+  });
+
+  it("belum menyatakan login berhasil sebelum penyimpanan HP selesai", async () => {
+    let selesaikanSimpan!: () => void;
+    let tandaiMulai!: () => void;
+    const mulaiSimpan = new Promise<void>((resolve) => {
+      tandaiMulai = resolve;
+    });
+    const selesaiSimpan = new Promise<void>((resolve) => {
+      selesaikanSimpan = resolve;
+    });
+    const store = createSesiStore({
+      penyimpanan: createTokenStorage({
+        getItemAsync: async () => null,
+        setItemAsync: async () => {
+          tandaiMulai();
+          await selesaiSimpan;
+        },
+        deleteItemAsync: async () => undefined,
+      }),
+      perpanjang: async () => ({ ok: false, sebab: "ditolak" }),
+      keluarDiServer: async () => undefined,
+    });
+    await store.getState().pulihkan();
+    const ketikaSelesai = vi.fn();
+    const proses = masukDenganGoogle(
+      deps({ simpanSesi: (tokens) => store.getState().masuk(tokens) }),
+    ).then((hasil) => {
+      ketikaSelesai();
+      return hasil;
+    });
+
+    await mulaiSimpan;
+    expect(ketikaSelesai).not.toHaveBeenCalled();
+    expect(store.getState()).toMatchObject({ status: "keluar", accessToken: null });
+    selesaikanSimpan();
+    await expect(proses).resolves.toEqual({ ok: true, tokens: SESI });
+    expect(store.getState()).toMatchObject({ status: "masuk", accessToken: SESI.accessToken });
   });
 });
 

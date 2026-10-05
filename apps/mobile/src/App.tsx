@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useStore } from "zustand";
 
@@ -23,6 +24,9 @@ import { CvBagianScreen } from "./screens/cv/CvBagianScreen";
 import { CvEditorScreen } from "./screens/cv/CvEditorScreen";
 import { LowonganDetailScreen } from "./screens/lowongan/LowonganDetailScreen";
 import { LamaranDetailScreen } from "./screens/lamaran/LamaranDetailScreen";
+import { NotifikasiScreen } from "./screens/notifikasi/NotifikasiScreen";
+import { BannerNotifikasi } from "./notifikasi/BannerNotifikasi";
+import { PantauNotifikasi } from "./notifikasi/PantauNotifikasi";
 import { MasukScreen } from "./screens/MasukScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { KarierFormScreen } from "./screens/profil/KarierFormScreen";
@@ -74,73 +78,81 @@ function Navigasi() {
         analitik.pageview(pathAnalitik(navigationRef.getCurrentRoute()?.name ?? ""));
       }}
     >
-      {/* Header & transisi ikut token: kontras tinggi berlaku juga di bilah
+      <View style={{ flex: 1 }}>
+        <BannerNotifikasi />
+        {/* Header & transisi ikut token: kontras tinggi berlaku juga di bilah
           judul, dan "kurangi gerakan" mematikan animasi geser antarlayar. */}
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: warna.latar },
-          headerTintColor: warna.teks,
-          contentStyle: { backgroundColor: warna.latar },
-          animation: kurangiGerak ? "none" : "default",
-        }}
-      >
-        {status === "masuk" && onboarding === "perlu" ? (
-          <Stack.Screen
-            name="Onboarding"
-            component={OnboardingScreen}
-            options={{ title: "Atur aplikasi" }}
-          />
-        ) : status === "masuk" ? (
-          <>
-            <Stack.Screen name="Utama" component={TabUtama} options={{ headerShown: false }} />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: warna.latar },
+            headerTintColor: warna.teks,
+            contentStyle: { backgroundColor: warna.latar },
+            animation: kurangiGerak ? "none" : "default",
+          }}
+        >
+          {status === "masuk" && onboarding === "perlu" ? (
             <Stack.Screen
-              name="ProfilDasar"
-              component={ProfilDasarScreen}
-              options={{ title: "Data dasar" }}
+              name="Onboarding"
+              component={OnboardingScreen}
+              options={{ title: "Atur aplikasi" }}
             />
-            <Stack.Screen
-              name="ProfilSensitif"
-              component={ProfilSensitifScreen}
-              options={{ title: "Disabilitas dan akomodasi" }}
-            />
-            <Stack.Screen name="Karier" component={KarierScreen} options={{ title: "Profil" }} />
-            <Stack.Screen
-              name="KarierForm"
-              component={KarierFormScreen}
-              options={{ title: "Profil" }}
-            />
-            <Stack.Screen
-              name="CvEditor"
-              component={CvEditorScreen}
-              options={{ title: "Ubah CV" }}
-            />
-            <Stack.Screen
-              name="CvBagian"
-              component={CvBagianScreen}
-              options={{ title: "Ubah CV" }}
-            />
-            <Stack.Screen
-              name="LowonganDetail"
-              component={LowonganDetailScreen}
-              options={{ title: "Detail lowongan" }}
-            />
-            <Stack.Screen
-              name="LamaranDetail"
-              component={LamaranDetailScreen}
-              options={{ title: "Perkembangan lamaran" }}
-            />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Masuk" component={MasukScreen} options={{ title: "Masuk" }} />
-            <Stack.Screen
-              name="Verifikasi"
-              component={VerifikasiScreen}
-              options={{ title: "Kode masuk" }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
+          ) : status === "masuk" ? (
+            <>
+              <Stack.Screen name="Utama" component={TabUtama} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="ProfilDasar"
+                component={ProfilDasarScreen}
+                options={{ title: "Data dasar" }}
+              />
+              <Stack.Screen
+                name="ProfilSensitif"
+                component={ProfilSensitifScreen}
+                options={{ title: "Disabilitas dan akomodasi" }}
+              />
+              <Stack.Screen name="Karier" component={KarierScreen} options={{ title: "Profil" }} />
+              <Stack.Screen
+                name="KarierForm"
+                component={KarierFormScreen}
+                options={{ title: "Profil" }}
+              />
+              <Stack.Screen
+                name="CvEditor"
+                component={CvEditorScreen}
+                options={{ title: "Ubah CV" }}
+              />
+              <Stack.Screen
+                name="CvBagian"
+                component={CvBagianScreen}
+                options={{ title: "Ubah CV" }}
+              />
+              <Stack.Screen
+                name="LowonganDetail"
+                component={LowonganDetailScreen}
+                options={{ title: "Detail lowongan" }}
+              />
+              <Stack.Screen
+                name="LamaranDetail"
+                component={LamaranDetailScreen}
+                options={{ title: "Perkembangan lamaran" }}
+              />
+              <Stack.Screen
+                name="Notifikasi"
+                component={NotifikasiScreen}
+                options={{ title: "Notifikasi" }}
+              />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Masuk" component={MasukScreen} options={{ title: "Masuk" }} />
+              <Stack.Screen
+                name="Verifikasi"
+                component={VerifikasiScreen}
+                options={{ title: "Kode masuk" }}
+              />
+            </>
+          )}
+        </Stack.Navigator>
+      </View>
     </NavigationContainer>
   );
 }
@@ -152,6 +164,7 @@ export function App() {
       <QueryClientProvider client={queryClient}>
         <PenyediaTema>
           <PantauTautan />
+          <PantauNotifikasi />
           <Navigasi />
         </PenyediaTema>
       </QueryClientProvider>

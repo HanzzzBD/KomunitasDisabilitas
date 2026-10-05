@@ -184,3 +184,43 @@ tidak mengganggu aplikasi.
 Uji: [checklist PR-094](../../docs/implementation/log/pr-094-talkback-checklist.md),
 `.maestro/apply-tracking.yaml` (JOB_ID lowongan baru) dan `.maestro/push-lamaran.yaml`
 (push nyata di tray). Keduanya disiapkan untuk uji perangkat, belum dijalankan.
+
+## Notification center (PR-095)
+
+Tombol **Notifikasi** dengan badge ada di header lima tab utama (keputusan owner).
+Center menyediakan Semua/Belum dibaca, halaman 20 item, Muat ulang, Tandai dibaca,
+dan Tandai semua dibaca. Item TalkBack mencakup judul, isi, tanggal WIB, dan status
+baca. Judul/isi memilih `id` atau `id-simple` dari server sesuai preferensi.
+
+Mark-read satu item optimistis dengan rollback kedua filter/badge saat gagal.
+Mark-all menunggu server dan mencakup halaman yang belum dimuat. Jumlah akhir
+memakai `meta.unreadCount`; item yang baru dibaca tetap sampai Muat ulang agar
+target fokus tidak hilang. Monitor tidak mengurut ulang daftar yang sedang dibaca.
+
+Satu monitor mengambil 20 item terbaru + jumlah seluruh unread setiap 30 detik
+saat app aktif, serta saat resume/push. Tanpa FCM, deteksi banner polling melihat
+20 item terbaru; riwayat penuh tetap tersedia lewat paginasi. Boot/resume pertama
+diam, supaya catch-up background tidak muncul sebagai banner baru.
+
+Foreground hanya menampilkan banner in-app, tanpa suara/tray/banner OS tambahan.
+Push dan poll didedup per `notificationId` per akun (500 ID terakhir di memori).
+Burst dikumpulkan selama 500 ms. Banner tetap sampai **Buka**/**Tutup** ditekan
+(keputusan owner), tanpa memindahkan fokus otomatis. Banyak kabar membuka center;
+satu kabar membuka entitas. Banner dapat digulir dan memakai maksimal 35% area.
+
+Kabar lamaran membuka detail; PDF/draft CV membuka editor. Draft AI gagal membuka
+tab CV untuk formulir manual, karena chat CV belum tersedia di Android. Push
+welcome membuka center; tipe admin tidak diteruskan. Tautan tambahan:
+`nawasena://notifikasi`, `nawasena://cv`, `nawasena://cv/<uuid>`. Parameter tetap
+divalidasi dan kepemilikan diperiksa API.
+
+**Aktifkan notifikasi HP** tersedia di center dan Lamaran; izin tetap lewat
+tindakan pengguna. ID channel tetap `lamaran`, namanya **Kabar Nawasena**.
+PR-095 memakai modul/plugin native PR-094. Pasang APK yang memuat PR-095 untuk
+uji perangkat; build EAS sebelum implementasi ini belum berisi kode PR-095.
+
+Cache/banner/timer dibuang saat logout. Generasi sesi mencegah read lama menulis
+cache setelah akun yang sama masuk lagi. Query daftar memakai AbortSignal.
+Panduan: [checklist PR-095](../../docs/implementation/log/pr-095-talkback-checklist.md),
+`.maestro/notification-read.yaml` dan `.maestro/notification-foreground.yaml`.
+Keduanya belum dijalankan; foreground memerlukan Firebase/worker dan push nyata.

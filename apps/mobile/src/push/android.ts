@@ -13,7 +13,7 @@ export async function tokenFcm(mintaIzin: boolean): Promise<string | null> {
   if (!n) throw new Error("PUSH_BELUM_SIAP");
   // Channel dibuat SEBELUM permintaan izin Android 13+ (Expo Notifications).
   await n.setNotificationChannelAsync("lamaran", {
-    name: "Perkembangan lamaran",
+    name: "Kabar Nawasena",
     importance: n.AndroidImportance.DEFAULT,
     lockscreenVisibility: n.AndroidNotificationVisibility.PRIVATE,
   });

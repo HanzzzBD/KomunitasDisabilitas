@@ -36,4 +36,5 @@ export type RootStackParamList = {
   // --- PR-093 ---
   LowonganDetail: { id: string };
   LamaranDetail: { id: string };
+  Notifikasi: undefined;
 };

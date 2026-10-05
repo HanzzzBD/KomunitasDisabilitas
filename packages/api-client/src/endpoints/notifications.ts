@@ -140,6 +140,7 @@ export interface OpsiDaftarNotifikasi {
 export async function listNotifications(
   client: ApiClient,
   opsi: OpsiDaftarNotifikasi = {},
+  signal?: AbortSignal,
 ): Promise<NotificationListResponse> {
   const query = new URLSearchParams();
   if (opsi.limit !== undefined) query.set("limit", String(opsi.limit));
@@ -152,6 +153,7 @@ export async function listNotifications(
   const akhiran = query.size === 0 ? "" : `?${query.toString()}`;
   return client.request(`/me/notifications${akhiran}`, {
     responseSchema: notificationListResponseSchema,
+    signal,
   });
 }
 

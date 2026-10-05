@@ -22,6 +22,42 @@ function buat() {
   return { deps, p };
 }
 describe("registrasi FCM", () => {
+  it("klik izin eksplisit menyusul boot tidak terserap pemeriksaan izin otomatis", async () => {
+    const { deps, p } = buat();
+    let selesai!: (token: string | null) => void;
+    deps.token.mockImplementationOnce(
+      () =>
+        new Promise<string | null>((r) => {
+          selesai = r;
+        }),
+    );
+    const boot = p.daftarkan(false);
+    const klikA = p.daftarkan(true),
+      klikB = p.daftarkan(true);
+    selesai(null);
+    expect(await boot).toBeNull();
+    expect(await klikA).toEqual(device);
+    expect(await klikB).toEqual(device);
+    expect(deps.token.mock.calls.map((c) => c[0])).toEqual([false, true]);
+    expect(deps.daftar).toHaveBeenCalledOnce();
+  });
+  it("logout membatalkan permintaan izin yang menunggu boot", async () => {
+    const { deps, p } = buat();
+    let selesai!: (token: string | null) => void;
+    deps.token.mockImplementationOnce(
+      () =>
+        new Promise<string | null>((r) => {
+          selesai = r;
+        }),
+    );
+    const boot = p.daftarkan(false);
+    const klik = p.daftarkan(true);
+    const keluar = p.lepas();
+    selesai(null);
+    await Promise.all([boot, klik, keluar]);
+    expect(deps.token.mock.calls.map((c) => c[0])).toEqual([false]);
+    expect(deps.daftar).not.toHaveBeenCalled();
+  });
   it("akun baru menunggu pencabutan token akun lama sebelum mendaftar", async () => {
     const { deps, p } = buat();
     await p.daftarkan(false);

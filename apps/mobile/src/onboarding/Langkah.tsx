@@ -2,7 +2,8 @@
 //
 // Teks ditulis SEKALI dalam bahasa sederhana (setara varian `id-simple` web):
 // mobile belum punya katalog i18n (keputusan owner; utang U-37). Preferensi
-// `simpleLanguage` tetap tersimpan dan tersinkron, hanya belum mengubah teks.
+// `simpleLanguage` tetap tersimpan dan tersinkron. Sejak PR-095 notifikasi
+// memilih varian server; teks wizard sendiri selalu sederhana.
 //
 // Ragam disabilitas + izin HANYA di memori (state layar), tidak pernah ke
 // penyimpanan atau jaringan — paritas web (keputusan owner 2026-10-05).

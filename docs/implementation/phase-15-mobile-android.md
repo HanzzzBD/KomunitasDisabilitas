@@ -607,6 +607,8 @@ Bisnis: paritas kanal visual penuh. Teknis: layar list + read, badge, dedup push
 **Mobile Changes:**
 
 * Feature notifications mobile.
+* Keputusan owner: tombol Notifikasi + badge di header lima tab; banner persisten sampai Buka/Tutup, burst diringkas.
+* Semua/Belum dibaca, paginasi 20, mark-read optimistis + rollback, mark-all dengan count server, dan varian bahasa notifikasi API.
 
 **Database Changes:**
 
@@ -622,8 +624,8 @@ Bisnis: paritas kanal visual penuh. Teknis: layar list + read, badge, dedup push
 
 **Testing Checklist:**
 
-* [ ] Unit Test (dedup)
-* [ ] Integration Test (N/A)
+* [x] Unit Test (dedup dua urutan, burst, baseline/resume, validator/navigasi, izin push)
+* [x] Integration Test (QueryClient read/rollback/read-all/sesi, transport AbortSignal)
 * [ ] E2E Test (Maestro read flow)
 * [ ] Accessibility Test (TalkBack)
 * [ ] Manual Verification (foreground/background)

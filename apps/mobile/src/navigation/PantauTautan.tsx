@@ -9,12 +9,16 @@ import { onboardingStore } from "../onboarding/instans";
 import { subDariToken } from "../onboarding/koordinator";
 import { notificationsAndroid } from "../push/android";
 import { registrasiPush } from "../push/instans";
+import { kabarNotifikasi } from "../notifikasi/instans";
+import { kunciDaftar, kunciTerbaru } from "../notifikasi/kunci";
+import { queryClient } from "../query";
 import { createAntreanTautan } from "./antrean-tautan";
 import type { RootStackParamList } from "./types";
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 export const antreanTautan = createAntreanTautan((t) => {
   if (t.layar === "Utama") navigationRef.navigate("Utama", { screen: t.tab });
+  else if (t.layar === "Notifikasi") navigationRef.navigate("Notifikasi");
   else {
     navigationRef.navigate(t.layar, { id: t.id });
   }
@@ -60,7 +64,7 @@ export function PantauTautan() {
     void notificationsAndroid()
       .then(async (n) => {
         if (!n || batal) return;
-        // Foreground belum menampilkan push OS; banner dalam app = PR-095.
+        // Foreground hanya banner in-app, tanpa suara/tray/banner OS kedua.
         n.setNotificationHandler({
           handleNotification: async () => ({
             shouldPlaySound: false,
@@ -69,6 +73,17 @@ export function PantauTautan() {
             shouldShowList: false,
           }),
         });
+        subscriptions.push(
+          n.addNotificationReceivedListener((notification) => {
+            if (!kabarNotifikasi.push(notification.request.content.data)) return;
+            const sub = kabarNotifikasi.store.getState().sub;
+            void queryClient.invalidateQueries({ queryKey: kunciTerbaru(sub) });
+            if (sub)
+              kunciDaftar(sub).forEach((queryKey) => {
+                void queryClient.invalidateQueries({ queryKey, refetchType: "none" });
+              });
+          }),
+        );
         const tangani = (r: NotificationResponse) => {
           if (r.actionIdentifier !== n.DEFAULT_ACTION_IDENTIFIER) return;
           antreanTautan.push(
@@ -95,8 +110,13 @@ export function PantauTautan() {
       })
       .catch(() => undefined);
     const appSub = AppState.addEventListener("change", (s) => {
+      kabarNotifikasi.aturAktif(s === "active");
+      const queryKey = kunciTerbaru(kabarNotifikasi.store.getState().sub);
+      if (s === "active") void queryClient.invalidateQueries({ queryKey });
+      else void queryClient.cancelQueries({ queryKey });
       if (s === "active") void registrasiPush.daftarkan(false).catch(() => undefined);
     });
+    kabarNotifikasi.aturAktif(AppState.currentState === "active");
     return () => {
       batal = true;
       berhenti();
