@@ -991,6 +991,12 @@ restart, dan TalkBack lewat `docs/implementation/log/pr-090-talkback-checklist.m
 OS dihormati, pratinjau langsung, wizard dengan TalkBack, dan font OS 200% — lewat
 `docs/implementation/log/pr-091-talkback-checklist.md` + `.maestro/onboarding.yaml`.
 
+**Ditambah PR-092 (2026-10-05).** Profil + CV mobile menumpang build yang sama. Tiga modul native
+baru ikut terbukti di build ini: `expo-file-system`, `expo-intent-launcher`, `expo-sharing`. AC yang
+menunggu: profil + CV lengkap dari HP, consent beri/cabut, checklist TalkBack form multi-bagian,
+dan PDF terbuka di viewer — lewat `docs/implementation/log/pr-092-talkback-checklist.md` +
+`.maestro/profil-cv.yaml`.
+
 ---
 
 ### U-36 — OTP autofill hanya hint, tanpa SMS Retriever
@@ -1036,8 +1042,8 @@ sendiri. `docs/panduan-bahasa-sederhana.md` tetap berlaku untuk teks mobile.
 | **Status** | TERBUKA |
 | **Jenis** | Fitur tertunda (keputusan owner 2026-10-05: mobile paritas web) |
 | **Ditemukan** | PR-091 (2026-10-05); perilakunya berasal dari PR-035 |
-| **Pemilik** | PR-092 (profil mobile) untuk mobile; web menyusul bersama |
-| **Pemicu** | PR-092, atau keluhan pengguna yang harus mengisi ragam disabilitas dua kali (wizard lalu profil) |
+| **Pemilik** | Phase 15 / tim mobile + web (diubah bersamaan) |
+| **Pemicu** | Keluhan pengguna yang harus mengisi ragam disabilitas dua kali (wizard lalu profil), atau review UX pasca-rilis internal |
 
 Wizard PR-035 ditulis saat endpoint data sensitif (PR-037) belum ada, jadi ragam disabilitas +
 izinnya hanya hidup di memori untuk ringkasan, dan teksnya berjanji "tidak dikirim". Endpoint
@@ -1045,6 +1051,12 @@ profil sensitif + consent kini ada, tetapi wizard web tidak pernah disambungkan;
 sengaja mengikuti web. Saat disambungkan: kirim `disabilityTypes` + `consentSensitive` HANYA bila
 kotak izin dicentang, ubah teks "tidak dikirim" di kedua platform pada PR yang sama, dan ikuti
 `docs/akses-data-sensitif.md`.
+
+**Diperbarui PR-092 (2026-10-05).** Mobile kini punya bagian profil "Disabilitas dan akomodasi"
+dengan consent beri/cabut (paritas web), jadi ragam disabilitas BISA disimpan dari HP — lewat
+profil, bukan wizard. Yang tersisa dari utang ini hanya penyambungan wizard di kedua platform.
+Pemicu "PR-092" diganti karena PR itu sudah lewat tanpa menyambungkan wizard (keputusan owner
+2026-10-05: wizard mobile paritas web).
 
 ---
 

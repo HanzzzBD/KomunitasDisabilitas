@@ -12,7 +12,12 @@ import { UKURAN_HURUF } from "./token";
 
 type PropsDiteruskan = Pick<
   TextInputProps,
-  "autoComplete" | "keyboardType" | "secureTextEntry" | "textContentType" | "autoCapitalize"
+  | "autoComplete"
+  | "keyboardType"
+  | "secureTextEntry"
+  | "textContentType"
+  | "autoCapitalize"
+  | "maxLength"
 >;
 
 export interface MasukanProps extends PropsDiteruskan {
@@ -24,10 +29,15 @@ export interface MasukanProps extends PropsDiteruskan {
   /** Pesan galat; kosong/undefined = tidak ada galat. */
   galat?: string;
   testID?: string;
+  /**
+   * Kolom banyak baris (ringkasan, uraian — PR-092). Tinggi mengikuti isi
+   * mulai dari ±4 baris; teks rata atas supaya baris pertama tidak tenggelam.
+   */
+  multiline?: boolean;
 }
 
 export const Masukan = forwardRef<TextInput, MasukanProps>(function Masukan(props, ref) {
-  const { label, nilai, ubahNilai, petunjuk, galat, testID, ...diteruskan } = props;
+  const { label, nilai, ubahNilai, petunjuk, galat, testID, multiline, ...diteruskan } = props;
   const { warna, targetSentuh, skalaTeks } = useTokenA11y();
   const adaGalat = Boolean(galat);
   const ukuran = UKURAN_HURUF.isi * skalaTeks;
@@ -48,8 +58,11 @@ export const Masukan = forwardRef<TextInput, MasukanProps>(function Masukan(prop
         accessibilityHint={[galat, petunjuk].filter(Boolean).join(". ") || undefined}
         value={nilai}
         onChangeText={ubahNilai}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
         style={{
-          minHeight: targetSentuh,
+          minHeight: multiline ? Math.max(targetSentuh, ukuran * 6) : targetSentuh,
+          paddingVertical: multiline ? 8 : 0,
           paddingHorizontal: 12,
           borderRadius: 8,
           // Galat ditandai garis lebih tebal DAN teks, bukan warna saja (WCAG 1.4.1).

@@ -1,14 +1,8 @@
-import type { z } from "zod";
 import { pesanGalatApi, type PetaGalat } from "../../shared/galat-api.js";
 import type { FungsiTeks } from "../../shared/i18n/index.js";
 
-export type GalatKolom = Readonly<Record<string, string>>;
-
-export function galatPerKolom(galat: z.ZodError): GalatKolom {
-  const hasil: Record<string, string> = {};
-  for (const masalah of galat.issues) hasil[masalah.path.join(".")] ??= masalah.message;
-  return hasil;
-}
+// Galat per kolom: `@nawasena/formulir` (PR-092), sama dengan mobile.
+export { galatPerKolom, type GalatKolom } from "@nawasena/formulir";
 
 const PER_KODE: PetaGalat = {
   JARINGAN_GAGAL: "resume.galat.jaringan",

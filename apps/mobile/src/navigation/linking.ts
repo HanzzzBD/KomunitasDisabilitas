@@ -11,7 +11,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
   // dan menunjuknya dari stack "keluar" berarti menunjuk layar yang tidak ada.
   config: {
     screens: {
-      Beranda: "beranda",
+      // PR-092: Beranda pindah ke dalam tab `Utama`; path publiknya tetap.
+      Utama: { screens: { Beranda: "beranda" } },
     },
   },
 };

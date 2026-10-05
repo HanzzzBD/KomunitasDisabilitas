@@ -86,8 +86,21 @@ Penyiapan Google Cloud Console (sekali, oleh pemilik proyek GCP):
   Matikan dengan `EXPO_PUBLIC_ONBOARDING_WIZARD_ENABLED=false` (rollback).
 - Teks mobile ditulis dalam bahasa sederhana; `simpleLanguage` belum mengubah teks (U-37).
 
+## Profil & CV (PR-092)
+
+- **Navigasi**: tab bawah Beranda · Profil · CV (label teks, tanpa ikon); bagian-bagian dibuka
+  sebagai layar stack, satu bagian per layar.
+- **Server state**: TanStack Query di memori saja (tanpa persister) — profil memuat data
+  disabilitas. Cache + PDF CV di cache berkas dibuang saat keluar (`src/query.ts`).
+- **Logika formulir** (pemetaan profil, consent, kolom item CV, prefill, naik/turun) dari
+  `@nawasena/formulir` — paket yang sama dengan web.
+- **PDF**: unduh ke `cache/cv/` → content:// → aplikasi PDF (`ACTION_VIEW`); tanpa aplikasi PDF →
+  lembar Bagikan (`src/cv/pdf.ts`).
+- Chat AI untuk CV tidak ada di mobile MVP — jalur utamanya web.
+
 ## Smoke test
 
 `.maestro/boot-smoke.yaml` (boot + deep link), `.maestro/masuk-otp.yaml` (OTP dengan
-sender uji), dan `.maestro/onboarding.yaml` (wizard, akun baru), dijalankan manual:
+sender uji), `.maestro/onboarding.yaml` (wizard, akun baru), dan `.maestro/profil-cv.yaml`
+(profil + consent + CV + PDF), dijalankan manual:
 `maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.

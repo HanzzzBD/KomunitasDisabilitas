@@ -1,5 +1,6 @@
 import { useTokenA11y } from "@nawasena/ui-native";
 import { NavigationContainer } from "@react-navigation/native";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -10,16 +11,27 @@ import { useStore } from "zustand";
 // HTTPS langsung gagal di sini (fail-fast), tidak diam-diam di layar fitur.
 import { PenyediaTema } from "./a11y/PenyediaTema";
 import { sesiStore } from "./api";
+import { hapusPdfCv } from "./cv/pdf-android";
 import { linking } from "./navigation/linking";
+import { TabUtama } from "./navigation/TabUtama";
 import { onboardingStore } from "./onboarding/instans";
 import type { RootStackParamList } from "./navigation/types";
-import { BerandaScreen } from "./screens/BerandaScreen";
+import { queryClient, saatKeluar } from "./query";
+import { CvBagianScreen } from "./screens/cv/CvBagianScreen";
+import { CvEditorScreen } from "./screens/cv/CvEditorScreen";
 import { MasukScreen } from "./screens/MasukScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { KarierFormScreen } from "./screens/profil/KarierFormScreen";
+import { KarierScreen } from "./screens/profil/KarierScreen";
+import { ProfilDasarScreen } from "./screens/profil/ProfilDasarScreen";
+import { ProfilSensitifScreen } from "./screens/profil/ProfilSensitifScreen";
 import { MemulihkanScreen, TerputusScreen } from "./screens/StatusSesiScreen";
 import { VerifikasiScreen } from "./screens/VerifikasiScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// PDF CV di cache berkas memuat kontak pribadi — ikut dibuang saat keluar.
+saatKeluar(hapusPdfCv);
 
 /**
  * Guarded stack (PR-090): layar yang tidak boleh dibuka tidak sekadar
@@ -63,7 +75,35 @@ function Navigasi() {
             options={{ title: "Atur aplikasi" }}
           />
         ) : status === "masuk" ? (
-          <Stack.Screen name="Beranda" component={BerandaScreen} options={{ title: "Beranda" }} />
+          <>
+            <Stack.Screen name="Utama" component={TabUtama} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="ProfilDasar"
+              component={ProfilDasarScreen}
+              options={{ title: "Data dasar" }}
+            />
+            <Stack.Screen
+              name="ProfilSensitif"
+              component={ProfilSensitifScreen}
+              options={{ title: "Disabilitas dan akomodasi" }}
+            />
+            <Stack.Screen name="Karier" component={KarierScreen} options={{ title: "Profil" }} />
+            <Stack.Screen
+              name="KarierForm"
+              component={KarierFormScreen}
+              options={{ title: "Profil" }}
+            />
+            <Stack.Screen
+              name="CvEditor"
+              component={CvEditorScreen}
+              options={{ title: "Ubah CV" }}
+            />
+            <Stack.Screen
+              name="CvBagian"
+              component={CvBagianScreen}
+              options={{ title: "Ubah CV" }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen name="Masuk" component={MasukScreen} options={{ title: "Masuk" }} />
@@ -83,9 +123,11 @@ export function App() {
   return (
     <SafeAreaProvider>
       {/* Preferensi efektif (pilihan pengguna > setelan Android > bawaan), PR-091. */}
-      <PenyediaTema>
-        <Navigasi />
-      </PenyediaTema>
+      <QueryClientProvider client={queryClient}>
+        <PenyediaTema>
+          <Navigasi />
+        </PenyediaTema>
+      </QueryClientProvider>
       <StatusBar style="dark" />
     </SafeAreaProvider>
   );
