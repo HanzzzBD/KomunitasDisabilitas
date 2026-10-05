@@ -20,6 +20,8 @@
   "dependencies": {
     "@nawasena/a11y": "workspace:*",
     "@nawasena/api-client": "workspace:*",
+    "@nawasena/formulir": "workspace:*",
+    "@nawasena/lowongan": "workspace:*",
     "@nawasena/schemas": "workspace:*",
     "@nawasena/ui": "workspace:*",
     "@tanstack/react-query": "5.62.11",

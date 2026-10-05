@@ -70,10 +70,17 @@ function fakePrisma(rows: BarisDevice[]) {
       },
       findMany: ({ where }: { where: { userId: string } }) =>
         Promise.resolve(rows.filter((r) => r.userId === where.userId).map((r) => ({ ...r }))),
-      deleteMany: ({ where }: { where: { fcmToken: string } }) => {
+      deleteMany: ({ where }: { where: { fcmToken?: string; id?: string; userId?: string } }) => {
         const sebelum = rows.length;
         for (let i = rows.length - 1; i >= 0; i -= 1) {
-          if (rows[i]?.fcmToken === where.fcmToken) rows.splice(i, 1);
+          const r = rows[i];
+          if (
+            r &&
+            (where.fcmToken === undefined || r.fcmToken === where.fcmToken) &&
+            (where.id === undefined || r.id === where.id) &&
+            (where.userId === undefined || r.userId === where.userId)
+          )
+            rows.splice(i, 1);
         }
         return Promise.resolve({ count: sebelum - rows.length });
       },
@@ -162,6 +169,66 @@ function daftar(base: string, token: string | undefined, body: unknown) {
 }
 
 const PERANGKAT = { fcmToken: "token-perangkat-rina-001", platform: "android" } as const;
+
+describe("DELETE /me/devices/:id (PR-094)", () => {
+  it("pemilik bisa melepas perangkat; pengulangan tetap 204", async () => {
+    const { base, rows } = await boot();
+    const token = await tokenUntuk(A);
+    const registered = deviceResponseSchema.parse(
+      await (await daftar(base, token, PERANGKAT)).json(),
+    );
+    const hapus = () =>
+      fetch(`${base}/me/devices/${registered.data.id}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${token}` },
+      });
+    expect((await hapus()).status).toBe(204);
+    expect(rows).toHaveLength(0);
+    expect((await hapus()).status).toBe(204);
+  });
+  it("id milik akun lain tidak terhapus dan tidak mengungkap keberadaannya", async () => {
+    const { base, rows } = await boot();
+    const registered = deviceResponseSchema.parse(
+      await (await daftar(base, await tokenUntuk(A), PERANGKAT)).json(),
+    );
+    const res = await fetch(`${base}/me/devices/${registered.data.id}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${await tokenUntuk(B)}` },
+    });
+    expect(res.status).toBe(204);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.userId).toBe(A);
+  });
+  it("logout akun lama setelah token berpindah tidak melepas perangkat akun baru", async () => {
+    const { base, rows } = await boot();
+    const lama = await tokenUntuk(A);
+    const registered = deviceResponseSchema.parse(
+      await (await daftar(base, lama, PERANGKAT)).json(),
+    );
+    await daftar(base, await tokenUntuk(B), PERANGKAT);
+    expect(
+      (
+        await fetch(`${base}/me/devices/${registered.data.id}`, {
+          method: "DELETE",
+          headers: { authorization: `Bearer ${lama}` },
+        })
+      ).status,
+    ).toBe(204);
+    expect(rows[0]?.userId).toBe(B);
+  });
+  it("tanpa sesi ditolak; id tidak valid ditolak sebelum DB", async () => {
+    const { base } = await boot();
+    expect((await fetch(`${base}/me/devices/${A}`, { method: "DELETE" })).status).toBe(401);
+    expect(
+      (
+        await fetch(`${base}/me/devices/bukan-uuid`, {
+          method: "DELETE",
+          headers: { authorization: `Bearer ${await tokenUntuk(A)}` },
+        })
+      ).status,
+    ).toBe(400);
+  });
+});
 
 describe("akses", () => {
   it("tanpa token → 401", async () => {

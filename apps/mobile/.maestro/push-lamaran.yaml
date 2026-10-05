@@ -1,0 +1,11 @@
+# PR-094: panggil setelah push FCM lamaran benar-benar tiba di tray.
+# APPLICATION_ID = UUID lamaran milik akun uji. Tidak mengirim/memalsukan push.
+# Untuk cold start: tutup app sebelum kiriman push, lalu jalankan flow ini.
+appId: id.nawasena.app
+---
+- openNotifications
+- tapOn: "(Status lamaran: .*|Kabar lamaran Anda: .*)"
+- assertVisible:
+    id: "layar-lamaran-detail"
+- assertVisible:
+    id: "status-lamaran-${APPLICATION_ID}"

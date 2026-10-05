@@ -14,60 +14,14 @@
 // padahal justru merekalah yang paling perlu melihat bahwa bawaannya "tanya
 // saya dulu".
 import { AreaTeks, KolomForm, KotakCentang, Masukan, Pilihan } from "@nawasena/ui";
-import type { SeekerProfile, UpdateSeekerProfile } from "@nawasena/schemas";
+import { keBadanDasar, keNilaiDasar, type NilaiDasar } from "@nawasena/formulir";
 import { useTeks, type FungsiTeks } from "../../shared/i18n/index.js";
 import type { GalatKolom } from "./pesan-galat.js";
 
 /** Nilai formulir bagian dasar — teks selalu string, tidak pernah null. */
-export interface NilaiDasar {
-  headline: string;
-  summary: string;
-  city: string;
-  province: string;
-  openToRemote: boolean;
-  disclosureDefault: SeekerProfile["disclosureDefault"];
-}
+// Pemetaan profil ↔ formulir: `@nawasena/formulir` (PR-092), sama dengan mobile.
+export { keBadanDasar, keNilaiDasar, type NilaiDasar };
 
-/**
- * Profil dari server → nilai formulir.
- *
- * `null` menjadi string kosong, dan itu perlu dinyatakan: `<input value={null}>`
- * membuat React memindahkan kolomnya dari terkendali ke tak terkendali di
- * tengah jalan, dan isian pengguna hilang tanpa satu pun galat.
- */
-export function keNilaiDasar(profil: SeekerProfile): NilaiDasar {
-  return {
-    headline: profil.headline ?? "",
-    summary: profil.summary ?? "",
-    city: profil.city ?? "",
-    province: profil.province ?? "",
-    openToRemote: profil.openToRemote,
-    disclosureDefault: profil.disclosureDefault,
-  };
-}
-
-/**
- * Nilai formulir → badan permintaan.
- *
- * Keenamnya SELALU disebut, termasuk yang kosong. Skema membedakan tiga
- * keadaan — tidak disebut = jangan sentuh, bernilai = simpan, `null` =
- * kosongkan — dan formulir yang menghilangkan kolom kosongnya akan membuat
- * pengguna TIDAK BISA menghapus judul profil yang terlanjur ia tulis. String
- * kosong diubah menjadi `null` oleh skemanya sendiri, jadi "kosongkan" cukup
- * dikirim apa adanya.
- */
-export function keBadanDasar(nilai: NilaiDasar): UpdateSeekerProfile {
-  return {
-    headline: nilai.headline,
-    summary: nilai.summary,
-    city: nilai.city,
-    province: nilai.province,
-    openToRemote: nilai.openToRemote,
-    disclosureDefault: nilai.disclosureDefault,
-  };
-}
-
-/** Ketiga pilihan disclosure sebagai data — teksnya diambil saat render. */
 function opsiDisclosure(t: FungsiTeks) {
   return [
     { nilai: "never", label: t("profil.dasar.disclosureNever") },

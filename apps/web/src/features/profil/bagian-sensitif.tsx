@@ -23,73 +23,23 @@
 // sengaja oleh seseorang.
 import { useState } from "react";
 import { AreaTeks, Dialog, KolomForm, KotakCentang, Tombol } from "@nawasena/ui";
+import { ACCOMMODATION_NEEDS, DISABILITY_TYPES, type AccommodationNeed } from "@nawasena/schemas";
 import {
-  ACCOMMODATION_NEEDS,
-  DISABILITY_TYPES,
-  type AccommodationNeed,
-  type DisabilityType,
-  type SeekerProfile,
-  type UpdateSeekerProfile,
-} from "@nawasena/schemas";
+  alihkan,
+  BADAN_CABUT,
+  keBadanSensitif,
+  keNilaiSensitif,
+  SENSITIF_KOSONG,
+  type NilaiSensitif,
+} from "@nawasena/formulir";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { RAGAM } from "../onboarding/langkah-ragam-disabilitas.js";
 import type { GalatKolom } from "./pesan-galat.js";
 
 /** Nilai formulir bagian sensitif. */
-export interface NilaiSensitif {
-  /** Kotak consent — HANYA berarti saat izin belum pernah diberikan. */
-  setuju: boolean;
-  ragam: readonly DisabilityType[];
-  akomodasi: readonly AccommodationNeed[];
-  catatan: string;
-}
+// Pemetaan + consent: `@nawasena/formulir` (PR-092), sama dengan mobile.
+export { BADAN_CABUT, keBadanSensitif, keNilaiSensitif, SENSITIF_KOSONG, type NilaiSensitif };
 
-export const SENSITIF_KOSONG: NilaiSensitif = {
-  setuju: false,
-  ragam: [],
-  akomodasi: [],
-  catatan: "",
-};
-
-/**
- * Profil dari server → nilai formulir.
- *
- * `sensitive === null` berarti platform tidak sedang memegang data disabilitas
- * orang ini SAMA SEKALI — bukan "datanya kosong". Keduanya menghasilkan
- * formulir yang terlihat sama, dan itulah kenapa perbedaannya harus dibaca dari
- * `consentSensitiveAt`, bukan dari isinya.
- */
-export function keNilaiSensitif(profil: SeekerProfile): NilaiSensitif {
-  if (profil.sensitive === null) return { ...SENSITIF_KOSONG };
-  return {
-    setuju: true,
-    ragam: profil.sensitive.disabilityTypes,
-    akomodasi: profil.sensitive.accommodationNeeds.tags,
-    catatan: profil.sensitive.accommodationNeeds.notes ?? "",
-  };
-}
-
-/**
- * Nilai formulir → badan permintaan penyimpanan.
- *
- * `consentSensitive: true` HANYA disertakan bila izinnya baru diberikan di
- * layar ini. Mengirimkannya setiap kali menyimpan akan menulis ulang
- * `consent_sensitive_at` di server pada tiap penyuntingan — dan tanggal
- * persetujuan yang bergeser setiap kali seseorang memperbaiki catatannya bukan
- * bukti persetujuan lagi, padahal justru sebagai bukti ia disimpan (UU PDP).
- */
-export function keBadanSensitif(nilai: NilaiSensitif, sudahBerizin: boolean): UpdateSeekerProfile {
-  return {
-    ...(sudahBerizin ? {} : { consentSensitive: true }),
-    disabilityTypes: [...nilai.ragam],
-    accommodationNeeds: { tags: [...nilai.akomodasi], notes: nilai.catatan },
-  };
-}
-
-/** Badan permintaan PENCABUTAN — sengaja tidak memuat apa pun selain sakelarnya. */
-export const BADAN_CABUT: UpdateSeekerProfile = { consentSensitive: false };
-
-/** Label taksonomi akomodasi; nilainya dari `@nawasena/schemas`. */
 const KUNCI_AKOMODASI: Readonly<Record<AccommodationNeed, KunciTeks>> = {
   akses_kursi_roda: "profil.akomodasi.akses_kursi_roda",
   ramah_screen_reader: "profil.akomodasi.ramah_screen_reader",
@@ -144,10 +94,6 @@ export function BagianSensitif({
   // Kolom sensitif muncul bila izinnya SUDAH ada, atau baru saja dicentang di
   // layar ini. Aturan 2 di atas.
   const kolomTampak = sudahBerizin || nilai.setuju;
-
-  function alihkan<T extends string>(daftar: readonly T[], nilaiItem: T, dicentang: boolean): T[] {
-    return dicentang ? [...daftar, nilaiItem] : daftar.filter((x) => x !== nilaiItem);
-  }
 
   return (
     <>

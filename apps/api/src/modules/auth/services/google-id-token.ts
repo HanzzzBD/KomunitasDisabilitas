@@ -93,6 +93,27 @@ export interface GoogleIdTokenVerifier {
 }
 
 /**
+ * Verifier jalur Android (PR-090). Antarmuka TERPISAH dari `verify`, bukan
+ * field `nonce` yang ditempel ke `GoogleIdentity`: identitas itu mengalir ke
+ * repository, dan nonce tidak punya urusan di sana.
+ */
+export interface GoogleMobileIdTokenVerifier {
+  /**
+   * Verifikasi penuh seperti `verify`, plus klaim `nonce` apa adanya (null bila
+   * tidak ada). Pemanggil yang memutuskan apakah nonce itu sah — verifier tidak
+   * tahu nonce mana yang pernah diterbitkan.
+   */
+  verifyDenganNonce(idToken: string): Promise<{ identitas: GoogleIdentity; nonce: string | null }>;
+}
+
+/** Klaim `nonce` — dibaca SETELAH tanda tangan sah; selain string dianggap tidak ada. */
+export function bacaNonce(claims: unknown): string | null {
+  if (typeof claims !== "object" || claims === null) return null;
+  const nonce = (claims as { nonce?: unknown }).nonce;
+  return typeof nonce === "string" && nonce !== "" ? nonce : null;
+}
+
+/**
  * Kegagalan mengambil JWKS adalah masalah INFRASTRUKTUR kita, bukan token
  * pengguna. Menjawab 401 di kasus itu berbohong kepada pengguna ("data Anda
  * tidak sah") padahal Google-lah yang tak terjangkau — jadi dipisah jadi 503.
@@ -115,31 +136,43 @@ function terjemahkanKegagalanJose(err: unknown): never {
  */
 export function createGoogleIdTokenVerifier(
   config: GoogleIdTokenVerifierConfig,
-): GoogleIdTokenVerifier {
+): GoogleIdTokenVerifier & GoogleMobileIdTokenVerifier {
   const jwks = createRemoteJWKSet(new URL(config.jwksUrl), {
     timeoutDuration: config.timeoutMs,
   });
 
+  /** Tanda tangan + iss + aud + exp; klaim mentah dikembalikan. */
+  async function payloadSah(idToken: string): Promise<unknown> {
+    let payload: unknown;
+    try {
+      // jwtVerify menegakkan tanda tangan + iss + aud + exp/nbf sekaligus.
+      // `algorithms` dikunci: tanpa itu token ber-`alg: none` atau HMAC yang
+      // memakai kunci publik sebagai rahasia bisa lolos (serangan klasik JWT).
+      const hasil = await jwtVerify(idToken, jwks, {
+        issuer: [...GOOGLE_ISSUERS],
+        audience: config.clientId,
+        algorithms: ["RS256"],
+        clockTolerance: GOOGLE_CLOCK_TOLERANCE_SECONDS,
+      });
+      payload = hasil.payload;
+    } catch (err) {
+      terjemahkanKegagalanJose(err);
+    }
+    return payload;
+  }
+
   return {
     async verify(idToken) {
-      let payload: unknown;
-      try {
-        // jwtVerify menegakkan tanda tangan + iss + aud + exp/nbf sekaligus.
-        // `algorithms` dikunci: tanpa itu token ber-`alg: none` atau HMAC yang
-        // memakai kunci publik sebagai rahasia bisa lolos (serangan klasik JWT).
-        const hasil = await jwtVerify(idToken, jwks, {
-          issuer: [...GOOGLE_ISSUERS],
-          audience: config.clientId,
-          algorithms: ["RS256"],
-          clockTolerance: GOOGLE_CLOCK_TOLERANCE_SECONDS,
-        });
-        payload = hasil.payload;
-      } catch (err) {
-        terjemahkanKegagalanJose(err);
-      }
+      // Di luar try: AppError dari parse tidak boleh tertelan penerjemah jose.
+      return parseGoogleIdentity(await payloadSah(idToken));
+    },
 
-      // Di luar try: AppError dari parse tidak boleh tertelan penerjemah di atas.
-      return parseGoogleIdentity(payload);
+    async verifyDenganNonce(idToken) {
+      // Audience-nya SAMA dengan web: Credential Manager menerbitkan id_token
+      // ber-`aud` serverClientId = Web Client ID (GOOGLE_CLIENT_ID). Client ID
+      // Android hanya muncul di `azp` dan tidak menambah kepercayaan apa pun.
+      const payload = await payloadSah(idToken);
+      return { identitas: parseGoogleIdentity(payload), nonce: bacaNonce(payload) };
     },
   };
 }

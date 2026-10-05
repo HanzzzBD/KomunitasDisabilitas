@@ -9,6 +9,8 @@ import {
   refreshSessionResponseSchema,
   googleAuthSchema,
   googleAuthResponseSchema,
+  googleMobileAuthSchema,
+  googleMobileNonceResponseSchema,
   type RequestOtp,
   type RequestOtpResponse,
   type VerifyOtp,
@@ -17,6 +19,8 @@ import {
   type RefreshSessionResponse,
   type GoogleAuth,
   type GoogleAuthResponse,
+  type GoogleMobileAuth,
+  type GoogleMobileNonceResponse,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
@@ -73,6 +77,37 @@ export async function googleAuth(
 ): Promise<GoogleAuthResponse> {
   const body = googleAuthSchema.parse(input);
   return client.request("/auth/google", {
+    method: "POST",
+    body,
+    responseSchema: googleAuthResponseSchema,
+  });
+}
+
+/**
+ * POST /auth/google/mobile/nonce — nonce sekali pakai untuk Credential Manager
+ * (PR-090). Minta yang baru setiap kali tombol Google ditekan: nonce hangus
+ * dalam 5 menit dan tidak bisa dipakai dua kali.
+ */
+export async function requestGoogleMobileNonce(
+  client: ApiClient,
+): Promise<GoogleMobileNonceResponse> {
+  return client.request("/auth/google/mobile/nonce", {
+    method: "POST",
+    responseSchema: googleMobileNonceResponseSchema,
+  });
+}
+
+/**
+ * POST /auth/google/mobile — tukar Google ID token dari Credential Manager
+ * dengan sesi (PR-090). Refresh token SELALU ada di body: endpoint ini hanya
+ * untuk aplikasi Android, yang menyimpannya di SecureStore.
+ */
+export async function googleMobileAuth(
+  client: ApiClient,
+  input: GoogleMobileAuth,
+): Promise<GoogleAuthResponse> {
+  const body = googleMobileAuthSchema.parse(input);
+  return client.request("/auth/google/mobile", {
     method: "POST",
     body,
     responseSchema: googleAuthResponseSchema,

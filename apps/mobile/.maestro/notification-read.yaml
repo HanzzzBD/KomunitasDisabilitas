@@ -1,0 +1,24 @@
+# PR-095: akun uji sudah masuk, wizard selesai, NOTIFICATION_ID masih unread.
+# TITLE adalah judul varian bahasa aktif dari notifikasi itu.
+# maestro test -e NOTIFICATION_ID=<uuid> -e TITLE="Lamaran terkirim" apps/mobile/.maestro/notification-read.yaml
+appId: id.nawasena.app
+---
+- launchApp
+- tapOn:
+    id: "tombol-notifikasi"
+- assertVisible:
+    id: "layar-notifikasi"
+- tapOn:
+    id: "saringan-notifikasi-belum"
+- scrollUntilVisible:
+    element:
+      id: "tandai-notifikasi-${NOTIFICATION_ID}"
+- tapOn:
+    id: "tandai-notifikasi-${NOTIFICATION_ID}"
+- assertVisible: "Sudah dibaca: ${TITLE}"
+- scrollUntilVisible:
+    element: "Muat ulang notifikasi"
+    direction: UP
+- tapOn: "Muat ulang notifikasi"
+- assertNotVisible:
+    id: "isi-notifikasi-${NOTIFICATION_ID}"

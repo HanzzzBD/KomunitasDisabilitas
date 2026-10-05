@@ -23,6 +23,10 @@ function actorOf(req: Request): DevicesActor {
 
 export function createDevicesController(service: DevicesService) {
   return {
+    async unregister(req: Request, res: Response): Promise<void> {
+      await service.unregister(actorOf(req), req.params.id as string);
+      res.status(204).end();
+    },
     /**
      * POST /api/v1/me/devices → 200 perangkat terdaftar.
      *

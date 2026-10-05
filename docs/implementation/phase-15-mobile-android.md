@@ -81,7 +81,7 @@ Bisnis: jangkauan Android — mayoritas pengguna target (ADR-011). Teknis: Expo 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (storage wrapper)
+* [x] Unit Test (storage wrapper)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro: boot smoke)
 * [ ] Accessibility Test (TalkBack smoke shell)
@@ -101,10 +101,10 @@ RB-Std (build channel internal; tidak menyentuh produksi web).
 
 #### Acceptance Criteria
 
-* [ ] Build EAS internal sukses & terinstal di device uji.
+* [x] Build EAS internal sukses & terinstal di device uji - APK `fb6b98bd`, dipasang owner 2026-10-05 (lihat log).
 * [ ] SecureStore roundtrip token teruji.
 * [ ] Deep link scheme membuka app.
-* [ ] `packages/api-client` & `schemas` terpakai tanpa patch (bukti platform-agnostic).
+* [x] `packages/api-client` & `schemas` terpakai tanpa patch (bukti platform-agnostic).
 * [ ] Boot < 3 dtk di device kelas menengah.
 
 #### Dependencies
@@ -157,7 +157,7 @@ Bisnis: janji aksesibel berlaku juga di Android (TalkBack). Teknis: Button, Inpu
 
 **Testing Checklist:**
 
-* [ ] Unit Test (render + props)
+* [x] Unit Test (render + props)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (N/A)
 * [ ] Accessibility Test (TalkBack checklist)
@@ -177,10 +177,10 @@ RB-Std.
 
 #### Acceptance Criteria
 
-* [ ] Komponen interaktif tanpa label → lint error (fixture).
-* [ ] Target sentuh mengikuti token (44→56dp).
+* [x] Komponen interaktif tanpa label → lint error (fixture).
+* [x] Target sentuh mengikuti token (44→56dp).
 * [ ] TalkBack membaca role+label benar (checklist per komponen).
-* [ ] Token a11y (font scale dsb.) diterapkan.
+* [x] Token a11y (font scale dsb.) diterapkan.
 * [ ] Dialog: fokus aksesibilitas pindah masuk/keluar benar.
 
 #### Dependencies
@@ -198,7 +198,9 @@ RB-Std.
 
 **Login OTP + Google (PKCE) + sesi.**
 
-Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode), Google via PKCE, guarded stack, refresh via api-client.
+Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode), Google via Android Credential Manager (ID token + nonce server), guarded stack, refresh via api-client.
+
+> **Revisi 2026-10-05 (keputusan owner):** Google di Android **tidak** memakai authorization code + PKCE. Credential Manager menghasilkan Google ID token ber-`aud` Web Client ID (`serverClientId`) yang dikirim ke endpoint baru `POST /api/v1/auth/google/mobile`. Custom Tab bukan alur utama, dan `nawasena://` tidak dipakai sebagai redirect OAuth Google.
 
 #### Scope
 
@@ -208,7 +210,8 @@ Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode),
 
 **Backend Changes:**
 
-* Tidak ada.
+* `POST /api/v1/auth/google/mobile/nonce` — nonce sekali pakai (Redis cache, TTL 5 menit, disimpan sebagai SHA-256).
+* `POST /api/v1/auth/google/mobile` — body `{ idToken }`; verifikasi tanda tangan (JWKS), issuer, audience = Web Client ID, kedaluwarsa, email terverifikasi, lalu konsumsi atomik klaim `nonce`; find-or-create + sesi sama dengan login Google web; refresh token selalu di body.
 
 **Frontend Changes:**
 
@@ -224,15 +227,18 @@ Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode),
 
 **API Changes:**
 
-* Tidak ada (konsumsi).
+* Dua endpoint publik baru (aditif) di atas; OpenAPI + `@nawasena/api-client` (`requestGoogleMobileNonce`, `googleMobileAuth`).
 
 **Security Considerations:**
 
-* PKCE wajib; token di SecureStore; tidak log token.
+* PKCE S256 wajib untuk OAuth Authorization Code flow (web).
+* Android Native Google Sign-In memakai Credential Manager + Google ID token dan **tidak** dipaksa memakai authorization-code PKCE flow; anti-replay dipegang nonce terbitan server yang dikonsumsi sekali.
+* OAuth client Android (package `id.nawasena.app` + SHA-1/SHA-256 sertifikat) tetap dibuat; Web OAuth Client ID dipakai sebagai `serverClientId`.
+* Refresh token hanya di SecureStore; access token hanya di memori; tidak log token.
 
 **Testing Checklist:**
 
-* [ ] Unit Test (session store)
+* [x] Unit Test (session store)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro OTP mock)
 * [ ] Accessibility Test (TalkBack alur login)
@@ -308,7 +314,7 @@ Bisnis: Accessibility Profile konsisten lintas platform (ADR-008). Teknis: wizar
 
 **Testing Checklist:**
 
-* [ ] Unit Test (mapping)
+* [x] Unit Test (mapping)
 * [ ] Integration Test (sinkron)
 * [ ] E2E Test (Maestro wizard)
 * [ ] Accessibility Test (TalkBack + font scale)
@@ -385,7 +391,7 @@ Bisnis: seeker lengkap dari Android tanpa perlu web. Teknis: paritas PR-040/061;
 
 **Testing Checklist:**
 
-* [ ] Unit Test (reuse hooks shared)
+* [x] Unit Test (reuse hooks shared)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro profil+CV)
 * [ ] Accessibility Test (TalkBack)
@@ -461,7 +467,7 @@ Bisnis: discovery utama di perangkat utama pengguna. Teknis: paritas PR-074/059 
 
 **Testing Checklist:**
 
-* [ ] Unit Test (reuse)
+* [x] Unit Test (reuse)
 * [ ] Integration Test (N/A)
 * [ ] E2E Test (Maestro feed→detail)
 * [ ] Accessibility Test (TalkBack feed)
@@ -508,12 +514,13 @@ Bisnis: alur konversi penuh di Android (gate paritas MVP). Teknis: paritas PR-07
 #### Scope
 
 * Apply flow + tracking + push handling + analytics mobile
+* Pelepasan perangkat saat logout (perluasan scope backend disetujui owner).
 
 #### Technical Notes
 
 **Backend Changes:**
 
-* Tidak ada.
+* `DELETE /api/v1/me/devices/:id` untuk melepas perangkat milik sesi saat logout (disetujui owner 2026-10-05). Idempoten 204 untuk id yang tidak ada/milik akun lain; tanpa migrasi DB.
 
 **Frontend Changes:**
 
@@ -529,16 +536,17 @@ Bisnis: alur konversi penuh di Android (gate paritas MVP). Teknis: paritas PR-07
 
 **API Changes:**
 
-* Tidak ada (konsumsi).
+* Endpoint DELETE perangkat (aditif), skema parameter UUID + OpenAPI, dan `registerMyDevice`/`unregisterMyDevice` pada api-client. Endpoint lamaran tetap dikonsumsi tanpa perubahan.
 
 **Security Considerations:**
 
-* Disclosure paritas (default TIDAK, eksplisit); deep link tervalidasi (tidak membuka entitas milik user lain — requireSelf BE tetap benteng).
+* Disclosure paritas keputusan owner PR-078: kedua opsi mulai kosong, pilihan wajib; tidak memakai disclosureDefault profil.
+* Deep link/payload tervalidasi; backend memeriksa kepemilikan lamaran/perangkat. Analytics memakai kontrak no-PII PR-082 dan opt-out per HP.
 
 **Testing Checklist:**
 
-* [ ] Unit Test (deep link parser)
-* [ ] Integration Test (N/A)
+* [x] Unit Test (deep link parser, antrean cold/warm, registrasi/rotasi/logout, payload analytics)
+* [x] Integration Test (DELETE perangkat: sesi/pemilik/idempotensi, HTTP + DB)
 * [ ] E2E Test (Maestro apply→status→push)
 * [ ] Accessibility Test (TalkBack alur penuh)
 * [ ] Manual Verification (push nyata staging)
@@ -599,6 +607,8 @@ Bisnis: paritas kanal visual penuh. Teknis: layar list + read, badge, dedup push
 **Mobile Changes:**
 
 * Feature notifications mobile.
+* Keputusan owner: tombol Notifikasi + badge di header lima tab; banner persisten sampai Buka/Tutup, burst diringkas.
+* Semua/Belum dibaca, paginasi 20, mark-read optimistis + rollback, mark-all dengan count server, dan varian bahasa notifikasi API.
 
 **Database Changes:**
 
@@ -614,8 +624,8 @@ Bisnis: paritas kanal visual penuh. Teknis: layar list + read, badge, dedup push
 
 **Testing Checklist:**
 
-* [ ] Unit Test (dedup)
-* [ ] Integration Test (N/A)
+* [x] Unit Test (dedup dua urutan, burst, baseline/resume, validator/navigasi, izin push)
+* [x] Integration Test (QueryClient read/rollback/read-all/sesi, transport AbortSignal)
 * [ ] E2E Test (Maestro read flow)
 * [ ] Accessibility Test (TalkBack)
 * [ ] Manual Verification (foreground/background)
@@ -657,6 +667,36 @@ Phase 15 dianggap selesai bila SEMUA kondisi berikut terpenuhi:
 * Setiap checklist Acceptance Criteria per PR terpenuhi (diverifikasi di review).
 * CI hijau penuh: lint boundaries, typecheck, unit, integration, a11y gate (axe + Lighthouse).
 * Tidak ada regresi pada E2E alur yang sudah ada.
+
+> **Penutupan atas perintah owner - 2026-10-05.** Seluruh implementasi
+> PR-088..PR-095 telah merged ke `phase-15-mobile-android`. Owner meminta
+> closing Phase 15 dan merge ke `main`; merge tetap menunggu kedua check wajib
+> `lint-typecheck-test` dan `a11y` hijau. Bukti acceptance runtime di bawah
+> belum lengkap, sehingga keputusan ini mengesampingkan bagian Exit Criteria
+> yang menuntut seluruh AC terverifikasi. Kotak runtime tetap terbuka sesuai
+> bukti dan diteruskan sebagai U-35/U-19 di [utang teknis](../utang-teknis.md).
+>
+> | PR | Verifikasi perangkat yang masih terbuka |
+> |---|---|
+> | PR-088 | SecureStore/deep link nyata, boot < 3 detik, smoke TalkBack. Build dan instalasi APK sudah terbukti. |
+> | PR-089 | Ucapan role/label dan fokus Dialog di dua versi Android. |
+> | PR-090 | OTP/Google end-to-end, autofill, sesi setelah restart, dan TalkBack. Registrasi OAuth Android dilaporkan selesai; hasil login ulang belum diberikan. |
+> | PR-091 | Preferensi web/mobile, prioritas OS, preview, wizard TalkBack, font OS 200%. |
+> | PR-092 | Profil/CV/consent dari HP, reorder, PDF di viewer, TalkBack form. |
+> | PR-093 | Feed/filter/detail, degradasi, tombol refresh, pemulihan posisi daftar, TalkBack/3G di HP. |
+> | PR-094 | Disclosure/apply/tracking, push cold/warm dan logout, funnel Umami, TalkBack. |
+> | PR-095 | Badge/read/rollback/navigasi, satu banner tanpa duplikasi OS, resume, TalkBack/font ekstrem. |
+>
+> CI mencakup unit/integrasi, kontrak OpenAPI, regresi web dengan Playwright,
+> axe, dan Lighthouse desktop/3G. CI web tidak membuktikan TalkBack atau FCM
+> Android nyata. Checklist perangkat PR-089..PR-095 dan flow `.maestro/`
+> tetap tersedia untuk menutup utang tersebut.
+>
+> APK terakhir `fb6b98bd` berhasil pada 2026-10-05 20:33 WIB dan sudah dipasang.
+> APK ini memuat notification center PR-095, tetapi belum memuat perbaikan
+> umpan balik login Google yang kemudian ikut merged di PR-095. Untuk menguji
+> pesan baru, build/install ulang diperlukan. Penutupan Git tidak menerbitkan
+> APK baru atau menyatakan kanal push siap bagi pengguna sungguhan.
 
 ## Next Phase
 

@@ -83,18 +83,8 @@ function nilaiKosong(kolom: readonly KolomKarier[]): NilaiBaris {
   return Object.fromEntries(kolom.map((k) => [k.nama, ""]));
 }
 
-/** Teks "" → null; sisanya apa adanya. Dipakai seluruh konfigurasi. */
-export function teksAtauNull(nilai: string | undefined): string | null {
-  const bersih = (nilai ?? "").trim();
-  return bersih === "" ? null : bersih;
-}
-
-/** Tahun "" → null, selain itu angka. Nilai bukan angka dibiarkan lewat sebagai NaN
- * supaya skema zod yang menolaknya, bukan kode ini — pesannya sudah ditulis di sana. */
-export function angkaAtauNull(nilai: string | undefined): number | null {
-  const bersih = (nilai ?? "").trim();
-  return bersih === "" ? null : Number(bersih);
-}
+// Helper teks: `@nawasena/formulir` (PR-092), sama dengan mobile.
+export { angkaAtauNull, gabungKeterangan, teksAtauNull } from "@nawasena/formulir";
 
 interface FormBarisProps {
   kolom: readonly KolomKarier[];
@@ -394,12 +384,6 @@ export function DaftarKarier<Item>({ konfig, klien }: DaftarKarierProps<Item>) {
       </p>
     </section>
   );
-}
-
-/** Dipakai konfigurasi untuk merangkai baris kedua tanpa memikirkan pemisahnya. */
-export function gabungKeterangan(...bagian: ReadonlyArray<string | null>): string | null {
-  const isi = bagian.filter((b): b is string => b !== null && b !== "");
-  return isi.length === 0 ? null : isi.join(" · ");
 }
 
 /** Tipe bantu supaya konfigurasi tidak perlu menyebut ulang `ReactNode`. */

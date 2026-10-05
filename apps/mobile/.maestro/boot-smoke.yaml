@@ -1,0 +1,20 @@
+# Boot smoke PR-088 — dijalankan manual di device/emulator berisi APK internal:
+#   maestro test apps/mobile/.maestro/boot-smoke.yaml
+# Belum di CI: butuh emulator Android (menyusul bersama alur E2E mobile).
+appId: id.nawasena.app
+---
+# Tanpa sesi (clearState), app membuka layar Masuk (guarded stack, PR-090).
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "layar-masuk"
+- assertVisible: "Masuk ke Nawasena"
+# Deep link membuka app tanpa crash; layar akun TIDAK terbuka tanpa sesi, dan
+# tautan asing diabaikan.
+- stopApp
+- openLink: "nawasena://beranda"
+- assertVisible:
+    id: "layar-masuk"
+- openLink: "nawasena://admin"
+- assertVisible:
+    id: "layar-masuk"

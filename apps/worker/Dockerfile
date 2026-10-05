@@ -27,6 +27,9 @@ COPY packages/schemas/package.json packages/schemas/
 COPY packages/api-client/package.json packages/api-client/
 COPY packages/ui/package.json packages/ui/
 COPY packages/a11y/package.json packages/a11y/
+COPY packages/ui-native/package.json packages/ui-native/
+COPY packages/formulir/package.json packages/formulir/
+COPY packages/lowongan/package.json packages/lowongan/
 RUN pnpm install --frozen-lockfile --filter @nawasena/worker...
 
 COPY . .

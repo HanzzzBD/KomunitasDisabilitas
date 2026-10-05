@@ -496,7 +496,7 @@ phishing, bukan jaring pengaman. Tanpa tautan, dengan alasan yang sama seperti p
 | U-12 | **NVDA sampling** untuk lima komponen (Dialog, Toast, Kerangka, Tab, Kartu) + tiga halaman auth | Log Phase 03 (PR-027/028/030/032a/033) | Menuntut manusia + alat; seluruh klaim "diumumkan" bersandar pada struktur ARIA, bukan pendengaran alat sungguhan |
 | U-13 | **Review copy oleh non-engineer** | Log Phase 03 (PR-029) | Paket teks sudah disiapkan, belum ada yang mereview |
 | U-14 | **AC PR-030 #1** — login OTP end-to-end | Log Phase 03 | Menunggu kredensial provider OTP |
-| U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b (2026-09-05) | Menunggu kredensial FCM + perangkat uji. Yang hanya bisa dijawab FCM sungguhan: apakah bentuk payload `notification` + `data` benar-benar memunculkan notifikasi saat aplikasi tertutup, dan apakah kode galatnya persis seperti yang diklasifikasikan |
+| U-19 | **Push nyata ke perangkat uji** (FCM) | Log PR-048b dan closing Phase 15 (2026-10-05) | Firebase Android/EAS dan bentuk kunci backend sudah diperiksa. Pengiriman FCM + worker nyata, izin IAM, push background/cold/warm, satu banner foreground, resume, serta logout/ganti akun belum terverifikasi; lihat checklist PR-094/095. Tetap terbuka sebelum kanal dipakai pengguna sungguhan. |
 | U-20 | **Email nyata di staging** (Resend) | Log PR-049a/b (2026-09-06) | Menunggu kredensial Resend + domain ber-SPF/DKIM. Yang hanya bisa dijawab pengiriman nyata: tampilan HTML di Gmail/Outlook (keduanya menulis ulang CSS) dan lolos tidaknya penyaring spam |
 | U-21 | **Notification center multi-tab** | Log PR-050 (2026-09-06) | Yang hanya bisa dijawab dua tab sungguhan: apakah lencana di tab kedua ikut turun sesudah tab pertama menandai. Jawaban yang DIHARAPKAN: tidak, sampai tab kedua kembali fokus — cache TanStack tidak dibagi antar-tab. Perlu dipastikan itu memang yang terjadi, bukan sesuatu yang lebih buruk |
 
@@ -951,6 +951,165 @@ juru bahasa (bukan data pribadi pengguna), jadi risikonya biaya, bukan PDP. Pemb
 pembersih berkala yang membandingkan objek `sign-videos/*` dengan `video_key`/`caption_key`/
 `thumbnail_key` di `sign_videos`, lalu menghapus yang tidak dirujuk dan berumur > 7 hari (lewat
 operasi hapus khusus job, bukan permukaan API).
+
+### U-35 - AC runtime PR-088..PR-095 menunggu verifikasi perangkat
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Verifikasi manual tertunda |
+| **Ditemukan** | PR-088 (2026-10-04) |
+| **Pemilik** | Owner (akun Expo) |
+| **Pemicu** | Tindak lanjut penerimaan runtime/rilis Android; gerbang semula sebelum PR-090 sudah dilewati atas perintah owner (closing 2026-10-05) |
+
+Tiga AC PR-088 butuh akun Expo dan HP uji, dan tidak bisa dibuktikan di CI: (1) build EAS profil
+`internal` sukses dan terpasang di device, (2) boot < 3 detik di device kelas menengah,
+(3) TalkBack smoke shell. Yang sudah terbukti: unit test wrapper SecureStore + validasi deep link,
+bundle Hermes `expo export` (paket bersama tanpa patch). Uji emulator lokal tidak bisa
+dilakukan: build native di Windows mentok di MAX_PATH store pnpm (lihat log Phase 15), jadi
+roundtrip SecureStore dan deep link di runtime juga menunggu APK ini. Langkah owner: `eas init` → `EAS_PROJECT_ID`, isi `EXPO_PUBLIC_API_URL` (HTTPS) di
+environment EAS `preview`, `pnpm --filter @nawasena/mobile build:internal`, pasang APK, jalankan
+`.maestro/boot-smoke.yaml`, ukur boot dingin, dengarkan layar Beranda dengan TalkBack.
+
+**Ditambah PR-089 (2026-10-04).** Dua AC PR-089 menumpang build yang sama: TalkBack membaca
+role+label komponen `@nawasena/ui-native`, dan fokus Dialog pindah masuk/keluar. Role, label,
+state, dan event fokus sudah teruji di jest-expo. Yang belum terbukti adalah ucapan dan
+perpindahan fokus nyata, diuji di dua versi Android lewat
+`docs/implementation/log/pr-089-talkback-checklist.md`.
+
+**Ditambah PR-090 (2026-10-05).** Alur masuk menumpang build yang sama, dan build ini sekaligus
+**satu-satunya bukti kompilasi** modul Kotlin lokal `apps/mobile/modules/google-credential`
+(build native lokal Windows mentok MAX_PATH). Butuh: OAuth client Android (package
+`id.nawasena.app` + SHA-1 keystore EAS), `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` di environment
+`preview`, dan API HTTPS yang terjangkau HP (staging belum ada — tunnel ke API lokal cukup).
+AC yang menunggu: OTP end-to-end (sender uji), Google end-to-end, autofill SMS, sesi bertahan
+restart, dan TalkBack lewat `docs/implementation/log/pr-090-talkback-checklist.md` +
+`.maestro/masuk-otp.yaml`.
+
+**Ditambah PR-091 (2026-10-05).** Onboarding + tema menumpang build yang sama. AsyncStorage
+(modul native baru) ikut terbukti di build ini. AC yang menunggu: preferensi web ↔ mobile, setelan
+OS dihormati, pratinjau langsung, wizard dengan TalkBack, dan font OS 200% — lewat
+`docs/implementation/log/pr-091-talkback-checklist.md` + `.maestro/onboarding.yaml`.
+
+**Ditambah PR-092 (2026-10-05).** Profil + CV mobile menumpang build yang sama. Tiga modul native
+baru ikut terbukti di build ini: `expo-file-system`, `expo-intent-launcher`, `expo-sharing`. AC yang
+menunggu: profil + CV lengkap dari HP, consent beri/cabut, checklist TalkBack form multi-bagian,
+dan PDF terbuka di viewer — lewat `docs/implementation/log/pr-092-talkback-checklist.md` +
+`.maestro/profil-cv.yaml`.
+
+**Ditambah PR-093 (2026-10-05).** Feed + cari + detail menumpang build yang sama. AC yang menunggu:
+feed + filter + detail end-to-end, kartu satu kesatuan bagi TalkBack, banner degradasi, refresh
+lewat tombol, posisi daftar pulih, dan uji 3G (Android Developer options → *Network speed* /
+emulator `-netspeed edge`) — lewat `docs/implementation/log/pr-093-talkback-checklist.md` +
+`.maestro/feed-detail.yaml`. Catatan: `boot-smoke.yaml` (PR-088) dibetulkan di PR ini. Sejak
+PR-090, app tanpa sesi membuka layar Masuk, bukan Beranda.
+
+**Kemajuan 2026-10-05.** Build EAS internal pertama sukses dikompilasi (modul Kotlin terbukti),
+tetapi APK tertutup saat dibuka karena dua instance zod di bundle Metro. Sudah diperbaiki di resolver
+Metro dan dijaga test (log Phase 15, "Temuan build EAS internal pertama"). Sisa langkah: build kedua,
+lalu seluruh checklist PR-088..093.
+
+**Kemajuan build berikutnya (2026-10-05):** build internal dengan domain API tetap
+sudah selesai; lihat log Phase 15 (build `b02dcc01-fd5e-4a27-b877-2b66644910d2`).
+Keberhasilan build belum membuktikan seluruh checklist perangkat.
+
+**Ditambah PR-094 (2026-10-05).** Lamar, tracking, tap push cold/warm, dan funnel
+Umami membutuhkan APK baru karena menambah `expo-notifications` + `expo-crypto`.
+Konfigurasi Firebase Android melalui `GOOGLE_SERVICES_JSON` (File EAS preview),
+backend FCM + worker, dan uji nyata sesuai U-19. Checklist:
+`docs/implementation/log/pr-094-talkback-checklist.md`; Maestro:
+`.maestro/apply-tracking.yaml`, `.maestro/push-lamaran.yaml`. Pelepasan perangkat
+saat logout sudah punya endpoint teruji pemilik/idempotensi; logout offline masih
+perlu uji native, sebab jika DELETE backend dan pencabutan token native sama-sama
+gagal, push lama masih mungkin tiba sampai token mati atau berpindah akun.
+
+**Ditambah PR-095 (2026-10-05).** Owner melaporkan build EAS selesai sebelum
+implementasi PR-095; hasil perangkat belum diberikan. Center, badge, foreground
+dedup dan read flow perlu APK yang memuat PR-095. Modul native memakai PR-094.
+Checklist: `docs/implementation/log/pr-095-talkback-checklist.md`; Maestro:
+`.maestro/notification-read.yaml`, `.maestro/notification-foreground.yaml`.
+U-19 masih mencakup push nyata, cold/warm, satu banner tanpa duplikasi OS,
+dan resume. U-35 tetap terbuka sampai TalkBack/font ekstrem terverifikasi.
+
+**Rekonsiliasi closing Phase 15 (2026-10-05).** Seluruh PR-088..PR-095 sudah
+merged ke phase dan owner memerintahkan closing ke main. Build EAS `fb6b98bd`
+berhasil, APK terpasang, dan konfigurasi OAuth Android dilaporkan sudah dibuat.
+Build/instalasi sudah terbukti; hasil login ulang, SecureStore/deep link runtime,
+boot < 3 detik, TalkBack/font 200%, alur profil/CV/PDF/feed/apply/notifikasi,
+dan checklist dua versi/vendor Android belum lengkap. U-35 tetap **TERBUKA**;
+perintah merge tidak menggantikan bukti perangkat.
+
+APK itu belum memuat perbaikan pesan login Google yang ikut merged di PR-095;
+uji pesan baru memerlukan build/install ulang. U-19 tetap terbuka untuk FCM
+nyata. Daftar bukti dan pekerjaan tersisa ada pada
+[Exit Criteria Phase 15](implementation/phase-15-mobile-android.md#exit-criteria)
+dan [log closing](implementation/log/implementation_log_phase15.md#pr-095a---closing-phase-15-ke-main).
+
+---
+
+### U-36 — OTP autofill hanya hint, tanpa SMS Retriever
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Keputusan sadar (keputusan owner 2026-10-05) |
+| **Ditemukan** | PR-090 (2026-10-05) |
+| **Pemilik** | Phase 15 / tim mobile |
+| **Pemicu** | SMS menjadi kanal OTP utama (mis. Fonnte/WhatsApp diganti), atau keluhan autofill dari uji pengguna |
+
+Kolom kode memakai `autoComplete="sms-otp"` + `textContentType="oneTimeCode"`; layanan autofill
+Android/Gboard menawarkan kode dari SMS. SMS Retriever API (baca otomatis tanpa izin) **tidak**
+dipasang: kanal utama OTP adalah WhatsApp (Fonnte) yang tidak terjangkau API itu, dan
+memasangnya menuntut library native + hash aplikasi 11 karakter di teks SMS (ubah
+`buildOtpMessage` di API) yang hanya berguna untuk jalur fallback Twilio.
+
+---
+
+### U-37 — Mobile tanpa katalog i18n: `simpleLanguage` belum mengubah teks
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Keputusan sadar (keputusan owner 2026-10-05) |
+| **Ditemukan** | PR-091 (2026-10-05) |
+| **Pemilik** | Phase 15 / tim mobile |
+| **Pemicu** | Layar mobile pertama yang teksnya berbeda bermakna antara `id` dan `id-simple`, atau katalog web dipindah ke paket bersama |
+
+Teks mobile ditulis sekali dalam bahasa sederhana (setara varian `id-simple` web). Preferensi
+`simpleLanguage` tetap tersimpan, tersinkron ke akun, dan ditampilkan di wizard, tetapi di mobile
+belum memilih varian teks apa pun. Katalog web (`apps/web/src/shared/i18n`) tidak bisa diimpor
+dari app lain; pilihannya kelak: pindahkan registri + katalog ke paket bersama, atau katalog mobile
+sendiri. `docs/panduan-bahasa-sederhana.md` tetap berlaku untuk teks mobile.
+
+**Diperbarui PR-095 (2026-10-05).** Notifikasi kini memilih `id`/`id-simple`
+dari judul/isi API menurut preferensi efektif. Tidak memerlukan katalog mobile
+baru untuk domain ini. Utang katalog umum tetap terbuka untuk layar lain yang
+memerlukan dua varian; teks kontrol/wizard masih ditulis sederhana satu kali.
+
+---
+
+### U-38 — Ragam disabilitas dari wizard onboarding tidak disimpan (web & mobile)
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Fitur tertunda (keputusan owner 2026-10-05: mobile paritas web) |
+| **Ditemukan** | PR-091 (2026-10-05); perilakunya berasal dari PR-035 |
+| **Pemilik** | Phase 15 / tim mobile + web (diubah bersamaan) |
+| **Pemicu** | Keluhan pengguna yang harus mengisi ragam disabilitas dua kali (wizard lalu profil), atau review UX pasca-rilis internal |
+
+Wizard PR-035 ditulis saat endpoint data sensitif (PR-037) belum ada, jadi ragam disabilitas +
+izinnya hanya hidup di memori untuk ringkasan, dan teksnya berjanji "tidak dikirim". Endpoint
+profil sensitif + consent kini ada, tetapi wizard web tidak pernah disambungkan; mobile PR-091
+sengaja mengikuti web. Saat disambungkan: kirim `disabilityTypes` + `consentSensitive` HANYA bila
+kotak izin dicentang, ubah teks "tidak dikirim" di kedua platform pada PR yang sama, dan ikuti
+`docs/akses-data-sensitif.md`.
+
+**Diperbarui PR-092 (2026-10-05).** Mobile kini punya bagian profil "Disabilitas dan akomodasi"
+dengan consent beri/cabut (paritas web), jadi ragam disabilitas BISA disimpan dari HP — lewat
+profil, bukan wizard. Yang tersisa dari utang ini hanya penyambungan wizard di kedua platform.
+Pemicu "PR-092" diganti karena PR itu sudah lewat tanpa menyambungkan wizard (keputusan owner
+2026-10-05: wizard mobile paritas web).
 
 ---
 

@@ -1,0 +1,226 @@
+# @nawasena/mobile
+
+Aplikasi Android Nawasena — Expo SDK 57 (managed), React Navigation, SecureStore
+(ADR-011, SDD §4.2). iOS menyusul di Fase 2 produk.
+
+## Menjalankan lokal
+
+```bash
+pnpm install
+cp apps/mobile/.env.example apps/mobile/.env   # opsional; semua isian boleh kosong untuk dev
+pnpm --filter @nawasena/mobile start      # Metro; tekan `a` untuk emulator Android
+pnpm --filter @nawasena/mobile test       # Vitest (logika murni, tanpa runtime RN)
+```
+
+Build dev memakai API `http://10.0.2.2:3000/api/v1` (localhost mesin host dilihat
+dari emulator). Untuk HP fisik di LAN, isi `EXPO_PUBLIC_API_URL=http://<ip-laptop>:3000/api/v1`.
+Daftar lengkap variabel ada di `.env.example` (dijaga `__tests__/env-example.test.ts`). Build EAS
+tidak membaca `.env`; nilainya diisi di environment EAS `preview`.
+
+Sengaja **tidak** ada script `dev`: `pnpm dev` di root menjalankan `dev` semua
+workspace, dan Metro interaktif tidak cocok berjalan di dalamnya.
+
+## Build internal (EAS)
+
+Sekali saja, oleh pemilik akun Expo:
+
+```bash
+npx eas-cli login
+cd apps/mobile && npx eas-cli init          # mencetak projectId
+```
+
+`projectId` **tidak** ditulis ke repo; simpan sebagai `EAS_PROJECT_ID` (env lokal
+dan environment EAS). Lalu isi `EXPO_PUBLIC_API_URL` (wajib HTTPS) di environment
+EAS **preview** — profil `internal` membaca environment itu. Tanpa nilai tersebut
+build berhenti di `app.config.ts`, bukan menghasilkan APK yang crash saat dibuka.
+
+```bash
+EAS_PROJECT_ID=<id> pnpm --filter @nawasena/mobile build:internal
+```
+
+Hasilnya APK distribusi internal (tautan unduh dari EAS) untuk device uji.
+
+## Aturan yang berlaku sejak PR-088
+
+- **Refresh token hanya di SecureStore** (`src/storage/`), tidak pernah AsyncStorage.
+  `expo-secure-store` hanya diimpor di `secure-store-adapter.ts`.
+- **Deep link `nawasena://`** divalidasi `src/navigation/deep-link.ts`: hanya path
+  di `PATH_DIIZINKAN` yang diteruskan ke navigator. Layar baru yang boleh dibuka
+  dari luar harus ditambahkan di sana **dan** di `linking.ts`.
+- **Paket bersama dipakai tanpa patch.** Impor `.js` gaya NodeNext di
+  `@nawasena/schemas`/`api-client` dipetakan oleh resolver di `metro.config.js`.
+- `EXPO_PUBLIC_*` ikut ter-inline ke APK — publik. Jangan menaruh rahasia di sana.
+
+## Masuk (PR-090)
+
+- **OTP**: nomor HP → kode 6 angka (`autoComplete="sms-otp"` agar autofill Android
+  menawarkan kode dari SMS). Sesi: access token di memori (`src/auth/sesi.ts`,
+  Zustand), refresh token di SecureStore; boot memulihkan sesi lewat `/auth/refresh`.
+- **Google**: Android Credential Manager lewat modul native lokal
+  `modules/google-credential` (Kotlin, ditemukan autolinking Expo). **Bukan**
+  Custom Tab dan **bukan** redirect `nawasena://`. Alurnya: nonce dari
+  `POST /auth/google/mobile/nonce` → pemilih akun → id_token →
+  `POST /auth/google/mobile`. PKCE tidak berlaku di jalur ini; anti-replay
+  dipegang nonce sekali pakai terbitan server.
+- Modul native hanya ada di build EAS (dan dev client) — **tidak** di Expo Go.
+  Tanpa modul atau tanpa client ID, tombol Google disembunyikan.
+
+Penyiapan Google Cloud Console (sekali, oleh pemilik proyek GCP):
+
+1. **OAuth client tipe Android**: package `id.nawasena.app` + SHA-1 sertifikat
+   penandatangan (`npx eas-cli credentials` → Android → keystore). Satu client per
+   sertifikat (internal/EAS, nanti Play App Signing). Client ini tidak dipakai di
+   kode — Google memakainya untuk mengizinkan APK kita meminta token.
+2. **Web Client ID** yang sama dengan `GOOGLE_CLIENT_ID` API dipakai sebagai
+   `serverClientId`: isi `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` di environment EAS
+   **preview**. id_token yang dihasilkan ber-`aud` Web Client ID ini, sehingga
+   verifier API yang sama menerimanya.
+
+## Aksesibilitas & onboarding (PR-091)
+
+- **Tema**: `src/a11y/PenyediaTema.tsx` → `rekonsiliasi(pilihanPengguna, sinyalOS)` (aturan
+  sama dengan web: pilihan eksplisit > setelan Android > bawaan) → token `@nawasena/ui-native`.
+  Sinyal OS: _Hapus animasi_ → `reduceMotion`, _Teks kontras tinggi_ → `highContrast`. Ukuran
+  font OS diterapkan RN sendiri; skala preferensi ditumpuk di atasnya.
+- **Store**: `createA11yStore` (paket `@nawasena/a11y`) dengan AsyncStorage.
+- **Sinkron akun**: `src/onboarding/koordinator.ts` — saat masuk, GET `/me/accessibility` sekali
+  lalu `gabungkanDariServer` (paket yang sama dengan web); saat keluar, preferensi di HP dihapus.
+- **Wizard**: tampil bila perangkat belum menandai selesai **dan** profil akun masih kosong.
+  Matikan dengan `EXPO_PUBLIC_ONBOARDING_WIZARD_ENABLED=false` (rollback).
+- Teks mobile ditulis dalam bahasa sederhana; `simpleLanguage` belum mengubah teks (U-37).
+
+## Profil & CV (PR-092)
+
+- **Navigasi**: tab bawah Beranda · Profil · CV (label teks, tanpa ikon); bagian-bagian dibuka
+  sebagai layar stack, satu bagian per layar.
+- **Server state**: TanStack Query di memori saja (tanpa persister) — profil memuat data
+  disabilitas. Cache + PDF CV di cache berkas dibuang saat keluar (`src/query.ts`).
+- **Logika formulir** (pemetaan profil, consent, kolom item CV, prefill, naik/turun) dari
+  `@nawasena/formulir` — paket yang sama dengan web.
+- **PDF**: unduh ke `cache/cv/` → content:// → aplikasi PDF (`ACTION_VIEW`); tanpa aplikasi PDF →
+  lembar Bagikan (`src/cv/pdf.ts`).
+- Chat AI untuk CV tidak ada di mobile MVP — jalur utamanya web.
+
+## Discovery lowongan (PR-093)
+
+- **Tab**: Beranda (feed rekomendasi) · Cari · Profil · CV. Tombol Keluar ada di tab Profil.
+- **Feed**: `GET /me/matches` per halaman (tombol "Muat lebih banyak", tanpa gulir tak berujung);
+  banner "AI sedang menyusun" (tidak mengubah urutan sendiri) dan banner degradasi; "Muat ulang
+  daftar" sebagai alternatif tarik-untuk-muat-ulang; "Perbarui rekomendasi" memakai jatah harian.
+  Matikan dengan `EXPO_PUBLIC_MATCHING_FEED_ENABLED=false` (Beranda cadangan → Cari).
+- **Cari**: filter baru berlaku saat "Cari" ditekan; jumlah hasil diumumkan.
+- **Detail**: ringkasan, deskripsi/persyaratan + "Sederhanakan" (AI, berkuota), dukungan,
+  perusahaan + status verifikasi. Posisi daftar pulih karena detail didorong ke stack root di atas tab.
+- Ambang skor, kalimat gaji, filter, dan kunci taksonomi dari `@nawasena/lowongan` (paket yang sama
+  dengan web).
+
+## Smoke test
+
+`.maestro/boot-smoke.yaml` (boot + deep link), `.maestro/masuk-otp.yaml` (OTP dengan
+sender uji), `.maestro/onboarding.yaml` (wizard, akun baru), dan `.maestro/profil-cv.yaml`
+(profil + consent + CV + PDF), dan `.maestro/feed-detail.yaml` (feed → detail → cari), dijalankan
+manual:
+`maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.
+
+## Lamar, tracking, push, dan statistik (PR-094)
+
+Tab kini: Beranda, Cari, Lamaran, Profil, dan CV. Detail lowongan membuka dialog
+lamar dengan CV terbaru, pratinjau data sensitif, dan pilihan Ya/Tidak yang
+**mulai kosong** (keputusan owner PR-078). Logika CV/disclosure/timeline berasal
+dari `@nawasena/formulir`, sama dengan web. Lamaran punya timeline, tarik dengan
+konfirmasi, dan Saya diterima satu ketukan. Semua data query tetap di memori.
+
+### Konfigurasi push FCM langsung
+
+1. Firebase Console: daftarkan aplikasi Android **id.nawasena.app** di proyek
+   yang sama dengan `FCM_PROJECT_ID` backend. Unduh `google-services.json`.
+2. Lokal: simpan di `apps/mobile/google-services.json` (di-ignore), lalu isi
+   `GOOGLE_SERVICES_JSON=./google-services.json` di `.env` mobile.
+3. EAS: isi `GOOGLE_SERVICES_JSON` sebagai environment variable **File** di
+   environment `preview`. Nilainya menjadi path berkas di mesin EAS; plugin
+   membaca path itu melalui `android.googleServicesFile`. Jangan mengisi JSON
+   mentah sebagai String. Berkas service account/private key hanya milik backend.
+4. Backend/worker: set `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`
+   sesuai `.env.example` API, jalankan Redis queue dan worker.
+5. Buat APK internal baru, pasang, masuk, buka Lamaran, lalu tekan **Aktifkan
+   notifikasi lamaran**. Izin diberikan secara eksplisit melalui tombol.
+
+Native `getDevicePushTokenAsync()` menghasilkan token FCM yang dikirim ke
+`POST /me/devices`; tidak memakai Expo Push Service. Channel Android `lamaran`
+dibuat sebelum izin. Tanpa `GOOGLE_SERVICES_JSON`, push dinonaktifkan dan alur
+lamar/tracking tetap berfungsi. Modul notifications tidak dimuat sebelum siap.
+Kompilasi dan push nyata wajib diuji di APK baru, bukan Expo Go.
+Referensi: [Expo Notifications](https://docs.expo.dev/versions/latest/sdk/notifications/).
+
+Tap memakai payload PR-048 (`notificationId`, `type`, `applicationId`, `jobId`,
+`status`), dengan validasi skema sebelum memilih layar. `nawasena://lamaran`,
+`nawasena://lamaran/<uuid>`, dan `nawasena://lowongan/<uuid>` juga didukung.
+Antrean menunggu sesi, wizard, dan navigator siap; respons tap didedup. Detail
+lamaran dibaca melalui `/me/applications/:id`, jadi kepemilikan ditegakkan server.
+
+Logout menahan registrasi baru, menunggu registrasi yang berjalan, memanggil
+`DELETE /me/devices/:id` selagi access token tersedia, lalu mencabut token FCM
+native dan membersihkan tray. Hapus backend dibatasi 5 detik, token native juga
+5 detik; kegagalan tidak menahan logout. Jika **keduanya** gagal ketika offline,
+server bisa masih memegang token sampai FCM menyatakan token mati atau perangkat
+didaftarkan oleh akun berikutnya. Uji kondisi ini dalam checklist #25.
+
+Foreground push OS tidak ditampilkan; banner dalam aplikasi dan notification
+center dilanjutkan PR-095.
+
+### Statistik anonim
+
+Opsional: `EXPO_PUBLIC_UMAMI_URL` (HTTPS) dan `EXPO_PUBLIC_UMAMI_WEBSITE_ID`
+(UUID website mobile). Kosong/tidak valid = no-op. Website mobile memakai
+hostname tetap `android.nawasena.app`. Event mengikuti kontrak PR-082: daftar,
+profil_lengkap, cv_dibuat, lamar, wawancara, hired_confirmed. Path berasal dari
+pemetaan layar tertutup, tanpa UUID/query; tidak ada disclosure, nama, judul
+lowongan, kontak, access token, atau identitas akun pada request.
+
+Opt-out di Profil disimpan per HP. Penanda sekali per profil/lamaran hanya lokal,
+tidak ikut dikirim. Gagal membaca preferensi = statistik diam. Kegagalan Umami
+tidak mengganggu aplikasi.
+
+Uji: [checklist PR-094](../../docs/implementation/log/pr-094-talkback-checklist.md),
+`.maestro/apply-tracking.yaml` (JOB_ID lowongan baru) dan `.maestro/push-lamaran.yaml`
+(push nyata di tray). Keduanya disiapkan untuk uji perangkat, belum dijalankan.
+
+## Notification center (PR-095)
+
+Tombol **Notifikasi** dengan badge ada di header lima tab utama (keputusan owner).
+Center menyediakan Semua/Belum dibaca, halaman 20 item, Muat ulang, Tandai dibaca,
+dan Tandai semua dibaca. Item TalkBack mencakup judul, isi, tanggal WIB, dan status
+baca. Judul/isi memilih `id` atau `id-simple` dari server sesuai preferensi.
+
+Mark-read satu item optimistis dengan rollback kedua filter/badge saat gagal.
+Mark-all menunggu server dan mencakup halaman yang belum dimuat. Jumlah akhir
+memakai `meta.unreadCount`; item yang baru dibaca tetap sampai Muat ulang agar
+target fokus tidak hilang. Monitor tidak mengurut ulang daftar yang sedang dibaca.
+
+Satu monitor mengambil 20 item terbaru + jumlah seluruh unread setiap 30 detik
+saat app aktif, serta saat resume/push. Tanpa FCM, deteksi banner polling melihat
+20 item terbaru; riwayat penuh tetap tersedia lewat paginasi. Boot/resume pertama
+diam, supaya catch-up background tidak muncul sebagai banner baru.
+
+Foreground hanya menampilkan banner in-app, tanpa suara/tray/banner OS tambahan.
+Push dan poll didedup per `notificationId` per akun (500 ID terakhir di memori).
+Burst dikumpulkan selama 500 ms. Banner tetap sampai **Buka**/**Tutup** ditekan
+(keputusan owner), tanpa memindahkan fokus otomatis. Banyak kabar membuka center;
+satu kabar membuka entitas. Banner dapat digulir dan memakai maksimal 35% area.
+
+Kabar lamaran membuka detail; PDF/draft CV membuka editor. Draft AI gagal membuka
+tab CV untuk formulir manual, karena chat CV belum tersedia di Android. Push
+welcome membuka center; tipe admin tidak diteruskan. Tautan tambahan:
+`nawasena://notifikasi`, `nawasena://cv`, `nawasena://cv/<uuid>`. Parameter tetap
+divalidasi dan kepemilikan diperiksa API.
+
+**Aktifkan notifikasi HP** tersedia di center dan Lamaran; izin tetap lewat
+tindakan pengguna. ID channel tetap `lamaran`, namanya **Kabar Nawasena**.
+PR-095 memakai modul/plugin native PR-094. Pasang APK yang memuat PR-095 untuk
+uji perangkat; build EAS sebelum implementasi ini belum berisi kode PR-095.
+
+Cache/banner/timer dibuang saat logout. Generasi sesi mencegah read lama menulis
+cache setelah akun yang sama masuk lagi. Query daftar memakai AbortSignal.
+Panduan: [checklist PR-095](../../docs/implementation/log/pr-095-talkback-checklist.md),
+`.maestro/notification-read.yaml` dan `.maestro/notification-foreground.yaml`.
+Keduanya belum dijalankan; foreground memerlukan Firebase/worker dan push nyata.

@@ -1,0 +1,93 @@
+# Profil + CV PR-092 — manual, di APK internal, akun yang SUDAH masuk dan sudah
+# melewati onboarding (jalankan masuk-otp.yaml / onboarding.yaml lebih dulu):
+#   maestro test apps/mobile/.maestro/profil-cv.yaml
+# Belum di CI (butuh emulator + API staging, Phase 16).
+appId: id.nawasena.app
+---
+- launchApp
+- assertVisible:
+    id: "layar-feed"
+# --- Profil: data dasar ---
+- tapOn: "Profil"
+- tapOn:
+    id: "bagian-dasar"
+- tapOn:
+    id: "masukan-headline"
+- inputText: "Penulis konten"
+- tapOn:
+    id: "pilihan-pengungkapan-ask_each_time"
+- scrollUntilVisible:
+    element:
+      id: "tombol-simpan-dasar"
+- tapOn:
+    id: "tombol-simpan-dasar"
+- assertVisible: "Data dasar tersimpan."
+- back
+# --- Consent: beri lalu cabut ---
+- tapOn:
+    id: "bagian-sensitif"
+- tapOn:
+    id: "kotak-izin-sensitif"
+- tapOn:
+    id: "ragam-profil-netra"
+- scrollUntilVisible:
+    element:
+      id: "tombol-simpan-sensitif"
+- tapOn:
+    id: "tombol-simpan-sensitif"
+- assertVisible: "Data disabilitas tersimpan."
+- scrollUntilVisible:
+    element:
+      id: "tombol-cabut-izin"
+- tapOn:
+    id: "tombol-cabut-izin"
+- tapOn:
+    id: "tombol-cabut-yakin"
+- assertVisible: "Izin dicabut. Data disabilitas Anda sudah kami hapus."
+- back
+# --- Pengalaman kerja ---
+- tapOn:
+    id: "bagian-pengalaman"
+- tapOn:
+    id: "tombol-tambah-karier"
+- tapOn:
+    id: "kolom-title"
+- inputText: "Desainer grafis"
+- tapOn:
+    id: "tombol-simpan-karier"
+- assertVisible: "Desainer grafis"
+- back
+# --- CV dari profil, urutkan dengan tombol, PDF ---
+- tapOn: "CV"
+- tapOn:
+    id: "tombol-buat-cv"
+- assertVisible:
+    id: "layar-cv-editor"
+- tapOn:
+    id: "cv-bagian-skills"
+- tapOn:
+    id: "tambah-skills"
+- tapOn:
+    id: "kolom-skills-0-name"
+- inputText: "Figma"
+- tapOn:
+    id: "tambah-skills"
+- tapOn:
+    id: "kolom-skills-1-name"
+- inputText: "Menulis"
+- tapOn: "Naikkan keahlian 2"
+- tapOn:
+    id: "tombol-simpan-bagian"
+- assertVisible: "Bagian ini tersimpan. Buat ulang PDF agar ikut berubah."
+- back
+- scrollUntilVisible:
+    element:
+      id: "tombol-buat-pdf"
+- tapOn:
+    id: "tombol-buat-pdf"
+- extendedWaitUntil:
+    visible:
+      id: "tombol-buka-pdf"
+    timeout: 60000
+- tapOn:
+    id: "tombol-buka-pdf"

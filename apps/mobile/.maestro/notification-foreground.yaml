@@ -1,0 +1,17 @@
+# PR-095: APK dengan Firebase, sesi/wizard siap. Kirim push nyata akun uji
+# sesudah launchApp, selama extendedWaitUntil (worker/sender uji terpisah).
+# Ulangi dengan burst dan periksa tray secara manual; flow ini tidak mengirim push.
+appId: id.nawasena.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "banner-notifikasi"
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "tutup-banner-notifikasi"
+- tapOn:
+    id: "tutup-banner-notifikasi"
+- assertNotVisible:
+    id: "banner-notifikasi"
