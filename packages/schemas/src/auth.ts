@@ -202,6 +202,56 @@ export const googleAuthResponseSchema = z
 export type GoogleAuthResponse = z.infer<typeof googleAuthResponseSchema>;
 
 /**
+ * Nonce sekali pakai untuk Sign in with Google di Android (PR-090).
+ *
+ * Diterbitkan SERVER, bukan dibuat aplikasi: nonce buatan klien tidak menutup
+ * apa pun, sebab pencuri id_token juga bisa membawa nonce-nya. Yang diterbitkan
+ * server dan dikonsumsi sekali membuat id_token yang bocor (log, proxy) tidak
+ * bisa diputar ulang.
+ */
+export const googleNonceSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{32,128}$/, { message: "Nonce tidak valid" })
+  .openapi({ description: "Nonce sekali pakai (base64url)", example: "q3J9…" });
+
+/** POST /api/v1/auth/google/mobile/nonce — response 200. */
+export const googleMobileNonceResponseSchema = z
+  .object({
+    data: z.object({
+      nonce: googleNonceSchema,
+      /** Detik sampai nonce hangus — klien meminta ulang bila lewat. */
+      expiresIn: z.number().int().positive().openapi({ example: 300 }),
+    }),
+  })
+  .openapi({ ref: "GoogleMobileNonceResponse" });
+
+export type GoogleMobileNonceResponse = z.infer<typeof googleMobileNonceResponseSchema>;
+
+/**
+ * POST /api/v1/auth/google/mobile — body (PR-090).
+ *
+ * Android memakai Credential Manager, yang langsung menghasilkan id_token
+ * ber-`aud` Web Client ID kita (serverClientId) — tanpa authorization code,
+ * jadi tanpa PKCE. Nonce TIDAK dikirim terpisah: ia dibaca dari klaim `nonce`
+ * id_token yang sudah ditandatangani Google, satu-satunya sumber yang tidak
+ * bisa dikarang klien.
+ *
+ * Tanpa field `client`: endpoint ini selalu mobile, refresh token selalu di body.
+ */
+export const googleMobileAuthSchema = z
+  .object({
+    idToken: z
+      .string()
+      .trim()
+      .min(1, { message: "Token dari Google tidak boleh kosong" })
+      .max(4096, { message: "Token dari Google terlalu panjang" })
+      .openapi({ description: "Google ID token dari Credential Manager" }),
+  })
+  .openapi({ ref: "GoogleMobileAuth", description: "Masuk dengan Google dari aplikasi Android" });
+
+export type GoogleMobileAuth = z.infer<typeof googleMobileAuthSchema>;
+
+/**
  * Event domain `auth.user_registered` — akun baru dibuat (find-or-create, OTP
  * atau Google). Diterbitkan HANYA saat `isNew`, tidak pada masuk biasa.
  *

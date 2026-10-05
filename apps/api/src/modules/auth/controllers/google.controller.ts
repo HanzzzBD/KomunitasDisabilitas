@@ -3,8 +3,12 @@
 // tidak ada pemeriksaan input ad-hoc.
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import type { GoogleAuth } from "@nawasena/schemas";
-import type { GoogleActor, GoogleService } from "../services/google.service.js";
+import type { GoogleAuth, GoogleMobileAuth } from "@nawasena/schemas";
+import type {
+  GoogleActor,
+  GoogleMobileService,
+  GoogleService,
+} from "../services/google.service.js";
 import type { SessionController } from "./session.controller.js";
 
 /**
@@ -33,3 +37,29 @@ export function createGoogleController(
 }
 
 export type GoogleController = ReturnType<typeof createGoogleController>;
+
+/** Controller Sign in with Google Android (PR-090). */
+export function createGoogleMobileController(
+  service: GoogleMobileService,
+  sesi: Pick<SessionController, "serahkan">,
+) {
+  return {
+    /** POST /auth/google/mobile/nonce → 200 { nonce, expiresIn }. */
+    async nonce(_req: Request, res: Response): Promise<void> {
+      // Nonce sekali pakai tidak boleh disimpan perantara mana pun.
+      res.setHeader("cache-control", "no-store");
+      res.status(200).json({ data: await service.terbitkanNonce() });
+    },
+
+    /** POST /auth/google/mobile → 200 dengan userId + pasangan token (refresh di body). */
+    async login(req: Request, res: Response): Promise<void> {
+      const { idToken } = req.body as GoogleMobileAuth;
+      const { userId, isNewUser, tokens } = await service.login(idToken, actorOf(req));
+      res.status(200).json({
+        data: { userId, isNewUser, ...sesi.serahkan(res, tokens, "mobile") },
+      });
+    },
+  };
+}
+
+export type GoogleMobileController = ReturnType<typeof createGoogleMobileController>;

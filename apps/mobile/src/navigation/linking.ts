@@ -7,8 +7,9 @@ export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [PREFIKS],
   // Tautan yang ditolak tidak diteruskan ke navigator sama sekali.
   filter: deepLinkDiizinkan,
+  // Tanpa `initialRouteName`: sejak PR-090 Beranda hanya ada di stack "masuk",
+  // dan menunjuknya dari stack "keluar" berarti menunjuk layar yang tidak ada.
   config: {
-    initialRouteName: "Beranda",
     screens: {
       Beranda: "beranda",
     },

@@ -157,6 +157,9 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
        *  pengambilalihan yang dicegah. Layak diaudit: pola berulang atas banyak
        *  alamat berarti ada yang sedang memanen email lewat PUT /me. */
       "googleEmailClaimed",
+      /** PR-090: id_token Android sah tetapi nonce-nya bukan terbitan kita,
+       *  sudah terpakai, atau hangus — bentuk persis id_token yang diputar ulang. */
+      "googleNonceInvalid",
     ]),
   }),
   [AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED]: z.object({

@@ -16,8 +16,12 @@ import { createOtpController } from "./controllers/otp.controller.js";
 import type { QueueRegistry } from "../../core/queue/index.js";
 import { createAccountService } from "./services/account.service.js";
 import { createAccountController } from "./controllers/account.controller.js";
-import { createGoogleService } from "./services/google.service.js";
-import { createGoogleController } from "./controllers/google.controller.js";
+import { createGoogleMobileService, createGoogleService } from "./services/google.service.js";
+import {
+  createGoogleController,
+  createGoogleMobileController,
+} from "./controllers/google.controller.js";
+import { createGoogleNonceRepository } from "./repositories/google-nonce.repository.js";
 import {
   createGoogleIdTokenVerifier,
   type GoogleIdTokenVerifier,
@@ -90,7 +94,13 @@ export interface AuthModuleDeps {
 
 export function createAuthModule(deps: AuthModuleDeps): Router {
   const userRepository = createAuthUserRepository(deps.prisma);
-  const controllers: AuthControllers = { otp: null, google: null, session: null, account: null };
+  const controllers: AuthControllers = {
+    otp: null,
+    google: null,
+    googleMobile: null,
+    session: null,
+    account: null,
+  };
 
   // Sesi dirakit LEBIH DULU: kedua metode masuk bergantung padanya. Login yang
   // tidak bisa menerbitkan sesi bukan login — jadi tanpa kunci, keduanya ikut
@@ -153,8 +163,9 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
     // ke Google setiap kali. Keduanya dipakai bersama oleh login dan konfirmasi
     // hapus akun — satu konfigurasi audience/timeout, bukan dua yang bisa
     // menyimpang.
+    const verifier = createGoogleIdTokenVerifier({ clientId, jwksUrl, timeoutMs });
     googleReauth = {
-      verifier: createGoogleIdTokenVerifier({ clientId, jwksUrl, timeoutMs }),
+      verifier,
       exchange: createGoogleCodeExchange(
         { clientId, clientSecret, tokenUrl, timeoutMs },
         deps.logger,
@@ -166,6 +177,20 @@ export function createAuthModule(deps: AuthModuleDeps): Router {
         createGoogleService({
           verifier: googleReauth.verifier,
           exchange: googleReauth.exchange,
+          userRepository,
+          sessionService,
+          auditLog: deps.auditLog,
+          events: deps.events,
+        }),
+        sesi,
+      );
+      // Android (PR-090) memakai verifier yang SAMA — audience tetap Web Client
+      // ID, sebab itulah `serverClientId` yang diminta aplikasi dari Credential
+      // Manager. Nonce di Redis cache, berdampingan dengan OTP.
+      controllers.googleMobile = createGoogleMobileController(
+        createGoogleMobileService({
+          verifier,
+          nonces: createGoogleNonceRepository(deps.redis),
           userRepository,
           sessionService,
           auditLog: deps.auditLog,

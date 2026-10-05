@@ -20,6 +20,7 @@ import type { Router } from "express";
 import {
   deleteAccountSchema,
   googleAuthSchema,
+  googleMobileAuthSchema,
   refreshSessionSchema,
   requestOtpSchema,
   verifyOtpSchema,
@@ -27,7 +28,7 @@ import {
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { appError, asyncHandler, validate } from "../../../core/http/index.js";
 import type { OtpController } from "../controllers/otp.controller.js";
-import type { GoogleController } from "../controllers/google.controller.js";
+import type { GoogleController, GoogleMobileController } from "../controllers/google.controller.js";
 import type { SessionController } from "../controllers/session.controller.js";
 import type { AccountController } from "../controllers/account.controller.js";
 
@@ -36,6 +37,11 @@ export interface AuthControllers {
   otp: OtpController | null;
   /** null = kredensial Google OAuth belum di-set (atau kunci sesi belum ada). */
   google: GoogleController | null;
+  /**
+   * Sign in with Google Android (PR-090). null bila Google ATAU sesi tertutup —
+   * kondisinya sama dengan `google`, ditambah Redis untuk nonce.
+   */
+  googleMobile: GoogleMobileController | null;
   /** null = kunci sesi RS256 belum di-set → sesi tidak bisa diterbitkan. */
   session: SessionController | null;
   /** null = kunci sesi RS256 belum di-set; hapus akun butuh sesi yang terbaca. */
@@ -54,7 +60,7 @@ function tertutup(pesan: string, saran: string) {
 }
 
 export function createAuthRouter(controllers: AuthControllers, routes: RouteRegistrar): Router {
-  const { otp, google, session, account } = controllers;
+  const { otp, google, googleMobile, session, account } = controllers;
 
   // Hapus akun (PR-021). SATU-SATUNYA route di file ini yang TIDAK publik: ia
   // bukan pintu masuk, melainkan aksi atas akun yang sudah masuk. Identitas
@@ -141,6 +147,29 @@ export function createAuthRouter(controllers: AuthControllers, routes: RouteRegi
       access.public(ALASAN_LOGIN),
       validate({ body: googleAuthSchema }),
       asyncHandler(google.login),
+    );
+  }
+
+  // Android (PR-090): Credential Manager → id_token, tanpa code + PKCE. Pintu
+  // masuk yang sama terbukanya dengan /auth/google; replay ditutup nonce yang
+  // diterbitkan rute pertama dan dikonsumsi rute kedua.
+  if (googleMobile === null) {
+    routes.all(
+      ["/auth/google/mobile", "/auth/google/mobile/nonce"],
+      access.public(ALASAN_LOGIN),
+      tertutup("Masuk dengan Google belum tersedia", "Coba lagi nanti, atau masuk dengan kode OTP"),
+    );
+  } else {
+    routes.post(
+      "/auth/google/mobile/nonce",
+      access.public(ALASAN_LOGIN),
+      asyncHandler(googleMobile.nonce),
+    );
+    routes.post(
+      "/auth/google/mobile",
+      access.public(ALASAN_LOGIN),
+      validate({ body: googleMobileAuthSchema }),
+      asyncHandler(googleMobile.login),
     );
   }
 

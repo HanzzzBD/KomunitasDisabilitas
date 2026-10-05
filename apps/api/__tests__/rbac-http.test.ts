@@ -201,6 +201,8 @@ describe("router auth nyata", () => {
     expect(daftar.map((e) => `${e.method} ${e.path}`)).toEqual([
       "DELETE /api/v1/auth/account",
       "ALL /api/v1/auth/google",
+      "ALL /api/v1/auth/google/mobile",
+      "ALL /api/v1/auth/google/mobile/nonce",
       "POST /api/v1/auth/logout",
       "POST /api/v1/auth/logout-all",
       "ALL /api/v1/auth/otp/*",

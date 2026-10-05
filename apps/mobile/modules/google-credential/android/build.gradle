@@ -1,0 +1,28 @@
+// Modul lokal Sign in with Google (PR-090). Ditemukan autolinking Expo dari
+// folder `modules/` — tidak ada paket npm, tidak ada config plugin.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'id.nawasena'
+version = '0.1.0'
+
+android {
+  namespace "id.nawasena.googlecredential"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // Versi STABIL, dipin. Pustaka komunitas yang dipertimbangkan bergantung pada
+  // 1.6.0-alpha02 — salah satu alasan modul ini ditulis sendiri.
+  implementation "androidx.credentials:credentials:1.6.0"
+  // Penyedia Google Play Services untuk Android 13 ke bawah.
+  implementation "androidx.credentials:credentials-play-services-auth:1.6.0"
+  // 1.2.0, bukan 1.2.1: build EAS gagal terus dengan 1.2.1 (owner, 2026-10-05);
+  // 1.2.0 terkompilasi di EAS. Naikkan hanya bersama satu build EAS yang hijau.
+  implementation "com.google.android.libraries.identity.googleid:googleid:1.2.0"
+}

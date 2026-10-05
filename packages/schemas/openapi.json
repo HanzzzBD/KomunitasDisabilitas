@@ -225,6 +225,122 @@
         }
       }
     },
+    "/auth/google/mobile/nonce": {
+      "post": {
+        "operationId": "issueGoogleMobileNonce",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Terbitkan nonce masuk Google (Android)",
+        "security": [],
+        "description": "Nonce acak sekali pakai (berlaku 5 menit) yang aplikasi teruskan ke Credential Manager. Google menandatanganinya di klaim `nonce` id_token.",
+        "responses": {
+          "200": {
+            "description": "Nonce diterbitkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleMobileNonceResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Login Google belum dikonfigurasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/mobile": {
+      "post": {
+        "operationId": "loginWithGoogleMobile",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Masuk dengan Google dari aplikasi Android",
+        "security": [],
+        "description": "Memverifikasi Google ID token dari Credential Manager (tanda tangan, issuer, audience = Web Client ID, kedaluwarsa, email terverifikasi) dan mengonsumsi nonce-nya. Refresh token selalu dikembalikan di body.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleMobileAuth"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Masuk berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "id_token tidak sah, atau nonce tidak dikenal/terpakai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email Google belum terverifikasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email Google dipegang akun lain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Login Google belum dikonfigurasi atau Google tidak terjangkau",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/refresh": {
       "post": {
         "operationId": "refreshSession",
@@ -6752,6 +6868,49 @@
         "required": [
           "data"
         ]
+      },
+      "GoogleMobileNonceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "nonce": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{32,128}$",
+                "description": "Nonce sekali pakai (base64url)",
+                "example": "q3J9…"
+              },
+              "expiresIn": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "example": 300
+              }
+            },
+            "required": [
+              "nonce",
+              "expiresIn"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GoogleMobileAuth": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Google ID token dari Credential Manager"
+          }
+        },
+        "required": [
+          "idToken"
+        ],
+        "description": "Masuk dengan Google dari aplikasi Android"
       },
       "RefreshSession": {
         "type": "object",

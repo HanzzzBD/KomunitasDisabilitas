@@ -2,7 +2,13 @@
 .expo/
 dist/
 # Hasil `expo prebuild` — proyek ini managed workflow; native dibangun di EAS.
-android/
-ios/
+# Dijangkarkan ke root app: `modules/*/android/` (modul native lokal, PR-090) WAJIB ikut repo.
+/android/
+/ios/
 # Dibuat ulang otomatis oleh Expo CLI
 expo-env.d.ts
+# Cache Gradle (mis. dari ekstensi VS Code) di modul native lokal.
+modules/*/android/.gradle/
+modules/*/android/build/
+# Firebase Android lokal; EAS memakai environment variable bertipe File.
+google-services.json
