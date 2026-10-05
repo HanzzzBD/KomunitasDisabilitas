@@ -14,18 +14,18 @@ export function AktifkanPush() {
   if (!pushConfigure)
     return (
       <Paragraf lemah>
-        Notifikasi belum tersedia di versi ini. Tekan Muat ulang lamaran untuk melihat perkembangan.
+        Notifikasi HP belum tersedia di versi ini. Kabar tetap bisa dibaca dan dimuat ulang di
+        aplikasi.
       </Paragraf>
     );
   return (
     <>
       <Paragraf>
-        Aktifkan notifikasi untuk mendapat kabar perkembangan lamaran, termasuk saat aplikasi
-        ditutup.
+        Aktifkan notifikasi HP untuk mendapat kabar lamaran dan CV, termasuk saat aplikasi ditutup.
       </Paragraf>
       <Tombol
         testID="tombol-aktifkan-push"
-        label="Aktifkan notifikasi lamaran"
+        label="Aktifkan notifikasi HP"
         sibuk={sibuk}
         onPress={() => {
           if (sibuk) return;
@@ -37,8 +37,8 @@ export function AktifkanPush() {
               setDitolak(perangkat === null);
               setPesan(
                 perangkat
-                  ? "Notifikasi lamaran sudah aktif di HP ini."
-                  : "Izin notifikasi belum diberikan. Anda tetap bisa melihat status lamaran di sini.",
+                  ? "Notifikasi sudah aktif di HP ini."
+                  : "Izin notifikasi belum diberikan. Kabar tetap tersedia di aplikasi.",
               );
             })
             .catch(() => {

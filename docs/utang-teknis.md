@@ -1023,6 +1023,14 @@ saat logout sudah punya endpoint teruji pemilik/idempotensi; logout offline masi
 perlu uji native, sebab jika DELETE backend dan pencabutan token native sama-sama
 gagal, push lama masih mungkin tiba sampai token mati atau berpindah akun.
 
+**Ditambah PR-095 (2026-10-05).** Owner melaporkan build EAS selesai sebelum
+implementasi PR-095; hasil perangkat belum diberikan. Center, badge, foreground
+dedup dan read flow perlu APK yang memuat PR-095. Modul native memakai PR-094.
+Checklist: `docs/implementation/log/pr-095-talkback-checklist.md`; Maestro:
+`.maestro/notification-read.yaml`, `.maestro/notification-foreground.yaml`.
+U-19 masih mencakup push nyata, cold/warm, satu banner tanpa duplikasi OS,
+dan resume. U-35 tetap terbuka sampai TalkBack/font ekstrem terverifikasi.
+
 ---
 
 ### U-36 — OTP autofill hanya hint, tanpa SMS Retriever
@@ -1058,6 +1066,11 @@ Teks mobile ditulis sekali dalam bahasa sederhana (setara varian `id-simple` web
 belum memilih varian teks apa pun. Katalog web (`apps/web/src/shared/i18n`) tidak bisa diimpor
 dari app lain; pilihannya kelak: pindahkan registri + katalog ke paket bersama, atau katalog mobile
 sendiri. `docs/panduan-bahasa-sederhana.md` tetap berlaku untuk teks mobile.
+
+**Diperbarui PR-095 (2026-10-05).** Notifikasi kini memilih `id`/`id-simple`
+dari judul/isi API menurut preferensi efektif. Tidak memerlukan katalog mobile
+baru untuk domain ini. Utang katalog umum tetap terbuka untuk layar lain yang
+memerlukan dua varian; teks kontrol/wizard masih ditulis sederhana satu kali.
 
 ---
 

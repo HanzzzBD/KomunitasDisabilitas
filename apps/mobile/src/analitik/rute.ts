@@ -16,6 +16,7 @@ const PATH: Record<string, string> = {
   LowonganDetail: "/lowongan/:id",
   Lamaran: "/lamaran",
   LamaranDetail: "/lamaran/:id",
+  Notifikasi: "/notifikasi",
 };
 export function pathAnalitik(layar: string): string {
   return PATH[layar] ?? "/";

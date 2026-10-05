@@ -11,9 +11,10 @@ export function createRegistrasiPush(deps: {
   let generasi = 0;
   let terdaftar: { token: string; perangkat: Device } | null = null;
   let berjalan: Promise<Device | null> | null = null;
+  let mintaIzinBerjalan = false;
   let ditutup = false;
   let pelepasan: Promise<void> | null = null;
-  return {
+  const aksi = {
     akun(baru: string | null) {
       if (baru === sub) return;
       sub = baru;
@@ -26,8 +27,17 @@ export function createRegistrasiPush(deps: {
       if (!sub || ditutup) return null;
       if (pelepasan) await pelepasan;
       if (!sub || ditutup) return null;
-      if (berjalan) return berjalan;
+      if (berjalan) {
+        const versiAwal = generasi;
+        const izinDalamProses = mintaIzinBerjalan;
+        const hasil = await berjalan;
+        // Klik eksplisit tidak boleh hilang di balik pemeriksaan izin otomatis.
+        if (mintaIzin && !izinDalamProses && !hasil && versiAwal === generasi)
+          return aksi.daftarkan(true);
+        return hasil;
+      }
       const versi = generasi;
+      mintaIzinBerjalan = mintaIzin;
       const kerja = (async () => {
         const token = await deps.token(mintaIzin);
         if (!token || versi !== generasi) return null;
@@ -67,4 +77,5 @@ export function createRegistrasiPush(deps: {
       }
     },
   };
+  return aksi;
 }

@@ -13,6 +13,7 @@ import { CariScreen } from "../screens/lowongan/CariScreen";
 import { FeedScreen } from "../screens/lowongan/FeedScreen";
 import { LamaranDaftarScreen } from "../screens/lamaran/LamaranDaftarScreen";
 import { ProfilScreen } from "../screens/profil/ProfilScreen";
+import { HeaderNotifikasi } from "../notifikasi/TombolNotifikasi";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -23,6 +24,7 @@ export function TabUtama() {
   return (
     <Tab.Navigator
       screenOptions={{
+        header: ({ options, route }) => <HeaderNotifikasi judul={options.title ?? route.name} />,
         headerStyle: { backgroundColor: warna.latar },
         headerTintColor: warna.teks,
         tabBarActiveTintColor: warna.teks,

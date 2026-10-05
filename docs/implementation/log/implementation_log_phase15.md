@@ -757,3 +757,80 @@ Menunggu build EAS kedua + uji ulang di HP (U-35).
 * Jalankan dua flow Maestro yang disiapkan serta checklist TalkBack, Firebase,
   dan Umami. Pertahankan API/tunnel/worker hidup selama pengujian.
 * PR-095: notification center, badge, dan banner foreground dengan dedup.
+
+---
+
+## PR-095 - Mobile Notification Center
+
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi lokal selesai; uji APK/FCM/TalkBack masih diperlukan.
+> **Branch:** `pr-095-mobile-notifikasi`, di atas PR-094.
+
+### Hasil dan keputusan owner
+
+Owner menjawab lewat tool pertanyaan: **tombol Notifikasi + badge di atas lima
+tab utama**, serta **banner persisten sampai Buka/Tutup, burst diringkas**.
+
+* Center dengan Semua/Belum dibaca, paginasi 20, loading/kosong/galat, muat ulang,
+  mark-read optimistis + rollback, serta mark-all memakai hasil server.
+* Item TalkBack utuh: judul, isi, waktu WIB, dan status baca. Bahasa sederhana
+  memilih varian server tanpa request tambahan.
+* Satu banner foreground tanpa duplikasi OS, dedup push/API, ringkasan burst,
+  dan navigasi lamaran/CV melalui gerbang sesi/wizard PR-094.
+* Izin push tersedia dari center dan Lamaran. Klik eksplisit yang menyusul
+  pemeriksaan izin otomatis tetap meminta izin; logout membatalkan upgrade izin.
+  Channel bernama Kabar Nawasena, id tetap `lamaran`.
+
+Owner melaporkan build EAS selesai sebelum meminta PR-095. ID build dan hasil
+uji perangkat belum diberikan; build tidak dipakai sebagai bukti acceptance
+runtime PR-094/095. PR-095 memakai modul/plugin native PR-094. Stack git tetap
+lokal sesuai alur sebelumnya; belum push/merge maupun perubahan main.
+
+### Keputusan teknis
+
+* Backend/DB/OpenAPI tidak berubah. `listNotifications` menerima AbortSignal
+  opsional; pemanggil lama tetap sah. Tes transport memeriksa signal dan query.
+* Badge berlangganan cache tersendiri tanpa polling per header. Monitor tunggal
+  membaca 20 item terbaru + unreadCount tiap 30 detik saat aktif, saat push,
+  dan resume. Tanpa FCM deteksi banner terbatas 20 item terbaru, sedangkan count
+  tetap mencakup seluruh notifikasi dan center menyediakan seluruh riwayat.
+* Push membuat cache daftar stale tanpa refetch. Item/tombol yang baru dibaca
+  tetap sampai reload agar fokus tidak hilang. Badge segera optimistis lalu
+  memakai jawaban server; kegagalan mengembalikan snapshot kedua filter/badge.
+  Mark-all menunggu server, tidak memaksa count nol saat kabar baru lahir.
+* Poll berhenti saat background/read mutation. Resume menunggu respons segar
+  sebelum baseline. Logout membersihkan banner/timer/dedup; generasi sesi
+  menolak hasil read lama, termasuk setelah akun yang sama login ulang.
+  Pembatalan query menghentikan transport dan penulisan hasil yang sudah batal.
+* Handler foreground menolak banner/list/suara/badge OS. Listener received/tap
+  memakai lifecycle tunggal PR-094. Dedup per akun memakai 500 ID terakhir;
+  burst memakai jendela tetap 500 ms. Banner persisten, maksimal 35% area,
+  dapat digulir, pengumuman polite, tanpa mengambil fokus. Pengayaan teks API
+  tidak mengulang pengumuman jumlah. Count daftar bukan live region tambahan.
+* Parameter API/push diperiksa per tipe. Lamaran dan CV membuka layar tersedia;
+  AI gagal menuju formulir CV, welcome tidak diberi tautan entitas fiktif.
+  Admin/URL arbitrary/UUID rusak ditolak. Server memutuskan kepemilikan.
+  Payload/teks notifikasi tidak dipersist; analytics hanya menambah path tetap.
+
+### Verifikasi
+
+* Mobile **177 test**: termasuk **24** notifikasi dan **12** registrasi push.
+  Mencakup dua urutan dedup, baseline/resume/wizard, burst, payload rusak,
+  rollback kedua filter/badge, read-all gagal/race, logout/login ulang,
+  label WIB/bahasa, paging overlap, tujuan CV/lamaran, dan upgrade izin.
+* Api-client **168 test**, web **819 test**: seluruhnya lolos.
+* Lint/typecheck 12 workspace lolos; mobile diperiksa kembali sesudah perubahan
+  izin dan kontrol daftar. Format kode dan diff diperiksa.
+* `expo export --platform android`: sukses, Hermes **2,9 MB** (1158 modul).
+
+### Acceptance runtime
+
+* [ ] Foreground satu banner tanpa push OS dobel di perangkat nyata.
+* [ ] Badge akurat di APK, termasuk read-all dan resume.
+* [ ] Read flow paritas web, galat/rollback jaringan, serta navigasi lamaran/CV.
+* [ ] TalkBack item utuh, fokus tetap, dan font ekstrem/banner dapat digulir.
+* [ ] Background/cold push + gerbang sesi/wizard bekerja.
+
+[Checklist PR-095](pr-095-talkback-checklist.md) dan dua flow Maestro disiapkan,
+belum dijalankan. U-19/U-35 tetap terbuka. Phase 15 belum dinyatakan memenuhi
+exit criteria runtime atau merge.

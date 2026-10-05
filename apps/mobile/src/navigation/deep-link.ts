@@ -15,7 +15,7 @@ export const SKEMA = "nawasena";
 export const PREFIKS = `${SKEMA}://`;
 
 /** Path yang boleh dibuka dari luar. Bertambah per PR fitur (090+). */
-export const PATH_DIIZINKAN = ["", "beranda", "lamaran"] as const;
+export const PATH_DIIZINKAN = ["", "beranda", "lamaran", "notifikasi", "cv"] as const;
 
 const BATAS_PANJANG_URL = 512;
 // Huruf kecil, angka, `-`, dan `/` antarsegmen. Tanpa `..`, `%`, `@`, atau `:`.
@@ -33,7 +33,7 @@ export function pathDeepLink(url: string): string | null {
   if ((PATH_DIIZINKAN as readonly string[]).includes(path)) return path;
   const segmen = path.split("/");
   return segmen.length === 2 &&
-    (segmen[0] === "lamaran" || segmen[0] === "lowongan") &&
+    (segmen[0] === "lamaran" || segmen[0] === "lowongan" || segmen[0] === "cv") &&
     idSchema.safeParse(segmen[1]).success
     ? path
     : null;
@@ -44,14 +44,23 @@ export function deepLinkDiizinkan(url: string): boolean {
 }
 
 export type TujuanTautan =
-  | { layar: "Utama"; tab: "Beranda" | "Lamaran" }
-  | { layar: "LamaranDetail" | "LowonganDetail"; id: string };
+  | { layar: "Utama"; tab: "Beranda" | "Lamaran" | "Cv" }
+  | { layar: "Notifikasi" }
+  | { layar: "LamaranDetail" | "LowonganDetail" | "CvEditor"; id: string };
 
 export function tujuanDeepLink(url: string): TujuanTautan | null {
   const path = pathDeepLink(url);
   if (path === null) return null;
   if (path === "" || path === "beranda") return { layar: "Utama", tab: "Beranda" };
   if (path === "lamaran") return { layar: "Utama", tab: "Lamaran" };
+  if (path === "notifikasi") return { layar: "Notifikasi" };
+  if (path === "cv") return { layar: "Utama", tab: "Cv" };
   const [jenis, id] = path.split("/");
-  return id ? { layar: jenis === "lamaran" ? "LamaranDetail" : "LowonganDetail", id } : null;
+  return id
+    ? {
+        layar:
+          jenis === "lamaran" ? "LamaranDetail" : jenis === "cv" ? "CvEditor" : "LowonganDetail",
+        id,
+      }
+    : null;
 }
