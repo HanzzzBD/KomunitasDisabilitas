@@ -12,7 +12,9 @@ import { useStore } from "zustand";
 import { PenyediaTema } from "./a11y/PenyediaTema";
 import { sesiStore } from "./api";
 import { hapusPdfCv } from "./cv/pdf-android";
-import { linking } from "./navigation/linking";
+import { PantauTautan, navigationRef, perbaruiKesiapanTautan } from "./navigation/PantauTautan";
+import { analitik, analitikSiap } from "./analitik/instans";
+import { pathAnalitik } from "./analitik/rute";
 import { TabUtama } from "./navigation/TabUtama";
 import { onboardingStore } from "./onboarding/instans";
 import type { RootStackParamList } from "./navigation/types";
@@ -20,6 +22,7 @@ import { queryClient, saatKeluar } from "./query";
 import { CvBagianScreen } from "./screens/cv/CvBagianScreen";
 import { CvEditorScreen } from "./screens/cv/CvEditorScreen";
 import { LowonganDetailScreen } from "./screens/lowongan/LowonganDetailScreen";
+import { LamaranDetailScreen } from "./screens/lamaran/LamaranDetailScreen";
 import { MasukScreen } from "./screens/MasukScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { KarierFormScreen } from "./screens/profil/KarierFormScreen";
@@ -58,7 +61,19 @@ function Navigasi() {
   if (status === "terputus") return <TerputusScreen />;
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        perbaruiKesiapanTautan();
+        void analitikSiap.then(() =>
+          analitik.pageview(pathAnalitik(navigationRef.getCurrentRoute()?.name ?? "")),
+        );
+      }}
+      onStateChange={() => {
+        perbaruiKesiapanTautan();
+        analitik.pageview(pathAnalitik(navigationRef.getCurrentRoute()?.name ?? ""));
+      }}
+    >
       {/* Header & transisi ikut token: kontras tinggi berlaku juga di bilah
           judul, dan "kurangi gerakan" mematikan animasi geser antarlayar. */}
       <Stack.Navigator
@@ -109,6 +124,11 @@ function Navigasi() {
               component={LowonganDetailScreen}
               options={{ title: "Detail lowongan" }}
             />
+            <Stack.Screen
+              name="LamaranDetail"
+              component={LamaranDetailScreen}
+              options={{ title: "Perkembangan lamaran" }}
+            />
           </>
         ) : (
           <>
@@ -131,6 +151,7 @@ export function App() {
       {/* Preferensi efektif (pilihan pengguna > setelan Android > bawaan), PR-091. */}
       <QueryClientProvider client={queryClient}>
         <PenyediaTema>
+          <PantauTautan />
           <Navigasi />
         </PenyediaTema>
       </QueryClientProvider>

@@ -8,6 +8,7 @@ import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import { Text } from "react-native";
 
 import { Judul, LayarGulir, Paragraf } from "../../komponen/Layar";
+import { PrivasiAnalitik } from "../../analitik/PrivasiAnalitik";
 import { TombolKeluar } from "../../komponen/TombolKeluar";
 import type { RootStackParamList } from "../../navigation/types";
 
@@ -80,6 +81,7 @@ export function ProfilScreen() {
         </Kartu>
       ))}
       <Judul tingkat={2}>Akun</Judul>
+      <PrivasiAnalitik />
       <TombolKeluar />
     </LayarGulir>
   );

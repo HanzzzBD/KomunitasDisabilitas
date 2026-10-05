@@ -39,6 +39,8 @@ export {
 } from "./endpoints/accessibility.js";
 export {
   getNotificationPrefs,
+  registerMyDevice,
+  unregisterMyDevice,
   updateNotificationPrefs,
   notificationPrefsKeys,
   listNotifications,

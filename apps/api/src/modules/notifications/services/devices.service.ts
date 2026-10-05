@@ -4,13 +4,8 @@
 // SELALU datang dari sesi, tidak pernah dari input. Tidak ada parameter untuk
 // menyebut pengguna lain.
 //
-// KENAPA TIDAK ADA ENDPOINT HAPUS PERANGKAT DI PR INI. Bukan kelupaan: token
-// yang mati dibersihkan sendiri oleh jalur pengiriman (PR-048b, saat FCM
-// menjawab `UNREGISTERED`), dan penghapusan akun menghapus barisnya lewat
-// cascade. Yang belum tertutup adalah "logout dari satu perangkat" — dan itu
-// menuntut klien yang bisa memanggilnya, yaitu mobile (PR-088/094). Menambahkan
-// endpoint yang belum punya pemanggil berarti permukaan API yang tidak pernah
-// diuji terhadap pemakaian nyata. Dicatat di log PR-048a.
+// PR-094 menambahkan pelepasan perangkat saat logout mobile. Token mati tetap
+// dibersihkan PR-048b; penghapusan akun tetap membawa perangkat lewat cascade.
 import type { Device, RegisterDevice } from "@nawasena/schemas";
 import { uuidV7 } from "../../../core/ids/index.js";
 import type { DeviceRepository, DeviceRow } from "../repositories/devices.repository.js";
@@ -43,6 +38,10 @@ export function createDevicesService(deps: DevicesServiceDeps) {
   const { deviceRepository } = deps;
 
   return {
+    /** PR-094: logout mobile, identitas tetap berasal dari sesi. */
+    async unregister(actor: DevicesActor, id: string): Promise<void> {
+      await deviceRepository.hapusMilik(actor.userId, id);
+    },
     /**
      * POST /me/devices — daftarkan perangkat pemilik sesi.
      *

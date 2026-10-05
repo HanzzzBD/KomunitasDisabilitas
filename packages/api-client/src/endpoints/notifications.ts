@@ -11,6 +11,10 @@
 // menaruh hasilnya ke state, dan amplop yang harus dibuka dua kali di setiap
 // `onSuccess` adalah amplop yang suatu saat lupa dibuka.
 import {
+  deviceResponseSchema,
+  registerDeviceSchema,
+  type Device,
+  type RegisterDevice,
   notificationChannelPrefsResponseSchema,
   notificationListResponseSchema,
   notificationReadAllResponseSchema,
@@ -24,6 +28,30 @@ import {
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
+
+/** POST /me/devices — token FCM native. */
+export async function registerMyDevice(
+  client: ApiClient,
+  input: RegisterDevice,
+  signal?: AbortSignal,
+): Promise<Device> {
+  const res = await client.request("/me/devices", {
+    method: "POST",
+    body: registerDeviceSchema.parse(input),
+    responseSchema: deviceResponseSchema,
+    signal,
+  });
+  return res.data;
+}
+
+/** DELETE /me/devices/:id — 204 juga bila id tidak ada atau bukan milik sesi. */
+export async function unregisterMyDevice(
+  client: ApiClient,
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await client.request(`/me/devices/${encodeURIComponent(id)}`, { method: "DELETE", signal });
+}
 
 /**
  * Key cache TanStack — DILINGKUPI PEMILIKNYA, alasan lengkapnya di

@@ -168,6 +168,28 @@ describe("KotakCentang (PR-091)", () => {
 });
 
 describe("PilihanTunggal (PR-092)", () => {
+  it("disclosure tanpa pilihan awal; Ya nonaktif tetap terbaca dan tidak terpilih", async () => {
+    const ubah = jest.fn();
+    await denganProfil(
+      <PilihanTunggal
+        judul="Ungkap data?"
+        nilai={null}
+        onUbah={ubah}
+        opsi={[
+          { nilai: "tidak", label: "Tidak" },
+          { nilai: "ya", label: "Ya", nonaktif: true, bantuan: "Profil belum berisi data" },
+        ]}
+      />,
+    );
+    const tidak = screen.getByRole("radio", { name: "Tidak" });
+    const ya = screen.getByRole("radio", { name: "Ya" });
+    expect(tidak.props.accessibilityState.checked).toBe(false);
+    expect(ya.props.accessibilityState).toMatchObject({ checked: false, disabled: true });
+    await fireEvent.press(ya);
+    expect(ubah).not.toHaveBeenCalled();
+    await fireEvent.press(tidak);
+    expect(ubah).toHaveBeenCalledWith("tidak");
+  });
   const OPSI = [
     { nilai: "never", label: "Jangan pernah" },
     { nilai: "ask_each_time", label: "Tanya saya dulu" },

@@ -13,13 +13,14 @@ export interface OpsiPilihan<T extends string> {
   nilai: T;
   label: string;
   bantuan?: string;
+  nonaktif?: boolean;
 }
 
 export interface PilihanTunggalProps<T extends string> {
   /** Pertanyaan yang dijawab grup ini — terlihat DAN menjadi nama grup. */
   judul: string;
   opsi: readonly OpsiPilihan<T>[];
-  nilai: T;
+  nilai: T | null;
   onUbah: (nilai: T) => void;
   testID?: string;
 }
@@ -51,8 +52,9 @@ export function PilihanTunggal<T extends string>(props: PilihanTunggalProps<T>) 
             accessibilityRole="radio"
             accessibilityLabel={o.label}
             accessibilityHint={o.bantuan}
-            accessibilityState={{ checked: dipilih }}
+            accessibilityState={{ checked: dipilih, ...(o.nonaktif ? { disabled: true } : {}) }}
             accessibilityValue={{ text: `${i + 1} dari ${opsi.length}` }}
+            disabled={o.nonaktif}
             onPress={() => onUbah(o.nilai)}
             style={{
               minHeight: targetSentuh,

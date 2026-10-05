@@ -40,6 +40,8 @@ export interface DepsSesi {
   perpanjang: (refreshToken: string) => Promise<HasilPerpanjang>;
   /** POST /auth/logout — idempoten di server; kegagalannya diabaikan. */
   keluarDiServer: (refreshToken: string) => Promise<void>;
+  /** Lepas perangkat push sementara access token masih tersedia (PR-094). */
+  sebelumKeluar?: () => Promise<void>;
 }
 
 export interface AksiSesi {
@@ -69,6 +71,7 @@ export function createSesiStore(deps: DepsSesi): StoreSesi {
       const refreshToken = await penyimpanan.getRefreshToken();
       if (refreshToken === null) {
         set({ status: "keluar", accessToken: null });
+        void deps.sebelumKeluar?.().catch(() => undefined);
         return;
       }
 
@@ -88,6 +91,7 @@ export function createSesiStore(deps: DepsSesi): StoreSesi {
       }
       await penyimpanan.clearRefreshToken();
       set({ status: "keluar", accessToken: null });
+      void deps.sebelumKeluar?.().catch(() => undefined);
     },
 
     async masuk(tokens) {
@@ -102,6 +106,7 @@ export function createSesiStore(deps: DepsSesi): StoreSesi {
 
     async keluar() {
       const refreshToken = await penyimpanan.getRefreshToken();
+      await deps.sebelumKeluar?.().catch(() => undefined);
       // State lokal dibersihkan dulu: pengguna yang menekan "Keluar" tidak
       // boleh tertahan di aplikasi karena jaringan sedang buruk.
       await penyimpanan.clearRefreshToken();
@@ -110,6 +115,7 @@ export function createSesiStore(deps: DepsSesi): StoreSesi {
     },
 
     async sesiBerakhir() {
+      await deps.sebelumKeluar?.().catch(() => undefined);
       await penyimpanan.clearRefreshToken();
       set({ status: "keluar", accessToken: null });
     },

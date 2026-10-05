@@ -5,7 +5,7 @@
 // tidak ada param `:userId` untuk dibandingkan `requireSelf`, dan identitas
 // datang dari sesi sehingga tidak ada saluran untuk menyebut orang lain.
 import type { Router } from "express";
-import { registerDeviceSchema } from "@nawasena/schemas";
+import { deviceIdParamsSchema, registerDeviceSchema } from "@nawasena/schemas";
 import { access, type RouteRegistrar } from "../../../core/auth/index.js";
 import { asyncHandler, validate } from "../../../core/http/index.js";
 import type { DevicesController } from "../controllers/devices.controller.js";
@@ -23,6 +23,12 @@ export function daftarkanRouteDevices(
     // bukan diteruskan ke Prisma sebagai nilai enum yang tidak ada.
     validate({ body: registerDeviceSchema }),
     asyncHandler(controller.register),
+  );
+  routes.delete(
+    "/me/devices/:id",
+    access.authenticated(),
+    validate({ params: deviceIdParamsSchema }),
+    asyncHandler(controller.unregister),
   );
   return routes.router;
 }

@@ -1009,6 +1009,20 @@ tetapi APK tertutup saat dibuka karena dua instance zod di bundle Metro. Sudah d
 Metro dan dijaga test (log Phase 15, "Temuan build EAS internal pertama"). Sisa langkah: build kedua,
 lalu seluruh checklist PR-088..093.
 
+**Kemajuan build berikutnya (2026-10-05):** build internal dengan domain API tetap
+sudah selesai; lihat log Phase 15 (build `b02dcc01-fd5e-4a27-b877-2b66644910d2`).
+Keberhasilan build belum membuktikan seluruh checklist perangkat.
+
+**Ditambah PR-094 (2026-10-05).** Lamar, tracking, tap push cold/warm, dan funnel
+Umami membutuhkan APK baru karena menambah `expo-notifications` + `expo-crypto`.
+Konfigurasi Firebase Android melalui `GOOGLE_SERVICES_JSON` (File EAS preview),
+backend FCM + worker, dan uji nyata sesuai U-19. Checklist:
+`docs/implementation/log/pr-094-talkback-checklist.md`; Maestro:
+`.maestro/apply-tracking.yaml`, `.maestro/push-lamaran.yaml`. Pelepasan perangkat
+saat logout sudah punya endpoint teruji pemilik/idempotensi; logout offline masih
+perlu uji native, sebab jika DELETE backend dan pencabutan token native sama-sama
+gagal, push lama masih mungkin tiba sampai token mati atau berpindah akun.
+
 ---
 
 ### U-36 — OTP autofill hanya hint, tanpa SMS Retriever

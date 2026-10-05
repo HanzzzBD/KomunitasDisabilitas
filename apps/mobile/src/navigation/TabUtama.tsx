@@ -11,6 +11,7 @@ import { BerandaScreen } from "../screens/BerandaScreen";
 import { CvDaftarScreen } from "../screens/cv/CvDaftarScreen";
 import { CariScreen } from "../screens/lowongan/CariScreen";
 import { FeedScreen } from "../screens/lowongan/FeedScreen";
+import { LamaranDaftarScreen } from "../screens/lamaran/LamaranDaftarScreen";
 import { ProfilScreen } from "../screens/profil/ProfilScreen";
 import type { TabParamList } from "./types";
 
@@ -40,6 +41,7 @@ export function TabUtama() {
         options={{ title: "Beranda" }}
       />
       <Tab.Screen name="Cari" component={CariScreen} options={{ title: "Cari" }} />
+      <Tab.Screen name="Lamaran" component={LamaranDaftarScreen} options={{ title: "Lamaran" }} />
       <Tab.Screen name="Profil" component={ProfilScreen} options={{ title: "Profil" }} />
       <Tab.Screen name="Cv" component={CvDaftarScreen} options={{ title: "CV" }} />
     </Tab.Navigator>

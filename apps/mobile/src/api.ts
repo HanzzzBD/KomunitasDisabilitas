@@ -17,6 +17,10 @@ import { tokenStorage } from "./storage/secure-store-adapter";
 
 // Dirujuk lewat fungsi agar klien dan refresher bisa saling membutuhkan.
 let refresher: () => Promise<boolean> = async () => false;
+let pelepasPush: () => Promise<void> = async () => undefined;
+export function pasangPelepasPush(fn: () => Promise<void>) {
+  pelepasPush = fn;
+}
 
 export const apiClient = createApiClient({
   baseUrl: apiBaseUrl(),
@@ -41,6 +45,7 @@ export const sesiStore = createSesiStore({
     }
   },
   keluarDiServer: (refreshToken) => logout(apiClient, { refreshToken }),
+  sebelumKeluar: () => pelepasPush(),
 });
 
 refresher = createSessionRefresher({

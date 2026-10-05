@@ -3,7 +3,7 @@
 //
 // Sejak PR-090 layar terbagi menurut status sesi (App.tsx): Masuk & Verifikasi
 // hanya saat keluar; Onboarding hanya saat wizard diperlukan (PR-091); sisanya
-// hanya saat masuk. Deep link ke layar yang tidak ada di stack aktif diabaikan.
+// hanya saat masuk. PR-094 menahan tautan sampai sesi/onboarding/navigator siap.
 import type { NavigatorScreenParams } from "@react-navigation/native";
 
 import type { BagianCv } from "../cv/bagian";
@@ -13,6 +13,7 @@ import type { JenisKarier } from "../profil/karier";
 export type TabParamList = {
   Beranda: undefined;
   Cari: undefined;
+  Lamaran: undefined;
   Profil: undefined;
   Cv: undefined;
 };
@@ -34,4 +35,5 @@ export type RootStackParamList = {
   CvBagian: { id: string; bagian: BagianCv };
   // --- PR-093 ---
   LowonganDetail: { id: string };
+  LamaranDetail: { id: string };
 };

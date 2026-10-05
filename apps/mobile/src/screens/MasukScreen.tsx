@@ -12,6 +12,7 @@ import { useState } from "react";
 import { ScrollView, Text } from "react-native";
 
 import { apiClient, sesiStore } from "../api";
+import { track } from "../analitik/instans";
 import { normalisasiNomor, pesanGalat } from "../auth/alur-masuk";
 import { masukDenganGoogle, serverClientIdGoogle } from "../auth/google";
 import { credentialManagerTersedia, pilihAkunGoogle } from "../auth/google-credential";
@@ -58,7 +59,11 @@ export function MasukScreen({ navigation }: Props) {
         serverClientId,
         mintaNonce: async () => (await requestGoogleMobileNonce(apiClient)).data.nonce,
         pilihAkun: pilihAkunGoogle,
-        tukar: async (idToken) => (await googleMobileAuth(apiClient, { idToken })).data,
+        tukar: async (idToken) => {
+          const { data } = await googleMobileAuth(apiClient, { idToken });
+          if (data.isNewUser) track("daftar", { metode: "google" });
+          return data;
+        },
       });
       if (hasil.ok) await sesiStore.getState().masuk(hasil.tokens);
       else if (hasil.sebab === "galat") setGalatUmum(hasil.pesan);

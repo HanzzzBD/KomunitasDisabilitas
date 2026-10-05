@@ -651,3 +651,109 @@ memicunya. Dugaan awal "dua React" diperiksa dan **salah**, karena bundle hanya 
 ### Status
 
 Menunggu build EAS kedua + uji ulang di HP (U-35).
+
+---
+
+## PR-094 - Mobile Apply + Tracking + Push Deep Link
+
+> **Phase:** [15 - Mobile (Android)](../phase-15-mobile-android.md#pr-094---mobile-apply--tracking--push-deep-link)
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi selesai; build PR-094 + uji perangkat/FCM/Umami masih diperlukan (U-35/U-19)
+> **Branch:** `pr-094-mobile-lamaran-push`, ditumpuk di atas `pr-093-mobile-feed`.
+
+### Ringkasan hasil
+
+* Tab **Lamaran**: daftar, paginasi, kosong/galat, muat ulang eksplisit, dan detail.
+* Detail lowongan: dialog lamar dengan CV terbaru, pembuatan CV dari profil,
+  akses ke editor CV, pratinjau data sensitif, dan pilihan disclosure eksplisit.
+* Tracking: status + arti, timeline kronologis (mulai Lamaran dikirim), tarik
+  dengan konfirmasi, Saya diterima satu ketukan dan perayaan teks dengan fokus.
+* Push FCM langsung melalui `expo-notifications`: izin lewat tombol, registrasi
+  `/me/devices`, rotasi token, cold/warm tap dan antrean sampai sesi/wizard siap.
+* Event funnel PR-082, path tanpa UUID/query, opt-out per HP di Profil.
+* Endpoint aditif **DELETE /me/devices/:id** + client + OpenAPI untuk logout.
+
+### Keputusan owner dan asumsi implementasi
+
+| Hal | Keputusan |
+|---|---|
+| Pelepasan perangkat push saat logout | **Disetujui owner lewat tool pertanyaan**: perluasan scope backend untuk DELETE dengan pemeriksaan pemilik. |
+| Disclosure | Mempertahankan keputusan owner PR-078: kedua opsi mulai kosong; pilihan wajib, tidak memakai disclosureDefault profil. |
+| Konfirmasi diterima | Mempertahankan PR-079: satu ketukan, perayaan teks tanpa animasi. |
+| Izin notifikasi | Pertanyaan diajukan; sementara memakai opsi rekomendasi: tombol Aktifkan notifikasi lamaran. Boot hanya mendaftar ulang jika izin sudah diberikan. |
+| Firebase | Ketersediaan konfigurasi ditanyakan; kode mendukung File EAS `GOOGLE_SERVICES_JSON`, tanpa berkas itu push dinonaktifkan. Tidak membuat/mengubah proyek Firebase atau kredensial. |
+| Git | Pertanyaan diajukan; sementara mempertahankan tumpukan lokal PR-090..093, menambahkan branch PR-094. Pengiriman remote belum dilakukan. |
+
+### Keputusan teknis
+
+* Logika CV/disclosure/timeline dan kriteria profil lengkap dipindah ke
+  `@nawasena/formulir`; web mengekspor ulang sehingga aturan kedua platform sama.
+  UUID idempotensi berasal dari `expo-crypto`, satu per pembukaan dialog.
+* Ref menahan klik kirim/aksi ganda sebelum render berikutnya. Dialog menahan
+  penutupan saat kirim; wrapper modal tetap terpasang ketika Batal agar fokus
+  kembali ke pemicu. Modal native menggulir pada teks besar. Radio mendukung
+  nilai null dan opsi nonaktif yang tetap terbaca.
+* Query lamaran dilingkupi `sub`, hanya di memori, ikut dibuang saat logout.
+  Fokus layar memuat ulang status. Tidak ada auto-poll yang memindahkan pengguna.
+* Parser menerima skema `nawasena://`, path yang diizinkan, dan UUID sah.
+  Payload push dibaca lewat skema parameter PR-048; tipe admin/URL arbitrary
+  tidak diteruskan. `PantauTautan` tetap hidup selama pemulihan/login/wizard;
+  antrean membuka tujuan hanya setelah navigator dan kedua gerbang siap.
+  Navigator juga harus sudah mendaftarkan layar lamaran; perubahan gerbang
+  langsung menahan antrean selama transisi stack login/wizard.
+  Respons terakhir/listener didedup; logout membuang tujuan tertunda.
+* Kepemilikan detail tetap diputuskan `/me/applications/:id`. UI tidak menjadikan
+  UUID dari push sebagai bukti pemilik. Push foreground OS disembunyikan;
+  banner + notification center tetap PR-095.
+* Registrasi push single-flight per akun/token. Akun berikutnya menunggu
+  pencabutan token sebelumnya. Logout menghentikan registrasi baru, menunggu
+  request berjalan, melepas baris milik sesi, mencabut token native, membersihkan
+  tray/last response, lalu menghapus sesi. Request perangkat memakai token yang
+  dicuplik tanpa hook refresh, agar sesiBerakhir tidak melepas secara rekursif.
+  HTTP/pencabutan native dibatasi 5 detik; kegagalan tidak menghalangi logout.
+* DELETE idempoten 204 untuk id hilang/milik orang lain, menggunakan
+  `deleteMany({ where: { id, userId } })`. Tidak ada migrasi DB atau token
+  pada response/log.
+* Umami opsional (HTTPS + UUID website mobile); semua payload memakai skema
+  no-PII PR-082, hostname `android.nawasena.app`, tanpa kredensial auth/cookie.
+  Preferensi dibaca sebelum kiriman; gagal baca = diam. Penanda profil/wawancara
+  disimpan lokal saja dan didedup ketika dipanggil paralel.
+
+### Verifikasi
+
+* Mobile **151 test**, api-client **167**, formulir **13**, schemas **115**,
+  ui-native **28**, web **819** (termasuk aturan disclosure/timeline/analytics
+  dari paket bersama).
+* HTTP perangkat **16 test** dan DB perangkat **7 test**: sesi, input UUID,
+  pemilik, idempotensi, dan akun lama tidak melepas perangkat sesudah berpindah.
+* Lint/typecheck seluruh repo, OpenAPI sync, format dan diff diperiksa.
+* `expo export --platform android`: sukses, bundle Hermes **2,8 MB**.
+  Build web sukses; JS awal **109,4 / 200 KB** (budget lolos).
+* Full API run awal: **2209 lolos, 4 skip, 1 gagal** pada audit moderasi DB
+  (`moderasi-db.test.ts`, di luar jalur PR-094). Rerun terarah **28/28 lolos**;
+  full API ulang **2210 lolos, 4 skip**. Skip mencakup MinIO yang tidak
+  tersedia dan test boot dengan env bersih ketika `.env` lokal sudah ada.
+
+### Status Acceptance Criteria
+
+* [ ] Apply kedua mode disclose end-to-end: kode + aturan paritas teruji;
+  APK/device belum dijalankan, checklist nomor 3 sampai 9.
+* [ ] Tap push membuka lamaran tepat cold/warm: parser/antrean teruji;
+  FCM nyata + APK baru, nomor 18 sampai 23 (U-19/U-35).
+* [ ] Timeline + confirm-hired paritas: mapper bersama + UI tersedia;
+  runtime nomor 13 sampai 15.
+* [ ] Alur lamar dan tracking penuh dengan TalkBack:
+  [checklist PR-094](pr-094-talkback-checklist.md) + Maestro belum dijalankan.
+* [ ] Event funnel mobile terkirim: payload/opt-out/dedup teruji;
+  konfigurasi Umami + kiriman nyata, nomor 26 sampai 28.
+
+### Risiko dan next steps
+
+* Jika DELETE backend **dan** pencabutan token native sama-sama gagal saat
+  offline, push akun lama masih mungkin tiba sampai FCM menolak token atau
+  perangkat berpindah akun. Logout tetap selesai; verifikasi checklist #25.
+* APK yang sudah selesai di EAS untuk PR-090..093 belum memuat PR-094. Modul
+  `expo-notifications`/`expo-crypto` dan plugin memerlukan build internal baru.
+* Jalankan dua flow Maestro yang disiapkan serta checklist TalkBack, Firebase,
+  dan Umami. Pertahankan API/tunnel/worker hidup selama pengujian.
+* PR-095: notification center, badge, dan banner foreground dengan dedup.

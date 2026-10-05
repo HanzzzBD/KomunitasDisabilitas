@@ -44,10 +44,15 @@ export interface DeviceRepository {
    * menyatakan token sudah tidak terdaftar.
    */
   hapusByToken(fcmToken: string): Promise<boolean>;
+  /** Pelepasan oleh pemilik sesi, idempoten dan tidak mengungkap pemilik lain. */
+  hapusMilik(userId: string, id: string): Promise<void>;
 }
 
 export function createDeviceRepository(prisma: AppPrisma): DeviceRepository {
   return {
+    async hapusMilik(userId, id) {
+      await prisma.device.deleteMany({ where: { id, userId } });
+    },
     daftarkan({ id, userId, fcmToken, platform }) {
       // `upsert` satu statement, bukan "cari lalu tulis": dua peluncuran aplikasi
       // yang hampir bersamaan (mis. klien mencoba ulang karena jaringan lambat)

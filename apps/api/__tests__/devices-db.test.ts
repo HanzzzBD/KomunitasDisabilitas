@@ -117,6 +117,16 @@ describe("token unik global (AC keamanan)", () => {
 });
 
 describe("pembersihan token", () => {
+  it("pelepasan perangkat milik sesi tidak dapat menghapus perangkat akun lain", async (ctx) => {
+    if (!dbTersedia) return ctx.skip();
+    const token = `${TANDA}-logout-pr094`;
+    const d = await service.register(aktor(userA), { fcmToken: token, platform: "android" });
+    await service.unregister(aktor(userB), d.id);
+    expect(await mentah.device.count({ where: { id: d.id } })).toBe(1);
+    await service.unregister(aktor(userA), d.id);
+    await service.unregister(aktor(userA), d.id);
+    expect(await mentah.device.count({ where: { id: d.id } })).toBe(0);
+  });
   it("hapusByToken menghapus baris siapa pun pemiliknya", async (ctx) => {
     if (!dbTersedia) return ctx.skip();
     // Pemanggilnya (processor push, PR-048b) bekerja atas nama sistem: FCM baru

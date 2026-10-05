@@ -10,7 +10,14 @@
 // Di Android, Modal adalah jendela tersendiri, jadi TalkBack terkurung di
 // dalamnya selama terbuka; tombol Kembali menutup dialog (`onRequestClose`).
 import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Modal, Text, View, type View as ViewRN } from "react-native";
+import {
+  AccessibilityInfo,
+  Modal,
+  ScrollView,
+  Text,
+  View,
+  type View as ViewRN,
+} from "react-native";
 
 import { useTokenA11y } from "./konteks";
 import { Tombol } from "./tombol";
@@ -48,6 +55,7 @@ export function Dialog(props: DialogProps) {
     if (pernahTerbuka.current && pemicu?.current) {
       AccessibilityInfo.sendAccessibilityEvent(pemicu.current, "focus");
     }
+    pernahTerbuka.current = false;
   }, [terbuka, pemicu]);
 
   return (
@@ -62,10 +70,12 @@ export function Dialog(props: DialogProps) {
       <View
         style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: warna.tirai }}
       >
-        <View
+        <ScrollView
           testID={props.testID}
           accessibilityViewIsModal
-          style={{ gap: 12, padding: 20, borderRadius: 12, backgroundColor: warna.latar }}
+          style={{ maxHeight: "100%", borderRadius: 12, backgroundColor: warna.latar, flexGrow: 0 }}
+          contentContainerStyle={{ gap: 12, padding: 20 }}
+          keyboardShouldPersistTaps="handled"
         >
           <Text
             ref={judulRef}
@@ -85,7 +95,7 @@ export function Dialog(props: DialogProps) {
           ) : null}
           {children}
           <Tombol label={labelTutup} varian="sekunder" onPress={tutup} />
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );

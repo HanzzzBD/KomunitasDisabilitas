@@ -136,3 +136,27 @@ describe("keluar & sesi berakhir", () => {
     expect(store.getState()).toMatchObject({ status: "masuk", accessToken: "at-2" });
   });
 });
+
+describe("pelepasan push sebelum logout (PR-094)", () => {
+  it("access token masih tersedia ketika perangkat dilepas", async () => {
+    const { store, deps, penyimpanan } = buat({ tersimpan: "rt-lama" });
+    await store.getState().pulihkan();
+    deps.sebelumKeluar = vi.fn(async () => {
+      expect(store.getState().accessToken).toBe("at-baru");
+      expect(penyimpanan.nilai).toBe("rt-baru");
+    });
+    await store.getState().keluar();
+    expect(deps.sebelumKeluar).toHaveBeenCalledTimes(1);
+    expect(store.getState()).toMatchObject({ status: "keluar", accessToken: null });
+  });
+  it("pelepasan gagal tidak menghalangi penghapusan sesi lokal", async () => {
+    const { store, deps, penyimpanan } = buat({ tersimpan: "rt-lama" });
+    await store.getState().pulihkan();
+    deps.sebelumKeluar = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await store.getState().keluar();
+    expect(store.getState().status).toBe("keluar");
+    expect(penyimpanan.nilai).toBeNull();
+  });
+});

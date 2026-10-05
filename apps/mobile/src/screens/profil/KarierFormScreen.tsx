@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { apiClient } from "../../api";
+import { periksaProfilLengkap } from "../../analitik/profil";
 import { pesanGalat } from "../../auth/alur-masuk";
 import { Judul, LayarGulir, Memuat, PesanStatus } from "../../komponen/Layar";
 import type { RootStackParamList } from "../../navigation/types";
@@ -45,6 +46,7 @@ export function KarierFormScreen({ route, navigation }: Props) {
         return;
       }
       void qc.invalidateQueries({ queryKey: konfig.kunci(sub) });
+      if (jenis === "keahlian") periksaProfilLengkap(qc, sub, { keahlianBaru: true });
       // Kembali ke daftar; daftar mengumumkan isinya sendiri saat dimuat ulang.
       navigation.goBack();
     },

@@ -9,6 +9,7 @@ import { sesiStore } from "../api";
 
 export function TombolKeluar() {
   const [konfirmasi, setKonfirmasi] = useState(false);
+  const [keluar, setKeluar] = useState(false);
   const tombol = useRef<View>(null);
 
   return (
@@ -31,10 +32,12 @@ export function TombolKeluar() {
       >
         <Tombol
           testID="tombol-keluar-yakin"
-          label="Ya, keluar"
+          label={keluar ? "Sedang keluar" : "Ya, keluar"}
+          sibuk={keluar}
           varian="bahaya"
           onPress={() => {
-            setKonfirmasi(false);
+            if (keluar) return;
+            setKeluar(true);
             void sesiStore.getState().keluar();
           }}
         />
