@@ -834,3 +834,88 @@ lokal sesuai alur sebelumnya; belum push/merge maupun perubahan main.
 [Checklist PR-095](pr-095-talkback-checklist.md) dan dua flow Maestro disiapkan,
 belum dijalankan. U-19/U-35 tetap terbuka. Phase 15 belum dinyatakan memenuhi
 exit criteria runtime atau merge.
+
+---
+
+## Penyiapan Firebase Android dan build APK PR-095 (2026-10-05)
+
+Owner menyimpan `apps/mobile/google-services.json` setelah panduan penyiapan.
+JSON valid, package `id.nawasena.app`, dan project sama dengan `FCM_PROJECT_ID`
+backend. Sender ID, mobile app ID, dan API key tersedia. Berkas tetap di-ignore.
+
+* `GOOGLE_SERVICES_JSON` dipasang sebagai variable **File / sensitive** pada
+  EAS `preview`, dan path lokal `.env` mobile diisi untuk evaluasi app config.
+* Konfigurasi Expo terverifikasi: `pushConfigure: true`, package tepat, path
+  Firebase dapat dibaca, dan plugin `expo-notifications` terpasang.
+* Kunci backend dapat dibaca sebagai RSA dan format email service account sesuai.
+  Ini belum membuktikan izin IAM atau pengiriman FCM nyata.
+* Build APK internal PR-095 dimulai **19:37 WIB**, commit `bffec78`, memakai
+  kredensial signing yang sudah ada:
+  [fb6b98bd-fccd-47b1-81aa-9819c0c6ec45](https://expo.dev/accounts/ledwinevalchein/projects/nawasena/builds/fb6b98bd-fccd-47b1-81aa-9819c0c6ec45).
+  **Selesai 20:33 WIB.** APK 80,2 MB diunduh dan diperiksa: signature valid,
+  resource Firebase sesuai berkas owner, `pushConfigure: true` pada konfigurasi
+  tertanam, URL API domain tetap benar tanpa `trycloudflare.com`, dan kode center
+  serta banner PR-095 ada di bundle. Ini belum membuktikan runtime HP/FCM.
+* Domain API sempat menjawab Cloudflare 1033 karena tunnel tidak tersambung.
+  API lokal sudah siap. Runner named tunnel yang sudah ada dihidupkan kembali;
+  `/readyz` publik kembali menjawab HTTP 200 dengan `data.status: siap`.
+
+Owner sudah memasang APK; login belum berhasil seperti diagnosis berikut.
+Daftar/badge/read, TalkBack, dan push foreground/background belum diuji owner.
+U-19/U-35 tetap terbuka; checklist PR-095 belum dicentang.
+
+### Diagnosis percobaan login owner
+
+Owner memasang build PR-095 ini. Setelah memilih akun Google, aplikasi kembali
+ke layar Masuk dengan tombol normal tanpa pesan; login belum berhasil.
+
+* API publik masih `siap`; Web Client ID dalam APK sama dengan `GOOGLE_CLIENT_ID`
+  backend. Audit `auth.google` dalam 60 menit terakhir kosong.
+* SHA-1 signer APK:
+  `E5:FE:DC:EB:18:EB:FE:95:81:D8:13:F9:2B:99:6F:04:70:34:16:06`.
+* Alur native memetakan `GetCredentialCancellationException` ke `DIBATALKAN`,
+  yang di APK ini tidak menampilkan pesan. Dokumentasi Android menerangkan bahwa
+  pembatalan juga dapat terjadi akibat kendala otorisasi/konfigurasi.
+* OAuth Android dengan package + SHA-1 di proyek Web Client ID diminta untuk
+  diperiksa owner; owner menjawab belum / belum yakin. Panduan field konkret
+  disiapkan dan hasil pemeriksaan masih menunggu. Browser alat belum masuk
+  Google Cloud; HP belum tersambung ADB. Penyebab native spesifik belum
+  dikonfirmasi dari logcat/console.
+* Proyek Google OAuth login berbeda dari proyek Firebase push. Ini bisa sah;
+  OAuth Android harus diperiksa di proyek login, tidak disimpulkan dari ketiadaan
+  `oauth_client` di `google-services.json` push.
+
+Login/notification center/FCM/TalkBack tetap belum diterima sebagai lulus.
+
+---
+
+## Perbaikan umpan balik login Google setelah uji APK PR-095 (2026-10-05)
+
+Percobaan owner kembali ke layar Masuk tanpa pesan. Pemeriksaan menemukan dua
+jalur tanpa umpan balik: pembatalan native sengaja diabaikan, dan kegagalan
+penyimpanan sesi di layar Google tidak ditangkap. Ini belum membuktikan penyebab
+percobaan owner; konfigurasi OAuth Android masih perlu dikonfirmasi di Cloud.
+
+### Perubahan
+
+* Pembatalan native menampilkan pesan netral bahwa masuk belum selesai, dengan
+  live region `polite` dan warna teks biasa. Pemilih akun tidak diulang otomatis.
+* Alur Google menunggu penyimpanan sesi sebelum mengembalikan keberhasilan.
+  Penolakan SecureStore ditangkap sebagai pesan aman, tanpa detail/token ke UI.
+  Sesi tetap keluar ketika penyimpanan gagal.
+* Layar Masuk membersihkan informasi sebelumnya ketika mencoba Google atau OTP
+  dan menangkap kegagalan tak terduga sambil memulihkan tombol.
+* [Panduan login Google Android](../../mobile-google-login.md) berisi Web Client
+  ID, package, dan SHA-1 APK yang terverifikasi untuk pemeriksaan OAuth owner.
+
+### Verifikasi dan status
+
+* Tes regresi gagal sebelum perbaikan; sesudahnya **179 tes mobile** lulus.
+  Kasus mencakup pembatalan tanpa retry otomatis, SecureStore gagal dengan sesi
+  tetap keluar, dan penyimpanan tertunda yang harus selesai sebelum sukses.
+* Lint, typecheck, dan format perubahan mobile lulus. Export bundle Android
+  berhasil: Hermes 2,9 MB, 1158 modul. Pemeriksaan diff lulus.
+* Perubahan masih lokal pada branch PR-095; belum push/merge atau build APK baru.
+  APK `fb6b98bd` tetap bisa dipakai untuk mencoba registrasi OAuth di Cloud,
+  tetapi belum memuat perbaikan pesan ini.
+* Keberhasilan login di HP dan TalkBack pesan baru belum diverifikasi.

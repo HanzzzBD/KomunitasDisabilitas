@@ -27,12 +27,14 @@ export function MasukScreen({ navigation }: Props) {
   const [nomor, setNomor] = useState("");
   const [galatNomor, setGalatNomor] = useState<string>();
   const [galatUmum, setGalatUmum] = useState<string>();
+  const [infoGoogle, setInfoGoogle] = useState<string>();
   const [mengirim, setMengirim] = useState(false);
   const [keGoogle, setKeGoogle] = useState(false);
   const sibuk = mengirim || keGoogle;
 
   async function kirimKode() {
     setGalatUmum(undefined);
+    setInfoGoogle(undefined);
     const phone = normalisasiNomor(nomor);
     const cek = phoneNumberSchema.safeParse(phone);
     if (!cek.success) {
@@ -53,6 +55,7 @@ export function MasukScreen({ navigation }: Props) {
 
   async function masukGoogle(serverClientId: string) {
     setGalatUmum(undefined);
+    setInfoGoogle(undefined);
     setKeGoogle(true);
     try {
       const hasil = await masukDenganGoogle({
@@ -64,9 +67,14 @@ export function MasukScreen({ navigation }: Props) {
           if (data.isNewUser) track("daftar", { metode: "google" });
           return data;
         },
+        simpanSesi: (tokens) => sesiStore.getState().masuk(tokens),
       });
-      if (hasil.ok) await sesiStore.getState().masuk(hasil.tokens);
-      else if (hasil.sebab === "galat") setGalatUmum(hasil.pesan);
+      if (!hasil.ok) {
+        if (hasil.sebab === "galat") setGalatUmum(hasil.pesan);
+        else setInfoGoogle(hasil.pesan);
+      }
+    } catch (err) {
+      setGalatUmum(pesanGalat(err));
     } finally {
       setKeGoogle(false);
     }
@@ -108,6 +116,12 @@ export function MasukScreen({ navigation }: Props) {
           style={{ color: warna.bahaya, fontSize: UKURAN_HURUF.isi * skalaTeks }}
         >
           {galatUmum}
+        </Text>
+      ) : null}
+
+      {infoGoogle ? (
+        <Text testID="info-google" accessibilityLiveRegion="polite" style={teks}>
+          {infoGoogle}
         </Text>
       ) : null}
 
