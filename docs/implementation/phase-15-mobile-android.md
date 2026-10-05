@@ -198,7 +198,9 @@ RB-Std.
 
 **Login OTP + Google (PKCE) + sesi.**
 
-Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode), Google via PKCE, guarded stack, refresh via api-client.
+Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode), Google via Android Credential Manager (ID token + nonce server), guarded stack, refresh via api-client.
+
+> **Revisi 2026-10-05 (keputusan owner):** Google di Android **tidak** memakai authorization code + PKCE. Credential Manager menghasilkan Google ID token ber-`aud` Web Client ID (`serverClientId`) yang dikirim ke endpoint baru `POST /api/v1/auth/google/mobile`. Custom Tab bukan alur utama, dan `nawasena://` tidak dipakai sebagai redirect OAuth Google.
 
 #### Scope
 
@@ -208,7 +210,8 @@ Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode),
 
 **Backend Changes:**
 
-* Tidak ada.
+* `POST /api/v1/auth/google/mobile/nonce` — nonce sekali pakai (Redis cache, TTL 5 menit, disimpan sebagai SHA-256).
+* `POST /api/v1/auth/google/mobile` — body `{ idToken }`; verifikasi tanda tangan (JWKS), issuer, audience = Web Client ID, kedaluwarsa, email terverifikasi, lalu konsumsi atomik klaim `nonce`; find-or-create + sesi sama dengan login Google web; refresh token selalu di body.
 
 **Frontend Changes:**
 
@@ -224,11 +227,14 @@ Bisnis: pintu masuk Android setara web. Teknis: layar login OTP (autofill kode),
 
 **API Changes:**
 
-* Tidak ada (konsumsi).
+* Dua endpoint publik baru (aditif) di atas; OpenAPI + `@nawasena/api-client` (`requestGoogleMobileNonce`, `googleMobileAuth`).
 
 **Security Considerations:**
 
-* PKCE wajib; token di SecureStore; tidak log token.
+* PKCE S256 wajib untuk OAuth Authorization Code flow (web).
+* Android Native Google Sign-In memakai Credential Manager + Google ID token dan **tidak** dipaksa memakai authorization-code PKCE flow; anti-replay dipegang nonce terbitan server yang dikonsumsi sekali.
+* OAuth client Android (package `id.nawasena.app` + SHA-1/SHA-256 sertifikat) tetap dibuat; Web OAuth Client ID dipakai sebagai `serverClientId`.
+* Refresh token hanya di SecureStore; access token hanya di memori; tidak log token.
 
 **Testing Checklist:**
 

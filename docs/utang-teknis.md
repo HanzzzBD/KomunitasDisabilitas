@@ -977,6 +977,33 @@ state, dan event fokus sudah teruji di jest-expo. Yang belum terbukti adalah uca
 perpindahan fokus nyata, diuji di dua versi Android lewat
 `docs/implementation/log/pr-089-talkback-checklist.md`.
 
+**Ditambah PR-090 (2026-10-05).** Alur masuk menumpang build yang sama, dan build ini sekaligus
+**satu-satunya bukti kompilasi** modul Kotlin lokal `apps/mobile/modules/google-credential`
+(build native lokal Windows mentok MAX_PATH). Butuh: OAuth client Android (package
+`id.nawasena.app` + SHA-1 keystore EAS), `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` di environment
+`preview`, dan API HTTPS yang terjangkau HP (staging belum ada — tunnel ke API lokal cukup).
+AC yang menunggu: OTP end-to-end (sender uji), Google end-to-end, autofill SMS, sesi bertahan
+restart, dan TalkBack lewat `docs/implementation/log/pr-090-talkback-checklist.md` +
+`.maestro/masuk-otp.yaml`.
+
+---
+
+### U-36 — OTP autofill hanya hint, tanpa SMS Retriever
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Keputusan sadar (keputusan owner 2026-10-05) |
+| **Ditemukan** | PR-090 (2026-10-05) |
+| **Pemilik** | Phase 15 / tim mobile |
+| **Pemicu** | SMS menjadi kanal OTP utama (mis. Fonnte/WhatsApp diganti), atau keluhan autofill dari uji pengguna |
+
+Kolom kode memakai `autoComplete="sms-otp"` + `textContentType="oneTimeCode"`; layanan autofill
+Android/Gboard menawarkan kode dari SMS. SMS Retriever API (baca otomatis tanpa izin) **tidak**
+dipasang: kanal utama OTP adalah WhatsApp (Fonnte) yang tidak terjangkau API itu, dan
+memasangnya menuntut library native + hash aplikasi 11 karakter di teks SMS (ubah
+`buildOtpMessage` di API) yang hanya berguna untuk jalur fallback Twilio.
+
 ---
 
 ## Di luar scope — JANGAN ditarik ke PR berjalan

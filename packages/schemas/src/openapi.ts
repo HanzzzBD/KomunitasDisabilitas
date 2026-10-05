@@ -14,6 +14,8 @@ import {
   verifyOtpResponseSchema,
   googleAuthSchema,
   googleAuthResponseSchema,
+  googleMobileAuthSchema,
+  googleMobileNonceResponseSchema,
   refreshSessionSchema,
   refreshSessionResponseSchema,
 } from "./auth.js";
@@ -340,6 +342,53 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
             "400": errorResponse("Input tidak valid"),
             "401": errorResponse("Code/verifier ditolak Google, atau id_token tidak sah"),
             "403": errorResponse("Email Google belum terverifikasi"),
+            "503": errorResponse("Login Google belum dikonfigurasi atau Google tidak terjangkau"),
+          },
+        },
+      },
+      // Sign in with Google Android (PR-090): Credential Manager → id_token.
+      // Tanpa authorization code, jadi tanpa PKCE; replay ditutup nonce server.
+      "/auth/google/mobile/nonce": {
+        post: {
+          operationId: "issueGoogleMobileNonce",
+          tags: ["auth"],
+          summary: "Terbitkan nonce masuk Google (Android)",
+          security: [],
+          description:
+            "Nonce acak sekali pakai (berlaku 5 menit) yang aplikasi teruskan ke Credential " +
+            "Manager. Google menandatanganinya di klaim `nonce` id_token.",
+          responses: {
+            "200": {
+              description: "Nonce diterbitkan",
+              content: { "application/json": { schema: googleMobileNonceResponseSchema } },
+            },
+            "503": errorResponse("Login Google belum dikonfigurasi"),
+          },
+        },
+      },
+      "/auth/google/mobile": {
+        post: {
+          operationId: "loginWithGoogleMobile",
+          tags: ["auth"],
+          summary: "Masuk dengan Google dari aplikasi Android",
+          security: [],
+          description:
+            "Memverifikasi Google ID token dari Credential Manager (tanda tangan, issuer, " +
+            "audience = Web Client ID, kedaluwarsa, email terverifikasi) dan mengonsumsi " +
+            "nonce-nya. Refresh token selalu dikembalikan di body.",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: googleMobileAuthSchema } },
+          },
+          responses: {
+            "200": {
+              description: "Masuk berhasil",
+              content: { "application/json": { schema: googleAuthResponseSchema } },
+            },
+            "400": errorResponse("Input tidak valid"),
+            "401": errorResponse("id_token tidak sah, atau nonce tidak dikenal/terpakai"),
+            "403": errorResponse("Email Google belum terverifikasi"),
+            "409": errorResponse("Email Google dipegang akun lain"),
             "503": errorResponse("Login Google belum dikonfigurasi atau Google tidak terjangkau"),
           },
         },

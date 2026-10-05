@@ -48,7 +48,33 @@ Hasilnya APK distribusi internal (tautan unduh dari EAS) untuk device uji.
   `@nawasena/schemas`/`api-client` dipetakan oleh resolver di `metro.config.js`.
 - `EXPO_PUBLIC_*` ikut ter-inline ke APK — publik. Jangan menaruh rahasia di sana.
 
+## Masuk (PR-090)
+
+- **OTP**: nomor HP → kode 6 angka (`autoComplete="sms-otp"` agar autofill Android
+  menawarkan kode dari SMS). Sesi: access token di memori (`src/auth/sesi.ts`,
+  Zustand), refresh token di SecureStore; boot memulihkan sesi lewat `/auth/refresh`.
+- **Google**: Android Credential Manager lewat modul native lokal
+  `modules/google-credential` (Kotlin, ditemukan autolinking Expo). **Bukan**
+  Custom Tab dan **bukan** redirect `nawasena://`. Alurnya: nonce dari
+  `POST /auth/google/mobile/nonce` → pemilih akun → id_token →
+  `POST /auth/google/mobile`. PKCE tidak berlaku di jalur ini; anti-replay
+  dipegang nonce sekali pakai terbitan server.
+- Modul native hanya ada di build EAS (dan dev client) — **tidak** di Expo Go.
+  Tanpa modul atau tanpa client ID, tombol Google disembunyikan.
+
+Penyiapan Google Cloud Console (sekali, oleh pemilik proyek GCP):
+
+1. **OAuth client tipe Android**: package `id.nawasena.app` + SHA-1 sertifikat
+   penandatangan (`npx eas-cli credentials` → Android → keystore). Satu client per
+   sertifikat (internal/EAS, nanti Play App Signing). Client ini tidak dipakai di
+   kode — Google memakainya untuk mengizinkan APK kita meminta token.
+2. **Web Client ID** yang sama dengan `GOOGLE_CLIENT_ID` API dipakai sebagai
+   `serverClientId`: isi `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` di environment EAS
+   **preview**. id_token yang dihasilkan ber-`aud` Web Client ID ini, sehingga
+   verifier API yang sama menerimanya.
+
 ## Smoke test
 
-`.maestro/boot-smoke.yaml` (boot + deep link), dijalankan manual:
-`maestro test apps/mobile/.maestro/boot-smoke.yaml`. Belum di CI.
+`.maestro/boot-smoke.yaml` (boot + deep link) dan `.maestro/masuk-otp.yaml`
+(OTP dengan sender uji), dijalankan manual:
+`maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.

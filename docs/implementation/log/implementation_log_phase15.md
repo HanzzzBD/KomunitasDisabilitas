@@ -201,3 +201,103 @@ dan ukuran huruf dari token.
 ### Next steps
 
 * PR-090: login OTP + Google (pemakai pertama Tombol, Masukan, dan Dialog).
+
+---
+
+## PR-090 — Mobile Auth
+
+> **Phase:** [15 - Mobile (Android)](../phase-15-mobile-android.md#pr-090---mobile-auth)
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi selesai; AC runtime menunggu build EAS + device (U-35)
+> **Branch:** `pr-090-mobile-auth` → `phase-15-mobile-android`
+
+### Ringkasan hasil
+
+Android kini punya pintu masuk setara web. **OTP**: layar nomor HP → layar kode (hint autofill
+SMS) → sesi. **Google**: Android Credential Manager lewat modul Kotlin lokal → Google ID token →
+endpoint baru `POST /auth/google/mobile` yang memverifikasi token dan mengonsumsi nonce terbitan
+server. **Sesi**: store Zustand (access token di memori), refresh token di SecureStore, boot
+memulihkan sesi, 401 → refresh single-flight milik api-client, dan stack navigasi berganti
+seluruhnya menurut status sesi (guarded stack). Beranda mendapat tombol Keluar ber-Dialog.
+
+### Keputusan owner (2026-10-05)
+
+| Keputusan | Pilihan | Alasan |
+|---|---|---|
+| Google di Android | **Credential Manager + ID token** (bukan Custom Tab/PKCE) | Login terasa native. Google menolak redirect skema kustom untuk client Web, dan skema kustom di client Android baru dimatikan bawaan. Aturan "PKCE wajib" direvisi: wajib untuk authorization-code flow (web); Android memakai ID token + nonce. |
+| Implementasi native | **Expo module lokal** (`apps/mobile/modules/google-credential`) | Versi Credential Manager `@react-native-google-signin` berbayar; `react-native-credentials-manager` (MIT, 0.9.0) me-`Log.d` email ke logcat dan bergantung pada `androidx.credentials` 1.6.0-alpha02. Modul sendiri: ±60 baris Kotlin, tanpa log, dependensi stabil dipin. |
+| Nonce | **Terbitan server, sekali pakai** | Nonce buatan klien tidak menutup replay — pencuri token juga membawa nonce-nya. |
+| OTP autofill | **Hint saja** (U-36) | Kanal utama WhatsApp; SMS Retriever hanya menolong fallback SMS dan menuntut ubahan teks SMS di API. |
+| Gerbang U-35 | **Owner menjalankan build EAS sebelum merge** | Pemicu U-35 = sebelum PR-090 di-merge; build itu juga satu-satunya bukti modul Kotlin terkompilasi. |
+
+### Keputusan teknis
+
+* **Backend aditif, verifier yang sama.** id_token Credential Manager ber-`aud` Web Client ID
+  (`GOOGLE_CLIENT_ID`), jadi `createGoogleIdTokenVerifier` dipakai ulang; client ID Android
+  hanya muncul di `azp`. Verifier mendapat metode `verifyDenganNonce` (antarmuka terpisah,
+  `GoogleMobileIdTokenVerifier`) supaya nonce tidak menumpang `GoogleIdentity` ke repository.
+* **Langkah find-or-create + sesi + audit diekstrak** (`buatPenyelesai`) dan dipakai web dan
+  Android. Aturan penautan akun (PR-020a) tidak bisa menyimpang di antara keduanya.
+* **Urutan: tanda tangan dulu, nonce kemudian.** Nonce hanya dipercaya karena Google
+  menandatanganinya; mengonsumsinya dari token yang belum terverifikasi berarti siapa pun bisa
+  membakar nonce orang lain (diuji: audience salah → 401 dan nonce tetap ada).
+* **Konsumsi nonce = `DEL` atomik** (hasil 1 = sah). Dua permintaan bersamaan dengan nonce sama
+  → tepat satu 200 (diuji). Redis cache (allkeys-lru): nonce ter-evict = gagal tertutup.
+  Disimpan sebagai SHA-256, bukan nilai mentah.
+* **Satu jawaban untuk nonce tidak ada / tidak dikenal / terpakai** (`TOKEN_GOOGLE_TIDAK_VALID`),
+  diaudit sebagai `AUTH_LOGIN_FAILED` dengan alasan baru `googleNonceInvalid` (anggota enum
+  aditif).
+* **Modul Kotlin** memakai `GetSignInWithGoogleOption` (alur tombol: pemilih akun selalu
+  tampil, tidak diam-diam memilih akun) dan hanya mengembalikan id_token. Kode galat
+  `DIBATALKAN`/`TIDAK_ADA_AKUN`/`GAGAL` adalah kontrak dengan `src/auth/google.ts`. Modul
+  dimuat dengan `requireOptionalNativeModule`: di Expo Go tombol Google disembunyikan, bukan crash.
+* **`.gitignore` mobile dijangkarkan** (`/android/`, `/ios/`). Pola lama `android/` ikut
+  mengabaikan `modules/google-credential/android/` — modulnya akan hilang diam-diam dari commit.
+* **Store sesi murni** (`zustand/vanilla`, deps disuntik) → diuji Vitest. Boot: tanpa token →
+  `keluar`; refresh sah → simpan token rotasi **sebelum** menyatakan `masuk`; ditolak → buang
+  token; jaringan gagal → `terputus` tanpa membuang token (sinyal buruk bukan alasan mengulang OTP).
+  `masuk()` menolak respons tanpa refresh token (bentuk web) alih-alih membuat sesi yang tidak
+  bertahan restart.
+* **Guarded stack**: layar Masuk/Verifikasi dan Beranda tidak pernah terdaftar bersamaan, jadi
+  Kembali sesudah masuk tidak bisa mencapai layar OTP. `initialRouteName` di linking dihapus
+  karena Beranda tidak ada di stack "keluar".
+* **Layar**: nomor dinormalisasi dari `08…`/`62…`/`+62 …`; kode dirapikan ke 6 angka (aman untuk
+  tempel dari WhatsApp); tidak kirim otomatis saat 6 angka (WCAG 3.2.2); hitung mundur kirim
+  ulang bukan live region; galat umum `assertive`.
+* `zustand` 5.0.2 ditambahkan ke mobile lewat edit manifest + `pnpm install --offline`.
+  `pnpm add` menggantung > 10 menit selama `pnpm dev` berjalan di mesin yang sama.
+
+### Verifikasi
+
+* API: `auth-google-mobile-http.test.ts` 9 test (nonce, sukses tanpa cookie, replay, balapan,
+  nonce karangan, tanpa nonce, audience Android, 400, 503) + `rbac-http` diperbarui. Suite API
+  1901 hijau / 308 skip (Docker mati lokal — test DB/Redis dijalankan CI).
+* api-client 165 (5 baru), schemas 115 + `check:openapi` sinkron, web 819, ui-native 22,
+  mobile 64 (31 baru: sesi 11, alur masuk/Google 20).
+* `pnpm typecheck` + `pnpm lint` 10/10, `pnpm format:check` bersih.
+* `expo-modules-autolinking search -p android` menemukan `google-credential`;
+  `expo export --platform android` sukses (bundle Hermes 2,4 MB).
+* **Belum**: kompilasi Kotlin (hanya di EAS) dan seluruh AC runtime.
+
+### Status Acceptance Criteria
+
+* [ ] OTP end-to-end di build internal (sender uji) — U-35; `.maestro/masuk-otp.yaml` siap.
+* [ ] Google login end-to-end — U-35 (butuh OAuth client Android + SHA-1).
+* [ ] SMS/OTP autofill bekerja — hint terpasang; SMS Retriever sengaja tidak (U-36).
+* [ ] Alur selesai dengan TalkBack — [checklist](pr-090-talkback-checklist.md), U-35.
+* [ ] Sesi bertahan restart app — teruji di unit test store; runtime menunggu APK (U-35).
+
+### Risiko & catatan
+
+* Ukuran PR ± 2.300 baris (> 500), sebagian besar test, dokumentasi, dan `openapi.json`
+  hasil generator. Backend tidak dipisah karena endpoint tanpa pemakai tidak bisa diuji
+  end-to-end.
+* Fragmentasi OEM: Credential Manager di Android ≤ 13 bergantung pada Google Play Services
+  (`credentials-play-services-auth`). Checklist meminta dua vendor.
+* Akun yang hanya punya Google di HP tetapi email-nya diklaim akun OTP lain tetap 409 (PR-020a)
+  — pesannya mengarahkan ke OTP, sama dengan web.
+
+### Next steps
+
+* Owner: build EAS internal + uji (U-35), lalu merge.
+* PR-091: onboarding + ThemeProvider a11y mobile (store preferensi menggantikan `ACCESSIBILITY_DEFAULTS`).

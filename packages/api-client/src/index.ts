@@ -24,6 +24,8 @@ export {
   requestOtp,
   verifyOtp,
   googleAuth,
+  googleMobileAuth,
+  requestGoogleMobileNonce,
   refreshSession,
   logout,
   logoutAll,
