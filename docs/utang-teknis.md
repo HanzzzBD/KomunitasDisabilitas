@@ -986,6 +986,11 @@ AC yang menunggu: OTP end-to-end (sender uji), Google end-to-end, autofill SMS, 
 restart, dan TalkBack lewat `docs/implementation/log/pr-090-talkback-checklist.md` +
 `.maestro/masuk-otp.yaml`.
 
+**Ditambah PR-091 (2026-10-05).** Onboarding + tema menumpang build yang sama. AsyncStorage
+(modul native baru) ikut terbukti di build ini. AC yang menunggu: preferensi web ↔ mobile, setelan
+OS dihormati, pratinjau langsung, wizard dengan TalkBack, dan font OS 200% — lewat
+`docs/implementation/log/pr-091-talkback-checklist.md` + `.maestro/onboarding.yaml`.
+
 ---
 
 ### U-36 — OTP autofill hanya hint, tanpa SMS Retriever
@@ -1003,6 +1008,43 @@ Android/Gboard menawarkan kode dari SMS. SMS Retriever API (baca otomatis tanpa 
 dipasang: kanal utama OTP adalah WhatsApp (Fonnte) yang tidak terjangkau API itu, dan
 memasangnya menuntut library native + hash aplikasi 11 karakter di teks SMS (ubah
 `buildOtpMessage` di API) yang hanya berguna untuk jalur fallback Twilio.
+
+---
+
+### U-37 — Mobile tanpa katalog i18n: `simpleLanguage` belum mengubah teks
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Keputusan sadar (keputusan owner 2026-10-05) |
+| **Ditemukan** | PR-091 (2026-10-05) |
+| **Pemilik** | Phase 15 / tim mobile |
+| **Pemicu** | Layar mobile pertama yang teksnya berbeda bermakna antara `id` dan `id-simple`, atau katalog web dipindah ke paket bersama |
+
+Teks mobile ditulis sekali dalam bahasa sederhana (setara varian `id-simple` web). Preferensi
+`simpleLanguage` tetap tersimpan, tersinkron ke akun, dan ditampilkan di wizard, tetapi di mobile
+belum memilih varian teks apa pun. Katalog web (`apps/web/src/shared/i18n`) tidak bisa diimpor
+dari app lain; pilihannya kelak: pindahkan registri + katalog ke paket bersama, atau katalog mobile
+sendiri. `docs/panduan-bahasa-sederhana.md` tetap berlaku untuk teks mobile.
+
+---
+
+### U-38 — Ragam disabilitas dari wizard onboarding tidak disimpan (web & mobile)
+
+| | |
+|---|---|
+| **Status** | TERBUKA |
+| **Jenis** | Fitur tertunda (keputusan owner 2026-10-05: mobile paritas web) |
+| **Ditemukan** | PR-091 (2026-10-05); perilakunya berasal dari PR-035 |
+| **Pemilik** | PR-092 (profil mobile) untuk mobile; web menyusul bersama |
+| **Pemicu** | PR-092, atau keluhan pengguna yang harus mengisi ragam disabilitas dua kali (wizard lalu profil) |
+
+Wizard PR-035 ditulis saat endpoint data sensitif (PR-037) belum ada, jadi ragam disabilitas +
+izinnya hanya hidup di memori untuk ringkasan, dan teksnya berjanji "tidak dikirim". Endpoint
+profil sensitif + consent kini ada, tetapi wizard web tidak pernah disambungkan; mobile PR-091
+sengaja mengikuti web. Saat disambungkan: kirim `disabilityTypes` + `consentSensitive` HANYA bila
+kotak izin dicentang, ubah teks "tidak dikirim" di kedua platform pada PR yang sama, dan ikuti
+`docs/akses-data-sensitif.md`.
 
 ---
 

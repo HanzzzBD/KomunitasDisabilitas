@@ -326,3 +326,96 @@ belum dikonfirmasi. U-35 tetap terbuka.
 Merge menunggu check GitHub `lint-typecheck-test` dan `a11y` hijau. Rebase berikutnya
 mempertahankan dependensi antarcabang dan seluruh perubahan lokal yang belum
 di-commit. Branch phase tidak didorong langsung dan `main` tidak diubah.
+
+---
+
+## PR-091 — Mobile Onboarding + ThemeProvider A11y
+
+> **Phase:** [15 - Mobile (Android)](../phase-15-mobile-android.md#pr-091---mobile-onboarding--themeprovider-a11y)
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi selesai; AC runtime menunggu build EAS + device (U-35)
+> **Branch:** `pr-091-mobile-onboarding`, ditumpuk di atas `pr-090-mobile-auth` (commit lokal,
+> belum di-push — PR-090 menunggu build EAS)
+
+### Ringkasan hasil
+
+Mobile kini memakai profil aksesibilitas yang sama dengan web. `PenyediaTema` menghitung
+preferensi efektif lewat `rekonsiliasi(pilihanPengguna, sinyalOS)` dan memberikannya ke token
+`@nawasena/ui-native`. Sinyal OS dibaca dari setelan Android (*Hapus animasi*, *Teks kontras
+tinggi*) dan diikuti saat app terbuka. Saat masuk, preferensi akun ditarik dan digabung per field
+dengan aturan yang sama dengan web. Wizard empat langkah (paritas PR-035) tampil untuk akun yang
+belum pernah mengatur apa pun. Saat keluar, preferensi dihapus dari perangkat.
+
+### Keputusan owner (2026-10-05)
+
+| Keputusan | Pilihan | Alasan |
+|---|---|---|
+| Branch | **Commit lokal PR-090 + stack** | PR-090 menunggu build EAS; tidak ada yang masuk remote sebelum owner setuju. |
+| Ragam disabilitas | **Paritas web: tidak dikirim** | Mobile tidak boleh lebih jauh dari web di jalur data sensitif. Penyimpanan sungguhan → U-38 (PR-092). |
+| i18n | **Teks sederhana langsung** | Mobile belum punya katalog; `simpleLanguage` tersinkron tetapi belum mengubah teks (U-37). |
+| Kapan wizard tampil | **Penanda perangkat belum ada DAN profil akun kosong** | Pengguna yang sudah mengatur di web tidak ditanya ulang di HP. |
+
+### Keputusan teknis
+
+* **`gabungkanDariServer` dipindah dari `apps/web` ke inti `@nawasena/a11y`** (`sinkron.ts`),
+  ditambah `profilBelumDiatur`. Web mengekspor ulang dari `penyedia-a11y.tsx`, jadi 18 test
+  sinkron web tetap berjalan tanpa diubah. Dua salinan aturan "server menang per field" akan
+  menyimpang di perbaikan berikutnya.
+* **Store** = `createA11yStore` dengan AsyncStorage (`@react-native-async-storage/async-storage`
+  2.2.0, versi bawaan SDK 57). Penyimpanan yang gagal ditelan: preferensi tetap berlaku sesi ini.
+* **`pantauSinyalOS`** murni (sumber disuntik). Gagal baca = `undefined`, bukan `false`. Event yang
+  tiba sebelum bacaan awal tidak ditimpa. `isScreenReaderEnabled` sengaja tidak dibaca
+  (`screenReaderHint` adalah pernyataan pengguna, paritas web). Ukuran font OS tidak dipetakan:
+  RN sudah menerapkannya, dan skala preferensi ditumpuk di atasnya (PR-089).
+* **Koordinator** (`zustand/vanilla`, deps disuntik) berlangganan store sesi:
+  * keluar → masuk: cuplik pilihan → GET sekali → gabung → putuskan wizard;
+  * masuk → keluar: hapus ketujuh pilihan;
+  * boot tanpa sesi tidak menghapus apa pun;
+  * jawaban GET milik sesi yang sudah keluar dibuang (penghitung generasi).
+
+  Profil gagal diambil → `selesai` tanpa ditandai (tidak menahan pengguna).
+* **Wizard** mengirim `pilihanPengguna`, bukan nilai efektif: sakelar yang tidak disentuh tetap
+  NULL di akun dan setelan OS tetap berlaku di perangkat lain. Gagal kirim: penanda tetap ditulis,
+  galat + "Pilihan Anda tetap berlaku di HP ini" + "Lanjutkan saja". Fokus TalkBack pindah ke judul
+  langkah hanya saat langkah berganti. Skala teks memakai dua tombol (Perkecil/Perbesar) + nilai
+  live region, bukan slider (RN inti tidak punya; sulit bagi motorik terbatas).
+* **`KotakCentang` baru di `@nawasena/ui-native`**: seluruh baris jadi area sentuh, role
+  `checkbox` + state, ✓ + isian (bukan warna saja), label membungkus di skala besar.
+* **Header navigasi + transisi ikut token**: kontras tinggi berlaku di bilah judul; "kurangi
+  gerakan" → `animation: "none"`.
+* **Rollback**: `EXPO_PUBLIC_ONBOARDING_WIZARD_ENABLED=false` (paritas
+  `VITE_ONBOARDING_WIZARD_ENABLED`; bawaan aktif).
+* Komentar wizard web masih menyebut "PR-037 belum ada". Alasan itu sudah basi; keadaannya dicatat
+  di U-38 dan teks kedua platform diubah bersamaan saat disambungkan.
+
+### Verifikasi
+
+* mobile 88 test (24 baru: sinyal OS 5, koordinator/keputusan/mesin langkah 19); a11y 81 (+3);
+  ui-native 25 (+3 KotakCentang); web 819 (termasuk 18 sinkron lewat ekspor ulang).
+* `pnpm typecheck` + `pnpm lint` 10/10, `format:check` bersih.
+* `expo export --platform android` sukses (2,4 MB). Bundel awal web 109,3 / 200 KB (`cek:budget`).
+
+### Status Acceptance Criteria
+
+* [ ] Preferensi web tercermin di mobile pasca-login (dan sebaliknya). Penggabungan + PUT teruji
+  di unit test; runtime → checklist #19–20 (U-35).
+* [ ] Setting OS dihormati bila user belum eksplisit. Rekonsiliasi + pemetaan teruji; runtime →
+  checklist #12–15.
+* [ ] Preview live paritas web. Kendali menulis store yang sama dengan `PenyediaTema`; runtime → #6–7.
+* [ ] Wizard selesai dengan TalkBack. [Checklist](pr-091-talkback-checklist.md) + `.maestro/onboarding.yaml`.
+* [ ] Font scale OS ekstrem (200%) tidak memecah layar inti. Semua layar ScrollView + flexWrap;
+  runtime → #16–18.
+
+### Risiko & catatan
+
+* Preferensi akun ditarik SEKALI per masuk (paritas web). Perubahan di perangkat lain baru
+  terlihat pada masuk berikutnya.
+* Skala preferensi 200% di atas font OS 200% = 4× ukuran dasar. Layar menggulir, tetapi kalau
+  checklist #16–18 menunjukkan kerusakan, opsinya `maxFontSizeMultiplier` per elemen.
+* Ukuran PR ± 1.400 baris (> 500), terbesar test dan dokumentasi.
+
+### Next steps
+
+* Owner: build EAS + uji PR-090/091 (U-35). Lalu urutannya: push + merge PR-090, rebase PR-091 ke
+  `phase-15-mobile-android`, push + merge.
+* PR-092: profil & CV mobile (termasuk U-38 untuk mobile).

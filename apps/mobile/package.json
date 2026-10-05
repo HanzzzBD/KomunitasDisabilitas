@@ -17,6 +17,7 @@
     "@nawasena/api-client": "workspace:*",
     "@nawasena/schemas": "workspace:*",
     "@nawasena/ui-native": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "7.5.0",
     "@react-navigation/native-stack": "7.20.0",
     "expo": "57.0.26",

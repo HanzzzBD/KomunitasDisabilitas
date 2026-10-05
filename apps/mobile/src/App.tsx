@@ -1,5 +1,4 @@
-import { ACCESSIBILITY_DEFAULTS } from "@nawasena/a11y";
-import { PenyediaTokenA11y } from "@nawasena/ui-native";
+import { useTokenA11y } from "@nawasena/ui-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
@@ -9,11 +8,14 @@ import { useStore } from "zustand";
 
 // Dirakit saat boot, bukan saat permintaan pertama: build non-dev tanpa URL API
 // HTTPS langsung gagal di sini (fail-fast), tidak diam-diam di layar fitur.
+import { PenyediaTema } from "./a11y/PenyediaTema";
 import { sesiStore } from "./api";
 import { linking } from "./navigation/linking";
+import { onboardingStore } from "./onboarding/instans";
 import type { RootStackParamList } from "./navigation/types";
 import { BerandaScreen } from "./screens/BerandaScreen";
 import { MasukScreen } from "./screens/MasukScreen";
+import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { MemulihkanScreen, TerputusScreen } from "./screens/StatusSesiScreen";
 import { VerifikasiScreen } from "./screens/VerifikasiScreen";
 
@@ -28,18 +30,39 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 function Navigasi() {
   const status = useStore(sesiStore, (s) => s.status);
+  // Gerbang onboarding (PR-091) hanya berarti saat sudah masuk.
+  const onboarding = useStore(onboardingStore, (s) => s.status);
+  const { warna, kurangiGerak } = useTokenA11y();
 
   useEffect(() => {
     void sesiStore.getState().pulihkan();
   }, []);
 
   if (status === "memulihkan") return <MemulihkanScreen />;
+  // Preferensi akun sedang ditarik: layar tunggu, bukan Beranda yang lalu
+  // berganti tampilan begitu preferensinya tiba.
+  if (status === "masuk" && onboarding === "menunggu") return <MemulihkanScreen />;
   if (status === "terputus") return <TerputusScreen />;
 
   return (
     <NavigationContainer linking={linking}>
-      <Stack.Navigator>
-        {status === "masuk" ? (
+      {/* Header & transisi ikut token: kontras tinggi berlaku juga di bilah
+          judul, dan "kurangi gerakan" mematikan animasi geser antarlayar. */}
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: warna.latar },
+          headerTintColor: warna.teks,
+          contentStyle: { backgroundColor: warna.latar },
+          animation: kurangiGerak ? "none" : "default",
+        }}
+      >
+        {status === "masuk" && onboarding === "perlu" ? (
+          <Stack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ title: "Atur aplikasi" }}
+          />
+        ) : status === "masuk" ? (
           <Stack.Screen name="Beranda" component={BerandaScreen} options={{ title: "Beranda" }} />
         ) : (
           <>
@@ -59,10 +82,10 @@ function Navigasi() {
 export function App() {
   return (
     <SafeAreaProvider>
-      {/* Preferensi bawaan dulu; store + sinkron akun disambungkan di PR-091. */}
-      <PenyediaTokenA11y preferensi={ACCESSIBILITY_DEFAULTS}>
+      {/* Preferensi efektif (pilihan pengguna > setelan Android > bawaan), PR-091. */}
+      <PenyediaTema>
         <Navigasi />
-      </PenyediaTokenA11y>
+      </PenyediaTema>
       <StatusBar style="dark" />
     </SafeAreaProvider>
   );
