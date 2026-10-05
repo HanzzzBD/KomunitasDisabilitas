@@ -41,9 +41,9 @@ appId: id.nawasena.app
 - tapOn:
     id: "tombol-simpan"
 - assertVisible:
-    id: "layar-beranda"
+    id: "layar-feed"
 # Restart: wizard tidak muncul lagi untuk akun ini di perangkat ini.
 - stopApp
 - launchApp
 - assertVisible:
-    id: "layar-beranda"
+    id: "layar-feed"

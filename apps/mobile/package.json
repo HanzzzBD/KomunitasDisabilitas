@@ -16,6 +16,7 @@
     "@nawasena/a11y": "workspace:*",
     "@nawasena/api-client": "workspace:*",
     "@nawasena/formulir": "workspace:*",
+    "@nawasena/lowongan": "workspace:*",
     "@nawasena/schemas": "workspace:*",
     "@nawasena/ui-native": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",

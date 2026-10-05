@@ -1,0 +1,38 @@
+# Feed → detail PR-093 — manual, di APK internal, akun yang sudah masuk, sudah
+# melewati onboarding, dan profilnya cukup untuk dicocokkan:
+#   maestro test apps/mobile/.maestro/feed-detail.yaml
+# Belum di CI (butuh emulator + API staging, Phase 16).
+appId: id.nawasena.app
+---
+- launchApp
+- assertVisible:
+    id: "layar-feed"
+- assertVisible: "Lowongan untuk Anda"
+# Alternatif tombol untuk tarik-untuk-muat-ulang.
+- tapOn:
+    id: "tombol-muat-ulang"
+# Buka kartu pertama, lalu kembali: posisi daftar tetap.
+- tapOn:
+    id: "kartu-lowongan-.*"
+    index: 0
+- assertVisible:
+    id: "layar-lowongan-detail"
+- assertVisible: "Ringkasan"
+- scrollUntilVisible:
+    element: "Tentang perusahaan"
+- back
+- assertVisible:
+    id: "layar-feed"
+# --- Cari + filter ---
+- tapOn: "Cari"
+- tapOn:
+    id: "masukan-kata-kunci"
+- inputText: "admin"
+- tapOn:
+    id: "tombol-panel-filter"
+- tapOn:
+    id: "pilihan-mode-remote"
+- tapOn:
+    id: "tombol-cari"
+- assertVisible:
+    id: "pengumuman-hasil"

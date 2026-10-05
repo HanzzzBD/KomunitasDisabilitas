@@ -1,0 +1,9 @@
+{
+  "extends": "@nawasena/config/tsconfig/node",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

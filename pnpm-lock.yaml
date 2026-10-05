@@ -119,6 +119,9 @@ importers:
       '@nawasena/formulir':
         specifier: workspace:*
         version: link:../../packages/formulir
+      '@nawasena/lowongan':
+        specifier: workspace:*
+        version: link:../../packages/lowongan
       '@nawasena/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -216,6 +219,9 @@ importers:
       '@nawasena/formulir':
         specifier: workspace:*
         version: link:../../packages/formulir
+      '@nawasena/lowongan':
+        specifier: workspace:*
+        version: link:../../packages/lowongan
       '@nawasena/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -454,6 +460,31 @@ importers:
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.33.0)(terser@5.51.2)
 
   packages/formulir:
+    dependencies:
+      '@nawasena/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      zod:
+        specifier: 3.24.1
+        version: 3.24.1
+    devDependencies:
+      '@nawasena/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 22.10.2
+        version: 22.10.2
+      eslint:
+        specifier: 8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.33.0)(terser@5.51.2)
+
+  packages/lowongan:
     dependencies:
       '@nawasena/schemas':
         specifier: workspace:*

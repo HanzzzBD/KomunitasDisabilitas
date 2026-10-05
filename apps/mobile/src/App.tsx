@@ -19,6 +19,7 @@ import type { RootStackParamList } from "./navigation/types";
 import { queryClient, saatKeluar } from "./query";
 import { CvBagianScreen } from "./screens/cv/CvBagianScreen";
 import { CvEditorScreen } from "./screens/cv/CvEditorScreen";
+import { LowonganDetailScreen } from "./screens/lowongan/LowonganDetailScreen";
 import { MasukScreen } from "./screens/MasukScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { KarierFormScreen } from "./screens/profil/KarierFormScreen";
@@ -102,6 +103,11 @@ function Navigasi() {
               name="CvBagian"
               component={CvBagianScreen}
               options={{ title: "Ubah CV" }}
+            />
+            <Stack.Screen
+              name="LowonganDetail"
+              component={LowonganDetailScreen}
+              options={{ title: "Detail lowongan" }}
             />
           </>
         ) : (

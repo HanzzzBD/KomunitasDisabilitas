@@ -9,9 +9,10 @@ import type { NavigatorScreenParams } from "@react-navigation/native";
 import type { BagianCv } from "../cv/bagian";
 import type { JenisKarier } from "../profil/karier";
 
-/** Tab bawah (PR-092). PR-093+ menambah Lowongan/Lamaran. */
+/** Tab bawah (PR-092). PR-093: Beranda = feed, tab Cari. PR-094 menambah Lamaran. */
 export type TabParamList = {
   Beranda: undefined;
+  Cari: undefined;
   Profil: undefined;
   Cv: undefined;
 };
@@ -31,4 +32,6 @@ export type RootStackParamList = {
   KarierForm: { jenis: JenisKarier; id: string | null };
   CvEditor: { id: string };
   CvBagian: { id: string; bagian: BagianCv };
+  // --- PR-093 ---
+  LowonganDetail: { id: string };
 };

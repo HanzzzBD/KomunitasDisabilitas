@@ -6,8 +6,11 @@
 import { useTokenA11y, UKURAN_HURUF } from "@nawasena/ui-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
+import { feedMatchingAktif } from "../lowongan/teks";
 import { BerandaScreen } from "../screens/BerandaScreen";
 import { CvDaftarScreen } from "../screens/cv/CvDaftarScreen";
+import { CariScreen } from "../screens/lowongan/CariScreen";
+import { FeedScreen } from "../screens/lowongan/FeedScreen";
 import { ProfilScreen } from "../screens/profil/ProfilScreen";
 import type { TabParamList } from "./types";
 
@@ -31,7 +34,12 @@ export function TabUtama() {
         animation: kurangiGerak ? "none" : "fade",
       }}
     >
-      <Tab.Screen name="Beranda" component={BerandaScreen} options={{ title: "Beranda" }} />
+      <Tab.Screen
+        name="Beranda"
+        component={feedMatchingAktif ? FeedScreen : BerandaScreen}
+        options={{ title: "Beranda" }}
+      />
+      <Tab.Screen name="Cari" component={CariScreen} options={{ title: "Cari" }} />
       <Tab.Screen name="Profil" component={ProfilScreen} options={{ title: "Profil" }} />
       <Tab.Screen name="Cv" component={CvDaftarScreen} options={{ title: "CV" }} />
     </Tab.Navigator>

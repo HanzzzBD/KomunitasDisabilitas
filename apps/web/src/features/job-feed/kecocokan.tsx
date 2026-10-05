@@ -13,6 +13,7 @@
 // Alasan dari AI dan dari template tampil SAMA — kontrak API-nya identik
 // (PR-073). Bedanya hanya satu catatan kecil bertuliskan, bukan ikon.
 import type { MatchItem } from "@nawasena/schemas";
+import { BATAS_TINGKAT, KUNCI_TINGKAT, persenSkor, tingkatKecocokan } from "@nawasena/lowongan";
 import { useModeBahasa, useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 
 /**
@@ -20,16 +21,11 @@ import { useModeBahasa, useTeks, type KunciTeks } from "../../shared/i18n/index.
  * sekitar 0,55–0,70 (log PR-071), jadi batasnya dipilih supaya tiga label itu
  * benar-benar terpakai — bukan semuanya "mungkin cocok".
  */
-export const BATAS_TINGKAT = { tinggi: 0.7, sedang: 0.55 } as const;
+// Ambang & persen: `@nawasena/lowongan` (PR-093), sama dengan mobile.
+export { BATAS_TINGKAT, persenSkor };
 
 export function kunciTingkat(skor: number): KunciTeks {
-  if (skor >= BATAS_TINGKAT.tinggi) return "beranda.feed.kartu.tingkat.tinggi";
-  if (skor >= BATAS_TINGKAT.sedang) return "beranda.feed.kartu.tingkat.sedang";
-  return "beranda.feed.kartu.tingkat.rendah";
-}
-
-export function persenSkor(skor: number): number {
-  return Math.round(Math.min(1, Math.max(0, skor)) * 100);
+  return KUNCI_TINGKAT[tingkatKecocokan(skor)];
 }
 
 export interface KecocokanProps {

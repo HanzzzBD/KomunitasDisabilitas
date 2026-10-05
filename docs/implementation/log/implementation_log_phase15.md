@@ -522,3 +522,132 @@ Logika formulir web dipindah ke paket baru **`@nawasena/formulir`** dan dipakai 
 
 * Owner: build EAS + uji PR-090..092 (U-35), lalu merge berurutan.
 * PR-093: feed matching + detail lowongan mobile (tab Lowongan).
+
+---
+
+## PR-093 — Mobile Feed + Job Detail
+
+> **Phase:** [15 - Mobile (Android)](../phase-15-mobile-android.md#pr-093---mobile-feed--job-detail)
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi selesai; AC runtime menunggu build EAS + device (U-35)
+> **Branch:** `pr-093-mobile-feed`, ditumpuk di atas `pr-092-mobile-profil-cv` (commit lokal,
+> belum di-push)
+
+### Ringkasan hasil
+
+Discovery utama kini ada di HP:
+* **Beranda = feed AI Job Matching**: kartu skor + alasan, banner "AI sedang menyusun" dan
+  banner degradasi, muat ulang + perbarui rekomendasi berkuota, muat lebih banyak;
+* **tab Cari** (browse + filter);
+* **detail lowongan**: ringkasan, deskripsi/persyaratan dengan "Sederhanakan", dukungan, terbuka
+  untuk, blok perusahaan + status verifikasi.
+
+Logika murni discovery web dipindah ke paket baru **`@nawasena/lowongan`**.
+
+### Keputusan owner (2026-10-05)
+
+| Keputusan | Pilihan | Alasan |
+|---|---|---|
+| Tab | **Beranda = feed, tab Cari** | Paritas web (beranda seeker = feed); Beranda · Cari · Profil · CV. |
+| Sederhanakan (PR-087) | **Ikut** | Penting bagi pengguna autisme/teks sederhana, terlebih mobile belum punya varian `id-simple` (U-37). |
+| Logika feed | **Paket baru `@nawasena/lowongan`** | Nama sesuai isi; satu ambang skor untuk dua platform. |
+
+### Keputusan teknis
+
+* **`@nawasena/lowongan`** (murni):
+  * `tingkatKecocokan`/`persenSkor` (ambang 0,7/0,55);
+  * `kalimatGaji` + `formatRupiah`;
+  * `NilaiFilterLowongan` + `keOpsiPencarian` + `jumlahFilterAktif` + `ke/dariParamPencarian`;
+  * kunci taksonomi (tipe, mode, tingkat, gaji) dengan `LabelLowongan` diinjeksi.
+
+  Web mengekspor ulang dari paket; 819 test web (termasuk `gaji.test.ts`, `filter-url.test.ts`)
+  tidak diubah.
+* **Kartu satu kesatuan** (AC): `Kartu` pressable dengan label kalimat utuh dari `labelKartu`;
+  "persen" ditulis kata supaya dibaca sama di semua TTS. Satu komponen untuk feed dan pencarian.
+* **Tidak ada yang berubah sendiri** (paritas keputusan owner 2026-09-30): `aiMenyusun` hanya
+  memunculkan banner + "Lihat urutan yang baru".
+* **Refresh**: tarik-untuk-muat-ulang (GET) selalu berpasangan dengan tombol "Muat ulang daftar"
+  (AC). "Perbarui rekomendasi" (POST berkuota) dipisah supaya tarikan tak sengaja tidak
+  menghabiskan jatah. Saat jatah habis tombolnya nonaktif, tetapi alasannya tetap terbaca.
+* **Posisi daftar pulih** tanpa kode khusus: detail didorong ke stack root di atas tab, jadi
+  FlatList feed/cari tidak pernah dilepas.
+* **Filter diterapkan saat "Cari"** (WCAG 3.2.2), panel bisa dibuka-tutup
+  (`accessibilityState.expanded` + jumlah filter aktif). Jumlah hasil halaman pertama diumumkan
+  per perubahan filter.
+* **Sederhanakan**: satu tombol berganti label, hasil disimpan di state (tidak meminta ulang),
+  degradasi = tombol hilang + penjelasan sesuai `alasan`.
+* **Keluar pindah ke tab Profil** (`TombolKeluar`). Beranda lama jadi cadangan bila
+  `EXPO_PUBLIC_MATCHING_FEED_ENABLED=false` (paritas `VITE_MATCHING_FEED_ENABLED`).
+* Label akomodasi & ragam mobile dipusatkan di `src/profil/label.ts`.
+* **Maestro dibetulkan.**
+  * `boot-smoke.yaml` (PR-088) masih mengharapkan Beranda tanpa sesi, padahal sejak PR-090 app
+    membuka layar Masuk. Kekeliruan ini terlewat di PR-090.
+  * Alur lain kini memakai `layar-feed`, dan tombol Keluar dicari di tab Profil.
+  * `masuk-otp.yaml` diberi prasyarat akun yang sudah melewati onboarding.
+
+### Verifikasi
+
+* Test: mobile 107 (7 baru), lowongan 8 (baru), web 819 (tanpa perubahan), config 27.
+* `pnpm typecheck` + `pnpm lint` 12/12, `format:check` bersih. `expo export` sukses (2,8 MB).
+  Bundel awal web 109,4 / 200 KB.
+
+### Status Acceptance Criteria
+
+* [ ] Feed + filter + detail end-to-end — `.maestro/feed-detail.yaml` (U-35).
+* [ ] Kartu satu kesatuan bagi TalkBack — `labelKartu` teruji; ucapan nyata → checklist #1.
+* [ ] Degraded banner paritas — kondisi + teks paritas web; runtime → #4–5.
+* [x] Refresh alternatif tombol (bukan pull-to-refresh saja) — tombol "Muat ulang daftar"
+  memanggil fungsi yang sama dengan `RefreshControl`.
+* [ ] Kembali dari detail memulihkan posisi list — oleh struktur navigasi; runtime → #3, #15.
+
+### Risiko & catatan
+
+* Ukuran PR ± 1.500 baris (> 500), sebagian test, dokumentasi, dan checklist.
+* `Intl.NumberFormat` mata uang di Hermes Android bergantung ICU perangkat; bila gaji tampil tanpa
+  format di checklist #18, ganti ke pemformat manual di `@nawasena/lowongan`.
+* Deep link ke detail lowongan belum ada (push deep link = PR-094).
+
+### Next steps
+
+* Owner: build EAS + uji PR-090..093 (U-35), lalu merge berurutan.
+* PR-094: lamar + tracking + push deep link mobile (tab Lamaran).
+
+---
+
+## Temuan build EAS internal pertama (2026-10-05)
+
+> Build EAS pertama untuk tumpukan PR-090..093 **berhasil dikompilasi**, termasuk modul Kotlin
+> `google-credential`, tetapi APK **tertutup paksa saat dibuka** (Samsung, Android 16).
+
+### Diagnosis
+
+1. `adb logcat -b crash` menunjukkan error JS saat bundle dimuat:
+   `[runtime not ready]: TypeError: undefined is not a function`, posisi bytecode `1:195097`.
+2. Bundle yang sama dibangun ulang lokal (`expo export --source-maps`). Posisi stack dipetakan
+   lewat `.hbc.map` menjadi rantai utuh `index.ts → App.tsx → ui-native → a11y/store.ts →
+   schemas/index.ts → schemas/common.ts:14`, yaitu panggilan `.openapi(...)` pertama.
+3. Daftar sumber bundle memuat **dua zod**. `zod-openapi/dist/extend.cjs` memasang `.openapi()` ke
+   `zod/lib/index.js` (CJS). `@nawasena/schemas` diresolusi Metro ke `zod/lib/index.mjs` (ESM),
+   kelas `ZodType` lain yang tidak pernah dipasangi.
+
+Bug ini laten sejak PR-088: Vite (ESM untuk keduanya) dan Vitest/Node (konsisten) tidak pernah
+memicunya. Dugaan awal "dua React" diperiksa dan **salah**, karena bundle hanya memuat React 19.2.3.
+
+### Perbaikan
+
+* `metro.config.js`: setiap `import "zod"` dipaksa ke satu berkas, yaitu entri yang dipilih Node
+  untuk `@nawasena/schemas` (`lib/index.js`). Ini konfigurasi resolver aplikasi, jadi paket bersama
+  tetap tidak di-patch (aturan PR-088).
+* Penjaga: `apps/mobile/__tests__/metro-config.test.ts` (semua asal → satu berkas zod; impor lain
+  tidak dibelokkan). Pindai ulang bundle: satu entri zod, tidak ada paket lain yang menyumbang
+  `.cjs` dan `.mjs` sekaligus.
+* `googleid` diturunkan ke **1.2.0** oleh owner, karena build EAS gagal terus dengan 1.2.1. Dicatat
+  di `build.gradle`.
+* `.gitignore` mobile menutup `modules/*/android/.gradle/` + `build/` (cache ekstensi Gradle VS
+  Code). `app.json` liar di root (hasil `eas init` dari folder yang salah) dihapus.
+* Catatan operasional: `EXPO_PUBLIC_API_URL` wajib diakhiri `/api/v1`. Nilai awal tanpa akhiran
+  itu akan membuat setiap panggilan API 404.
+
+### Status
+
+Menunggu build EAS kedua + uji ulang di HP (U-35).
