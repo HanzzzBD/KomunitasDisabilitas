@@ -15,6 +15,7 @@ export {
 
 export { rekonsiliasi, dipilihPengguna, type SinyalOS } from "./rekonsiliasi.js";
 export { TARGET_SENTUH } from "./target-sentuh.js";
+export { gabungkanDariServer, profilBelumDiatur } from "./sinkron.js";
 
 /**
  * Kontrak penyimpanan yang harus disediakan pemanggil.
@@ -30,6 +31,8 @@ export type { StateStorage as PenyimpananA11y } from "zustand/middleware";
 // untuk menyebut tipe preferensinya.
 export {
   ACCESSIBILITY_DEFAULTS,
+  ACCESSIBILITY_KEYS,
+  type AccessibilityProfile,
   type AccessibilityPreferences,
   type UpdateAccessibilityPreferences,
 } from "@nawasena/schemas";

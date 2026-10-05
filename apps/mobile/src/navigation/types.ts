@@ -8,5 +8,7 @@ export type RootStackParamList = {
   Masuk: undefined;
   /** Nomor sudah ternormalisasi E.164; detik tunggu sebelum boleh kirim ulang. */
   Verifikasi: { phone: string; retryAfterSeconds: number };
+  /** PR-091: hanya terdaftar saat masuk DAN wizard diperlukan. */
+  Onboarding: undefined;
   Beranda: undefined;
 };

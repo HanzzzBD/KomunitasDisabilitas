@@ -3,6 +3,7 @@ export { Tombol, type TombolProps, type VarianTombol } from "./tombol";
 export { Masukan, type MasukanProps } from "./masukan";
 export { Kartu, type KartuProps } from "./kartu";
 export { Dialog, type DialogProps } from "./dialog";
+export { KotakCentang, type KotakCentangProps } from "./kotak-centang";
 export { PenyediaTokenA11y, useTokenA11y } from "./konteks";
 export {
   tokenNativeDari,

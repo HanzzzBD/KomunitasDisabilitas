@@ -1,0 +1,49 @@
+# Wizard onboarding PR-091 — manual, di APK internal dengan akun BARU (profil
+# aksesibilitas kosong) dan sender OTP uji:
+#   maestro test -e NOMOR=081234567890 -e KODE=123456 apps/mobile/.maestro/onboarding.yaml
+# Belum di CI (butuh emulator + API staging, Phase 16).
+appId: id.nawasena.app
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "masukan-nomor"
+- inputText: ${NOMOR}
+- tapOn:
+    id: "tombol-kirim-kode"
+- tapOn:
+    id: "masukan-kode"
+- inputText: ${KODE}
+- tapOn:
+    id: "tombol-masuk"
+# Akun baru → wizard, bukan Beranda.
+- assertVisible:
+    id: "layar-onboarding"
+- assertVisible: "Langkah 1 dari 4"
+- tapOn:
+    id: "ragam-netra"
+- tapOn:
+    id: "tombol-lanjut"
+# Izin tidak pernah tercentang di awal.
+- assertVisible: "Langkah 2 dari 4"
+- tapOn:
+    id: "tombol-lanjut"
+# Pratinjau langsung: perbesar huruf dan kontras tinggi berlaku seketika.
+- assertVisible: "Langkah 3 dari 4"
+- tapOn:
+    id: "tombol-perbesar"
+- assertVisible: "125 persen"
+- tapOn:
+    id: "saklar-highContrast"
+- tapOn:
+    id: "tombol-lanjut"
+- assertVisible: "Langkah 4 dari 4"
+- tapOn:
+    id: "tombol-simpan"
+- assertVisible:
+    id: "layar-beranda"
+# Restart: wizard tidak muncul lagi untuk akun ini di perangkat ini.
+- stopApp
+- launchApp
+- assertVisible:
+    id: "layar-beranda"

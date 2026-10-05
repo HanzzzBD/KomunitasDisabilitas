@@ -73,8 +73,21 @@ Penyiapan Google Cloud Console (sekali, oleh pemilik proyek GCP):
    **preview**. id_token yang dihasilkan ber-`aud` Web Client ID ini, sehingga
    verifier API yang sama menerimanya.
 
+## Aksesibilitas & onboarding (PR-091)
+
+- **Tema**: `src/a11y/PenyediaTema.tsx` → `rekonsiliasi(pilihanPengguna, sinyalOS)` (aturan
+  sama dengan web: pilihan eksplisit > setelan Android > bawaan) → token `@nawasena/ui-native`.
+  Sinyal OS: _Hapus animasi_ → `reduceMotion`, _Teks kontras tinggi_ → `highContrast`. Ukuran
+  font OS diterapkan RN sendiri; skala preferensi ditumpuk di atasnya.
+- **Store**: `createA11yStore` (paket `@nawasena/a11y`) dengan AsyncStorage.
+- **Sinkron akun**: `src/onboarding/koordinator.ts` — saat masuk, GET `/me/accessibility` sekali
+  lalu `gabungkanDariServer` (paket yang sama dengan web); saat keluar, preferensi di HP dihapus.
+- **Wizard**: tampil bila perangkat belum menandai selesai **dan** profil akun masih kosong.
+  Matikan dengan `EXPO_PUBLIC_ONBOARDING_WIZARD_ENABLED=false` (rollback).
+- Teks mobile ditulis dalam bahasa sederhana; `simpleLanguage` belum mengubah teks (U-37).
+
 ## Smoke test
 
-`.maestro/boot-smoke.yaml` (boot + deep link) dan `.maestro/masuk-otp.yaml`
-(OTP dengan sender uji), dijalankan manual:
+`.maestro/boot-smoke.yaml` (boot + deep link), `.maestro/masuk-otp.yaml` (OTP dengan
+sender uji), dan `.maestro/onboarding.yaml` (wizard, akun baru), dijalankan manual:
 `maestro test apps/mobile/.maestro/<berkas>.yaml`. Belum di CI.

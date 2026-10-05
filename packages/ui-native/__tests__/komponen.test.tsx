@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactElement } from "react";
 import { StyleSheet, Text } from "react-native";
 
-import { Kartu, Masukan, PenyediaTokenA11y, Tombol } from "../src";
+import { Kartu, KotakCentang, Masukan, PenyediaTokenA11y, Tombol } from "../src";
 
 function denganProfil(ui: ReactElement, ubah: Partial<AccessibilityPreferences> = {}) {
   return render(
@@ -127,5 +127,42 @@ describe("Kartu", () => {
       screen.getByRole("button", { name: "Staf Administrasi, PT Contoh, Bandung" }),
     );
     expect(tekan).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("KotakCentang (PR-091)", () => {
+  it("dibaca sebagai kotak centang bernama label, dengan state dan petunjuk", async () => {
+    const ubah = jest.fn();
+    await denganProfil(
+      <KotakCentang
+        label="Kontras tinggi"
+        bantuan="Warna lebih tegas"
+        dicentang={false}
+        onUbah={ubah}
+      />,
+    );
+
+    const kotak = screen.getByRole("checkbox", { name: "Kontras tinggi" });
+    expect(kotak.props.accessibilityState).toEqual({ checked: false });
+    expect(kotak.props.accessibilityHint).toBe("Warna lebih tegas");
+    await fireEvent.press(kotak);
+    expect(ubah).toHaveBeenCalledWith(true);
+  });
+
+  it("dicentang → menekan lagi melepas centang; tanda ✓ terlihat", async () => {
+    const ubah = jest.fn();
+    await denganProfil(<KotakCentang label="Kurangi animasi" dicentang onUbah={ubah} />);
+
+    expect(screen.getByText("✓")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("checkbox", { name: "Kurangi animasi" }));
+    expect(ubah).toHaveBeenCalledWith(false);
+  });
+
+  it("seluruh baris memenuhi target sentuh token (56 dp saat target besar)", async () => {
+    await denganProfil(
+      <KotakCentang label="X" dicentang={false} onUbah={() => undefined} testID="k" />,
+      { largeTouchTargets: true },
+    );
+    expect(gayaDatar(screen.getByTestId("k")).minHeight).toBe(56);
   });
 });
