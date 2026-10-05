@@ -22,5 +22,7 @@ dependencies {
   implementation "androidx.credentials:credentials:1.6.0"
   // Penyedia Google Play Services untuk Android 13 ke bawah.
   implementation "androidx.credentials:credentials-play-services-auth:1.6.0"
-  implementation "com.google.android.libraries.identity.googleid:googleid:1.2.1"
+  // 1.2.0, bukan 1.2.1: build EAS gagal terus dengan 1.2.1 (owner, 2026-10-05);
+  // 1.2.0 terkompilasi di EAS. Naikkan hanya bersama satu build EAS yang hijau.
+  implementation "com.google.android.libraries.identity.googleid:googleid:1.2.0"
 }

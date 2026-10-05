@@ -301,3 +301,28 @@ seluruhnya menurut status sesi (guarded stack). Beranda mendapat tombol Keluar b
 
 * Owner: build EAS internal + uji (U-35), lalu merge.
 * PR-091: onboarding + ThemeProvider a11y mobile (store preferensi menggantikan `ACCESSIBILITY_DEFAULTS`).
+
+---
+
+## Penyiapan merge PR-090 setelah build EAS (2026-10-05)
+
+Owner meminta PR-090 di-merge ke `phase-15-mobile-android`, kemudian branch
+PR-091 sampai PR-095 di-rebase. Dua perbaikan build yang sebelumnya tersimpan
+di PR-093 dimasukkan lebih dahulu ke PR-090 agar dasar auth dapat dibangun:
+
+* `googleid` dipin ke 1.2.0, versi yang berhasil dikompilasi pada EAS.
+* Resolver Metro memakai satu entri CJS zod. APK awal tertutup saat bootstrap
+  karena zod-openapi dan schemas memakai dua instance zod (CJS dan ESM).
+* Tes resolver yang sudah ada dipindahkan bersama konfigurasinya; cache/build
+  Gradle modul lokal tetap di-ignore.
+
+Berkas Kotlin/Gradle dan resolver ini identik dengan yang dipakai build internal
+PR-095 `fb6b98bd-fccd-47b1-81aa-9819c0c6ec45` yang selesai 2026-10-05 20:33 WIB.
+Build tersebut memuat PR-091..095 juga; bukan build terpisah dari tip PR-090.
+Owner dapat membuka APK dan memilih akun Google. OAuth Android baru dilaporkan
+sudah didaftarkan; keberhasilan login, OTP, sesi setelah restart, dan TalkBack
+belum dikonfirmasi. U-35 tetap terbuka.
+
+Merge menunggu check GitHub `lint-typecheck-test` dan `a11y` hijau. Rebase berikutnya
+mempertahankan dependensi antarcabang dan seluruh perubahan lokal yang belum
+di-commit. Branch phase tidak didorong langsung dan `main` tidak diubah.

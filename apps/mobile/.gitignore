@@ -7,3 +7,8 @@ dist/
 /ios/
 # Dibuat ulang otomatis oleh Expo CLI
 expo-env.d.ts
+# Cache Gradle (mis. dari ekstensi VS Code) di modul native lokal.
+modules/*/android/.gradle/
+modules/*/android/build/
+# Firebase Android lokal; EAS memakai environment variable bertipe File.
+google-services.json
