@@ -21,6 +21,7 @@ COPY packages/api-client/package.json packages/api-client/
 COPY packages/ui/package.json packages/ui/
 COPY packages/a11y/package.json packages/a11y/
 COPY packages/ui-native/package.json packages/ui-native/
+COPY packages/formulir/package.json packages/formulir/
 # api DAN worker: satu image, entry berbeda (worker dep ke @nawasena/api).
 RUN pnpm install --frozen-lockfile --filter @nawasena/api... --filter @nawasena/worker...
 # Source di-overlay volume mount saat runtime (hot-reload tsx watch);

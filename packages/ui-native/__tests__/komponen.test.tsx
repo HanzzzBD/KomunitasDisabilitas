@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactElement } from "react";
 import { StyleSheet, Text } from "react-native";
 
-import { Kartu, KotakCentang, Masukan, PenyediaTokenA11y, Tombol } from "../src";
+import { Kartu, KotakCentang, Masukan, PenyediaTokenA11y, PilihanTunggal, Tombol } from "../src";
 
 function denganProfil(ui: ReactElement, ubah: Partial<AccessibilityPreferences> = {}) {
   return render(
@@ -164,5 +164,40 @@ describe("KotakCentang (PR-091)", () => {
       { largeTouchTargets: true },
     );
     expect(gayaDatar(screen.getByTestId("k")).minHeight).toBe(56);
+  });
+});
+
+describe("PilihanTunggal (PR-092)", () => {
+  const OPSI = [
+    { nilai: "never", label: "Jangan pernah" },
+    { nilai: "ask_each_time", label: "Tanya saya dulu" },
+    { nilai: "always", label: "Selalu" },
+  ] as const;
+
+  it("grup radio bernama judul; opsi terpilih ditandai dan posisinya terbaca", async () => {
+    const ubah = jest.fn();
+    await denganProfil(
+      <PilihanTunggal judul="Saat melamar" opsi={OPSI} nilai="ask_each_time" onUbah={ubah} />,
+    );
+
+    // Grup sengaja TIDAK `accessible` (opsi tetap disentuh satu per satu), jadi
+    // getByRole tidak menjangkaunya; role + nama diperiksa lewat label.
+    expect(screen.getByLabelText("Saat melamar").props.accessibilityRole).toBe("radiogroup");
+    const tanya = screen.getByRole("radio", { name: "Tanya saya dulu" });
+    expect(tanya.props.accessibilityState).toEqual({ checked: true });
+    expect(tanya.props.accessibilityValue).toEqual({ text: "2 dari 3" });
+    await fireEvent.press(screen.getByRole("radio", { name: "Selalu" }));
+    expect(ubah).toHaveBeenCalledWith("always");
+  });
+});
+
+describe("Masukan banyak baris (PR-092)", () => {
+  it("multiline + maxLength diteruskan ke TextInput", async () => {
+    await denganProfil(
+      <Masukan label="Ringkasan" nilai="" ubahNilai={() => undefined} multiline maxLength={2000} />,
+    );
+    const kolom = screen.getByLabelText("Ringkasan");
+    expect(kolom.props.multiline).toBe(true);
+    expect(kolom.props.maxLength).toBe(2000);
   });
 });

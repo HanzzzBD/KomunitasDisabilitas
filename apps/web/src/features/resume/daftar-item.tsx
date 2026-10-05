@@ -1,16 +1,8 @@
 import { AreaTeks, KolomForm, Masukan, Tombol } from "@nawasena/ui";
+import { pindahItem, ubahItem, type KolomItem } from "@nawasena/formulir";
 import type { GalatKolom } from "./galat.js";
 
-export interface KolomItem<T> {
-  nama: string;
-  label: string;
-  jenis?: "teks" | "area" | "angka";
-  maks?: number;
-  wajib?: boolean;
-  bantuan?: string;
-  baca: (item: T) => string;
-  tulis: (item: T, nilai: string) => T;
-}
+export type { KolomItem };
 
 interface DaftarItemProps<T> {
   namaBagian: string;
@@ -44,17 +36,16 @@ export function DaftarItem<T>({
   onUmumkan,
   teks,
 }: DaftarItemProps<T>) {
-  function ubahItem(indeks: number, item: T): void {
-    onUbah(nilai.map((lama, posisi) => (posisi === indeks ? item : lama)));
+  function gantiItem(indeks: number, item: T): void {
+    onUbah(ubahItem(nilai, indeks, item));
   }
 
   function pindah(indeks: number, arah: -1 | 1): void {
-    const tujuan = indeks + arah;
-    if (tujuan < 0 || tujuan >= nilai.length) return;
-    const berikut = [...nilai];
-    [berikut[indeks], berikut[tujuan]] = [berikut[tujuan] as T, berikut[indeks] as T];
-    onUbah(berikut);
-    onUmumkan(teks.dipindah(indeks + 1, tujuan + 1));
+    // Logikanya di `@nawasena/formulir` (PR-092) — mobile memakai yang sama.
+    const hasil = pindahItem(nilai, indeks, arah);
+    if (hasil === null) return;
+    onUbah(hasil.daftar);
+    onUmumkan(teks.dipindah(indeks + 1, hasil.ke + 1));
   }
 
   return (
@@ -73,7 +64,7 @@ export function DaftarItem<T>({
                   value: k.baca(item),
                   maxLength: k.maks,
                   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                    ubahItem(indeks, k.tulis(item, e.target.value));
+                    gantiItem(indeks, k.tulis(item, e.target.value));
                   },
                 };
                 return (

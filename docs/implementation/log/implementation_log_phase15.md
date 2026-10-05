@@ -419,3 +419,106 @@ belum pernah mengatur apa pun. Saat keluar, preferensi dihapus dari perangkat.
 * Owner: build EAS + uji PR-090/091 (U-35). Lalu urutannya: push + merge PR-090, rebase PR-091 ke
   `phase-15-mobile-android`, push + merge.
 * PR-092: profil & CV mobile (termasuk U-38 untuk mobile).
+
+---
+
+## PR-092 — Mobile Profile + CV Manual
+
+> **Phase:** [15 - Mobile (Android)](../phase-15-mobile-android.md#pr-092---mobile-profile--cv-manual)
+> **Tanggal:** 2026-10-05
+> **Status:** Implementasi selesai; AC runtime menunggu build EAS + device (U-35)
+> **Branch:** `pr-092-mobile-profil-cv`, ditumpuk di atas `pr-091-mobile-onboarding` (commit lokal,
+> belum di-push)
+
+### Ringkasan hasil
+
+Seeker kini bisa mengisi profil lengkap dan membuat CV dari Android tanpa web:
+* tab bawah Beranda · Profil · CV;
+* lima bagian profil, masing-masing dengan tombol simpan sendiri: data dasar, disabilitas &
+  akomodasi (consent beri/cabut), pengalaman, pendidikan, keahlian;
+* daftar CV dengan "Buat CV dari profil" dan hapus;
+* editor CV: judul + tujuh bagian, satu bagian per layar, urutan item lewat tombol Naik/Turun;
+* PDF: buat → status → buka di aplikasi PDF HP.
+
+Logika formulir web dipindah ke paket baru **`@nawasena/formulir`** dan dipakai kedua platform.
+
+### Keputusan owner (2026-10-05)
+
+| Keputusan | Pilihan | Alasan |
+|---|---|---|
+| Logika form | **Paket bersama `@nawasena/formulir`** | Satu aturan consent/pemetaan/urutan untuk web dan mobile ("reuse hooks shared" di checklist). |
+| Navigasi | **Tab bawah** | Satu ketukan ke tiap area; PR-093+ menambah Lowongan/Lamaran. |
+| PDF | **Unduh → aplikasi PDF** | Tetap di dalam alur app, viewer native terbaca TalkBack, bisa disimpan/dibagikan. |
+
+### Keputusan teknis
+
+* **`@nawasena/formulir`** (murni, tanpa React/DOM):
+  * helper teks, galat per kolom + `periksa`;
+  * pemetaan profil dasar/sensitif + `BADAN_CABUT` + `alihkan`;
+  * `pindahItem`/`ubahItem`/`hapusItem`;
+  * `buatPrefillResume`;
+  * definisi kolom item CV.
+
+  Label kolom datang dari pemanggil (`LabelResume`): web memberi `t` (katalog i18n), mobile memberi
+  teks sederhana. Kuncinya kunci katalog web, jadi typecheck web menolak kunci yang tidak ada.
+  Berkas web lama kini mengekspor ulang dari paket, jadi 819 test web berjalan tanpa diubah.
+* **Dua varian "teks atau null" dipertahankan dengan sengaja.** `teksAtauNull` merapikan (untuk
+  simpan formulir). `teksMentahAtauNull` tidak merapikan (untuk editor CV yang menulis per ketukan;
+  versi yang merapikan memakan spasi di ujung kata). Web dulu punya dua fungsi bernama sama dengan
+  perilaku berbeda; kini namanya berbeda.
+* **TanStack Query di mobile tanpa persister.** Profil memuat data disabilitas, jadi tidak ada
+  salinan di disk. `queryClient.clear()` + hapus `cache/cv/` saat keluar (`saatKeluar`).
+* **Simpan per bagian** (paritas PR-040). Bagian CV menyimpan isi utuh dengan dasar versi server
+  TERKINI (GET tepat sebelum PUT), jadi menyimpan "Keahlian" tidak menimpa "Pengalaman" dengan
+  salinan basi dari layar lain. Galat zod berawalan `content.` dipetakan ke nama kolom.
+* **Validasi klien = skema server.** Karier memeriksa dengan skema *create* (bentuk penuh) sebelum
+  POST/PUT, jadi galat per kolom tampil tanpa perjalanan jaringan.
+* **Tanggal = kolom teks YYYY-MM-DD** (paritas web, yang menolak pemilih tanggal bawaan).
+* **Komponen baru `ui-native`**:
+  * `PilihanTunggal` (radio; semua opsi terlihat, "2 dari 3" terbaca);
+  * `Masukan` mendapat `multiline` + `maxLength`.
+* **Tombol bernama lengkap**: "Hapus pengalaman: Desainer", "Naikkan keahlian 2". Hasil
+  pindah/hapus/tambah diumumkan lewat live region.
+* **PDF** (`src/cv/pdf.ts`, platform disuntik):
+  * status diambil ULANG tepat sebelum membuka, karena URL presigned berumur pendek;
+  * unduhan ke nama stabil per CV (menimpa), lalu `getContentUriAsync`, lalu `ACTION_VIEW` dengan
+    `FLAG_GRANT_READ_URI_PERMISSION`;
+  * tanpa aplikasi PDF: lembar Bagikan;
+  * polling status hanya selama antre/diproses.
+* **Dependensi baru mobile**: `@tanstack/react-query` 5.62.11 (sama dengan web),
+  `@react-navigation/bottom-tabs` 7.20.0, `expo-file-system` 57.0.7, `expo-intent-launcher` 57.0.1,
+  `expo-sharing` 57.0.22 (versi bawaan SDK 57). `packages/formulir/package.json` ikut disalin di
+  kedua Dockerfile.
+* Deep link `nawasena://beranda` tetap berlaku (kini `Utama > Beranda`).
+* **Out of scope dicatat**: chat AI CV di mobile (roadmap segera pasca-RC; teks layar CV
+  menyebut web sebagai jalurnya).
+
+### Verifikasi
+
+* Test: mobile 100 (12 baru: karier, PDF, bagian CV), formulir 13 (baru), ui-native 27 (+2),
+  web 819 (tanpa perubahan test, refactor lewat ekspor ulang), a11y 81.
+* `pnpm typecheck` + `pnpm lint` 11/11, `format:check` bersih. `expo export` sukses (2,8 MB).
+  Bundel awal web 109,3 / 200 KB.
+
+### Status Acceptance Criteria
+
+* [ ] Profil + CV lengkap dibuat dari mobile — alur lengkap di `.maestro/profil-cv.yaml` (U-35).
+* [x] Reorder via tombol (tanpa drag-only) — `pindahItem` teruji; tidak ada gesture seret di app.
+* [ ] Consent paritas (beri & cabut) — logika sama dengan web (paket bersama, teruji); runtime
+  → checklist #7–12.
+* [ ] TalkBack checklist form multi-bagian lulus — [checklist](pr-092-talkback-checklist.md).
+* [ ] Unduh PDF CV bekerja (buka viewer) — alur + cadangan teruji; viewer nyata → #21–24.
+
+### Risiko & catatan
+
+* Ukuran PR ± 3.000 baris (> 500). Paket + refactor web, layar mobile, test, dan dokumentasi
+  saling bergantung; memisahnya akan menghasilkan paket tanpa pemakai mobile.
+* U-38 diperbarui: ragam disabilitas kini bisa disimpan dari profil mobile; yang tersisa hanya
+  wizard di kedua platform.
+* Editor CV menyunting item secara inline (paritas web). Dengan puluhan item, layar bagian jadi
+  panjang; bila checklist menunjukkan ini berat, pecah ke layar per item.
+
+### Next steps
+
+* Owner: build EAS + uji PR-090..092 (U-35), lalu merge berurutan.
+* PR-093: feed matching + detail lowongan mobile (tab Lowongan).
