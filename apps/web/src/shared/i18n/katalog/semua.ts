@@ -21,6 +21,7 @@ import { katalogLowongan } from "./lowongan.js";
 import { katalogResume } from "./resume.js";
 import { katalogPelamar } from "./pelamar.js";
 import { katalogKamus } from "./kamus.js";
+import { katalogCommunity } from "./community.js";
 
 /** Katalog gabungan lengkap. Dipakai test yang ingin merender tanpa memuat. */
 export const katalog = {
@@ -37,6 +38,7 @@ export const katalog = {
   ...katalogResume,
   ...katalogPelamar,
   ...katalogKamus,
+  ...katalogCommunity,
 } as const;
 
 /**
@@ -62,4 +64,5 @@ export const fiturKatalog = [
   { nama: "resume", entri: katalogResume },
   { nama: "pelamar", entri: katalogPelamar },
   { nama: "kamus", entri: katalogKamus },
+  { nama: "community", entri: katalogCommunity },
 ] as const;

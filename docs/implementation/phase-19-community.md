@@ -34,7 +34,7 @@ conventions: see README.md (Konvensi Global & RB-Std)
 
 ## Overview
 
-Ruang diskusi karier yang aman dan aksesibel untuk pengguna Nawasena. Ruang dibuat admin berdasarkan topik atau kota; pengguna bergabung untuk membaca, membuat post teks, membalas satu tingkat, dan melaporkan konten yang melanggar aturan.
+Ruang diskusi karier yang aman dan aksesibel untuk pengguna Nawasena. Ruang dibuat admin berdasarkan topik atau kota; pengguna yang sudah login dapat membaca diskusi tanpa bergabung. Anggota dapat membuat post teks, membalas satu tingkat, dan melaporkan konten yang melanggar aturan.
 
 Phase ini hanya dimulai setelah PR-112 (v1.0.0) live dan stabil. PR-001..PR-112, termasuk pekerjaan yang sudah selesai sampai PR-013, tidak berubah.
 
@@ -105,10 +105,20 @@ Implementasi dan verifikasi: [log PR-114](log/implementation_log_phase19.md#pr-1
 
 **Acceptance Criteria:**
 
-* [ ] Semua kontrol dapat dipakai keyboard dan pembaca layar.
-* [ ] Label ruang, jumlah anggota, dan status join tersampaikan tanpa hanya mengandalkan warna.
-* [ ] Filter dan pagination tidak mereset fokus secara tidak terduga.
-* [ ] axe dan test komponen lulus.
+* [x] Semua kontrol dapat dipakai keyboard dan pembaca layar.
+* [x] Label ruang, jumlah anggota, dan status join tersampaikan tanpa hanya mengandalkan warna.
+* [x] Filter dan pagination tidak mereset fokus secara tidak terduga.
+* [x] axe dan test komponen lulus.
+
+**Keputusan owner (2026-10-06):** menu Komunitas tersedia untuk tamu dan semua
+role. Pengguna baru yang login dari Komunitas kembali ke ruang tanpa onboarding
+profil karier; join tetap melalui tombol. Kebijakan admin selalu menuju dashboard
+setelah login tetap berlaku. Ruang arsip masih dapat dibuka dan anggota aktif
+boleh keluar; membership blocked tidak dapat dilewati lewat join/leave.
+
+**Bukti aksesibilitas:** label, landmark, live region, keyboard, pemulihan fokus,
+axe, serta reflow 320/768/1024/1440 px dengan teks 200% diperiksa otomatis.
+Audit manusia NVDA/TalkBack dan readiness tetap merupakan gate PR-119.
 
 **Dependencies:** PR-028, PR-114, PR-112.
 

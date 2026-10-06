@@ -134,6 +134,10 @@ export function TataLetak() {
     peran !== "employer" &&
     wizardOnboardingAktif() &&
     !JALUR_DIKECUALIKAN.includes(lokasi.pathname) &&
+    // Community tidak membutuhkan profil karier. Pengguna baru kembali ke
+    // ruang setelah login; bergabung tetap melalui tindakan yang eksplisit.
+    lokasi.pathname !== "/community" &&
+    !lokasi.pathname.startsWith("/community/") &&
     // Bagian admin memeriksa sesi/peran sendiri. Wizard pencari kerja tidak
     // boleh memotong akses dashboard maupun halaman pengelolaannya.
     lokasi.pathname !== "/admin" &&

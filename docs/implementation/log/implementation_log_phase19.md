@@ -309,3 +309,67 @@ Implementasi ini tidak menyatakan prasyarat rilis PR-112 atau rollout PR-119 ter
 Rollback: revert PR lalu restart API. Migrasi PR-113 serta data yang sudah tersimpan
 dipertahankan. Scope selanjutnya PR-115 (browse/join web), PR-116 (penulisan/moderasi
 dan sisa ekspor U-39), PR-119 (readiness/compatibility/rollout).
+
+## PR-115 — Community Browse + Join Web
+
+> **Tanggal:** 2026-10-06
+> **Branch:** `pr-115-community-web` → `phase-19-community`.
+
+### Keputusan owner melalui tool pertanyaan
+
+- Menu Komunitas tampil untuk tamu, seeker, employer, dan admin.
+- Pengguna baru yang masuk dari Komunitas langsung kembali ke ruang tanpa
+  onboarding profil karier. Bergabung tetap lewat tombol, tanpa join otomatis.
+  Kebijakan admin selalu menuju dashboard sesudah login tetap dipertahankan.
+- Mengikuti PR-114: discovery/deskripsi publik; pembacaan diskusi memerlukan
+  login tanpa wajib join; arsip tetap terbaca dan anggota aktif boleh keluar.
+
+### Scope selesai
+
+- Route lazy `/community` dan `/community/:slug` memakai kerangka web yang ada.
+  Desktop menempatkan filter di samping hasil dan keanggotaan di samping deskripsi;
+  HP menyusun isi berurutan. Tidak menambah dependensi, font, gambar, atau migrasi.
+- Filter jenis/kota disimpan di URL dan diterapkan saat submit. Cursor memakai
+  tombol muat berikutnya; halaman lama tetap tampil saat request berikutnya gagal.
+  Tombol tetap di DOM setelah halaman terakhir agar fokus keyboard tidak hilang.
+  Kembali dari detail memulihkan filter, halaman yang dimuat, dan fokus tautan ruang.
+- Nama, jenis/kota, deskripsi plain text, dan jumlah anggota disajikan secara
+  semantik. Ada skeleton/status loading, empty dengan arahan, error/retry, 404,
+  dan penjelasan data cache saat luring. Luring tanpa cache tidak diklaim kosong.
+- Status membership dipisah dari discovery dan key cache mencakup id akun/ruang.
+  Join/leave baru mengubah status setelah respons server; batalkan query membership
+  yang masih berjalan sebelum mutasi dan invalidasi jumlah anggota sesudah berhasil.
+  Galat mutasi memuat ulang membership/detail untuk menangkap perubahan blokir/arsip.
+- Seeker, employer, dan admin mengikuti aturan yang sama. Membership blocked
+  menonaktifkan aksi; arsip menutup join tetapi anggota aktif tetap boleh keluar.
+  Tombol join/leave mempertahankan fokus, mengumumkan progres/sukses/error, dan
+  mengecek koneksi sebelum mengirim. Mutasi luring tidak diantre untuk reconnect.
+- Lima helper api-client memakai kontrak Zod PR-113/114, encoding input, AbortSignal
+  pada read, serta POST/DELETE tanpa userId/body. Katalog Community dimuat lazy dan
+  mempunyai varian id/id-simple; nama singkat yang sama memiliki alasan whitelist.
+- Analytics menormalkan slug ruang menjadi `/community/:slug`, membuang query/hash,
+  dan menolak slug mentah agar topik yang dikunjungi tidak tercatat sebagai path.
+
+### Verifikasi dan batas rilis
+
+- Seluruh 868 test web sebelum perubahan onboarding terakhir lulus. Setelah perubahan
+  akhir, 91 test Community, kerangka/onboarding, OTP, dan kembalian Google lulus.
+  Regresi memeriksa akun baru tanpa penanda onboarding dan tanpa join otomatis.
+- Seluruh 175 test api-client dan 126 test schemas lulus; OpenAPI tetap sinkron.
+  Typecheck seluruh 12 workspace dan lint web/api-client/schemas lulus.
+- Browser Chrome memeriksa keyboard, pagination/fokus kembali, join/leave semua role,
+  luring tanpa antrean, arsip/blokir, axe, dan reflow 320/768/1024/1440 px dengan teks
+  200%. Tiga route Community ditambahkan ke registry axe dan tata letak seluruh web.
+  Sebanyak 17 test browser Community/registry lulus; test tambahan login akun baru
+  juga lulus, kembali ke ruang lalu mengirim join hanya setelah tombol ditekan.
+  Screenshot desktop/detail/HP diperiksa; tidak ada error JavaScript di capture.
+- Build web beserta service worker lulus. Bundle awal 128,3 KB gzip di bawah batas
+  200 KB; route dan katalog Community berada di chunk terpisah. Ambang Lighthouse
+  sementara milik U-31 tidak diubah; kedua gerbang CI diperiksa sebelum merge manual.
+- Tidak ada perubahan data akun/provider, pesan OTP nyata, atau seed ruang lokal.
+  Halaman memakai ruang yang dibuat admin. UI diskusi menyusul PR-117 dan pengelolaan
+  ruang menyusul PR-118. Audit manusia serta rollout bertahap tetap di PR-119;
+  implementasi ini tidak menyatakan gate rilis PR-112 sudah terpenuhi.
+
+Rollback: revert PR lalu build ulang web. Tidak ada perubahan skema atau rollback data.
+Lanjut PR-116 untuk penulisan/moderasi konten dan sisa ekspor PDP U-39.

@@ -24,6 +24,11 @@ import { MODE_BAHASA } from "../src/shared/i18n/tipe.js";
  * menuliskan keputusannya.
  */
 const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
+  "shell.nav.community": "Nama halaman harus sama di menu dan judul agar mudah dicocokkan.",
+  "community.judul": "Nama halaman, konsisten dengan menu Komunitas.",
+  "community.member.join":
+    "Label aksi pendek dengan kata sehari-hari; menyebut ruang yang akan diikuti.",
+  "community.member.leave": "Label aksi singkat dan harfiah; tidak perlu istilah lain.",
   "shell.merek": "Nama produk — tidak diterjemahkan dan tidak disederhanakan.",
   "shell.aksi.masuk": "Satu kata sehari-hari; tidak ada bentuk yang lebih sederhana.",
   "shell.luring.cobaLagi": "Label tombol dua kata, sudah memakai kata sehari-hari.",

@@ -18,6 +18,7 @@
 // ingin diperiksa.
 import { expect, type Page } from "@playwright/test";
 import type { HalamanDijaga } from "./halaman.js";
+import { COMMUNITY_UJI, COMMUNITY_KOTA_UJI } from "./community-fixture.js";
 
 /** Profil uji untuk `GET /me`. Bentuknya mengikuti `meSchema` (PR-020). */
 const PROFIL_UJI = {
@@ -720,6 +721,8 @@ export function kuotaUji(sisaChat = 29) {
 
 export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<void> {
   const bersesi = halaman?.butuhSesi === true;
+  const ruang = [{ ...COMMUNITY_UJI }, { ...COMMUNITY_KOTA_UJI }];
+  let anggotaCommunity = bersesi;
   // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
   // boleh saling mewarisi notifikasi yang sudah ditandai oleh yang lain.
   const notifikasi: { readAt: string | null } & typeof NOTIFIKASI_UJI = { ...NOTIFIKASI_UJI };
@@ -774,6 +777,41 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
+
+    if (jalur === "/api/v1/communities") {
+      const params = new URL(route.request().url()).searchParams;
+      const data = ruang.filter(
+        (r) =>
+          (!params.get("type") || r.type === params.get("type")) &&
+          (!params.get("city") || r.city?.toLowerCase() === params.get("city")?.toLowerCase()),
+      );
+      return route.fulfill(jsonkan(200, { data, meta: { nextCursor: null } }));
+    }
+    if (/^\/api\/v1\/communities\/[^/]+\/(membership|join)$/.test(jalur)) {
+      const row = ruang.find((r) => r.id === jalur.split("/").at(-2));
+      if (!row)
+        return route.fulfill(
+          jsonkan(404, { code: "KOMUNITAS_TIDAK_DITEMUKAN", message: "Ruang tidak ditemukan" }),
+        );
+      if (route.request().method() === "POST") anggotaCommunity = true;
+      if (route.request().method() === "DELETE") anggotaCommunity = false;
+      row.memberCount = anggotaCommunity ? 13 : 12;
+      return route.fulfill(
+        jsonkan(200, {
+          data: anggotaCommunity
+            ? { communityId: row.id, status: "active", joinedAt: row.createdAt }
+            : null,
+        }),
+      );
+    }
+    if (/^\/api\/v1\/communities\/[^/]+$/.test(jalur)) {
+      const row = ruang.find((r) => r.slug === jalur.split("/").at(-1));
+      return row
+        ? route.fulfill(jsonkan(200, { data: row }))
+        : route.fulfill(
+            jsonkan(404, { code: "KOMUNITAS_TIDAK_DITEMUKAN", message: "Ruang tidak ditemukan" }),
+          );
+    }
 
     if (jalur.endsWith("/auth/refresh")) {
       // Halaman terlindungi dijawab dengan sesi yang sah; sisanya 401, sebab
