@@ -1,4 +1,5 @@
 .employer-portal {
+  min-inline-size: 0;
   max-width: 70rem;
   margin-inline: auto;
   padding: clamp(1rem, 4vw, 3rem);
@@ -23,6 +24,7 @@
 .employer-portal header,
 .employer-portal section,
 .employer-portal article {
+  min-inline-size: 0;
   display: grid;
   gap: 0.75rem;
 }
@@ -43,6 +45,7 @@
   gap: 0.75rem;
 }
 .employer-portal form {
+  min-inline-size: 0;
   display: grid;
   gap: 1rem;
   max-width: 48rem;
@@ -91,11 +94,16 @@
   height: 1.25rem;
 }
 .employer-portal fieldset {
+  min-inline-size: 0;
   border: 1px solid currentColor;
   padding: 1rem;
   border-radius: 0.35rem;
 }
 .employer-portal p,
-.employer-portal li {
+.employer-portal li,
+.employer-portal h1,
+.employer-portal h2,
+.employer-portal h3,
+.employer-portal h4 {
   overflow-wrap: anywhere;
 }

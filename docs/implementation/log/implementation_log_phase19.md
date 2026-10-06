@@ -775,5 +775,8 @@ Tanggal: 6 Oktober 2026. Perubahan tambahan Phase 19.
   Ukuran heading kini memakai token `--font-scale`, sama seperti teks aplikasi.
   Bundling Android berhasil dengan 1178 modul. CI lint/typecheck/seluruh unit tes
   lulus; gerbang aksesibilitas dijalankan kembali setelah perbaikan skala teks.
+- Reflow employer juga diperiksa dengan font monospace 16px dan teks 200%.
+  Heading panjang dapat membungkus dan wadah/form memakai min-inline-size 0,
+  sehingga halaman 320px tidak melebar pada font dasar CI yang lebih besar.
 
 Detail: [portal employer](../employer-portal.md).

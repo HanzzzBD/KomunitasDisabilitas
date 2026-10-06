@@ -67,7 +67,7 @@ for (const width of [320, 768, 1024, 1440]) {
 
 // Font dasar browser lokal bisa lebih kecil dari 16px pada CI. Uji 16px dan
 // font yang lebih lebar agar min-content grid/flex tidak membuat halaman melebar.
-for (const jalur of ["/pengaturan", "/admin/companies", "/admin/companies/baru"]) {
+for (const jalur of ["/pengaturan", "/admin/companies", "/admin/companies/baru", "/employer"]) {
   test(`reflow font alternatif: ${jalur}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     const halaman = {
