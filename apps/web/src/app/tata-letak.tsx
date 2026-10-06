@@ -220,10 +220,14 @@ export function TataLetak() {
           <Outlet />
         </div>
       </main>
-      <footer className="shell-footer text-sm">
-        <span>{t("shell.merek")}</span>
-        <span>{t("shell.beranda.tagline")}</span>
-      </footer>
+      {/* Isi beranda menunggu pemulihan sesi. Footer muncul bersamanya agar
+          tidak bergeser dari tengah viewport saat isi halaman tersedia. */}
+      {status !== "memulihkan" && (
+        <footer className="shell-footer text-sm">
+          <span>{t("shell.merek")}</span>
+          <span>{t("shell.beranda.tagline")}</span>
+        </footer>
+      )}
 
       {/*
         SCROLL RESTORATION (PR-059) — dipasang di kerangka, SEKALI, dengan

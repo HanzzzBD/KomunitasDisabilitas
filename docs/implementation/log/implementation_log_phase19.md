@@ -163,5 +163,17 @@ tanpa menambah portal perusahaan atau membuka UI Community.
   assertion pengungkapan, idempotensi, dan penulisan lamaran tetap utuh.
 - Admin lokal membuka detail lowongan dengan `?lamar=1`: konten publik tampil,
   tombol melamar dan dialog tidak ada. Typecheck/lint/build akhir lulus.
+- CI pertama: unit/lint/typecheck serta gerbang browser dan Lighthouse desktop
+  lulus; skor 3G **0,74** di bawah ambang repo **0,75**. Perbaikan mempertahankan
+  ambang: landing publik dan teksnya tersedia di bundel awal, sedangkan feed
+  dan katalog karier/admin tetap dimuat terpisah. Loader mendaftarkan teks
+  sebelum halaman ditampilkan; test router membuktikan katalog lain tidak ikut.
+- Footer tampil setelah pemulihan sesi selesai agar tidak bergeser dari tengah
+  viewport saat landing tersedia. Tiga audit 3G lokal setelah perbaikan:
+  performa **0,76/0,76/0,76**, aksesibilitas **100**, CLS **0**. Ambang sementara
+  U-31 tetap mengikuti konfigurasi repo; perbaikan ini tidak menyatakan utang
+  pre-render/ambang 0,8 sudah selesai.
+- Lima suite pemuatan landing, katalog, kerangka, dan navigasi setelah perbaikan
+  performa: **62 test lulus**. Lint/typecheck dan budget bundel awal lulus.
 - Rollback dengan revert perubahan web. Tidak ada perubahan skema, data akun,
   atau provider dalam PR ini. Merge mensyaratkan kedua gerbang CI hijau.

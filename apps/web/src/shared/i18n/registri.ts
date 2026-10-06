@@ -1,4 +1,5 @@
-// Registri katalog i18n — shell EAGER, fitur MALAS.
+// Registri katalog i18n — shell EAGER, registrasi fitur per rute.
+// Teks landing publik ikut bundel awal untuk menghindari permintaan berantai 3G.
 //
 // KENAPA ADA. Sebelum ini `katalog/index.ts` merakit seluruh fitur menjadi satu
 // objek statis yang di-import provider, sehingga SETIAP teks aplikasi masuk ke
@@ -13,6 +14,7 @@
 // dulu sebelum pesan "gagal memuat" bisa tampil adalah katalog yang gagal di
 // saat paling dibutuhkan.
 import { katalogShell } from "./katalog/shell.js";
+import { katalogBeranda } from "./katalog/beranda.js";
 import type { KatalogFitur } from "./tipe.js";
 
 /**
@@ -49,7 +51,8 @@ export type NamaFitur = "shell" | FiturMalas;
  */
 const PEMUAT: Readonly<Record<FiturMalas, () => Promise<KatalogFitur>>> = {
   auth: async () => (await import("./katalog/auth.js")).katalogAuth,
-  beranda: async () => (await import("./katalog/beranda.js")).katalogBeranda,
+  // Teks landing ikut bundel awal; registrasi tetap mendahului render route.
+  beranda: async () => katalogBeranda,
   pengaturan: async () => (await import("./katalog/pengaturan.js")).katalogPengaturan,
   onboarding: async () => (await import("./katalog/onboarding.js")).katalogOnboarding,
   profil: async () => (await import("./katalog/profil.js")).katalogProfil,

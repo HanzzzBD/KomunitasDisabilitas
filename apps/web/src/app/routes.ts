@@ -7,6 +7,7 @@
 import type { RouteObject } from "react-router";
 import { TataLetak } from "./tata-letak.js";
 import { LayarKesalahan } from "./kesalahan.js";
+import { Beranda } from "../routes/beranda.js";
 import { muatKatalog } from "../shared/i18n/index.js";
 
 // KATALOG TEKS IKUT DIMUAT DI SINI, BERSAMA KOMPONENNYA.
@@ -50,16 +51,12 @@ export const ruteApp: RouteObject[] = [
     children: [
       {
         index: true,
-        lazy: async () => {
-          const [{ Beranda }] = await Promise.all([
-            import("../routes/beranda.js"),
-            // HANYA `beranda`. Katalog kartu feed (`lowongan`/`companies`/
-            // `profil`) dimuat bersama chunk feed di `routes/beranda.tsx` —
-            // tamu yang hanya melihat landing tidak menunggu ketiganya
-            // (Lighthouse 3G, AC PR-032).
-            muatKatalog("beranda"),
-          ]);
-          return { Component: Beranda };
+        // Landing kecil tersedia bersama shell agar 3G tidak menunggu satu
+        // perjalanan jaringan lagi. Feed seeker tetap dimuat saat diperlukan.
+        Component: Beranda,
+        loader: async () => {
+          await muatKatalog("beranda");
+          return null;
         },
       },
       {
