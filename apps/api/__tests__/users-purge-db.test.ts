@@ -53,8 +53,21 @@ beforeAll(async () => {
  * akan melewatkan persis baris yang paling penting dibersihkan.
  */
 const dibuat: string[] = [];
+const communityDibuat: string[] = [];
 
 async function bersihkanUji(): Promise<void> {
+  if (communityDibuat.length > 0) {
+    const posts = await mentah.communityPost.findMany({
+      where: { communityId: { in: communityDibuat } },
+      select: { id: true },
+    });
+    const postIds = posts.map((p) => p.id);
+    await mentah.communityReport.deleteMany({ where: { targetId: { in: postIds } } });
+    await mentah.communityComment.deleteMany({ where: { postId: { in: postIds } } });
+    await mentah.communityPost.deleteMany({ where: { communityId: { in: communityDibuat } } });
+    await mentah.community.deleteMany({ where: { id: { in: communityDibuat } } });
+    communityDibuat.length = 0;
+  }
   // Urutannya bukan selera: `jobs` ber-onDelete Restrict terhadap applications.
   // Lamaran disapu lewat LOWONGAN-nya, bukan lewat pemiliknya — akun yang
   // dianonimkan run sebelumnya tidak lagi bisa dikenali dari nama maupun dari
@@ -323,4 +336,93 @@ describe("purge — kebijakan", () => {
   it("jendela tunggu 30 hari sesuai janji PRD FR-1.4", () => {
     expect(PURGE_POLICY.hariTunggu).toBe(30);
   });
+});
+
+describe("Community PDP — dua jalur service purge (PR-113)", () => {
+  for (const statusLamaran of [undefined, "hired"] as const) {
+    it(`membership/report hilang; body dan author dibersihkan (lamaran=${statusLamaran ?? "tanpa hired"})`, async (ctx) => {
+      if (!dbTersedia) return ctx.skip();
+      const authorId = await buatAkun({ deletedAt: LAMA, statusLamaran });
+      const otherId = await buatAkun({ deletedAt: null });
+      const communityId = uuidV7();
+      communityDibuat.push(communityId);
+      await mentah.community.create({
+        data: {
+          id: communityId,
+          slug: `pr113-${communityId}`,
+          name: "Uji Community",
+          description: "Diskusi",
+          type: "topic",
+          createdBy: authorId,
+        },
+      });
+      await mentah.communityMembership.create({ data: { communityId, userId: authorId } });
+      const postId = uuidV7();
+      await mentah.communityPost.create({
+        data: { id: postId, communityId, authorId, body: "Data pribadi penulis" },
+      });
+      const commentId = uuidV7();
+      await mentah.communityComment.create({
+        data: { id: commentId, postId, authorId, body: "Data pribadi komentar" },
+      });
+      const mine = uuidV7();
+      const theirs = uuidV7();
+      await mentah.communityReport.create({
+        data: {
+          id: mine,
+          reporterId: authorId,
+          targetType: "post",
+          targetId: postId,
+          reason: "Milik penulis",
+        },
+      });
+      await mentah.communityReport.create({
+        data: {
+          id: theirs,
+          reporterId: otherId,
+          targetType: "post",
+          targetId: postId,
+          reason: "Laporan pengguna lain",
+          status: "resolved",
+          resolvedBy: authorId,
+          resolvedAt: SEKARANG,
+        },
+      });
+
+      const dry = await service.run({ dryRun: true });
+      expect(await mentah.communityPost.findUnique({ where: { id: postId } })).toMatchObject({
+        authorId,
+        body: "Data pribadi penulis",
+        status: "published",
+      });
+      const result = await service.run();
+      expect(result.records).toBe(dry.records);
+      expect(await mentah.communityMembership.count({ where: { userId: authorId } })).toBe(0);
+      expect(await mentah.communityPost.findUnique({ where: { id: postId } })).toMatchObject({
+        authorId: null,
+        body: "",
+        status: "removed",
+      });
+      expect(await mentah.communityComment.findUnique({ where: { id: commentId } })).toMatchObject({
+        authorId: null,
+        body: "",
+        status: "removed",
+      });
+      expect(await mentah.communityReport.findUnique({ where: { id: mine } })).toBeNull();
+      expect(await mentah.communityReport.findUnique({ where: { id: theirs } })).toMatchObject({
+        targetId: postId,
+        status: "resolved",
+        resolvedBy: null,
+      });
+      expect(
+        (await mentah.communityReport.findUnique({ where: { id: theirs } }))?.resolvedAt,
+      ).toEqual(SEKARANG);
+      expect(await mentah.community.findUnique({ where: { id: communityId } })).toMatchObject({
+        createdBy: null,
+      });
+      expect(await mentah.application.count({ where: { userId: authorId, status: "hired" } })).toBe(
+        statusLamaran === "hired" ? 1 : 0,
+      );
+    });
+  }
 });

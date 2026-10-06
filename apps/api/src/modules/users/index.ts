@@ -122,6 +122,7 @@ export {
   TABEL_DIHAPUS,
   type PurgeService,
 } from "./services/purge.service.js";
+export { COMMUNITY_PURGE_MODELS } from "./services/community-purge.js";
 export {
   createOrphanPolicies,
   createRetentionService,

@@ -1170,6 +1170,24 @@ ikut hanyut sampai Phase 18.
 
 ---
 
+### U-39 — Ekspor PDP Community harus ikut endpoint penulisan pertama
+
+| | |
+|---|---|
+| **Status** | **TERBUKA — 2026-10-06** |
+| **Ditemukan** | PR-113 (kontrak/migrasi; belum ada endpoint penulisan Community) |
+| **Pemilik** | PR-114 (membership), PR-116 (post/komentar/report), PR-119 (gate PDP) |
+| **Pemicu** | Repository pertama yang membuat/upsert data Community |
+| **Penagih** | `export-kelengkapan.test.ts`: penundaan ditolak saat create/createMany/upsert atau INSERT Community muncul di source API |
+
+PR-113 sudah memasang pembersihan PDP pada kedua jalur purge. Kontributor ekspor disiapkan
+bersama modul API pemilik data: membership di PR-114; post, komentar, dan report di PR-116.
+Kontributor hanya mengumpulkan data milik pemilik sesi dan tidak membocorkan report pengguna
+lain atau identitas resolver. Pembukaan Community di PR-119 mensyaratkan ekspor sudah lengkap.
+Alasan "belum ada data" tidak boleh bertahan setelah endpoint penulisan pertama lahir.
+
+---
+
 ## Rekonsiliasi 2026-09-06 (setelah PR-049b merged)
 
 Dijalankan atas perintah owner sesudah PR-049 tuntas. Metodenya sama dengan rekonsiliasi

@@ -133,6 +133,7 @@ import {
   matchesResponseSchema,
 } from "./matching.js";
 import { z, type ZodTypeAny } from "zod";
+import { communityOpenApiSchemas } from "./community.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -258,6 +259,8 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
     // Authorization. Endpoint pre-auth menyatakan `security: []` secara
     // eksplisit — deny-by-default juga di dokumen, bukan hanya di kode.
     components: {
+      // PR-113 hanya kontrak; jangan mengiklankan endpoint sebelum PR-114/116.
+      schemas: communityOpenApiSchemas,
       securitySchemes: {
         bearerAuth: {
           type: "http",
