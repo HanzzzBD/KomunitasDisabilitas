@@ -22,6 +22,7 @@ export const PATH_DIIZINKAN = [
   "lamaran",
   "notifikasi",
   "cv",
+  "cv/chat",
   "profil",
 ] as const;
 
@@ -54,6 +55,7 @@ export function deepLinkDiizinkan(url: string): boolean {
 export type TujuanTautan =
   | { layar: "Utama"; tab: "Beranda" | "Cari" | "Lamaran" | "Cv" | "Profil" }
   | { layar: "Notifikasi" }
+  | { layar: "CvChat" }
   | { layar: "LamaranDetail" | "LowonganDetail" | "CvEditor"; id: string };
 
 export function tujuanDeepLink(url: string): TujuanTautan | null {
@@ -63,6 +65,7 @@ export function tujuanDeepLink(url: string): TujuanTautan | null {
   if (path === "lamaran") return { layar: "Utama", tab: "Lamaran" };
   if (path === "notifikasi") return { layar: "Notifikasi" };
   if (path === "cv") return { layar: "Utama", tab: "Cv" };
+  if (path === "cv/chat") return { layar: "CvChat" };
   if (path === "lowongan") return { layar: "Utama", tab: "Cari" };
   if (path === "profil") return { layar: "Utama", tab: "Profil" };
   const [jenis, id] = path.split("/");

@@ -44,6 +44,16 @@ export function createResumesController(service: ResumesService, pdf: ResumePdfA
       res.status(200).json({ data: await pdf.status(actorOf(req), id) });
     },
 
+    /** Unduhan privat untuk browser dan HP, tanpa mengekspos alamat storage lokal. */
+    async downloadPdf(req: Request, res: Response): Promise<void> {
+      const { id } = req.params as unknown as ResumeIdParams;
+      const bytes = await pdf.download(actorOf(req), id);
+      res.set("Cache-Control", "private, no-store");
+      res.set("Content-Type", "application/pdf");
+      res.set("Content-Disposition", `attachment; filename="cv-${id}.pdf"`);
+      res.status(200).send(Buffer.from(bytes));
+    },
+
     /**
      * POST /me/resumes → 201 `{ data }`.
      *

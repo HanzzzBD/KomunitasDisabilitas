@@ -75,6 +75,8 @@ export interface ApiClient {
    * menolak dengan jelas bila klien tidak menyediakannya.
    */
   stream?(path: string, options?: StreamOptions): Promise<Response>;
+  /** Berkas privat: pemeriksaan sesi/refresh yang sama, respons biner belum dibaca. */
+  download?(path: string, signal?: AbortSignal): Promise<Response>;
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -144,5 +146,16 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return response;
   }
 
-  return { request, stream };
+  async function download(path: string, signal?: AbortSignal): Promise<Response> {
+    const init = { accept: "application/pdf", signal };
+    let response = await doFetch(path, init);
+    if (response.status === 401 && (await refresh())) response = await doFetch(path, init);
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => undefined);
+      throw new ApiError(toErrorEnvelope(body), response.status);
+    }
+    return response;
+  }
+
+  return { request, stream, download };
 }

@@ -5,6 +5,12 @@ import { createAntreanTautan } from "../src/navigation/antrean-tautan";
 
 const ID = "01912345-89ab-7def-8123-456789abcdef";
 describe("tujuan stack setelah migrasi", () => {
+  it("tautan CV AI membuka chat di tab CV", () => {
+    expect(tujuanStack(tujuanDeepLink("nawasena://cv/chat")!)).toEqual({
+      screen: "Cv",
+      params: { screen: "CvChat", initial: false },
+    });
+  });
   it.each([
     ["lowongan", "Cari", "LowonganDetail"],
     ["lamaran", "Lamaran", "LamaranDetail"],

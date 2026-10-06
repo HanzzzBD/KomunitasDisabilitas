@@ -42,7 +42,10 @@ export function KontrolPdf(props: { resumeId: string; sub: string | null }) {
       if (segar.status !== "ready") return null;
       return bukaPdfCv(pdfAndroid, props.resumeId, segar.downloadUrl);
     },
-    onError: (err) => setGalatBuka(pesanGalat(err)),
+    onError: (err) => {
+      setGalatBuka(pesanGalat(err));
+      void qc.invalidateQueries({ queryKey: kunci });
+    },
   });
 
   const gagalJaringan = status.isError || minta.isError;

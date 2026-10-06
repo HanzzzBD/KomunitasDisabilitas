@@ -7,6 +7,7 @@
   "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../api/.env src/index.ts",
+    "dev:cv": "tsx watch --env-file-if-exists=../api/.env src/index.ts --cv-only",
     "start": "tsx src/index.ts",
     "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",

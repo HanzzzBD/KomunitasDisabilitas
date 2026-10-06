@@ -7,6 +7,7 @@ export function tujuanStack(t: TujuanTautan): NavigatorScreenParams<TabParamList
   if (t.layar === "Utama") return { screen: t.tab };
   if (t.layar === "Notifikasi")
     return { screen: "Beranda", params: { screen: "Notifikasi", initial: false } };
+  if (t.layar === "CvChat") return { screen: "Cv", params: { screen: "CvChat", initial: false } };
   if (t.layar === "LamaranDetail")
     return {
       screen: "Lamaran",

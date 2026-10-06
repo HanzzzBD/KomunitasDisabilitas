@@ -20,18 +20,7 @@ import {
   type CreateCommunityComment,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
-import { queryKey } from "../query-keys.js";
-
-export const communityContentKeys = {
-  all: () => queryKey("community-content"),
-  feed: (userId: string, communityId: string) =>
-    queryKey("community-content", { userId, communityId, kind: "feed" }),
-  post: (userId: string, id: string) => queryKey("community-content", { userId, id, kind: "post" }),
-  comment: (userId: string, id: string) =>
-    queryKey("community-content", { userId, id, kind: "comment" }),
-  comments: (userId: string, postId: string) =>
-    queryKey("community-content", { userId, postId, kind: "comments" }),
-};
+export { communityContentKeys } from "../community-query-keys.js";
 function idPath(prefix: string, id: string) {
   communityIdParamsSchema.parse({ id });
   return `${prefix}/${id}`;

@@ -42,6 +42,24 @@ describe("tree-shaking (esbuild bundle test)", () => {
     );
     expect(out).toContain("createApiClient");
   });
+
+  it("kunci cache Community untuk logout tidak memuat kontrak endpoint", async () => {
+    const out = await bundleSnippet(
+      `import { communityContentKeys, communityAdminKeys } from "./src/index.js";
+       console.log(communityContentKeys.all(), communityAdminKeys.all());`,
+    );
+    expect(out).toContain("community-content");
+    expect(out).toContain("community-admin");
+    expect(out).not.toContain("ZodError");
+  });
+
+  it("getMe untuk shell tidak memuat kontrak ekspor, CV, dan AI", async () => {
+    const out = await bundleSnippet(`import { getMe } from "./src/index.js"; console.log(getMe);`);
+    expect(out).toContain("meResponseSchema");
+    expect(out).not.toContain("dataExportResponseSchema");
+    expect(out).not.toContain("resumeContentSchema");
+    expect(out).not.toContain("aiChatSessionSchema");
+  });
 });
 
 describe("bebas dependensi DOM (jalan di React Native)", () => {

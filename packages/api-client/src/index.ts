@@ -132,6 +132,7 @@ export {
   deleteResume,
   getResumePdfStatus,
   requestResumePdf,
+  downloadResumePdf,
   resumesKeys,
 } from "./endpoints/resumes.js";
 export {

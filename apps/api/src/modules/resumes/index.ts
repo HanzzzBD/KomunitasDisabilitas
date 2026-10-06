@@ -31,6 +31,7 @@ export interface ResumesModuleDeps {
   pdf?: {
     jobs: ResumePdfJobs;
     storage: Pick<ObjectStorage, "presignDownload">;
+    readObject?: (key: string) => Promise<Uint8Array>;
   };
 }
 
@@ -67,6 +68,7 @@ export function createResumesModule(deps: ResumesModuleDeps): ResumesModule {
       ? {
           request: () => Promise.reject(appError("BELUM_SIAP")),
           status: () => Promise.reject(appError("BELUM_SIAP")),
+          download: () => Promise.reject(appError("BELUM_SIAP")),
         }
       : createResumePdfApiService({ resumes: service, ...deps.pdf });
 

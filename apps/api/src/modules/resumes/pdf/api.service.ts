@@ -4,16 +4,19 @@ import type { ResumesActor, ResumesService } from "../services/resumes.service.j
 import { buildResumePdfTask, resumeRenderHash } from "./hash.js";
 import type { ResumePdfJobs, ResumePdfJobState } from "./jobs.js";
 import { resumePdfKey } from "../../../core/storage/index.js";
+import { appError } from "../../../core/http/index.js";
 
 export interface ResumePdfApiService {
   request(actor: ResumesActor, resumeId: string): Promise<ResumePdfStatus>;
   status(actor: ResumesActor, resumeId: string): Promise<ResumePdfStatus>;
+  download(actor: ResumesActor, resumeId: string): Promise<Uint8Array>;
 }
 
 export interface ResumePdfApiDeps {
   resumes: Pick<ResumesService, "get">;
   jobs: ResumePdfJobs;
   storage: Pick<ObjectStorage, "presignDownload">;
+  readObject?: (key: string) => Promise<Uint8Array>;
 }
 
 export function mapResumePdfJobState(state: ResumePdfJobState): ResumePdfStatus {
@@ -50,6 +53,12 @@ export function createResumePdfApiService(deps: ResumePdfApiDeps): ResumePdfApiS
   }
 
   return {
+    async download(actor, resumeId) {
+      const current = await snapshot(actor, resumeId);
+      if (current.resume.pdfUrl !== current.key) throw appError("PDF_BELUM_SIAP");
+      if (!deps.readObject) throw appError("BELUM_SIAP");
+      return deps.readObject(current.key);
+    },
     async status(actor, resumeId) {
       const current = await snapshot(actor, resumeId);
       if (current.resume.pdfUrl === current.key) return ready(current.key);

@@ -52,8 +52,8 @@ test("teks panjang tidak menimbulkan gulir mendatar pada layar 320 piksel", asyn
   expect(meluber).toBe(false);
 });
 
-test("meminta PDF, mengumumkan progres, lalu mengunduh dari URL baru", async ({ page }) => {
-  await page.route("**/berkas/cv.pdf**", async (route) => {
+test("meminta PDF, mengumumkan progres, lalu mengunduh melalui API", async ({ page }) => {
+  await page.route("**/api/v1/me/resumes/*/pdf/download", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/pdf",

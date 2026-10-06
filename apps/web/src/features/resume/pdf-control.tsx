@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getResumePdfStatus,
+  downloadResumePdf,
   requestResumePdf,
   resumesKeys,
   type ApiClient,
@@ -12,20 +13,23 @@ import { useTeks } from "../../shared/i18n/index.js";
 
 const INTERVAL_STATUS_MS = 1_500;
 
-function mulaiUnduh(url: string): void {
+function mulaiUnduh(bytes: Uint8Array, resumeId: string): void {
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
   const tautan = document.createElement("a");
   tautan.href = url;
   tautan.rel = "noopener";
+  tautan.download = `cv-${resumeId}.pdf`;
   document.body.append(tautan);
   tautan.click();
   tautan.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export interface KontrolPdfProps {
   klien: ApiClient;
   resumeId: string;
   sub: string | null;
-  onDownload?: (url: string) => void;
+  onDownload?: (bytes: Uint8Array, resumeId: string) => void;
 }
 
 /** Kontrol yang sama dipakai daftar dan editor agar state PDF tidak menyimpang. */
@@ -58,13 +62,13 @@ export function KontrolPdf({ klien, resumeId, sub, onDownload = mulaiUnduh }: Ko
     },
   });
 
-  // URL diambil ULANG saat tombol ditekan. Dengan begitu URL yang sempat
-  // kedaluwarsa selama pengguna menyunting CV tidak pernah dipakai kembali.
+  // Unduh lewat API dengan sesi saat ini: storage privat tidak harus dapat
+  // dijangkau browser, dan versi CV diperiksa lagi oleh server.
   const unduh = useMutation({
-    mutationFn: () => getResumePdfStatus(klien, resumeId),
-    onSuccess: (hasil) => {
-      queryClient.setQueryData(key, hasil);
-      if (hasil.status === "ready") onDownload(hasil.downloadUrl);
+    mutationFn: () => downloadResumePdf(klien, resumeId),
+    onSuccess: (bytes) => onDownload(bytes, resumeId),
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: key });
     },
   });
 

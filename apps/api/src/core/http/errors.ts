@@ -251,6 +251,11 @@ export const ERROR_CATALOG = {
     message: "CV tidak ditemukan",
     hint: "Mungkin sudah dihapus. Muat ulang daftar CV Anda, lalu coba lagi",
   },
+  PDF_BELUM_SIAP: {
+    status: 409,
+    message: "PDF CV belum siap",
+    hint: "Buat PDF dari isi CV terbaru, lalu coba unduh lagi",
+  },
   // 409, bukan 400: bentuk permintaannya sah — yang bentrok adalah KEADAAN akun
   // saat ini (sudah punya CV sebanyak batasnya). Pesannya menyebutkan jalan
   // keluar yang benar-benar ada, sebab pengguna yang hanya diberi tahu "batas

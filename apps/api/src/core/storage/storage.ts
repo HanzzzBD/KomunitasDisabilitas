@@ -68,6 +68,32 @@ export interface ObjectStorage {
   stat(key: string): Promise<ObjectStat | null>;
 }
 
+/** Bacaan privat melalui endpoint internal; tidak bergantung pada host presigned publik. */
+export function createObjectReader(config: StorageConfig, maxBytes: number) {
+  const client = s3Client(config, config.endpoint);
+  return async (key: string): Promise<Uint8Array> => {
+    assertStorageKey(key);
+    const object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }), {
+      abortSignal: AbortSignal.timeout(30_000),
+    });
+    if (!object.Body) throw new Error("Berkas storage kosong");
+    const body = object.Body;
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      if ((object.ContentLength ?? 0) > maxBytes) throw new Error("Berkas terlalu besar");
+      for await (const chunk of body as AsyncIterable<Uint8Array>) {
+        size += chunk.byteLength;
+        if (size > maxBytes) throw new Error("Berkas terlalu besar");
+        chunks.push(chunk);
+      }
+      return Buffer.concat(chunks, size);
+    } finally {
+      if ("destroy" in body && typeof body.destroy === "function") body.destroy();
+    }
+  };
+}
+
 /** Port sempit agar kebijakan storage dapat diuji tanpa jaringan. */
 export interface StorageDriver {
   put(input: {

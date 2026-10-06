@@ -8,7 +8,7 @@
 import type { ResumePdfStatus } from "@nawasena/schemas";
 
 export interface PlatformPdf {
-  unduh(url: string, namaBerkas: string): Promise<string>;
+  unduh(url: string, namaBerkas: string, resumeId: string): Promise<string>;
   keContentUri(uriBerkas: string): Promise<string>;
   bukaViewer(contentUri: string): Promise<void>;
   bagikan(uriBerkas: string): Promise<void>;
@@ -24,7 +24,7 @@ export async function bukaPdfCv(
   resumeId: string,
   downloadUrl: string,
 ): Promise<HasilBuka> {
-  const berkas = await platform.unduh(downloadUrl, namaBerkasPdf(resumeId));
+  const berkas = await platform.unduh(downloadUrl, namaBerkasPdf(resumeId), resumeId);
   try {
     await platform.bukaViewer(await platform.keContentUri(berkas));
     return "viewer";

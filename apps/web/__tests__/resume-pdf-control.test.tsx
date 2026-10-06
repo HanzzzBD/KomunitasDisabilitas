@@ -13,6 +13,10 @@ const ID = "01912345-89ab-7def-8123-456789abcdef";
 function renderKontrol(responses: unknown[], onDownload = vi.fn()) {
   const requests: Array<{ path: string; method: string }> = [];
   const klien: ApiClient = {
+    download: () =>
+      Promise.resolve(
+        new Response("%PDF-1.7 hasil uji", { headers: { "content-type": "application/pdf" } }),
+      ),
     request<T>(path: string, options?: RequestOptions<T>): Promise<T> {
       requests.push({ path, method: options?.method ?? "GET" });
       const response = responses.shift();
@@ -55,7 +59,7 @@ describe("KontrolPdf", () => {
     expect(status).toHaveAttribute("aria-live", "off");
   });
 
-  it("mengambil URL presigned baru tepat sebelum unduh", async () => {
+  it("mengunduh melalui API lalu memberikan berkas ke browser", async () => {
     const onDownload = vi.fn();
     renderKontrol(
       [
@@ -78,7 +82,9 @@ describe("KontrolPdf", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "Unduh PDF" }));
-    await waitFor(() => expect(onDownload).toHaveBeenCalledWith("https://storage.test/url-baru"));
+    await waitFor(() => expect(onDownload).toHaveBeenCalledOnce());
+    expect(new TextDecoder().decode(onDownload.mock.calls[0]![0])).toBe("%PDF-1.7 hasil uji");
+    expect(onDownload.mock.calls[0]![1]).toBe(ID);
     expect(onDownload).not.toHaveBeenCalledWith("https://storage.test/url-lama");
   });
 

@@ -29,6 +29,12 @@ export function createResumesRouter(controller: ResumesController, routes: Route
     asyncHandler(controller.create),
   );
   routes.get(
+    "/me/resumes/:id/pdf/download",
+    access.authenticated(),
+    validate({ params: resumeIdParamsSchema }),
+    asyncHandler(controller.downloadPdf),
+  );
+  routes.get(
     "/me/resumes/:id/pdf",
     access.authenticated(),
     validate({ params: resumeIdParamsSchema }),
