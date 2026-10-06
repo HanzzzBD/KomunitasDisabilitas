@@ -175,5 +175,9 @@ tanpa menambah portal perusahaan atau membuka UI Community.
   pre-render/ambang 0,8 sudah selesai.
 - Lima suite pemuatan landing, katalog, kerangka, dan navigasi setelah perbaikan
   performa: **62 test lulus**. Lint/typecheck dan budget bundel awal lulus.
+- Guard struktur route diperbarui untuk pengecualian landing publik; halaman
+  login, karier, dan admin tetap wajib lazy. CI kedua meluluskan gerbang `a11y`
+  dan 845 test web; satu assertion kebijakan lama pada landing diperbarui tanpa
+  melonggarkan guard fitur lainnya. Kedua gerbang diperiksa ulang pada head akhir.
 - Rollback dengan revert perubahan web. Tidak ada perubahan skema, data akun,
   atau provider dalam PR ini. Merge mensyaratkan kedua gerbang CI hijau.

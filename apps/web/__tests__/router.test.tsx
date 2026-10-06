@@ -52,11 +52,14 @@ describe("ruteApp — halaman", () => {
 });
 
 describe("ruteApp — bentuk", () => {
-  it("setiap halaman dimuat lazy — tidak ada Component yang diimpor statis", () => {
-    // Inilah yang membuat pemecahan chunk terjadi. Mengganti satu `lazy`
-    // menjadi `Component` yang diimpor di atas berkas akan menarik halaman itu
-    // ke bundel awal tanpa satu pun test lain gagal — kecuali test ini.
-    for (const rute of halaman) {
+  it("landing tersedia bersama shell; halaman fitur tetap dimuat lazy", () => {
+    // Landing publik menghindari waterfall 3G. Pengecualian ini tidak boleh
+    // menarik login, pengelolaan admin, atau fitur karier ke bundel awal.
+    const landing = halaman.find((r) => r.index === true);
+    expect(landing).toBeDefined();
+    expect(landing?.Component).toBeDefined();
+    expect(typeof landing?.loader).toBe("function");
+    for (const rute of halaman.filter((r) => r !== landing)) {
       const nama = String(rute.path ?? "(index)");
       expect(typeof rute.lazy, `halaman ${nama} tidak lazy`).toBe("function");
       expect(rute.Component, `halaman ${nama} punya Component statis`).toBeUndefined();
