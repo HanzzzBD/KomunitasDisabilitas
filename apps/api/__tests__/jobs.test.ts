@@ -56,6 +56,7 @@ function fakeRepo(rows: JobRow[], opsi: OpsiRepo = {}): JobsRepository {
   const berlamaran = opsi.berlamaran ?? new Set<string>();
 
   return {
+    listByCompany: (companyId) => Promise.resolve(rows.filter((r) => r.companyId === companyId)),
     listAdmin: () => Promise.resolve(rows.map((r) => ({ ...r }))),
 
     findById: (id) => {

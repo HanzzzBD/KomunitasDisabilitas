@@ -199,7 +199,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("tujuh tujuan admin berurutan; fitur pendukung tetap tersedia", async () => {
+  it("delapan tujuan admin berurutan; fitur pendukung tetap tersedia", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
@@ -212,6 +212,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
       "Dashboard",
       "Lowongan",
       "Perusahaan",
+      "Employer",
       "Lamaran",
       "Pengguna",
       "Moderasi",

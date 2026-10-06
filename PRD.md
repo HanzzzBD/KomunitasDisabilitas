@@ -156,7 +156,7 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
 ### FR-5 Lamaran & tracking
 - FR-5.1 One-tap apply dengan CV terpilih.
 - FR-5.2 Disclosure control per lamaran (ungkap/tidak ungkap data disabilitas & akomodasi).
-- FR-5.3 Status pipeline lamaran + riwayat; pembaruan status oleh admin (MVP) atau employer (Fase 2).
+- FR-5.3 Status pipeline lamaran + riwayat; pembaruan status oleh admin atau employer anggota perusahaan yang disetujui (portal Phase 19).
 - FR-5.4 Notifikasi in-app + push (FCM) + email; semuanya berbasis visual/teks.
 - FR-5.5 Konfirmasi penempatan: saat status "diterima", pengguna diminta konfirmasi → data North Star Metric.
 
@@ -168,6 +168,7 @@ Konteks regulasi: UU No. 8/2016 mewajibkan kuota tenaga kerja disabilitas 2% (in
 ### FR-7 Fase 2
 - FR-7.1 Simulasi wawancara AI: sesi tanya-jawab per kategori pekerjaan, mode teks & suara (STT + caption), umpan balik terstruktur bernada suportif, mode "panduan eksplisit" untuk pengguna autisme.
 - FR-7.2 Portal employer self-service + alur verifikasi perusahaan.
+  Implementasi awal Phase 19: pendaftaran owner, profil perusahaan, draft/publish/close lowongan, pelamar dan status; persetujuan rekrutmen terpisah dari badge inklusivitas. Undangan tim belum tersedia. Lihat `docs/implementation/employer-portal.md`.
 - FR-7.3 Review perusahaan oleh pekerja/alumni disabilitas (moderated, anonim opsional).
 - FR-7.4 Video BISINDO untuk panduan aplikasi dan konten kunci.
 - FR-7.5 Komunitas (post-MVP, Phase 19): ruang komunitas dikelola admin berdasarkan topik atau kota; pengguna terautentikasi dapat bergabung, membaca, membuat post teks, dan membalas.
@@ -443,7 +444,7 @@ POST /me/devices                        # registrasi token FCM
 
 1. **Klasifikasi data.** Data disabilitas & akomodasi = **data pribadi spesifik** (UU PDP 27/2022): consent eksplisit terpisah saat onboarding (bukan bundled), enkripsi at rest (kolom) + in transit (TLS 1.2+), akses dibatasi role & dicatat di `audit_logs`.
 2. **Disclosure control.** Default: data disabilitas TIDAK dibagikan ke perusahaan; pengguna memutuskan per lamaran. Admin melihatnya hanya untuk keperluan dukungan, dengan audit.
-3. **RBAC.** `seeker` (data sendiri), `admin` (kurasi + moderasi, least privilege), `employer` (Fase 2: hanya pelamar ke lowongannya, dan hanya field yang di-disclose).
+3. **RBAC.** `seeker` (data sendiri), `admin` (kurasi + moderasi, least privilege), `employer` (Phase 19: anggota perusahaan, hanya lowongan dan pelamar perusahaannya; kontak dan CV lampiran tersedia setelah persetujuan rekrutmen, disclosure disabilitas tetap melalui alur admin yang diaudit).
 4. **AppSec.** Mitigasi OWASP Top 10: parameterized queries (Prisma), validasi input (zod), CSRF protection, rate limiting (Redis), security headers, dependency scanning, secrets di env — tidak pernah di repo.
 5. **AI safety.** Guard prompt injection pada input pengguna ke LLM; output AI disanitasi; tidak ada data spesifik dalam prompt kecuali fitur membutuhkan + consent; log AI tanpa PII.
 6. **Operasional.** Backup DB harian terenkripsi ke object storage (retensi 30 hari); prosedur insiden & notifikasi kebocoran ≤ 72 jam (kewajiban UU PDP); akses SSH VPS key-only + fail2ban.

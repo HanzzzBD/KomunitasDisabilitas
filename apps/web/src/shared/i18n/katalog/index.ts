@@ -16,6 +16,7 @@ import type { katalogOnboarding } from "./onboarding.js";
 import type { katalogProfil } from "./profil.js";
 import type { katalogNotifikasi } from "./notifikasi.js";
 import type { katalogAdmin } from "./admin.js";
+import type { katalogEmployer } from "./employer.js";
 import type { katalogCompanies } from "./companies.js";
 import type { katalogLowongan } from "./lowongan.js";
 import type { katalogResume } from "./resume.js";
@@ -23,7 +24,8 @@ import type { katalogPelamar } from "./pelamar.js";
 import type { katalogKamus } from "./kamus.js";
 import type { katalogCommunity } from "./community.js";
 
-type SemuaKatalog = typeof katalogShell &
+type SemuaKatalog = typeof katalogEmployer &
+  typeof katalogShell &
   typeof katalogAuth &
   typeof katalogBeranda &
   typeof katalogPengaturan &

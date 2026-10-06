@@ -343,7 +343,7 @@ export const STATUS_LAMARAN_AKHIR: ReadonlySet<StatusLamaran> = new Set([
   "withdrawn",
 ]);
 
-export type PeranPemindahStatus = "seeker" | "admin";
+export type PeranPemindahStatus = "seeker" | "admin" | "employer";
 
 export function statusLamaranAktif(status: StatusLamaran): boolean {
   return !STATUS_LAMARAN_AKHIR.has(status);

@@ -63,6 +63,7 @@ const META_AMAN: Record<AuditAction, Record<string, unknown>> = {
     deleted: 12,
     remaining: 0,
   },
+  [AUDIT_ACTION.EMPLOYER_RESOURCE_CHANGED]: { operation: "create" },
   [AUDIT_ACTION.JOB_AUTO_CLOSED]: { dryRun: false, closed: 3, remaining: 0 },
 };
 

@@ -732,3 +732,51 @@ Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
   Web/Android atau build APK yang dibutuhkan untuk perbaikan worker ini.
 
 Detail: [aktivasi matching](../matching-activation.md).
+
+## Portal employer Web dan Android
+
+Tanggal: 6 Oktober 2026. Perubahan tambahan Phase 19.
+
+- Employer sekarang langsung masuk ke ruang perusahaan setelah login. Portal
+  menyediakan editor perusahaan, draft/edit/publish/close lowongan, pelamar dengan
+  cursor, kontak/CV lampiran, serta perubahan status dengan alasan. Seeker dapat
+  mendaftar employer dari menu akun; Android menyediakan layar native yang sama.
+- Login tetap milik pengguna; akses perusahaan melalui `employer_members`.
+  Pendaftar menjadi owner perusahaan baru. Akses lowongan/pelamar diperiksa dari
+  membership DB sebelum data pribadi dibaca; endpoint admin tetap ditolak.
+  Undangan dan pengelolaan anggota melalui UI belum termasuk implementasi ini.
+- Persetujuan rekrutmen terpisah dari badge inklusivitas. Draft tersedia sebelum
+  persetujuan; publish dan akses pelamar memerlukan persetujuan admin melalui
+  `/admin/employers`. Penolakan menutup lowongan yang masih tayang. Employer tidak
+  dapat mengubah badge atau status persetujuan lewat formulir/API pendaftaran.
+- Lamaran baru mengabari employer aktif sesuai preferensi push/email/in-app;
+  perubahan tahap mengabari pelamar. Deep link dan push Android diarahkan sesuai
+  peran akun. Publish/close tetap memakai event domain untuk pipeline matching.
+- Migration tambahan `20261006150000_employer_portal` diterapkan pada database
+  development, bersama migration Community yang sudah tertunda. Membership ikut
+  ekspor dan kedua jalur purge akun; migrasi mundur tidak dijalankan.
+- Akun yang diminta pengguna mendapat perusahaan baru **Perusahaan Demo Nawasena,
+  Jakarta**, dengan persetujuan rekrutmen untuk mencoba fitur dan badge unverified.
+  Nama/kota mengikuti kebebasan yang diberikan pengguna. Tidak ada akses otomatis
+  ke perusahaan lain, role admin, email akun atau token dalam fixture/log commit.
+- Validasi lokal: API employer/OpenAPI/ekspor 37 tes, SDK 195, skema 134, mobile
+  197 dan native 13 lulus. Web 50 tes terkait navigasi/katalog serta 20 ekspor
+  lulus; lima tes browser terkait portal/registry dan axe lulus. Lint 77 berkas,
+  typecheck workspace terkait, build Web/service worker dan OpenAPI drift lulus.
+  Bundel awal Web 141,98 KB gzip, masih di bawah budget 140 KiB.
+- Probe API development dengan dua tenant sintetis membuktikan isolasi tenant,
+  CV lampiran, riwayat status employer, notifikasi lamaran/status, ekspor membership,
+  penolakan admin dan pembatasan perusahaan pending. Fixture dibersihkan berdasarkan
+  UUID milik probe. Worker matching dan push/email tetap aktif tanpa antrean gagal.
+- APK lama memerlukan build dan pemasangan ulang untuk layar employer, CV AI serta
+  pengaturan notifikasi baru. Smoke test TalkBack/viewer pada perangkat fisik belum
+  dijalankan; tidak ada perangkat Android terhubung.
+- Gerbang CI menangkap judul employer yang belum mengikuti skala teks 200%.
+  Ukuran heading kini memakai token `--font-scale`, sama seperti teks aplikasi.
+  Bundling Android berhasil dengan 1178 modul. CI lint/typecheck/seluruh unit tes
+  lulus; gerbang aksesibilitas dijalankan kembali setelah perbaikan skala teks.
+- Reflow employer juga diperiksa dengan font monospace 16px dan teks 200%.
+  Heading panjang dapat membungkus dan wadah/form memakai min-inline-size 0,
+  sehingga halaman 320px tidak melebar pada font dasar CI yang lebih besar.
+
+Detail: [portal employer](../employer-portal.md).

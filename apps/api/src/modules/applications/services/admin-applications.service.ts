@@ -39,6 +39,7 @@ import type { PemetaLamaran } from "./pemeta-lamaran.js";
 import { bolehPindah } from "./status-machine.js";
 
 export interface AdminActor {
+  role?: "admin" | "employer";
   userId: string;
   requestId: string;
 }
@@ -143,6 +144,9 @@ export function createAdminApplicationsService(deps: AdminApplicationsServiceDep
     },
 
     /** GET /admin/applications/:id — kontak + CV + riwayat, TANPA data disabilitas. */
+    async jobId(id: string): Promise<string> {
+      return (await ambil(id)).jobId;
+    },
     async detail(id: string): Promise<AdminApplicationDetail> {
       return keDetail(await ambil(id));
     },
@@ -157,7 +161,7 @@ export function createAdminApplicationsService(deps: AdminApplicationsServiceDep
       input: UpdateApplicationStatus,
     ): Promise<AdminApplicationDetail> {
       const row = await ambil(id);
-      if (!bolehPindah(row.status, input.status, "admin")) {
+      if (!bolehPindah(row.status, input.status, actor.role ?? "admin")) {
         throw appError("STATUS_LAMARAN_TIDAK_VALID");
       }
       const at = now();
@@ -168,7 +172,7 @@ export function createAdminApplicationsService(deps: AdminApplicationsServiceDep
           status: input.status,
           statusHistory: [
             ...pemeta.keRiwayat(row),
-            { from: row.status, to: input.status, by: "admin", at: at.toISOString() },
+            { from: row.status, to: input.status, by: actor.role ?? "admin", at: at.toISOString() },
           ],
         },
       );
@@ -187,7 +191,7 @@ export function createAdminApplicationsService(deps: AdminApplicationsServiceDep
         jobId: row.jobId,
         from: row.status,
         to: input.status,
-        changedBy: "admin",
+        changedBy: actor.role ?? "admin",
         changedAt: at.toISOString(),
       });
       return keDetail(await ambil(id));

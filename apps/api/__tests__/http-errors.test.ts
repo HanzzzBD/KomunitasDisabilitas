@@ -155,6 +155,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Email ini tidak bisa dipakai",
           "status": 409,
         },
+        "EMPLOYER_BELUM_DISETUJUI": {
+          "hint": "Anda dapat menyiapkan draft. Tunggu persetujuan admin untuk menerbitkan lowongan dan mengelola pelamar.",
+          "message": "Akses rekrutmen perusahaan belum disetujui",
+          "status": 403,
+        },
         "GOOGLE_EXCHANGE_GAGAL": {
           "hint": "Ulangi dari tombol Masuk dengan Google; tautan masuk hanya berlaku sekali",
           "message": "Masuk dengan Google tidak berhasil",

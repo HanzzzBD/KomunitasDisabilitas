@@ -75,6 +75,7 @@ export const NOTIFICATION_TYPE = {
    * disclose: id saja, sesuai aturan peta parameter di bawah.
    */
   ADMIN_LAMARAN_BARU: "admin.lamaran_baru",
+  EMPLOYER_LAMARAN_BARU: "employer.lamaran_baru",
   /** Pelamar membatalkan lamarannya (PR-076) — admin berhenti meneruskannya. */
   ADMIN_LAMARAN_DIBATALKAN: "admin.lamaran_dibatalkan",
   /** Pelamar mengonfirmasi diterima kerja (PR-076, North Star) — untuk verifikasi silang. */
@@ -95,6 +96,7 @@ export const notificationTypeSchema = z
     NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
     NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
     NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU,
+    NOTIFICATION_TYPE.EMPLOYER_LAMARAN_BARU,
     NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN,
     NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI,
     NOTIFICATION_TYPE.RESUME_PDF_SIAP,
@@ -149,6 +151,7 @@ export const NOTIFICATION_PARAM_SCHEMAS = {
     })
     .strict(),
   "admin.lamaran_baru": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
+  "employer.lamaran_baru": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
   "admin.lamaran_dibatalkan": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
   "admin.penempatan_terkonfirmasi": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
   "resume.pdf_siap": z.object({ resumeId: idSchema }).strict(),

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, expectTypeOf, vi } from "vitest";
+import { z } from "zod";
 import { createApiClient, ApiError, requestOtp } from "../src/index.js";
 
 // Mock fetch via injeksi — tanpa DOM/msw. Suite ini jalan di environment node
@@ -12,6 +13,18 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("createApiClient — envelope & error mapping", () => {
+  it("returns the parsed output when schema input omits a defaulted field", async () => {
+    const fetch = vi.fn().mockResolvedValue(jsonResponse(200, { data: {} }));
+    const client = createApiClient({ baseUrl: "https://x", fetch });
+    const response = await client.request("/export", {
+      responseSchema: z.object({
+        data: z.object({ memberships: z.array(z.string()).default([]) }),
+      }),
+    });
+    expectTypeOf(response).toEqualTypeOf<{ data: { memberships: string[] } }>();
+    expect(response.data.memberships).toEqual([]);
+  });
+
   it("memetakan envelope error API ke ApiError {code, message, hint}", async () => {
     const fetch = vi.fn().mockResolvedValue(
       jsonResponse(400, {

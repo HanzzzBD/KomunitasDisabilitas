@@ -31,6 +31,8 @@ export function tujuanNotifikasi(n: Pick<Notification, "type" | "params">): Tuju
     case NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED:
       // Community belum memiliki layar Android; notifikasi tetap dapat dibaca.
       return null;
+    case NOTIFICATION_TYPE.EMPLOYER_LAMARAN_BARU:
+      return { layar: "Employer" };
     default: {
       const tidakDikenal: never = n.type;
       return tidakDikenal;

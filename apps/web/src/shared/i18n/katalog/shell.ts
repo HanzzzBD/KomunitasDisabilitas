@@ -9,6 +9,8 @@
 import type { KatalogFitur } from "../tipe.js";
 
 export const katalogShell = {
+  "shell.nav.employer": { id: "Ruang employer", "id-simple": "Kelola perusahaan" },
+  "shell.nav.jadiEmployer": { id: "Daftar employer", "id-simple": "Daftarkan perusahaan" },
   "shell.help.pekerjaan": {
     id: "Cari pekerjaan melalui kata kunci, lokasi, cara kerja, dan akomodasi. Buka detail lowongan untuk melamar.",
     "id-simple":

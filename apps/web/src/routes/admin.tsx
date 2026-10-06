@@ -28,6 +28,7 @@ const SEKSI = [
   { ke: "/admin", kunci: "admin.nav.ringkasan", tepat: true },
   { ke: "/admin/jobs", kunci: "admin.nav.jobs", tepat: false },
   { ke: "/admin/companies", kunci: "admin.nav.companies", tepat: false },
+  { ke: "/admin/employers", kunci: "admin.nav.employers", tepat: false },
   { ke: "/admin/lamaran", kunci: "admin.nav.lamaran", tepat: false },
   { ke: "/admin/pengguna", kunci: "admin.nav.pengguna", tepat: false },
   { ke: "/admin/community/laporan", kunci: "admin.nav.moderasi", tepat: false },

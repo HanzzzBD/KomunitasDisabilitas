@@ -14,6 +14,13 @@ it("role admin yang ter-cache dari akun lama tidak mengarahkan seeker baru ke da
   expect(request).toHaveBeenCalledWith("/me", expect.anything());
   expect(queryClient.getQueryData(usersKeys.me())).toEqual(profilBaru);
 });
+it("employer lands in its company workspace after login", async () => {
+  const qc = createQueryClient();
+  const client = {
+    request: vi.fn().mockResolvedValue({ data: { role: "employer" } }),
+  } as unknown as ApiClient;
+  expect(await tujuanSetelahMasuk(client, qc, "/")).toBe("/employer");
+});
 
 it("pembacaan profil gagal menghapus cache role lama dan menolak tujuan ke luar situs", async () => {
   const queryClient = createQueryClient();

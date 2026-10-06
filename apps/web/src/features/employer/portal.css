@@ -1,0 +1,109 @@
+.employer-portal {
+  min-inline-size: 0;
+  max-width: 70rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 4vw, 3rem);
+  display: grid;
+  gap: 1.5rem;
+}
+.employer-portal h1 {
+  font-size: calc(2rem * var(--font-scale, 1));
+  font-weight: 700;
+}
+.employer-portal h2 {
+  font-size: calc(1.5rem * var(--font-scale, 1));
+  font-weight: 700;
+}
+.employer-portal h3 {
+  font-size: calc(1.2rem * var(--font-scale, 1));
+  font-weight: 600;
+}
+.employer-portal h4 {
+  font-weight: 600;
+}
+.employer-portal header,
+.employer-portal section,
+.employer-portal article {
+  min-inline-size: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.employer-company,
+.employer-list > li {
+  border: 1px solid var(--color-gray-300, #bbb);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+.employer-list {
+  display: grid;
+  gap: 1rem;
+}
+.employer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.employer-portal form {
+  min-inline-size: 0;
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+}
+.employer-portal label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.employer-portal input,
+.employer-portal textarea,
+.employer-portal select {
+  border: 1px solid currentColor;
+  border-radius: 0.35rem;
+  padding: 0.75rem;
+  width: 100%;
+  color: inherit;
+  background: inherit;
+  font: inherit;
+}
+.employer-portal button {
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.35rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.employer-portal button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.employer-portal :focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+.employer-portal .employer-check {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 400;
+}
+.employer-portal input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.employer-portal fieldset {
+  min-inline-size: 0;
+  border: 1px solid currentColor;
+  padding: 1rem;
+  border-radius: 0.35rem;
+}
+.employer-portal p,
+.employer-portal li,
+.employer-portal h1,
+.employer-portal h2,
+.employer-portal h3,
+.employer-portal h4 {
+  overflow-wrap: anywhere;
+}

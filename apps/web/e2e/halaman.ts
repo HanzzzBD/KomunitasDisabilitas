@@ -57,9 +57,13 @@ export interface HalamanDijaga {
    * mengira sedang memeriksa halaman admin.
    */
   butuhAdmin?: true;
+  butuhEmployer?: true;
 }
 
 export const HALAMAN: readonly HalamanDijaga[] = [
+  { nama: "Employer — daftar perusahaan", jalur: "/employer", butuhEmployer: true },
+  { nama: "Employer — pendaftaran", jalur: "/employer", butuhSesi: true },
+  { nama: "Persetujuan employer", jalur: "/admin/employers", butuhAdmin: true },
   { nama: "Beranda personal", jalur: "/home", butuhSesi: true },
   { nama: "Rekomendasi lengkap", jalur: "/home/rekomendasi", butuhSesi: true },
   { nama: "Bantuan", jalur: "/help" },

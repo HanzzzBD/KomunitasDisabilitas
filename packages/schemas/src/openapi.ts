@@ -135,6 +135,7 @@ import {
 import { z, type ZodTypeAny } from "zod";
 import { communityOpenApiSchemas } from "./community.js";
 import { communityPaths } from "./community-openapi.js";
+import { employerPaths } from "./employer-openapi.js";
 import { communityAdminPaths } from "./community-admin-openapi.js";
 import { communityAdminOpenApiSchemas } from "./community-admin.js";
 
@@ -1808,6 +1809,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      ...employerPaths,
     },
   });
 }

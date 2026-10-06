@@ -45,9 +45,11 @@ export function AksesibilitasScreen() {
   );
 }
 export function PengaturanScreen() {
+  const nav = useNavigation<NavigationProp<RootStackParamList>>();
   return (
     <LayarGulir testID="layar-pengaturan">
       <Judul>Pengaturan akun</Judul>
+      <Tombol label="Ruang employer" varian="sekunder" onPress={() => nav.navigate("Employer")} />
       <PilihanKanal />
       <PrivasiAnalitik />
       <TombolKeluar />

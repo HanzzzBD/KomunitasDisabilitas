@@ -67,6 +67,7 @@ export interface NotificationsModuleDeps {
    * yang tidak dikabari.
    */
   direktoriAdmin?: { idAdminAktif(): Promise<string[]> };
+  direktoriEmployer?: { idEmployerLowongan(jobId: string): Promise<string[]> };
   logger?: Pick<Logger, "error">;
 }
 
@@ -274,6 +275,19 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
       applicationId: payload.applicationId,
       jobId: payload.jobId,
     });
+  });
+  deps.events.on("application.submitted", async (payload) => {
+    if (!deps.direktoriEmployer) return;
+    for (const userId of await deps.direktoriEmployer.idEmployerLowongan(payload.jobId)) {
+      const type = "employer.lamaran_baru";
+      const lahir = await service.terbitkan({
+        userId,
+        type,
+        params: { applicationId: payload.applicationId, jobId: payload.jobId },
+        kunciPeristiwa: payload.applicationId,
+      });
+      await antrekanKanalLuar(lahir, userId, idNotifikasi(type, userId, payload.applicationId));
+    }
   });
 
   // Perpindahan status → satu kabar per (lamaran, status tujuan) (PR-078).

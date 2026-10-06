@@ -76,6 +76,7 @@ export const TABEL_DIHAPUS = [
   "device",
   "refreshToken",
   "communityMembership",
+  "employerMember",
 ] as const satisfies readonly (keyof Prisma.TypeMap["model"] extends never ? never : string)[];
 
 /** Kandidat purge: sudah lewat jendela DAN masih memegang PII. */

@@ -38,6 +38,7 @@ export const AUDIT_ENTITY = "jobs.job";
 
 /** Konteks admin pemanggil — bentuknya sama dengan actor modul lain. */
 export interface JobsActor {
+  role?: "admin" | "employer";
   userId: string;
   requestId: string;
 }
@@ -195,7 +196,9 @@ export function createJobsService(deps: JobsServiceDeps) {
   ) =>
     auditLog(
       { actorId: actor.userId, requestId: actor.requestId },
-      AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
+      actor.role === "employer"
+        ? AUDIT_ACTION.EMPLOYER_RESOURCE_CHANGED
+        : AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
       AUDIT_ENTITY,
       id,
       { operation },
@@ -295,6 +298,14 @@ export function createJobsService(deps: JobsServiceDeps) {
     },
 
     /** GET /api/v1/admin/jobs — seluruh lowongan, tanpa pagination (skala pilot). */
+    async getForManagement(id: string): Promise<JobAdmin> {
+      const row = await jobsRepository.findById(id);
+      if (!row) throw appError("LOWONGAN_TIDAK_DITEMUKAN");
+      return keProfilAdmin(row);
+    },
+    async listForCompany(companyId: string): Promise<JobAdmin[]> {
+      return (await jobsRepository.listByCompany(companyId)).map(keProfilAdmin);
+    },
     async listAdmin(): Promise<JobAdmin[]> {
       const rows = await jobsRepository.listAdmin();
       return rows.map(keProfilAdmin);
@@ -303,7 +314,11 @@ export function createJobsService(deps: JobsServiceDeps) {
     /** POST /api/v1/admin/jobs — lahir selalu `draft` (bawaan kolom Prisma). */
     async create(actor: JobsActor, input: CreateJob): Promise<JobAdmin> {
       const id = uuidV7();
-      const hasil = await jobsRepository.create(id, { ...input, createdBy: actor.userId });
+      const hasil = await jobsRepository.create(id, {
+        ...input,
+        createdBy: actor.userId,
+        ...(actor.role === "employer" ? { source: "employer" as const } : {}),
+      });
       if (hasil === "perusahaan-tidak-ada") throw appError("PERUSAHAAN_TIDAK_DITEMUKAN");
 
       catatPerubahan(actor, id, "create");
@@ -385,7 +400,7 @@ export function createJobsService(deps: JobsServiceDeps) {
       events.emit("job.closed", {
         jobId: id,
         closedAt: waktu.toISOString(),
-        reason: "closed_by_admin",
+        reason: actor.role === "employer" ? "closed_by_employer" : "closed_by_admin",
       });
 
       return keProfilAdmin(row);

@@ -17,7 +17,11 @@ export async function tujuanSetelahMasuk(
   try {
     const profil = await getMe(klien);
     queryClient.setQueryData(usersKeys.me(), profil);
-    return profil.data.role === "admin" ? "/admin" : bersih;
+    return profil.data.role === "admin"
+      ? "/admin"
+      : profil.data.role === "employer"
+        ? "/employer"
+        : bersih;
   } catch {
     // Login sudah berhasil. Gangguan pembacaan profil tidak boleh tampil
     // sebagai OTP/code Google yang salah, atau menyuruh menukar code lagi.

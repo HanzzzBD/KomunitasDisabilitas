@@ -24,7 +24,7 @@
 // `<main>` TIDAK ditulis di sini: landmark utama milik `TataLetak`, satu untuk
 // seluruh aplikasi.
 import { lazy, Suspense } from "react";
-import { Link } from "react-router";
+import { Navigate, Link } from "react-router";
 import { Kartu, WilayahMemuat } from "@nawasena/ui";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { usePeranSesi } from "../shared/sesi/peran.js";
@@ -71,6 +71,7 @@ export function Beranda() {
     </WilayahMemuat>
   );
   if (status === "memulihkan") return memuat;
+  if (status === "masuk" && peran === "employer") return <Navigate to="/employer" replace />;
   if (status === "masuk" && peran !== "employer") {
     return (
       <Suspense fallback={memuat}>

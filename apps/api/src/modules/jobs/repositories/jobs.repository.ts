@@ -56,6 +56,7 @@ export type JobRowBerperusahaan = JobRow & { companyName: string };
 
 /** POST /admin/jobs — `status`/`source` TIDAK di sini, keduanya bawaan kolom Prisma. */
 export interface JobCreateData {
+  source?: JobSource;
   companyId: string;
   title: string;
   description: string;
@@ -218,6 +219,7 @@ function keSearchRow(baris: BarisPencarian): JobSearchRow {
 export interface JobsRepository {
   /** Seluruh lowongan, terbaru dulu — skala pilot (pola sama `companies.repository.ts`). */
   listAdmin(): Promise<JobRow[]>;
+  listByCompany(companyId: string): Promise<JobRow[]>;
   findById(id: string): Promise<JobRow | null>;
   /** Lowongan `published` DAN belum `expiresAt` (atau tanpa tenggat) milik satu perusahaan. */
   listActiveByCompany(companyId: string): Promise<JobRow[]>;
@@ -246,6 +248,14 @@ export interface JobsRepository {
 
 export function createJobsRepository(prisma: AppPrisma): JobsRepository {
   return {
+    listByCompany: async (companyId) => {
+      const rows = await prisma.job.findMany({
+        where: { companyId },
+        select: KOLOM,
+        orderBy: { createdAt: "desc" },
+      });
+      return rows.map(keRow);
+    },
     listAdmin: async () => {
       const rows = await prisma.job.findMany({
         orderBy: { createdAt: "desc" },

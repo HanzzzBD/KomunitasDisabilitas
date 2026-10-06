@@ -15,10 +15,14 @@ import { queryClient } from "../query";
 import { createAntreanTautan } from "./antrean-tautan";
 import type { RootNavigatorParamList } from "./types";
 import { tujuanStack } from "./tujuan-stack";
+import { usersKeys } from "@nawasena/api-client";
+import type { UserRole } from "@nawasena/schemas";
 
 export const navigationRef = createNavigationContainerRef<RootNavigatorParamList>();
 export const antreanTautan = createAntreanTautan((t) => {
-  navigationRef.navigate("Utama", tujuanStack(t));
+  const role =
+    queryClient.getQueryData<{ data: { role: UserRole } }>(usersKeys.me())?.data.role ?? "seeker";
+  navigationRef.navigate("Utama", tujuanStack(t, role));
 });
 
 export function perbaruiKesiapanTautan() {
@@ -26,6 +30,8 @@ export function perbaruiKesiapanTautan() {
   // Tunggu layar tujuan terdaftar, agar action tidak ditolak lalu antrean hilang.
   antreanTautan.aturSiap(
     navigationRef.isReady() &&
+      queryClient.getQueryData<{ data: { role: UserRole } }>(usersKeys.me())?.data.role !==
+        undefined &&
       navigationRef.getRootState()?.routeNames.includes("Utama") === true &&
       sesiStore.getState().status === "masuk" &&
       onboardingStore.getState().status === "selesai",

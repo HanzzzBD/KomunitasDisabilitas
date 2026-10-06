@@ -109,6 +109,7 @@ import { katalogProfil } from "../src/shared/i18n/katalog/profil.js";
 import { katalogNotifikasi } from "../src/shared/i18n/katalog/notifikasi.js";
 import { katalogAdmin } from "../src/shared/i18n/katalog/admin.js";
 import { katalogCompanies } from "../src/shared/i18n/katalog/companies.js";
+import { katalogEmployer } from "../src/shared/i18n/katalog/employer.js";
 import { katalogLowongan } from "../src/shared/i18n/katalog/lowongan.js";
 import { katalogResume } from "../src/shared/i18n/katalog/resume.js";
 import { katalogPelamar } from "../src/shared/i18n/katalog/pelamar.js";
@@ -125,6 +126,7 @@ seedKatalogUntukTest({
   notifikasi: katalogNotifikasi,
   admin: katalogAdmin,
   companies: katalogCompanies,
+  employer: katalogEmployer,
   lowongan: katalogLowongan,
   pelamar: katalogPelamar,
   kamus: katalogKamus,

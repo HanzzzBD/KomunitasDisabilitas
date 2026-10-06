@@ -121,6 +121,9 @@ function MenuAkun() {
           <NavLink className="shell-tool" to="/kamus">
             {t("shell.pintas.kamus")}
           </NavLink>
+          <NavLink className="shell-tool" to="/employer">
+            {t("shell.nav.jadiEmployer")}
+          </NavLink>
           <KeluarAkun />
         </nav>
       )}
@@ -150,7 +153,8 @@ export function NavigasiWeb({ masuk, peran }: { masuk: boolean; peran: UserRole 
       document.documentElement.style.removeProperty("--bottom-nav-height");
     };
   }, [karier]);
-  const beranda = peran === "admin" ? "/admin" : karier ? "/home" : "/";
+  const beranda =
+    peran === "employer" ? "/employer" : peran === "admin" ? "/admin" : karier ? "/home" : "/";
   const judul = pathname.startsWith("/admin")
     ? "shell.nav.admin"
     : pathname.startsWith("/lowongan")
@@ -225,7 +229,9 @@ export function NavigasiWeb({ masuk, peran }: { masuk: boolean; peran: UserRole 
                 daftar={
                   peran === "admin"
                     ? [{ ke: "/admin", kunci: "shell.nav.admin" }, ...PUBLIK]
-                    : PUBLIK
+                    : peran === "employer"
+                      ? [{ ke: "/employer", kunci: "shell.nav.employer" }, ...PUBLIK]
+                      : PUBLIK
                 }
               />
             </nav>
