@@ -9,6 +9,7 @@ import { createQueryClient } from "../src/app/query-client.js";
 import { TataLetak } from "../src/app/tata-letak.js";
 import { useStoreSesi } from "../src/shared/sesi/store.js";
 import { kunciPenanda } from "../src/features/onboarding/identitas.js";
+import userEvent from "@testing-library/user-event";
 
 const SUB = "01912345-89ab-7def-8123-456789abcde1";
 
@@ -66,6 +67,7 @@ describe("navigasi sesuai ruang kerja", () => {
     "menu Komunitas tersedia untuk %s",
     async (peran) => {
       const { router } = renderNavigasi(peran, "/community");
+      if (peran === "seeker") await userEvent.click(screen.getByText("Menu akun"));
       const link = await screen.findByRole("link", { name: "Komunitas" });
       expect(link).toHaveAttribute("href", "/community");
       expect(link).toHaveAttribute("aria-current", "page");
@@ -83,12 +85,10 @@ describe("navigasi sesuai ruang kerja", () => {
 
   it("seeker mendapat menu karier dengan penanda halaman aktif", async () => {
     renderNavigasi("seeker");
-    const nav = screen.getByRole("navigation", { name: "Pintasan halaman" });
-    expect(within(nav).getByRole("link", { name: "CV saya" })).toHaveAttribute("href", "/cv");
-    expect(within(nav).getByRole("link", { name: "Profil karier" })).toHaveAttribute(
-      "href",
-      "/profil",
-    );
+    const nav = screen.getByRole("navigation", { name: "Navigasi utama" });
+    expect(within(nav).getAllByRole("link")).toHaveLength(5);
+    expect(within(nav).getByRole("link", { name: "CV Saya" })).toHaveAttribute("href", "/cv");
+    expect(within(nav).getByRole("link", { name: "Profil" })).toHaveAttribute("href", "/profil");
     expect(within(nav).getByRole("link", { name: /^Lowongan$/ })).toHaveAttribute(
       "aria-current",
       "page",
@@ -96,27 +96,60 @@ describe("navigasi sesuai ruang kerja", () => {
     expect(within(nav).queryByRole("link", { name: "Dashboard admin" })).toBeNull();
   });
 
-  it.each(["admin", "employer"] as const)("%s tidak melihat fitur pribadi seeker", (peran) => {
-    renderNavigasi(peran);
-    expect(screen.queryByRole("link", { name: "CV saya" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Profil karier" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Lamaran Saya" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Akun & preferensi" })).toHaveAttribute(
-      "href",
-      "/pengaturan",
-    );
-    if (peran === "admin")
-      expect(screen.getByRole("link", { name: "Dashboard admin" })).toHaveAttribute(
+  it.each(["admin", "employer"] as const)(
+    "%s tidak melihat fitur pribadi seeker",
+    async (peran) => {
+      renderNavigasi(peran);
+      expect(screen.queryByRole("link", { name: "CV Saya" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "Profil" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "Lamaran" })).toBeNull();
+      await userEvent.click(screen.getByText("Menu akun"));
+      expect(screen.getByRole("link", { name: "Akun & preferensi" })).toHaveAttribute(
         "href",
-        "/admin",
+        "/pengaturan",
       );
-    else expect(screen.queryByRole("link", { name: "Dashboard admin" })).toBeNull();
-  });
+      if (peran === "admin")
+        expect(screen.getByRole("link", { name: "Dashboard admin" })).toHaveAttribute(
+          "href",
+          "/admin",
+        );
+      else expect(screen.queryByRole("link", { name: "Dashboard admin" })).toBeNull();
+    },
+  );
 
   it("profil dari server memperbarui menu ketika klaim role lebih lama", async () => {
     renderNavigasi("seeker", "/lowongan", "admin");
-    await screen.findByRole("link", { name: "CV saya" });
+    await screen.findByRole("link", { name: "CV Saya" });
     expect(screen.queryByRole("link", { name: "Dashboard admin" })).toBeNull();
+  });
+});
+
+describe("keyboard dan konteks navigasi", () => {
+  it("Escape menutup menu akun dan mengembalikan fokus ke pemicu", async () => {
+    renderNavigasi("seeker");
+    const user = userEvent.setup();
+    const trigger = screen.getByText("Menu akun");
+    await user.click(trigger);
+    expect(screen.getByRole("link", { name: "Akun & preferensi" })).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+  it("detail mempertahankan tujuan aktif dan riwayat Back/Forward", async () => {
+    const { router } = renderNavigasi("seeker");
+    await router.navigate(`/lamaran/${SUB}`);
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("navigation", { name: "Navigasi utama" })).getByRole("link", {
+          name: "Lamaran",
+        }),
+      ).toHaveAttribute("aria-current", "page"),
+    );
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveFocus());
+    await router.navigate(-1);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/lowongan"));
+    await router.navigate(1);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/lamaran/${SUB}`));
   });
 });
 

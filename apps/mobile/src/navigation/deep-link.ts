@@ -15,7 +15,15 @@ export const SKEMA = "nawasena";
 export const PREFIKS = `${SKEMA}://`;
 
 /** Path yang boleh dibuka dari luar. Bertambah per PR fitur (090+). */
-export const PATH_DIIZINKAN = ["", "beranda", "lamaran", "notifikasi", "cv"] as const;
+export const PATH_DIIZINKAN = [
+  "",
+  "beranda",
+  "lowongan",
+  "lamaran",
+  "notifikasi",
+  "cv",
+  "profil",
+] as const;
 
 const BATAS_PANJANG_URL = 512;
 // Huruf kecil, angka, `-`, dan `/` antarsegmen. Tanpa `..`, `%`, `@`, atau `:`.
@@ -44,7 +52,7 @@ export function deepLinkDiizinkan(url: string): boolean {
 }
 
 export type TujuanTautan =
-  | { layar: "Utama"; tab: "Beranda" | "Lamaran" | "Cv" }
+  | { layar: "Utama"; tab: "Beranda" | "Cari" | "Lamaran" | "Cv" | "Profil" }
   | { layar: "Notifikasi" }
   | { layar: "LamaranDetail" | "LowonganDetail" | "CvEditor"; id: string };
 
@@ -55,6 +63,8 @@ export function tujuanDeepLink(url: string): TujuanTautan | null {
   if (path === "lamaran") return { layar: "Utama", tab: "Lamaran" };
   if (path === "notifikasi") return { layar: "Notifikasi" };
   if (path === "cv") return { layar: "Utama", tab: "Cv" };
+  if (path === "lowongan") return { layar: "Utama", tab: "Cari" };
+  if (path === "profil") return { layar: "Utama", tab: "Profil" };
   const [jenis, id] = path.split("/");
   return id
     ? {

@@ -64,13 +64,13 @@ describe("tautan lompat ke konten", () => {
     const fokusabel = container.querySelectorAll<HTMLElement>(
       "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])",
     );
-    expect(fokusabel[0]).toHaveTextContent("Lompat ke konten utama");
+    expect(fokusabel[0]).toHaveTextContent("Langsung ke konten utama");
   });
 
   it("menunjuk sasaran yang BENAR-BENAR ADA dan bisa menerima fokus", async () => {
     const { container } = await renderDi("/");
 
-    const tautan = screen.getByRole("link", { name: "Lompat ke konten utama" });
+    const tautan = screen.getByRole("link", { name: "Langsung ke konten utama" });
     expect(tautan).toHaveAttribute("href", `#${ID_KONTEN_UTAMA}`);
 
     const sasaran = container.querySelector(`#${ID_KONTEN_UTAMA}`);
@@ -89,7 +89,7 @@ describe("tautan lompat ke konten", () => {
     // `hidden`/`display:none` akan mengeluarkannya dari urutan Tab — yaitu
     // menghapus fungsinya sambil menyisakan markupnya. `getByRole` gagal bila
     // itu terjadi, sebab peran tersembunyi tidak ikut terhitung.
-    const tautan = screen.getByRole("link", { name: "Lompat ke konten utama" });
+    const tautan = screen.getByRole("link", { name: "Langsung ke konten utama" });
     expect(tautan.className).toContain("sr-only");
     expect(tautan.className).toContain("focus:not-sr-only");
   });
@@ -98,7 +98,7 @@ describe("tautan lompat ke konten", () => {
     for (const jalur of HALAMAN_BERKERANGKA) {
       const { unmount } = await renderDi(jalur);
       expect(
-        screen.getByRole("link", { name: "Lompat ke konten utama" }),
+        screen.getByRole("link", { name: "Langsung ke konten utama" }),
         `tautan lompat hilang di ${jalur}`,
       ).toBeInTheDocument();
       unmount();
@@ -340,7 +340,7 @@ describe("pintasan ke panel aksesibilitas", () => {
     await renderBersesi("/");
     await screen.findByRole("heading", { level: 1 }, { timeout: 5000 });
 
-    expect(screen.queryByRole("link", { name: "Pengaturan aksesibilitas" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Aksesibilitas" })).toBeNull();
   });
 
   it("satu interaksi dari halaman mana pun membuka panelnya", async () => {
@@ -351,11 +351,7 @@ describe("pintasan ke panel aksesibilitas", () => {
     useStoreSesi.getState().masuk(tokenUji());
 
     const { router } = await renderBersesi("/");
-    const tautan = await screen.findByRole(
-      "link",
-      { name: "Pengaturan aksesibilitas" },
-      { timeout: 5000 },
-    );
+    const tautan = await screen.findByRole("link", { name: "Aksesibilitas" }, { timeout: 5000 });
 
     await userEvent.click(tautan);
 
@@ -372,12 +368,12 @@ describe("pintasan ke panel aksesibilitas", () => {
     useStoreSesi.getState().masuk(tokenUji());
 
     const { container } = await renderBersesi("/");
-    await screen.findByRole("link", { name: "Pengaturan aksesibilitas" }, { timeout: 5000 });
+    await screen.findByRole("link", { name: "Aksesibilitas" }, { timeout: 5000 });
 
     const fokusabel = container.querySelectorAll<HTMLElement>(
       "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])",
     );
-    expect(fokusabel[0]).toHaveTextContent("Lompat ke konten utama");
+    expect(fokusabel[0]).toHaveTextContent("Langsung ke konten utama");
   });
 
   it("navigasinya PUNYA NAMA, bukan landmark 'navigation' tanpa keterangan", async () => {
@@ -390,7 +386,7 @@ describe("pintasan ke panel aksesibilitas", () => {
     await renderBersesi("/");
 
     expect(
-      await screen.findByRole("navigation", { name: "Pintasan halaman" }, { timeout: 5000 }),
+      await screen.findByRole("navigation", { name: "Navigasi utama" }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 });

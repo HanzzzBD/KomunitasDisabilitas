@@ -138,11 +138,15 @@ function useEfektif() {
   return useMemo(() => rekonsiliasi(pilihan, os), [pilihan, os]);
 }
 
-export function LangkahPreferensi() {
+export function LangkahPreferensi(
+  props: { onUbah?: (perubahan: Partial<AccessibilityPreferences>) => void } = {},
+) {
   const teks = useTeksIsi();
   const efektif = useEfektif();
-  const ubah = (perubahan: Partial<AccessibilityPreferences>) =>
+  const ubah = (perubahan: Partial<AccessibilityPreferences>) => {
     a11yStore.getState().setPreferensi(perubahan);
+    props.onUbah?.(perubahan);
+  };
 
   return (
     <View style={{ gap: 12 }}>

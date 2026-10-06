@@ -13,15 +13,12 @@ import { kabarNotifikasi } from "../notifikasi/instans";
 import { kunciDaftar, kunciTerbaru } from "../notifikasi/kunci";
 import { queryClient } from "../query";
 import { createAntreanTautan } from "./antrean-tautan";
-import type { RootStackParamList } from "./types";
+import type { RootNavigatorParamList } from "./types";
+import { tujuanStack } from "./tujuan-stack";
 
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+export const navigationRef = createNavigationContainerRef<RootNavigatorParamList>();
 export const antreanTautan = createAntreanTautan((t) => {
-  if (t.layar === "Utama") navigationRef.navigate("Utama", { screen: t.tab });
-  else if (t.layar === "Notifikasi") navigationRef.navigate("Notifikasi");
-  else {
-    navigationRef.navigate(t.layar, { id: t.id });
-  }
+  navigationRef.navigate("Utama", tujuanStack(t));
 });
 
 export function perbaruiKesiapanTautan() {
@@ -29,7 +26,7 @@ export function perbaruiKesiapanTautan() {
   // Tunggu layar tujuan terdaftar, agar action tidak ditolak lalu antrean hilang.
   antreanTautan.aturSiap(
     navigationRef.isReady() &&
-      navigationRef.getRootState()?.routeNames.includes("LamaranDetail") === true &&
+      navigationRef.getRootState()?.routeNames.includes("Utama") === true &&
       sesiStore.getState().status === "masuk" &&
       onboardingStore.getState().status === "selesai",
   );

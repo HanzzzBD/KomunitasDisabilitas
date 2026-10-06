@@ -24,6 +24,20 @@ import { MODE_BAHASA } from "../src/shared/i18n/tipe.js";
  * menuliskan keputusannya.
  */
 const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
+  "shell.nav.beranda": "Nama tujuan utama konsisten pada kedua mode bahasa.",
+  "shell.nav.lowongan": "Nama tujuan utama konsisten pada kedua mode bahasa.",
+  "shell.nav.lamaran": "Nama tujuan utama konsisten pada kedua mode bahasa.",
+  "shell.nav.cv": "Nama CV konsisten agar mudah dikenali pada kedua mode bahasa.",
+  "shell.nav.profil": "Nama tujuan utama konsisten pada kedua mode bahasa.",
+  "shell.nav.aksesibilitas": "Nama fitur yang sama dengan judul halaman pengaturannya.",
+  "shell.nav.bantuan": "Nama tujuan satu kata sehari-hari.",
+  "shell.nav.akunMenu": "Nama kendali singkat dengan objek yang jelas.",
+  "shell.nav.keluarGagal": "Dua kalimat singkat dengan kata sehari-hari.",
+  "shell.lompatKeKonten": "Nama skip link yang konsisten, dengan tujuan landmark yang jelas.",
+  "beranda.personal.lamaran": "Judul bagian singkat menggunakan kata sehari-hari.",
+  "admin.nav.moderasi": "Istilah bagian admin yang konsisten dengan proses pengelolaannya.",
+  "admin.nav.pengaturan": "Nama fitur satu kata yang konsisten.",
+  "admin.nav.profilAkun": "Nama tujuan singkat yang menyebut objeknya.",
   // PR-118: labels/actions use the same short everyday terms in both modes.
   "admin.nav.community": "Nama bagian Komunitas sama dengan menu publik agar mudah dicocokkan.",
   "admin.community.judul": "Judul dua kata sehari-hari, konsisten dengan ruang yang dikelola.",

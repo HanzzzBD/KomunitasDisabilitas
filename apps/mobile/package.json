@@ -9,7 +9,8 @@
     "android": "expo start --android",
     "lint": "eslint src __tests__ index.ts app.config.ts metro.config.js --ext .ts,.tsx,.js --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && pnpm test:navigation",
+    "test:navigation": "node ../../packages/ui-native/node_modules/jest/bin/jest.js --config jest.navigation.config.cjs --runInBand",
     "build:internal": "eas build --profile internal --platform android"
   },
   "dependencies": {

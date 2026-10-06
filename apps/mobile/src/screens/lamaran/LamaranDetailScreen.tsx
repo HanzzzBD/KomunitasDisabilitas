@@ -103,7 +103,12 @@ export function LamaranDetailScreen({ route, navigation }: Props) {
             <Tombol
               label="Lihat lowongan"
               varian="sekunder"
-              onPress={() => navigation.navigate("LowonganDetail", { id: a.jobId })}
+              onPress={() =>
+                navigation.navigate("Utama", {
+                  screen: "Cari",
+                  params: { screen: "LowonganDetail", params: { id: a.jobId }, initial: false },
+                })
+              }
             />
           ) : (
             <Paragraf lemah>Lowongan sudah ditutup. Lamaran Anda tetap tercatat.</Paragraf>

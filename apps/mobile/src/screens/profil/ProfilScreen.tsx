@@ -3,7 +3,7 @@
 // Paritas "simpan per bagian" web (PR-040): tiap bagian punya tombol simpan dan
 // jalur kegagalannya sendiri, jadi satu tanggal yang salah tidak menghanguskan
 // isian bagian lain.
-import { Kartu, UKURAN_HURUF, useTokenA11y } from "@nawasena/ui-native";
+import { Kartu, Tombol, UKURAN_HURUF, useTokenA11y } from "@nawasena/ui-native";
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import { Text } from "react-native";
 
@@ -81,6 +81,13 @@ export function ProfilScreen() {
         </Kartu>
       ))}
       <Judul tingkat={2}>Akun</Judul>
+      <Tombol
+        label="Aksesibilitas"
+        varian="sekunder"
+        onPress={() => nav.navigate("Aksesibilitas")}
+      />
+      <Tombol label="Pengaturan" varian="sekunder" onPress={() => nav.navigate("Pengaturan")} />
+      <Tombol label="Bantuan" varian="sekunder" onPress={() => nav.navigate("Bantuan")} />
       <PrivasiAnalitik />
       <TombolKeluar />
     </LayarGulir>

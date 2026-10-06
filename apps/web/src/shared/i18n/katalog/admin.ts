@@ -9,6 +9,10 @@ import type { KatalogFitur } from "../tipe.js";
 import { katalogAdminCommunity } from "./admin-community.js";
 
 export const katalogAdmin = {
+  "admin.nav.moderasi": { id: "Moderasi", "id-simple": "Moderasi" },
+  "admin.nav.analytics": { id: "Analytics", "id-simple": "Statistik" },
+  "admin.nav.pengaturan": { id: "Pengaturan", "id-simple": "Pengaturan" },
+  "admin.nav.profilAkun": { id: "Profil akun", "id-simple": "Profil akun" },
   ...katalogAdminCommunity,
   "admin.judul": {
     id: "Admin",
@@ -21,8 +25,8 @@ export const katalogAdmin = {
     "id-simple": "Bagian admin",
   },
   "admin.nav.ringkasan": {
-    id: "Ringkasan",
-    "id-simple": "Ringkasan",
+    id: "Dashboard",
+    "id-simple": "Dashboard",
   },
   "admin.nav.companies": {
     // Harus SAMA dengan `admin.companies.judul` — pengguna mencocokkan kata

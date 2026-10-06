@@ -22,15 +22,16 @@ import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { Terlindungi } from "../shared/rute/terlindungi.js";
 import { PenjagaAdmin } from "../shared/rute/penjaga-admin.js";
+import { KeluarAkun } from "../app/keluar-akun.js";
 
 const SEKSI = [
   { ke: "/admin", kunci: "admin.nav.ringkasan", tepat: true },
-  { ke: "/admin/companies", kunci: "admin.nav.companies", tepat: false },
   { ke: "/admin/jobs", kunci: "admin.nav.jobs", tepat: false },
+  { ke: "/admin/companies", kunci: "admin.nav.companies", tepat: false },
   { ke: "/admin/lamaran", kunci: "admin.nav.lamaran", tepat: false },
   { ke: "/admin/pengguna", kunci: "admin.nav.pengguna", tepat: false },
-  { ke: "/admin/kamus", kunci: "admin.nav.kamus", tepat: false },
-  { ke: "/admin/community", kunci: "admin.nav.community", tepat: false },
+  { ke: "/admin/community/laporan", kunci: "admin.nav.moderasi", tepat: false },
+  { ke: "/admin/analytics", kunci: "admin.nav.analytics", tepat: false },
 ] as const;
 
 /**
@@ -193,6 +194,29 @@ export function Admin() {
                   </li>
                 ))}
               </ul>
+            </nav>
+            <nav
+              aria-label={t("shell.nav.pendukung")}
+              className="mt-6 border-t border-gray-400 pt-4"
+            >
+              <NavLink to="/admin/kamus" className="admin-menu-link">
+                {t("admin.nav.kamus")}
+              </NavLink>
+              <NavLink to="/admin/community" end className="admin-menu-link">
+                {t("admin.nav.community")}
+              </NavLink>
+            </nav>
+            <nav
+              aria-label={t("shell.nav.akunMenu")}
+              className="mt-6 border-t border-gray-400 pt-4"
+            >
+              <Link to="/admin/settings" className="admin-menu-link">
+                {t("admin.nav.pengaturan")}
+              </Link>
+              <Link to="/admin/account" className="admin-menu-link">
+                {t("admin.nav.profilAkun")}
+              </Link>
+              <KeluarAkun className="admin-menu-link text-base" />
             </nav>
           </aside>
           <div className="admin-content">
