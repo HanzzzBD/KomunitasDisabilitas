@@ -323,7 +323,8 @@
     background: var(--shell-surface);
     overflow-wrap: anywhere;
   }
-  .page-panel fieldset {
+  .page-panel fieldset,
+  .admin-content fieldset {
     min-width: 0;
   }
   .page-frame h1,
@@ -474,6 +475,7 @@
   }
   .settings-layout {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 1.5rem;
   }
@@ -487,6 +489,7 @@
   .settings-content,
   .admin-content {
     min-width: 0;
+    overflow-wrap: anywhere;
   }
   .dictionary-search {
     display: grid;

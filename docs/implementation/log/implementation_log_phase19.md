@@ -219,9 +219,15 @@ perbaikan sebelumnya tetap berlaku.
   serta pembesaran judul yang benar-benar dua kali. Posisi filter/hasil diuji
   pada 320/768/1024/1440 px; ukuran form login desktop dan operasi filter HP
   dengan keyboard juga dijaga.
-- Seluruh **46 test tata letak akhir lulus**. Suite browser lengkap meluluskan
+- Seluruh **49 test tata letak akhir lulus**. Suite browser lengkap meluluskan
   **209/210**; satu alur unggah kamus timeout saat paralel. Kedua test kamus
   kemudian lulus terpisah, termasuk seluruh assertion unggah/publish dan axe.
+- CI pertama menemukan overflow pada pengaturan dan halaman perusahaan saat
+  teks 200% di 320 px. Grid pengaturan kini memiliki kolom minmax(0, 1fr),
+  isi admin membungkus judul panjang, dan fieldset tidak memaksa lebar minimum.
+  Tiga regresi memakai font dasar 16 px serta monospace untuk mencakup perbedaan
+  font browser lokal dan Linux. **54 test tata letak, kontras/skala, dan alur
+  perusahaan lulus** setelah perbaikan; lint, typecheck, dan build tetap lulus.
 - Tiga audit 3G lokal pada build akhir: performa **0,76/0,76/0,76**,
   aksesibilitas **100**, CLS **0**. Sandbox Windows sempat menolak penutupan
   Chrome milik audit; menjalankan audit dengan izin proses yang sesuai

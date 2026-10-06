@@ -65,6 +65,39 @@ for (const width of [320, 768, 1024, 1440]) {
   });
 }
 
+// Font dasar browser lokal bisa lebih kecil dari 16px pada CI. Uji 16px dan
+// font yang lebih lebar agar min-content grid/flex tidak membuat halaman melebar.
+for (const jalur of ["/pengaturan", "/admin/companies", "/admin/companies/baru"]) {
+  test(`reflow font alternatif: ${jalur}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 900 });
+    const halaman = {
+      nama: jalur,
+      jalur,
+      butuhSesi: true,
+      ...(jalur.startsWith("/admin") ? { butuhAdmin: true as const } : {}),
+    } as const;
+    await palsukanApi(page, halaman);
+    await page.goto(jalur);
+    await harusTidakBerpindah(page, halaman);
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({
+      content:
+        ":root { --font-scale: 2 !important; font-size: 16px !important; font-family: monospace !important; }",
+    });
+    const hasil = await page.evaluate(() => {
+      const lebar = document.documentElement.clientWidth;
+      return {
+        meluber: document.documentElement.scrollWidth - lebar,
+        elemen: [...document.querySelectorAll("main *")]
+          .filter((el) => el.getBoundingClientRect().right > lebar + 1)
+          .slice(0, 8)
+          .map((el) => ({ tag: el.tagName, kelas: el.className })),
+      };
+    });
+    expect(hasil.meluber, JSON.stringify(hasil)).toBeLessThanOrEqual(1);
+  });
+}
+
 test("form masuk tetap ringkas pada desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await palsukanApi(page);
