@@ -33,6 +33,15 @@ export {
 } from "./endpoints/auth.js";
 export { getMe, exportMe, usersKeys } from "./endpoints/users.js";
 export {
+  communityKeys,
+  listCommunities,
+  getCommunity,
+  getMyCommunityMembership,
+  joinCommunity,
+  leaveCommunity,
+  type OpsiDaftarCommunity,
+} from "./endpoints/community.js";
+export {
   getAccessibility,
   updateAccessibility,
   accessibilityKeys,

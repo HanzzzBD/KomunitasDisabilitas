@@ -61,6 +61,9 @@ export interface HalamanDijaga {
 
 export const HALAMAN: readonly HalamanDijaga[] = [
   { nama: "beranda", jalur: "/" },
+  { nama: "community — daftar", jalur: "/community" },
+  { nama: "community — detail tamu", jalur: "/community/persiapan-karier" },
+  { nama: "community — detail anggota", jalur: "/community/persiapan-karier", butuhSesi: true },
   // PR-074 — alamat yang SAMA, pengguna yang sudah masuk: feed matching
   // (keadaan normal sesudah re-rank). Keadaan degraded, AI menyusun, dan kuota
   // habis diuji lewat `beranda-feed.spec.ts`.

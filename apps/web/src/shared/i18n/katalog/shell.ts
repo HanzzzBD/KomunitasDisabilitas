@@ -9,6 +9,7 @@
 import type { KatalogFitur } from "../tipe.js";
 
 export const katalogShell = {
+  "shell.nav.community": { id: "Komunitas", "id-simple": "Komunitas" },
   "shell.merek": {
     id: "Nawasena",
     // Nama produk tidak diterjemahkan dan tidak disederhanakan.

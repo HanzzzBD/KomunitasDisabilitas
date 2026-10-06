@@ -21,6 +21,7 @@ import type { katalogLowongan } from "./lowongan.js";
 import type { katalogResume } from "./resume.js";
 import type { katalogPelamar } from "./pelamar.js";
 import type { katalogKamus } from "./kamus.js";
+import type { katalogCommunity } from "./community.js";
 
 type SemuaKatalog = typeof katalogShell &
   typeof katalogAuth &
@@ -34,7 +35,8 @@ type SemuaKatalog = typeof katalogShell &
   typeof katalogLowongan &
   typeof katalogResume &
   typeof katalogPelamar &
-  typeof katalogKamus;
+  typeof katalogKamus &
+  typeof katalogCommunity;
 
 /** Seluruh kunci yang sah, diturunkan dari katalog — bukan ditulis ulang. */
 export type KunciTeks = keyof SemuaKatalog;

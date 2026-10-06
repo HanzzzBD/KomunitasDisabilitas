@@ -43,6 +43,7 @@ function renderNavigasi(peran: UserRole | null, jalur = "/lowongan", klaim = per
           { path: "admin", element: <h1>Dashboard pengelolaan</h1> },
           { path: "lowongan", element: <h1>Lowongan kerja</h1> },
           { path: "kamus", element: <h1>Kamus publik</h1> },
+          { path: "community", element: <h1>Daftar komunitas</h1> },
           { path: "profil", element: <h1>Fitur pribadi pencari kerja</h1> },
           { path: "cv/:id", element: <h1>Fitur pribadi pencari kerja</h1> },
           { path: "lamaran/:id", element: <h1>Fitur pribadi pencari kerja</h1> },
@@ -61,6 +62,16 @@ function renderNavigasi(peran: UserRole | null, jalur = "/lowongan", klaim = per
 }
 
 describe("navigasi sesuai ruang kerja", () => {
+  it.each([null, "seeker", "employer", "admin"] as const)(
+    "menu Komunitas tersedia untuk %s",
+    async (peran) => {
+      const { router } = renderNavigasi(peran, "/community");
+      const link = await screen.findByRole("link", { name: "Komunitas" });
+      expect(link).toHaveAttribute("href", "/community");
+      expect(link).toHaveAttribute("aria-current", "page");
+      expect(router.state.location.pathname).toBe("/community");
+    },
+  );
   it("tamu melihat fitur publik dan masuk tanpa permintaan profil akun", async () => {
     const { request } = renderNavigasi(null);
     expect(screen.getByRole("navigation", { name: "Navigasi utama" })).toBeInTheDocument();

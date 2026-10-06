@@ -450,6 +450,26 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        path: "community",
+        lazy: async () => {
+          const [{ CommunityBrowse }] = await Promise.all([
+            import("../routes/community.js"),
+            muatKatalog("community"),
+          ]);
+          return { Component: CommunityBrowse };
+        },
+      },
+      {
+        path: "community/:slug",
+        lazy: async () => {
+          const [{ CommunityDetail }] = await Promise.all([
+            import("../routes/community-detail.js"),
+            muatKatalog("community"),
+          ]);
+          return { Component: CommunityDetail };
+        },
+      },
+      {
         // Detail entri kamus — SAUDARA `kamus`, halaman penuh (pola `lowongan/:id`).
         path: "kamus/:id",
         lazy: async () => {

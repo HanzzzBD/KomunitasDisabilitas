@@ -11,6 +11,9 @@ describe("normalkanPath", () => {
     ["/cv/chat?tujuan=%2Flowongan%2Fabc", "/cv/chat"],
     ["/admin/lamaran/123456", "/admin/lamaran/:id"],
     ["/", "/"],
+    ["/community/karier-jakarta?kota=Jakarta", "/community/:slug"],
+    ["/community/karier-jakarta/posts/123456", "/community/:slug/posts/:id"],
+    ["/community", "/community"],
     ["", "/"],
   ])("%s → %s", (masuk, harap) => {
     expect(normalkanPath(masuk)).toBe(harap);
@@ -39,6 +42,7 @@ describe("payload no-PII", () => {
   it.each([
     ["path memuat UUID", { type: "pageview", path: `/lamaran/${UUID}` }],
     ["path memuat query", { type: "pageview", path: "/cv?tujuan=x" }],
+    ["path memuat topik ruang", { type: "pageview", path: "/community/karier-jakarta" }],
     ["path memuat email", { type: "pageview", path: "/u/rina@contoh.test" }],
     ["event tak dikenal", { type: "event", path: "/", name: "klik_tombol" }],
     ["data liar", { type: "event", path: "/", name: "lamar", data: { userId: UUID } }],

@@ -315,6 +315,27 @@
   .page-frame-wide {
     max-width: none;
   }
+  .community-browse-layout,
+  .community-detail-layout {
+    display: grid;
+    min-width: 0;
+    align-items: start;
+    gap: 1.5rem;
+  }
+  .community-room-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  @media (min-width: 64rem) {
+    .community-browse-layout {
+      grid-template-columns: 21rem minmax(0, 1fr);
+    }
+    .community-detail-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+    }
+  }
   .page-panel {
     min-width: 0;
     padding: clamp(1rem, 3vw, 2rem);

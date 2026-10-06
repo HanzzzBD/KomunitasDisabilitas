@@ -11,6 +11,7 @@ interface Tautan {
 
 const PUBLIK: readonly Tautan[] = [
   { ke: "/lowongan", kunci: "shell.nav.lowongan" },
+  { ke: "/community", kunci: "shell.nav.community" },
   { ke: "/kamus", kunci: "shell.pintas.kamus" },
 ];
 const SEEKER: readonly Tautan[] = [
@@ -19,11 +20,13 @@ const SEEKER: readonly Tautan[] = [
   { ke: "/lamaran", kunci: "shell.pintas.lamaran" },
   { ke: "/cv", kunci: "shell.pintas.cv" },
   { ke: "/profil", kunci: "shell.pintas.profil" },
+  { ke: "/community", kunci: "shell.nav.community" },
   { ke: "/kamus", kunci: "shell.pintas.kamus" },
 ];
 const ADMIN: readonly Tautan[] = [
   { ke: "/admin", kunci: "shell.nav.admin" },
   { ke: "/lowongan", kunci: "shell.nav.lowonganPublik" },
+  { ke: "/community", kunci: "shell.nav.community" },
   { ke: "/kamus", kunci: "shell.nav.kamusPublik" },
 ];
 
