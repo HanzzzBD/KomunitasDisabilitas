@@ -46,6 +46,7 @@ import {
   createSkillsService,
 } from "./modules/profiles/index.js";
 import { createCompaniesModule } from "./modules/companies/index.js";
+import { createCommunityModule } from "./modules/community/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
 import {
   createApplicationsExport,
@@ -356,6 +357,19 @@ export async function startApi(options: BootOptions): Promise<void> {
           logger,
         }),
       );
+      const community = createCommunityModule({
+        prisma,
+        redis: redis.queue,
+        routes: routeRegistry.forModule("/api/v1"),
+        auditLog,
+        events,
+        policy: {
+          readMax: env.COMMUNITY_READ_MAX,
+          writeMax: env.COMMUNITY_WRITE_MAX,
+          windowMs: env.COMMUNITY_RATE_WINDOW_MS,
+        },
+      });
+      app.use(community.router);
       app.use(
         createUsersModule({
           prisma,
@@ -393,6 +407,7 @@ export async function startApi(options: BootOptions): Promise<void> {
             // PR-075: lamaran + salinan pengungkapannya — ditulis bersama
             // endpoint apply, bukan menyusul (pelajaran U-03/U-04/U-25).
             createApplicationsExport({ prisma, fieldKeys }),
+            community.exportContributor,
           ],
         }),
       );

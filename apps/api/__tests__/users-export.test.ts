@@ -110,7 +110,12 @@ const kontributorLamaran: ExportContributor = {
   kumpulkan: async () => [],
 };
 
-/** Kedelapan kontributor modul lain — urutannya sama dengan boot.ts. */
+const kontributorCommunity: ExportContributor = {
+  bagian: "communityMemberships",
+  kumpulkan: async () => [],
+};
+
+/** Kesembilan kontributor modul lain — urutannya sama dengan boot.ts. */
 const KONTRIBUTOR_MODUL = [
   kontributorProfil,
   kontributorAksesibilitas,
@@ -120,6 +125,7 @@ const KONTRIBUTOR_MODUL = [
   kontributorPemakaianAi,
   kontributorCv,
   kontributorLamaran,
+  kontributorCommunity,
 ] as const;
 
 /** Redis in-memory seukuran kebutuhan repository kuota. */
@@ -285,6 +291,7 @@ describe("agregator ekspor", () => {
       "aiUsage",
       "resumes",
       "applications",
+      "communityMemberships",
     ]);
   });
 });
@@ -312,6 +319,7 @@ describe("audit ekspor", () => {
           "aiUsage",
           "resumes",
           "applications",
+          "communityMemberships",
         ],
       },
     });

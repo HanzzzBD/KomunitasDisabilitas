@@ -105,6 +105,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Berkas belum sampai di penyimpanan",
           "status": 422,
         },
+        "BUKAN_ANGGOTA_KOMUNITAS": {
+          "hint": "Bergabung terlebih dahulu untuk menulis",
+          "message": "Anda belum menjadi anggota ruang ini",
+          "status": 403,
+        },
         "CARA_KONFIRMASI_TIDAK_COCOK": {
           "hint": "Gunakan cara konfirmasi yang tersedia untuk akun Anda",
           "message": "Cara konfirmasi itu tidak bisa dipakai untuk akun Anda",
@@ -170,6 +175,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Format data yang dikirim rusak",
           "status": 400,
         },
+        "KEANGGOTAAN_DIBLOKIR": {
+          "hint": "Hubungi admin bila menurut Anda ini keliru",
+          "message": "Keanggotaan Anda di ruang ini diblokir",
+          "status": 403,
+        },
         "KODE_OTP_HANGUS": {
           "hint": "Minta kode baru, lalu masukkan dalam 5 menit",
           "message": "Kode sudah tidak berlaku",
@@ -179,6 +189,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Periksa kembali kode dari WhatsApp atau SMS",
           "message": "Kode yang Anda masukkan salah",
           "status": 401,
+        },
+        "KOMUNITAS_DIARSIPKAN": {
+          "hint": "Diskusi lama tetap bisa dibaca; pilih ruang aktif untuk berdiskusi",
+          "message": "Ruang ini sudah diarsipkan",
+          "status": 409,
+        },
+        "KOMUNITAS_TIDAK_DITEMUKAN": {
+          "hint": "Periksa kembali ruang yang Anda tuju",
+          "message": "Ruang komunitas tidak ditemukan",
+          "status": 404,
         },
         "KONFIRMASI_GOOGLE_BEDA_AKUN": {
           "hint": "Ulangi dan pilih akun Google yang Anda pakai untuk masuk ke Nawasena",
@@ -249,6 +269,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "hint": "Silakan masuk lagi untuk melanjutkan",
           "message": "Sesi Anda sudah berakhir",
           "status": 401,
+        },
+        "SLUG_KOMUNITAS_DIPAKAI": {
+          "hint": "Pilih slug lain untuk ruang ini",
+          "message": "Alamat ruang ini sudah dipakai",
+          "status": 409,
         },
         "STATUS_LAMARAN_TIDAK_VALID": {
           "hint": "Muat ulang lamaran untuk melihat statusnya yang terbaru",

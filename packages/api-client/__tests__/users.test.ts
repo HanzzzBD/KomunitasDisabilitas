@@ -60,6 +60,7 @@ const EKSPOR = {
   resumes: [],
   // Bagian `applications` WAJIB sejak PR-075.
   applications: [],
+  communityMemberships: [],
 };
 
 const PROFIL = {

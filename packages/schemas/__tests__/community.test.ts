@@ -155,7 +155,7 @@ describe("kontrak Community (PR-113)", () => {
     ).toEqual({ cursor: "next", limit: 5, query: "kerja" });
   });
 
-  it("OpenAPI memuat kontrak Community tanpa mendaftarkan route yang belum berjalan", () => {
+  it("OpenAPI memuat kontrak dan route ruang/membership, tanpa endpoint penulisan konten PR-116", () => {
     const document = buildOpenApiDocument();
     const schemas = document.components?.schemas ?? {};
     for (const name of [
@@ -169,8 +169,9 @@ describe("kontrak Community (PR-113)", () => {
     ]) {
       expect(schemas).toHaveProperty(name);
     }
-    expect(Object.keys(document.paths ?? {}).filter((path) => path.includes("communit"))).toEqual(
-      [],
-    );
+    const paths = document.paths ?? {};
+    expect(Object.keys(paths).filter((path) => path.includes("communit"))).toHaveLength(7);
+    expect(paths["/communities/{id}/posts"]).toHaveProperty("get");
+    expect(paths["/communities/{id}/posts"]).not.toHaveProperty("post");
   });
 });

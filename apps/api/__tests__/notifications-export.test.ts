@@ -176,6 +176,7 @@ describe("kontributor bagian notifications", () => {
       aiUsage: [],
       resumes: [],
       applications: [],
+      communityMemberships: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);

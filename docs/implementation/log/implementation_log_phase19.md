@@ -236,3 +236,76 @@ perbaikan sebelumnya tetap berlaku.
 - Verifikasi browser lengkap, Lighthouse, dan kedua gerbang CI diperiksa
   sebelum merge. Ambang sementara performa 3G milik U-31 tidak diubah.
 - Rollback: revert PR ini lalu build ulang. Tidak ada migrasi atau rollback data.
+
+## PR-114 — Community API + Membership
+
+> **Tanggal:** 2026-10-06
+> **Branch:** `pr-114-community-api` → `phase-19-community`.
+
+API ruang dan keanggotaan mengikuti router → controller → service → repository.
+PR ini melayani discovery, administrasi ruang, membership, dan pembacaan feed.
+UI Community menyusul PR-115; penulisan post/komentar/report menyusul PR-116.
+Implementasi ini tidak menyatakan prasyarat rilis PR-112 atau rollout PR-119 terpenuhi.
+
+### Keputusan owner melalui tool pertanyaan
+
+- Daftar dan deskripsi ruang dapat dibaca tamu. Isi diskusi memerlukan sesi aktif,
+  tanpa wajib join. Membership selalu dibaca/diubah untuk pemilik sesi.
+- Arsip tetap bisa dibaca; join dan penulisan baru ditutup; anggota aktif boleh keluar.
+- Penanda `blocked` dipertahankan pada percobaan leave/join agar blokir tidak bisa dilewati.
+  Semua role mengikuti aturan keanggotaan yang sama, termasuk admin dan employer.
+
+### Scope selesai
+
+- `GET /communities` dengan filter `type`/`city` dan cursor; discovery hanya ruang aktif.
+  `GET /communities/:slug` juga melayani ruang arsip dari tautan lama. Respons publik
+  memuat jumlah anggota aktif, tanpa daftar identitas atau createdBy. membershipStatus
+  publik selalu null; status sesi dibaca lewat `GET /communities/:id/membership`.
+- `POST /communities/:id/join` dan `DELETE /communities/:id/membership` idempotent.
+  Tidak menerima userId dari body. Join ulang mempertahankan joinedAt dan menerbitkan
+  `community.member_joined` hanya untuk baris baru, sesudah transaksi commit.
+- Transaksi mengunci akun aktif dan ruang; join paralel tidak menduplikasi membership.
+  Status arsip/blokir diperiksa di dalam transaksi. Guard penulisan disediakan dan diuji;
+  PR-116 wajib memakai pemeriksaan yang sama di transaksi penulisan kontennya.
+- `GET /communities/:id/posts` memerlukan sesi, membatasi ruang dan status published,
+  mendukung FTS bahasa Indonesia, cursor, dan jumlah komentar published. Penulis hanya
+  id/fullName atau null bila akun dihapus. Tidak membaca profil sensitif, CV, atau lamaran.
+- Urutan halaman createdAt DESC/id DESC; posisi menggunakan timestamp asli anchor DB,
+  termasuk mikrodetik PostgreSQL yang tidak dapat diwakili Date JavaScript.
+- Admin-only GET daftar/detail, POST create, PATCH update/reaktivasi, DELETE archive.
+  DELETE menyimpan diskusi dan membership. Patch kota/jenis divalidasi setelah digabung
+  dengan row terkini. Konflik slug menjadi 409; mutasi admin memakai audit allowlist.
+- Rate limit Redis atomik, dibagi antar replika, bucket read/write terpisah. Discovery
+  memakai hash IP; endpoint sesi memakai userId. Default 120 read dan 20 write per
+  60 detik, konfigurabel lewat tiga env COMMUNITY_*. Redis gagal → 503; limit → 429
+  dengan Retry-After. Boot memakai Redis queue noeviction.
+- Ekspor PDP wajib memuat communityMemberships milik sesi, termasuk blocked dan arsip.
+  Kontributor hadir saat endpoint join pertama; bagian membership U-39 lunas. Bentuk
+  berkas bertambah tanpa menaikkan formatVersion. Client yang memakai kontrak ekspor
+  strict lama memerlukan pembaruan sebelum rollout Community; validasi rilis PR-119
+  harus mencakup web/mobile yang didukung.
+- Sebelas operasi pada tujuh path OpenAPI sesuai registrar nyata; tidak menjanjikan
+  endpoint penulisan konten yang belum dilayani. Tidak ada migrasi/dependensi baru.
+
+### Verifikasi
+
+- 96 test terkait pada source akhir lulus: HTTP nyata dengan RS256, schema PostgreSQL acak, Redis nyata,
+  ekspor, penjaga kelengkapan, kesepadanan OpenAPI, dan template env.
+- Join enam request paralel: satu row, joinedAt sama, satu event. Uji role meliputi tamu,
+  seeker, employer, admin, akun suspended/deleted, membership blocked, dan ruang arsip.
+- Pagination diuji pada timestamp bertie dan mikrodetik, termasuk anchor yang diarsipkan
+  atau disembunyikan di antara dua halaman. Feed hanya ruang/status yang diizinkan.
+  Jumlah anggota mengecualikan akun suspended/deleted; ekspor hanya milik sesi.
+- 122 test schemas dan 10 test api-client pengguna lulus; OpenAPI sinkron.
+- Typecheck seluruh 12 workspace serta lint API/schemas lulus. Pemeriksaan API luas
+  meluluskan 1.910 test dan melewati 328 integrasi tanpa layanan lokal. Dua kegagalan
+  awal (snapshot kode error baru dan pembacaan relasi user nested) diperbaiki; seluruh
+  96 test terkait termasuk kedua penjaga tersebut kemudian lulus. Gerbang CI lengkap
+  lint-typecheck-test dan a11y wajib lulus pada commit akhir sebelum merge manual.
+- Test DB khusus membuat/menghapus hanya schema pr114 acak. Pemeriksaan suite lokal
+  lainnya mengarahkan PostgreSQL/Redis ke endpoint tidak aktif; integrasi luas dijalankan
+  CI agar akun dan data aplikasi lokal tidak tersentuh.
+
+Rollback: revert PR lalu restart API. Migrasi PR-113 serta data yang sudah tersimpan
+dipertahankan. Scope selanjutnya PR-115 (browse/join web), PR-116 (penulisan/moderasi
+dan sisa ekspor U-39), PR-119 (readiness/compatibility/rollout).

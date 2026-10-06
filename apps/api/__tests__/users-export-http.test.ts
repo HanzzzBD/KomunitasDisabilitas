@@ -220,6 +220,7 @@ async function boot() {
             { bagian: "resumes", kumpulkan: async () => [] },
             // PR-075 — lamaran.
             { bagian: "applications", kumpulkan: async () => [] },
+            { bagian: "communityMemberships", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -357,6 +358,7 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "aiUsage",
           "resumes",
           "applications",
+          "communityMemberships",
         ],
       },
     });

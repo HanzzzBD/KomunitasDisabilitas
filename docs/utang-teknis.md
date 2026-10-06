@@ -1180,8 +1180,11 @@ ikut hanyut sampai Phase 18.
 | **Pemicu** | Repository pertama yang membuat/upsert data Community |
 | **Penagih** | `export-kelengkapan.test.ts`: penundaan ditolak saat create/createMany/upsert atau INSERT Community muncul di source API |
 
-PR-113 sudah memasang pembersihan PDP pada kedua jalur purge. Kontributor ekspor disiapkan
-bersama modul API pemilik data: membership di PR-114; post, komentar, dan report di PR-116.
+PR-113 sudah memasang pembersihan PDP pada kedua jalur purge. **Bagian membership lunas
+di PR-114 (2026-10-06):** `communityMemberships` wajib dalam ekspor; semua keanggotaan pemilik
+sesi ikut, termasuk blocked dan ruang arsip, tanpa userId/identitas anggota lain.
+Kontributor dirakit bersama endpoint join pertama dan penundaan membership sudah dihapus
+dari penjaga otomatis. **Sisa tetap terbuka:** post, komentar, dan report di PR-116.
 Kontributor hanya mengumpulkan data milik pemilik sesi dan tidak membocorkan report pengguna
 lain atau identitas resolver. Pembukaan Community di PR-119 mensyaratkan ekspor sudah lengkap.
 Alasan "belum ada data" tidak boleh bertahan setelah endpoint penulisan pertama lahir.

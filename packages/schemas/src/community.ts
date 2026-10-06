@@ -98,6 +98,14 @@ export const communityIdParamsSchema = z
   .object({ id: idSchema })
   .strict()
   .openapi({ ref: "CommunityIdParams" });
+export const communitySlugParamsSchema = z
+  .object({ slug: roomFields.shape.slug })
+  .strict()
+  .openapi({ ref: "CommunitySlugParams" });
+export const emptyCommunityMutationSchema = z
+  .object({})
+  .strict()
+  .openapi({ ref: "EmptyCommunityMutation" });
 export const communityPostIdParamsSchema = z
   .object({ communityId: idSchema, postId: idSchema })
   .strict()
@@ -274,6 +282,8 @@ export const communityOpenApiSchemas = {
   CreateCommunity: createCommunitySchema,
   UpdateCommunity: updateCommunitySchema,
   CommunityIdParams: communityIdParamsSchema,
+  CommunitySlugParams: communitySlugParamsSchema,
+  EmptyCommunityMutation: emptyCommunityMutationSchema,
   CommunityPostIdParams: communityPostIdParamsSchema,
   CommunityCommentIdParams: communityCommentIdParamsSchema,
   CommunityListQuery: communityListQuerySchema,

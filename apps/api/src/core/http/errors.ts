@@ -460,6 +460,31 @@ export const ERROR_CATALOG = {
     message: "Chat AI sedang ramai",
     hint: "Coba lagi sebentar lagi, atau lanjutkan lewat formulir CV biasa",
   },
+  KOMUNITAS_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Ruang komunitas tidak ditemukan",
+    hint: "Periksa kembali ruang yang Anda tuju",
+  },
+  KOMUNITAS_DIARSIPKAN: {
+    status: 409,
+    message: "Ruang ini sudah diarsipkan",
+    hint: "Diskusi lama tetap bisa dibaca; pilih ruang aktif untuk berdiskusi",
+  },
+  BUKAN_ANGGOTA_KOMUNITAS: {
+    status: 403,
+    message: "Anda belum menjadi anggota ruang ini",
+    hint: "Bergabung terlebih dahulu untuk menulis",
+  },
+  KEANGGOTAAN_DIBLOKIR: {
+    status: 403,
+    message: "Keanggotaan Anda di ruang ini diblokir",
+    hint: "Hubungi admin bila menurut Anda ini keliru",
+  },
+  SLUG_KOMUNITAS_DIPAKAI: {
+    status: 409,
+    message: "Alamat ruang ini sudah dipakai",
+    hint: "Pilih slug lain untuk ruang ini",
+  },
   TERJADI_KESALAHAN: {
     status: 500,
     message: "Terjadi kesalahan pada server",

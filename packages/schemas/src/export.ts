@@ -25,6 +25,7 @@ import { notificationChannelPrefsSchema, notificationSchema } from "./notificati
 import { aiChatSessionSchema, aiQuotaFeatureSchema } from "./ai.js";
 import { resumeSchema } from "./resumes.js";
 import { exportApplicationSchema } from "./applications-api.js";
+import { communityMembershipSchema } from "./community.js";
 
 /** Versi bentuk berkas ekspor. Naik hanya saat perubahan TIDAK aditif. */
 export const EXPORT_FORMAT_VERSION = 1;
@@ -218,6 +219,8 @@ export const dataExportSchema = z
      * `exportApplicationSchema`.
      */
     applications: z.array(exportApplicationSchema),
+    /** PR-114: all memberships owned by this session, including blocked and archived rooms. */
+    communityMemberships: z.array(communityMembershipSchema),
   })
   .strict()
   .openapi({ ref: "DataExport", description: "Berkas ekspor data pribadi" });
