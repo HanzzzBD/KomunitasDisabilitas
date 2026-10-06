@@ -4,6 +4,8 @@ import { z } from "zod";
 import { idSchema } from "./common.js";
 
 export const AUDIT_ACTION = {
+  COMMUNITY_CONTENT_MODERATED: "COMMUNITY_CONTENT_MODERATED",
+  COMMUNITY_REPORT_REJECTED: "COMMUNITY_REPORT_REJECTED",
   AUTH_LOGIN_FAILED: "AUTH_LOGIN_FAILED",
   /** PR-017: login berhasil. Pasangan wajib AUTH_LOGIN_FAILED — tanpa jejak
    *  sukses, lonjakan kegagalan tidak punya pembanding saat investigasi. */
@@ -60,6 +62,8 @@ export const AUDIT_ACTION = {
 } as const;
 
 export const auditActionSchema = z.enum([
+  AUDIT_ACTION.COMMUNITY_CONTENT_MODERATED,
+  AUDIT_ACTION.COMMUNITY_REPORT_REJECTED,
   AUDIT_ACTION.AUTH_LOGIN_FAILED,
   AUDIT_ACTION.AUTH_LOGIN_SUCCEEDED,
   AUDIT_ACTION.AUTH_REFRESH_REUSED,
@@ -137,6 +141,15 @@ const applicationStatusSchema = z.enum([
 ]);
 
 export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
+  [AUDIT_ACTION.COMMUNITY_CONTENT_MODERATED]: z.object({
+    targetType: z.enum(["post", "comment"]),
+    action: z.enum(["hide", "restore", "remove"]),
+    reason: z.string().trim().min(1).max(2000),
+    resolvedReports: z.number().int().nonnegative(),
+  }),
+  [AUDIT_ACTION.COMMUNITY_REPORT_REJECTED]: z.object({
+    reason: z.string().trim().min(1).max(2000),
+  }),
   // `reason` sengaja menyebut metodenya sendiri (prefiks `google*`) alih-alih
   // menambah field `method` wajib: field baru yang wajib akan membuat SELURUH
   // audit AUTH_LOGIN_FAILED lama (PR-016, tanpa field itu) ditolak sanitizer

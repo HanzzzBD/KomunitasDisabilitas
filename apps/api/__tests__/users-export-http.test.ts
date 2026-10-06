@@ -221,6 +221,9 @@ async function boot() {
             // PR-075 — lamaran.
             { bagian: "applications", kumpulkan: async () => [] },
             { bagian: "communityMemberships", kumpulkan: async () => [] },
+            { bagian: "communityPosts", kumpulkan: async () => [] },
+            { bagian: "communityComments", kumpulkan: async () => [] },
+            { bagian: "communityReports", kumpulkan: async () => [] },
           ],
         }),
       );
@@ -359,6 +362,9 @@ describe("GET /api/v1/me/export — audit & log", () => {
           "resumes",
           "applications",
           "communityMemberships",
+          "communityPosts",
+          "communityComments",
+          "communityReports",
         ],
       },
     });

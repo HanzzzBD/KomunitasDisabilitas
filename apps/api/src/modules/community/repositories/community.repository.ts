@@ -52,6 +52,7 @@ export function createCommunityRepository(prisma: AppPrisma) {
       room: RoomRow;
       member: MemberRow | null;
       role: string;
+      db: Prisma.TransactionClient;
       update(patch: UpdateCommunity): Promise<RoomRow>;
       join(): Promise<MemberRow>;
       leave(): Promise<void>;
@@ -73,6 +74,7 @@ export function createCommunityRepository(prisma: AppPrisma) {
         room,
         member,
         role: users[0].role,
+        db: tx,
         update: async (data) =>
           withMemberCount(tx, await tx.community.update({ where: { id }, data, select: ROOM })),
         join: () =>

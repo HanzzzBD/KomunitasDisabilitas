@@ -4,6 +4,8 @@ import { loadEnv } from "../src/core/config/env.js";
 import { uuidV7 } from "../src/core/ids/index.js";
 import { createCommunityRateRepository } from "../src/modules/community/repositories/rate-limit.repository.js";
 import { createCommunityService } from "../src/modules/community/services/community.service.js";
+import { createCommunityContentService } from "../src/modules/community/services/content.service.js";
+import type { CommunityContentRepository } from "../src/modules/community/repositories/content.repository.js";
 import type { CommunityRepository } from "../src/modules/community/repositories/community.repository.js";
 import { busUji } from "./helpers/events.js";
 
@@ -14,10 +16,36 @@ describe("Community limiter", () => {
       REDIS_URL: "redis://localhost",
       REDIS_QUEUE_URL: "redis://localhost",
     };
-    for (const key of ["COMMUNITY_READ_MAX", "COMMUNITY_WRITE_MAX", "COMMUNITY_RATE_WINDOW_MS"]) {
+    for (const key of [
+      "COMMUNITY_READ_MAX",
+      "COMMUNITY_WRITE_MAX",
+      "COMMUNITY_RATE_WINDOW_MS",
+      "COMMUNITY_CREATE_MAX",
+      "COMMUNITY_REPORT_MAX",
+      "COMMUNITY_POST_MAX_LENGTH",
+      "COMMUNITY_COMMENT_MAX_LENGTH",
+    ]) {
       expect(() => loadEnv({ ...env, [key]: "0" })).toThrow();
       expect(() => loadEnv({ ...env, [key]: "1.5" })).toThrow();
     }
+    expect(() => loadEnv({ ...env, COMMUNITY_POST_MAX_LENGTH: "5001" })).toThrow();
+    expect(() => loadEnv({ ...env, COMMUNITY_COMMENT_MAX_LENGTH: "2001" })).toThrow();
+  });
+  it("content creation and reporting fail closed when Redis is unavailable", async () => {
+    const service = createCommunityContentService({
+      repository: {} as CommunityContentRepository,
+      events: busUji(),
+      rate: {
+        bump: async () => {
+          throw new Error("unavailable");
+        },
+      },
+    });
+    for (const bucket of ["create", "report"] as const)
+      await expect(service.checkRate(bucket, uuidV7())).rejects.toMatchObject({
+        code: "BELUM_SIAP",
+        retryAfterSeconds: 5,
+      });
   });
   it("Redis errors fail closed with a retry hint", async () => {
     const service = createCommunityService({
@@ -53,7 +81,9 @@ const redis = new Redis(redisUrl ?? "redis://127.0.0.1:6380", {
 });
 redis.on("error", () => {});
 const user = uuidV7();
-const keys = ["read", "write"].map((bucket) => `community:rate:${bucket}:${user}`);
+const keys = ["read", "write", "create", "report"].map(
+  (bucket) => `community:rate:${bucket}:${user}`,
+);
 let available = false;
 beforeAll(async () => {
   if (!redisUrl) return;
@@ -70,7 +100,7 @@ afterAll(async () => {
 });
 
 describe("Community limiter — actual Redis", () => {
-  it("atomic concurrent counts, positive expiry, separate read/write and shared replica keys", async (ctx) => {
+  it("atomic concurrent counts, positive expiry, four separate buckets and shared replica keys", async (ctx) => {
     if (!available) return ctx.skip();
     const a = createCommunityRateRepository(redis),
       b = createCommunityRateRepository(redis);
@@ -83,6 +113,8 @@ describe("Community limiter — actual Redis", () => {
     expect(results.every((v) => v.retryAfterSeconds === 1)).toBe(true);
     expect(await redis.pttl(keys[1]!)).toBeGreaterThan(0);
     expect((await a.bump("read", user, 1000)).value).toBe(1);
+    expect((await a.bump("create", user, 1000)).value).toBe(1);
+    expect((await b.bump("report", user, 1000)).value).toBe(1);
     // Expire this test's exact key to prove the next window starts at one.
     await redis.pexpire(keys[1]!, 1);
     await new Promise((resolve) => setTimeout(resolve, 20));

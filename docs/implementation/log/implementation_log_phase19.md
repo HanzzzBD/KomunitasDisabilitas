@@ -373,3 +373,79 @@ dan sisa ekspor U-39), PR-119 (readiness/compatibility/rollout).
 
 Rollback: revert PR lalu build ulang web. Tidak ada perubahan skema atau rollback data.
 Lanjut PR-116 untuk penulisan/moderasi konten dan sisa ekspor PDP U-39.
+
+## PR-116 — Post, Comment, Report + Moderation Service
+
+> **Tanggal:** 2026-10-06.
+> **Branch:** `pr-116-community-content` → `phase-19-community`.
+
+Community kini menerima post dan komentar teks satu tingkat, edit/hapus sendiri,
+laporan, detail target, antrean laporan admin, hide/restore/remove, serta reject.
+Keempat belas operasi HTTP baru mengikuti registry RBAC dan OpenAPI; feed PR-114
+tetap tersedia pada path yang sama. UI diskusi/admin menyusul PR-117/118.
+
+### Keputusan owner
+
+- Semua pengguna login boleh melapor, termasuk nonanggota dan membership blocked.
+- Hapus sendiri mengosongkan body dan memakai status removed. Remove admin menyimpan
+  body hanya bagi admin/audit; removed final dan tidak dapat dipulihkan. PDP purge
+  tetap mengosongkan body, melepas penulis, dan mempertahankan ID/audit.
+- Hide/remove admin otomatis mengubah semua laporan open target menjadi resolved.
+  Reject laporan memakai aksi terpisah dengan reason wajib.
+
+### Implementasi dan jaminan
+
+- Create/edit mensyaratkan akun, ruang dan membership aktif untuk semua role.
+  Pemilik boleh menghapus teks setelah keluar/blokir/arsip. Edit hidden tetap hidden;
+  ordinary edit/delete menolak impersonasi oleh akun lain, termasuk admin.
+- Detail biasa hanya membaca published atau konten milik sendiri; body removed
+  selalu kosong. Admin mempunyai endpoint terpisah untuk body retained. Alasan
+  moderasi terakhir hanya tersedia bagi pemilik/admin, tanpa identitas pelapor.
+  Feed/daftar komentar menyaring hidden/removed; post induk harus published agar
+  komentarnya tampil. Antrean laporan oldest-first memakai cursor presisi timestamp.
+- Zod strict menolak author/status dari klien, nested reply, NUL, teks kosong dan
+  panjang berlebih. NFC/newline dinormalkan, kontrol dibuang, markup tetap teks literal.
+  Konsumen harus merender sebagai teks, bukan HTML.
+- Batas server post 5000/komentar 2000 boleh diperketat melalui env. Bucket Redis
+  create (10/menit) dan report (5/menit) terpisah dari read/write. Lua atomik,
+  Retry-After positif, dan kegagalan Redis menolak aksi dengan 503.
+- Transaksi mengunci akun → ruang → post → komentar. Pemeriksaan membership/status
+  dan mutasi dilakukan dalam transaksi; laporan duplikat open akun/target hanya
+  membuat satu baris/event. Moderasi/resolusi laporan dan audit wajib commit bersama;
+  reject juga dibatalkan bila audit gagal. Audit memuat actor, target, action,
+  reason dan timestamp melalui allowlist terpusat. Remove admin juga menutup laporan
+  yang tertinggal setelah hapus sendiri; retry setelah semua terselesaikan tetap
+  idempotent.
+- Event terbit setelah commit. Notifikasi laporan ke admin aktif dan perubahan
+  status ke penulis memakai ID peristiwa untuk deduplikasi; tidak memuat body,
+  reason atau identitas pelapor. Perubahan hide/restore berikutnya memakai ID audit
+  baru. Bus in-process yang ada bersifat best effort dan tidak tahan restart seperti
+  outbox; status/audit tetap menjadi sumber kebenaran.
+- U-39 lunas: `communityPosts`, `communityComments`, `communityReports` wajib dalam
+  ekspor, dirakit bersama endpoint penulisan pertama. Semua status milik sesi ikut;
+  body removed kosong dan identitas resolver/report pengguna lain tidak ikut.
+- Web/Android mengenali tipe notifikasi baru tanpa tautan ke halaman yang belum
+  tersedia. Tidak ada migrasi baru. Sebelum rollout, PR-119 harus memastikan klien
+  strict memakai kontrak ekspor/notifikasi terbaru, termasuk build mobile baru.
+  Implementasi di branch phase bukan bukti gate v1.0.0 produksi sudah live/stabil.
+
+### Verifikasi
+
+- PostgreSQL nyata pada schema `pr116_*` terisolasi: **28 test** HTTP/transaksi,
+  mencakup RBAC, blokir/arsip, BOLA, sanitasi, privasi, duplikat laporan serentak,
+  resolusi atomik, audit failure rollback (moderasi/reject), konflik delete/restore,
+  tombstone PDP, pagination mikrodetik, kuota, notifikasi dan ekspor.
+- Regresi PR-114 **11 test** dan limiter **5 test**, termasuk Redis nyata dengan
+  empat bucket serta cleanup hanya kunci acak milik test: total **44 lulus**.
+- Shared schemas **127**, api-client **175**, dan navigasi notifikasi Android **25**
+  test lulus; OpenAPI drift check sinkron. Lint dan typecheck seluruh 12 workspace
+  lulus. Suite lokal umum memakai endpoint DB/Redis kosong agar data pengguna lokal
+  tidak disentuh; integration umum berjalan pada service CI.
+- Web **871 test** lulus. Regresi API ekspor HTTP/agregator, audit, error,
+  kelengkapan PDP dan parity OpenAPI **73 test** lulus setelah fixture memakai
+  kontrak ekspor lengkap. Suite API umum mencatat **1901 test** lulus dengan
+  integration DB/Redis/storage dilewati lokal; CI menjadi verifikasi seluruh suite
+  pada database/Redis terpisah. Build web + service worker lulus, budget JS awal
+  **128,7 KB / 200 KB gzip**. Format berkas scope PR dan diff check bersih.
+
+Next: PR-117 UI diskusi/report aksesibel, PR-118 UI admin, PR-119 gate readiness.

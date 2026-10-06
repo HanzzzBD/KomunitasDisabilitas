@@ -151,6 +151,9 @@ const BERKAS_UJI = {
   // Bagian `applications` WAJIB sejak PR-075 (endpoint apply lahir).
   applications: [],
   communityMemberships: [],
+  communityPosts: [],
+  communityComments: [],
+  communityReports: [],
 } as const;
 
 /**

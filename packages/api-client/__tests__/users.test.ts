@@ -61,6 +61,9 @@ const EKSPOR = {
   // Bagian `applications` WAJIB sejak PR-075.
   applications: [],
   communityMemberships: [],
+  communityPosts: [],
+  communityComments: [],
+  communityReports: [],
 };
 
 const PROFIL = {

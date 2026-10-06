@@ -19,7 +19,7 @@ const id = "01912345-89ab-7def-8123-456789abcdef";
 const at = "2026-10-06T09:00:00+07:00";
 const room = { slug: "karier-jakarta", name: "Karier Jakarta", description: "Diskusi karier" };
 
-describe("kontrak Community (PR-113)", () => {
+describe("kontrak Community (PR-113/114/116)", () => {
   it("kota wajib pada ruang city dan tidak boleh hadir pada ruang topic", () => {
     expect(createCommunitySchema.safeParse({ ...room, type: "city" }).success).toBe(false);
     expect(createCommunitySchema.safeParse({ ...room, type: "city", city: "  " }).success).toBe(
@@ -105,6 +105,18 @@ describe("kontrak Community (PR-113)", () => {
     ).toBe(false);
   });
 
+  it("normalisasi teks mempertahankan markup literal, menolak NUL dan teks kontrol kosong", () => {
+    expect(
+      createCommunityPostSchema.parse({ body: " e\u0301\r\n<script>x</script>\u0007 " }).body,
+    ).toBe("é\n<script>x</script>");
+    for (const body of ["\u0007", "\u0085", "\u0000", "a\u0000b"])
+      expect(createCommunityCommentSchema.safeParse({ body }).success).toBe(false);
+    expect(
+      createCommunityReportSchema.safeParse({ targetType: "post", targetId: id, reason: "\u0007" })
+        .success,
+    ).toBe(false);
+  });
+
   it("tombstone PDP sah; respons publik menolak identitas pelapor dan data sensitif", () => {
     const post = {
       id,
@@ -155,7 +167,7 @@ describe("kontrak Community (PR-113)", () => {
     ).toEqual({ cursor: "next", limit: 5, query: "kerja" });
   });
 
-  it("OpenAPI memuat kontrak dan route ruang/membership, tanpa endpoint penulisan konten PR-116", () => {
+  it("OpenAPI memuat route ruang, membership, penulisan, komentar, laporan dan moderasi", () => {
     const document = buildOpenApiDocument();
     const schemas = document.components?.schemas ?? {};
     for (const name of [
@@ -170,8 +182,19 @@ describe("kontrak Community (PR-113)", () => {
       expect(schemas).toHaveProperty(name);
     }
     const paths = document.paths ?? {};
-    expect(Object.keys(paths).filter((path) => path.includes("communit"))).toHaveLength(7);
+    expect(Object.keys(paths).filter((path) => path.includes("communit"))).toHaveLength(15);
     expect(paths["/communities/{id}/posts"]).toHaveProperty("get");
-    expect(paths["/communities/{id}/posts"]).not.toHaveProperty("post");
+    expect(paths["/communities/{id}/posts"]).toHaveProperty("post");
+    for (const path of ["/community-posts/{id}", "/community-comments/{id}"])
+      for (const operation of ["get", "patch", "delete"])
+        expect(paths[path]).toHaveProperty(operation);
+    for (const path of [
+      "/community-content/{targetType}/{targetId}/reports",
+      "/admin/community-content/{targetType}/{targetId}/moderate",
+      "/admin/community-reports/{id}/reject",
+    ])
+      expect(paths[path]).toHaveProperty("post");
+    expect(paths["/community-posts/{id}/comments"]).toHaveProperty("get");
+    expect(paths["/community-posts/{id}/comments"]).toHaveProperty("post");
   });
 });

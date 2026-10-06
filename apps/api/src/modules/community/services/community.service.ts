@@ -56,7 +56,7 @@ export const memberResponse = (r: MemberRow): CommunityMembership => ({
   status: r.status,
   joinedAt: r.joinedAt.toISOString(),
 });
-function cursorOf(cursor?: string) {
+export function communityCursor(cursor?: string) {
   if (!cursor) return undefined;
   try {
     const position = decodeKursor(cursor);
@@ -68,7 +68,7 @@ function cursorOf(cursor?: string) {
     throw e;
   }
 }
-function paginate<T extends { id: string; createdAt: Date }>(rows: T[], limit: number) {
+export function communityPage<T extends { id: string; createdAt: Date }>(rows: T[], limit: number) {
   const page = rows.slice(0, limit);
   const last = page.at(-1);
   return {
@@ -79,7 +79,7 @@ function paginate<T extends { id: string; createdAt: Date }>(rows: T[], limit: n
     },
   };
 }
-function canWrite(room: RoomRow, member: MemberRow | null) {
+export function assertCommunityWrite(room: RoomRow, member: MemberRow | null) {
   if (room.status !== "active") throw appError("KOMUNITAS_DIARSIPKAN");
   if (member?.status !== "active")
     throw appError(
@@ -127,8 +127,8 @@ export function createCommunityService(deps: {
         throw appError("TERLALU_BANYAK_PERMINTAAN", { retryAfterSeconds: count.retryAfterSeconds });
     },
     async list(query: CommunityListQuery, admin = false): Promise<CommunityListResponse> {
-      const { page, meta } = paginate(
-        await repo.list(query, cursorOf(query.cursor), admin),
+      const { page, meta } = communityPage(
+        await repo.list(query, communityCursor(query.cursor), admin),
         query.limit,
       );
       return { data: page.map(roomResponse), meta };
@@ -172,13 +172,13 @@ export function createCommunityService(deps: {
     // PR-116 must use the same guard inside its write transaction, not a stale preflight.
     async assertCanWrite(userId: string, id: string): Promise<void> {
       await repo.inRoom(id, userId, async ({ room, member }) => {
-        canWrite(room, member);
+        assertCommunityWrite(room, member);
       });
     },
     async feed(id: string, query: CommunityFeedQuery): Promise<CommunityFeedResponse> {
       if (!(await repo.findById(id))) throw appError("KOMUNITAS_TIDAK_DITEMUKAN");
-      const { page, meta } = paginate(
-        await repo.feed(id, query.limit, cursorOf(query.cursor), query.query),
+      const { page, meta } = communityPage(
+        await repo.feed(id, query.limit, communityCursor(query.cursor), query.query),
         query.limit,
       );
       return {

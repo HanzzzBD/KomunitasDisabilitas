@@ -63,6 +63,14 @@ describe("tujuan notifikasi", () => {
     ).toBeNull();
   });
 
+  it("kabar Community dapat dibaca sebelum halaman diskusi/antrean tersedia", () => {
+    for (const type of [
+      NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT,
+      NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED,
+    ])
+      expect(tautanNotifikasi({ type, params: {} })).toBeNull();
+  });
+
   it("kabar lamaran pelamar mengantar ke detail lamarannya (PR-079, AC-4 PR-050)", () => {
     for (const type of [
       NOTIFICATION_TYPE.LAMARAN_TERKIRIM,

@@ -7,7 +7,7 @@ if n == 1 or redis.call('PTTL', KEYS[1]) < 0 then redis.call('PEXPIRE', KEYS[1],
 return {n, redis.call('PTTL', KEYS[1])}`;
 export function createCommunityRateRepository(redis: CommunityRedis) {
   return {
-    async bump(bucket: "read" | "write", key: string, windowMs: number) {
+    async bump(bucket: "read" | "write" | "create" | "report", key: string, windowMs: number) {
       const result = await redis.eval(BUMP, 1, `community:rate:${bucket}:${key}`, windowMs);
       if (
         !Array.isArray(result) ||

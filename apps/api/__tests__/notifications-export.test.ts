@@ -177,6 +177,9 @@ describe("kontributor bagian notifications", () => {
       resumes: [],
       applications: [],
       communityMemberships: [],
+      communityPosts: [],
+      communityComments: [],
+      communityReports: [],
     });
 
     expect(berkas.notifications).toHaveLength(3);

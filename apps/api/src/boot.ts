@@ -368,6 +368,13 @@ export async function startApi(options: BootOptions): Promise<void> {
           writeMax: env.COMMUNITY_WRITE_MAX,
           windowMs: env.COMMUNITY_RATE_WINDOW_MS,
         },
+        contentPolicy: {
+          postMaxLength: env.COMMUNITY_POST_MAX_LENGTH,
+          commentMaxLength: env.COMMUNITY_COMMENT_MAX_LENGTH,
+          createMax: env.COMMUNITY_CREATE_MAX,
+          reportMax: env.COMMUNITY_REPORT_MAX,
+          windowMs: env.COMMUNITY_RATE_WINDOW_MS,
+        },
       });
       app.use(community.router);
       app.use(
@@ -407,7 +414,7 @@ export async function startApi(options: BootOptions): Promise<void> {
             // PR-075: lamaran + salinan pengungkapannya — ditulis bersama
             // endpoint apply, bukan menyusul (pelajaran U-03/U-04/U-25).
             createApplicationsExport({ prisma, fieldKeys }),
-            community.exportContributor,
+            ...community.exportContributors,
           ],
         }),
       );

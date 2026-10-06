@@ -31,6 +31,21 @@ export const communityModerationActionSchema = z
 
 export const COMMUNITY_CONTENT_LIMITS = { postMaxLength: 5000, commentMaxLength: 2000 } as const;
 
+/** Plain text: normalize Unicode/newlines and discard C0/C1 controls.
+ * Markup remains literal text; consumers render text, never HTML. NUL is rejected.
+ */
+export function sanitizeCommunityText(text: string): string {
+  return Array.from(text.normalize("NFC").replace(/\r\n?/g, "\n"))
+    .filter((c) => {
+      const code = c.codePointAt(0)!;
+      return (
+        code === 0 || code === 9 || code === 10 || (code >= 32 && !(code >= 127 && code <= 159))
+      );
+    })
+    .join("")
+    .trim();
+}
+
 /** Server PR-116 dapat mengatur batas lebih ketat; klien memakai default yang sama. */
 export function createCommunityContentSchemas(
   limits: { postMaxLength: number; commentMaxLength: number } = COMMUNITY_CONTENT_LIMITS,
@@ -43,7 +58,10 @@ export function createCommunityContentSchemas(
       .max(max, { message: `Teks maksimal ${max} karakter` })
       .refine((body) => !body.includes("\u0000"), {
         message: "Teks mengandung karakter yang tidak diizinkan",
-      });
+      })
+      .transform(sanitizeCommunityText)
+      .openapi({ effectType: "same" })
+      .refine((body) => body.length > 0, { message: "Teks tidak boleh kosong" });
   return {
     post: z.object({ body: text(limits.postMaxLength) }).strict(),
     comment: z.object({ body: text(limits.commentMaxLength) }).strict(),
@@ -137,7 +155,34 @@ const reason = z
   .string()
   .trim()
   .min(1, "Alasan wajib diisi")
-  .max(2000, "Alasan maksimal 2000 karakter");
+  .max(2000, "Alasan maksimal 2000 karakter")
+  .refine((value) => !value.includes("\u0000"), "Alasan mengandung karakter yang tidak diizinkan")
+  .transform(sanitizeCommunityText)
+  .openapi({ effectType: "same" })
+  .refine((value) => value.length > 0, "Alasan wajib diisi");
+export const communityTargetParamsSchema = z
+  .object({
+    targetType: communityReportTargetTypeSchema,
+    targetId: idSchema,
+  })
+  .strict()
+  .openapi({ ref: "CommunityTargetParams" });
+export const communityReasonInputSchema = z
+  .object({ reason })
+  .strict()
+  .openapi({ ref: "CommunityReasonInput" });
+export const communityModerationInputSchema = z
+  .object({ action: communityModerationActionSchema, reason })
+  .strict()
+  .openapi({ ref: "CommunityModerationInput" });
+export const communityModerationInfoSchema = z
+  .object({
+    action: communityModerationActionSchema,
+    reason,
+    createdAt: timestampSchema,
+  })
+  .strict()
+  .openapi({ ref: "CommunityModerationInfo" });
 export const createCommunityReportSchema = z
   .object({
     targetType: communityReportTargetTypeSchema,
@@ -192,6 +237,8 @@ const contentFields = {
   status: communityContentStatusSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+  /** Only the author/admin receives the latest reason; never reporter identity. */
+  moderation: communityModerationInfoSchema.nullable().optional(),
 };
 export const communityPostSchema = z
   .object({
@@ -269,9 +316,24 @@ export const communityReportResponseSchema = single(communityReportReceiptSchema
 export const communityReportAdminListResponseSchema = list(communityReportAdminSchema).openapi({
   ref: "CommunityReportAdminListResponse",
 });
+export const communityReportAdminResponseSchema = single(communityReportAdminSchema).openapi({
+  ref: "CommunityReportAdminResponse",
+});
+export const communityContentResponseSchema = single(
+  z.discriminatedUnion("targetType", [
+    z.object({ targetType: z.literal("post"), content: communityPostSchema }).strict(),
+    z.object({ targetType: z.literal("comment"), content: communityCommentSchema }).strict(),
+  ]),
+).openapi({ ref: "CommunityContentResponse" });
 
 /** Urutan eksplisit: namespace exports dapat berbeda antara tsx dan Vitest. */
 export const communityOpenApiSchemas = {
+  CommunityTargetParams: communityTargetParamsSchema,
+  CommunityReasonInput: communityReasonInputSchema,
+  CommunityModerationInput: communityModerationInputSchema,
+  CommunityModerationInfo: communityModerationInfoSchema,
+  CommunityContentResponse: communityContentResponseSchema,
+  CommunityReportAdminResponse: communityReportAdminResponseSchema,
   CommunityType: communityTypeSchema,
   CommunityStatus: communityStatusSchema,
   CommunityMembershipStatus: communityMembershipStatusSchema,

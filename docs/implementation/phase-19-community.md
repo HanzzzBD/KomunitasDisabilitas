@@ -130,11 +130,25 @@ Audit manusia NVDA/TalkBack dan readiness tetap merupakan gate PR-119.
 
 **Acceptance Criteria:**
 
-* [ ] Body post/komentar tervalidasi Zod, plain text disanitasi, dan memiliki batas panjang konfigurabel.
-* [ ] Report tidak mengungkap pelapor kepada pemilik konten.
-* [ ] Semua tindakan admin menyimpan actor, target, action, reason, dan timestamp di audit log.
-* [ ] Konten hidden/removed tidak muncul pada feed publik tetapi tetap tersedia untuk admin sesuai RBAC.
-* [ ] Rate limit create dan report diuji.
+* [x] Body post/komentar tervalidasi Zod, plain text disanitasi, dan memiliki batas panjang konfigurabel.
+* [x] Report tidak mengungkap pelapor kepada pemilik konten.
+* [x] Semua tindakan admin menyimpan actor, target, action, reason, dan timestamp di audit log.
+* [x] Konten hidden/removed tidak muncul pada feed publik tetapi tetap tersedia untuk admin sesuai RBAC.
+* [x] Rate limit create dan report diuji.
+
+**Keputusan owner (2026-10-06):** semua pengguna login boleh melapor, termasuk
+nonanggota/blocked. Hapus sendiri mengosongkan teks; remove admin menyimpan teks
+hanya untuk admin/audit dan bersifat final. Hide/remove otomatis menyelesaikan semua
+laporan open target; reject adalah aksi terpisah dengan alasan wajib. PDP tetap
+memutus identitas penulis, mengosongkan body, dan mempertahankan tombstone/audit.
+
+**Kontrak tambahan:** pemilik boleh menyunting hidden tanpa menerbitkannya ulang,
+serta menghapus teks setelah keluar/blokir/arsip. Notifikasi tidak membawa body,
+alasan atau identitas pelapor. Ekspor PDP post/komentar/report wajib dan hanya milik
+sesi (U-39 lunas). UI diskusi di PR-117 dan admin di PR-118; PR-119 memeriksa
+kompatibilitas kontrak ekspor/notifikasi dengan build mobile sebelum rollout.
+
+Implementasi dan verifikasi: [log PR-116](log/implementation_log_phase19.md#pr-116--post-comment-report--moderation-service).
 
 **Dependencies:** PR-014, PR-083, PR-114, PR-112.
 
