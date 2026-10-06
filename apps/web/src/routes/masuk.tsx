@@ -10,6 +10,7 @@
 // yang terdaftar di Google Cloud Console.
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { KolomForm, Masukan, Tombol } from "@nawasena/ui";
 import { requestOtp, verifyOtp } from "@nawasena/api-client";
 import { track } from "../shared/analitik.js";
@@ -20,12 +21,14 @@ import { bacaTujuan } from "../shared/rute/tujuan.js";
 import { normalkanNomor } from "../features/auth/nomor-hp.js";
 import { pesanGalat } from "../features/auth/pesan-galat.js";
 import { clientIdGoogle, siapkanMasukGoogle } from "../features/auth/google.js";
+import { tujuanSetelahMasuk } from "../features/auth/tujuan-setelah-masuk.js";
 
 type Langkah = "nomor" | "kode";
 
 export function Masuk() {
   const t = useTeks();
   const klien = useKlienApi();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const lokasi = useLocation();
   const masukKeSesi = useStoreSesi((s) => s.masuk);
@@ -151,7 +154,8 @@ export function Masuk() {
       if (data.isNewUser) track("daftar", { metode: "otp" });
       // `replace`: halaman masuk tidak boleh tertinggal di riwayat, kalau tidak
       // tombol kembali mengembalikan pengguna ke form yang sudah selesai.
-      navigate(bacaTujuan(lokasi.search), { replace: true });
+      const tujuan = await tujuanSetelahMasuk(klien, queryClient, bacaTujuan(lokasi.search));
+      navigate(tujuan, { replace: true });
     } catch (kegagalan) {
       setGalat(pesanGalat(kegagalan, t));
     } finally {

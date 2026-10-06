@@ -118,7 +118,13 @@ export function TataLetak() {
   }, [lokasi.pathname]);
 
   const perluOnboarding =
-    status === "masuk" && wizardOnboardingAktif() && !JALUR_DIKECUALIKAN.includes(lokasi.pathname);
+    status === "masuk" &&
+    wizardOnboardingAktif() &&
+    !JALUR_DIKECUALIKAN.includes(lokasi.pathname) &&
+    // Bagian admin memeriksa sesi/peran sendiri. Wizard pencari kerja tidak
+    // boleh memotong akses dashboard maupun halaman pengelolaannya.
+    lokasi.pathname !== "/admin" &&
+    !lokasi.pathname.startsWith("/admin/");
 
   if (perluOnboarding) {
     const sub = idPenggunaSaatIni();

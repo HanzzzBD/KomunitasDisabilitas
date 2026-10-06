@@ -39,9 +39,10 @@ function klienPalsu(jawab: (path: string, body: unknown) => unknown): ApiClient 
  * `/me/accessibility` bergabung ke daftar abaikan di PR-036 dengan alasan yang
  * sama persis: preferensi ditarik dari akun begitu status sesi "masuk" menyala
  * — yaitu tepat sesudah verifikasi OTP berhasil, di tengah alur yang sedang
- * dihitung permintaannya di sini.
+ * dihitung permintaannya di sini. `/me` kini menentukan tujuan sesudah login,
+ * tetapi tidak termasuk permintaan kirim/verifikasi OTP yang dihitung.
  */
-const DIABAIKAN: readonly string[] = ["/auth/refresh", "/me/accessibility"];
+const DIABAIKAN: readonly string[] = ["/auth/refresh", "/me/accessibility", "/me"];
 
 function permintaanAuth() {
   const daftar: Array<{ path: string; body: unknown }> = [];
@@ -68,6 +69,8 @@ function renderMasuk(klien: ApiClient, jalur = "/masuk") {
       { path: "/masuk", element: <main>{<Masuk />}</main> },
       { path: "/", element: <h1>Beranda</h1> },
       { path: "/lamaran", element: <h1>Lamaran</h1> },
+      { path: "/admin", element: <h1>Admin</h1> },
+      { path: "/admin/kamus", element: <h1>Kamus admin</h1> },
     ],
     { initialEntries: [jalur] },
   );
@@ -91,6 +94,40 @@ async function sampaiLangkahKode(klien: ApiClient, jalur?: string) {
 }
 
 describe("AC-1: alur OTP dari nomor sampai sesi", () => {
+  it.each([
+    ["/masuk", "/admin"],
+    ["/masuk?tujuan=%2Fadmin%2Fkamus", "/admin"],
+    ["/masuk?tujuan=%2Flamaran", "/admin"],
+  ])("admin login di %s → %s", async (jalur, tujuan) => {
+    const klien = klienPalsu((path) => {
+      if (path === "/auth/otp/request") return OK_KIRIM;
+      if (path === "/me") return { data: { role: "admin" } };
+      return OK_VERIFIKASI;
+    });
+    const router = await sampaiLangkahKode(klien, jalur);
+
+    await userEvent.type(kotakKode(), "482913");
+    await userEvent.click(screen.getByRole("button", { name: "Masuk" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(tujuan));
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("profil gagal dibaca sesudah OTP benar → sesi tetap berhasil", async () => {
+    const klien = klienPalsu((path) => {
+      if (path === "/auth/otp/request") return OK_KIRIM;
+      if (path === "/me") throw new Error("jaringan bermasalah");
+      return OK_VERIFIKASI;
+    });
+    const router = await sampaiLangkahKode(klien);
+    await userEvent.type(kotakKode(), "482913");
+    await userEvent.click(screen.getByRole("button", { name: "Masuk" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(useStoreSesi.getState().status).toBe("masuk");
+    expect(ambilTokenAkses()).toBe("tok");
+  });
+
   it("nomor lokal 0812… dikirim ke server sebagai E.164", async () => {
     // Yang diketik pengguna dan yang dituntut skema berbeda; terjemahannya
     // harus benar-benar sampai ke jaringan, bukan hanya ke layar.

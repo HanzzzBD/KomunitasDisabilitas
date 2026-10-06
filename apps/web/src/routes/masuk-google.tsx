@@ -5,12 +5,14 @@
 //
 // Halaman ini tidak punya isi yang bisa ditawar: pengguna tidak memintanya, ia
 // hanya melewatinya. Karena itu ia melakukan satu hal dan langsung pergi —
-// menukarkan `code` menjadi sesi, lalu mengantar pengguna ke tujuan awalnya.
+// menukarkan `code` menjadi sesi, lalu mengantar admin ke dashboard dan akun
+// lain ke tujuan awalnya.
 // Yang terlihat hanyalah penanda menunggu, dan itu pun harus terumumkan: pada
 // jaringan lambat penukarannya bisa memakan beberapa detik, dan layar diam
 // tanpa keterangan terbaca sebagai halaman yang macet.
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { googleAuth, ApiError } from "@nawasena/api-client";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { track } from "../shared/analitik.js";
@@ -18,6 +20,7 @@ import { useTeks, type KunciTeks } from "../shared/i18n/index.js";
 import { useKlienApi } from "../app/klien-api.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { alamatKembali, ambilTitipan } from "../features/auth/google.js";
+import { tujuanSetelahMasuk } from "../features/auth/tujuan-setelah-masuk.js";
 import { KonfirmasiHapusGoogle } from "../features/akun/konfirmasi-hapus-google.js";
 
 /** Titipan yang lolos pemeriksaan, disimpan untuk cabang hapus akun. */
@@ -30,6 +33,7 @@ interface Konfirmasi {
 export function MasukGoogle() {
   const t = useTeks();
   const klien = useKlienApi();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const masukKeSesi = useStoreSesi((s) => s.masuk);
@@ -104,7 +108,8 @@ export function MasukGoogle() {
         masukKeSesi(data.accessToken);
         // PR-082 — funnel "daftar": hanya akun yang BARU dibuat pada login ini.
         if (data.isNewUser) track("daftar", { metode: "google" });
-        navigate(titipan.tujuan, { replace: true });
+        const tujuan = await tujuanSetelahMasuk(klien, queryClient, titipan.tujuan);
+        navigate(tujuan, { replace: true });
       } catch (kegagalan) {
         // Kode server dibedakan hanya jika saran tindakannya berbeda. Untuk
         // pengguna, "code sudah dipakai" dan "code tidak sah" bermuara pada
@@ -124,7 +129,7 @@ export function MasukGoogle() {
         );
       }
     })();
-  }, [klien, masukKeSesi, navigate, params]);
+  }, [klien, masukKeSesi, navigate, params, queryClient]);
 
   if (konfirmasi !== null) {
     return (
