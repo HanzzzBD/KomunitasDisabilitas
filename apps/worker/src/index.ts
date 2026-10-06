@@ -419,7 +419,7 @@ if (mode === "all") {
   jadwalkan(QUEUE_NAME.MAINTENANCE_RETENTION, JADWAL_RETENSI, "cron-retention", "Retensi data");
 }
 
-logger.info({ queues: runtime.running() }, "Worker siap");
+logger.info({ mode, queues: runtime.running() }, "Worker siap");
 
 /**
  * Graceful shutdown: berhenti mengambil job baru, TUNGGU job aktif selesai

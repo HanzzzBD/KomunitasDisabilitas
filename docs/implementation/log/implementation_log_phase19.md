@@ -708,3 +708,27 @@ Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
   Lighthouse desktop 100/100 dan 3G 76/100; lint/typecheck terkait lulus.
 
 Detail: [aktivasi notifikasi](../notification-activation.md).
+
+## Pulihkan AI job matching Web/Android
+
+Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
+
+- Diagnosis: `ai-embed` dan `ai-rerank-feed` tidak memiliki konsumen. Ada satu
+  job profil tertunda; 17 lowongan tayang dan empat profil belum mempunyai
+  embedding. Tidak ada hasil skor matching tersimpan.
+- Worker menyediakan `--matching-only` / `dev:matching`, dengan konsumen
+  embedding, re-rank dan pencatatan AI. Mode terbatas tidak menjadwalkan cron;
+  log startup menunjukkan mode serta antrean yang aktif.
+- Pemulihan memakai alat `embed:ulang` yang sudah ada, dengan coalescing,
+  batas entitas dan kuota AI. Mode kering memilih 17 lowongan dan empat profil.
+- Endpoint metadata model Gemini resmi memberi HTTP 200. Tes mode worker 9,
+  pipeline/API matching 110, serta feed Web 14 lulus; lint/typecheck worker lulus.
+- Sesudah izin operator, worker matching diaktifkan dan pemulihan menyimpan
+  vektor untuk 17/17 lowongan tayang dan 4/4 profil akun hidup. Dry run berikutnya
+  memilih nol entitas; antrean embedding/re-rank kosong tanpa kegagalan atau DLQ.
+- Uji akun sintetis melalui API nyata memicu embedding lalu menghasilkan 11
+  rekomendasi dengan 11 penjelasan AI, HTTP 200. Fixture dibersihkan. Health dan
+  readiness API memberi 200; worker tetap aktif. Tidak ada perubahan kontrak
+  Web/Android atau build APK yang dibutuhkan untuk perbaikan worker ini.
+
+Detail: [aktivasi matching](../matching-activation.md).
