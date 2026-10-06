@@ -43,6 +43,8 @@ import type { Logger } from "../logger/index.js";
  * bisa dijawab dengan grep.
  */
 export interface DomainEvents {
+  /** PR-114: emitted once after a new membership commits; no profile data. */
+  "community.member_joined": { communityId: string; userId: string; joinedAt: string };
   "job.closed": JobClosedEvent;
   /** Akun baru dibuat (PR-034). Penerbitnya modul auth, DI PROSES API —
    *  jadi pelanggannya pun harus hidup di proses yang sama (batas 1 di atas). */

@@ -284,6 +284,7 @@ Community adalah modul monolith baru, bukan service terpisah. Admin membuat ruan
 - Privasi: modul tidak membaca `disability_types`, `accommodation_needs`, CV, maupun lamaran. Penghapusan akun menganonimkan `author_id` pada post/komentar dan menghapus membership/report milik pengguna sesuai pekerjaan PDP yang ada.
 - Moderasi: tindakan hide, restore, atau remove harus menyimpan reason di `audit_logs`; event `community.content_moderated` mengirim notifikasi ke pemilik konten.
 - Abuse control: validasi Zod, plain text tersanitasi, rate limit per user untuk create/report, dan maksimum panjang konten yang ditetapkan konfigurasi.
+- Keputusan owner PR-114 (2026-10-06): daftar/deskripsi ruang publik; membaca feed memerlukan sesi aktif, tanpa wajib bergabung. Feed biasa hanya memuat `published` untuk semua role. Arsip tetap dapat dibaca, tetapi join dan penulisan ditutup; anggota aktif boleh keluar. Marker membership `blocked` dipertahankan sehingga leave/join tidak membatalkan blokir.
 
 ---
 
@@ -568,7 +569,7 @@ Mengikat pada kontrak PRD §11 (tidak diulang penuh). Penegasan desain:
   - `GET /sign-videos?query=&category=` dan CRUD `/admin/sign-videos` (SignBridge v1)
   - `POST /ai/simplify-text` (mode bahasa sederhana untuk konten dinamis; berkuota)
   - `GET /me/export` (hak portabilitas data UU PDP, JSON)
-  - Community Phase 19: `GET /communities?city=&topic=`, `GET /communities/:slug`, `POST /communities/:id/join`, `DELETE /communities/:id/membership`, `GET/POST /communities/:id/posts`, `GET /community-posts/:id`, `POST /community-posts/:id/comments`, dan `POST /community-content/:targetType/:targetId/reports`.
+  - Community Phase 19: `GET /communities?city=&type=topic|city`, `GET /communities/:slug`, `GET /communities/:id/membership`, `POST /communities/:id/join`, `DELETE /communities/:id/membership`, `GET/POST /communities/:id/posts`, `GET /community-posts/:id`, `POST /community-posts/:id/comments`, dan `POST /community-content/:targetType/:targetId/reports`. PR-114 melayani discovery/membership dan GET feed; penulisan/detail konten menyusul PR-116.
   - Admin Community Phase 19: CRUD `/admin/communities`, `GET /admin/community-reports`, serta `POST /admin/community-content/:targetType/:targetId/moderate` dengan action `hide|restore|remove` dan reason wajib.
 
 ---

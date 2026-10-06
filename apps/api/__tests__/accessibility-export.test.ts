@@ -137,6 +137,7 @@ describe("kontributor bagian accessibility", () => {
       aiUsage: [],
       resumes: [],
       applications: [],
+      communityMemberships: [],
     });
 
     expect(berkas.accessibility).toEqual(PILIHAN);

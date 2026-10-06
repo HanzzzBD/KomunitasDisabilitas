@@ -173,6 +173,7 @@ describe("kontributor bagian profile", () => {
       aiUsage: [],
       resumes: [],
       applications: [],
+      communityMemberships: [],
     });
 
     expect(berkas.profile.skills).toEqual([SKILL]);

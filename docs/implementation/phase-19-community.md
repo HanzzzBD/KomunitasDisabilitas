@@ -84,11 +84,16 @@ Implementasi dan bukti verifikasi: [log PR-113](log/implementation_log_phase19.m
 
 **Acceptance Criteria:**
 
-* [ ] Hanya admin dapat membuat, mengubah, atau mengarsipkan ruang.
-* [ ] Join/leave idempotent dan tidak membuat membership ganda.
-* [ ] Hanya anggota aktif dapat membuat konten pada ruang tersebut.
-* [ ] Employer tidak memiliki akses istimewa ke Community.
-* [ ] Test otorisasi mencakup pengguna lain, akun diblokir, dan ruang diarsipkan.
+* [x] Hanya admin dapat membuat, mengubah, atau mengarsipkan ruang.
+* [x] Join/leave idempotent dan tidak membuat membership ganda.
+* [x] Guard penulisan mensyaratkan anggota aktif dan ruang aktif; endpoint create konten menerapkannya pada PR-116.
+* [x] Employer tidak memiliki akses istimewa ke Community.
+* [x] Test otorisasi mencakup pengguna lain, akun diblokir, dan ruang diarsipkan.
+
+Keputusan owner 2026-10-06: daftar/deskripsi publik; feed memerlukan login tanpa wajib join.
+Ruang arsip tetap dapat dibaca, join/penulisan baru ditutup, anggota aktif boleh keluar.
+Membership `blocked` tidak dihapus lewat leave sehingga join ulang tidak membatalkan blokir.
+Implementasi dan verifikasi: [log PR-114](log/implementation_log_phase19.md#pr-114--community-api--membership).
 
 **Dependencies:** PR-019, PR-113, PR-112.
 

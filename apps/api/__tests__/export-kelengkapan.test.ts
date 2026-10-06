@@ -56,6 +56,7 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // owner 2026-10-01), bukan menunggu rekonsiliasi: alasan DITUNDA-nya berhenti
   // benar di commit yang sama.
   applications: "applications",
+  community_memberships: "communityMemberships",
 };
 
 /**
@@ -87,8 +88,6 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * docs/utang-teknis.md.
  */
 const DITUNDA: Readonly<Record<string, string>> = {
-  community_memberships:
-    "PR-114 wajib mendaftarkan kontributor membership pada endpoint pertama yang menulis keanggotaan; PR-113 hanya kontrak/migrasi.",
   community_posts:
     "PR-116 wajib mengekspor post milik pemilik sesi bersama endpoint create pertama, termasuk konten hidden/removed; PR-119 menguji portabilitas.",
   community_comments:

@@ -134,6 +134,7 @@ import {
 } from "./matching.js";
 import { z, type ZodTypeAny } from "zod";
 import { communityOpenApiSchemas } from "./community.js";
+import { communityPaths } from "./community-openapi.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -272,6 +273,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
     },
     security: [{ bearerAuth: [] }],
     paths: {
+      ...communityPaths,
       // Alur OTP (PR-016): request → verify. Pengiriman JWT menyusul di PR-018.
       "/auth/otp/request": {
         post: {

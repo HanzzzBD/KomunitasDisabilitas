@@ -31,6 +31,7 @@ import { createProfilesModule } from "../src/modules/profiles/index.js";
 import { createHealthModule } from "../src/modules/health/index.js";
 import { createInternalModule } from "../src/modules/internal/index.js";
 import { createCompaniesModule } from "../src/modules/companies/index.js";
+import { createCommunityModule } from "../src/modules/community/index.js";
 import { createJobsModule } from "../src/modules/jobs/index.js";
 import { createResumesModule } from "../src/modules/resumes/index.js";
 import { createApplicationsModule } from "../src/modules/applications/index.js";
@@ -147,6 +148,13 @@ function routeNyata(): { method: string; path: string }[] {
     auditLog: auditLog as never,
     events,
     jobsService: jobs.service,
+  });
+  createCommunityModule({
+    prisma: stub(),
+    redis: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: stub(),
+    events,
   });
 
   createApplicationsModule({
