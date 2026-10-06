@@ -23,7 +23,12 @@
 // sebuah rute. Literalnya di sini akan memaksa halaman notification center
 // mengunduh seluruh katalog `auth` yang tidak pernah ia sentuh. Alasan
 // lengkapnya di `packages/schemas/src/notifications.ts`.
-import { NOTIFICATION_TYPE, type Notification } from "@nawasena/schemas";
+import {
+  NOTIFICATION_TYPE,
+  communityTargetParamsSchema,
+  communityIdParamsSchema,
+  type Notification,
+} from "@nawasena/schemas";
 
 /**
  * Alamat tujuan sebuah notifikasi, atau `null` bila entitasnya belum punya
@@ -61,9 +66,16 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // "coba lagi" dan jalur formulir.
       return "/cv/chat";
     case NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT:
-    case NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED:
-      // Detail diskusi/antrean baru tersedia pada PR-117/118.
       return null;
+    case NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED: {
+      const target = communityTargetParamsSchema.safeParse({
+        targetType: notifikasi.params.targetType,
+        targetId: notifikasi.params.targetId,
+      });
+      if (!target.success) return null;
+      const room = communityIdParamsSchema.safeParse({ id: notifikasi.params.communityId });
+      return `/community/content/${target.data.targetType}/${target.data.targetId}${room.success ? `?room=${room.data.id}` : ""}`;
+    }
     default: {
       const takTerduga: never = notifikasi.type;
       throw new Error(`Tipe notifikasi tidak dikenal: ${String(takTerduga)}`);

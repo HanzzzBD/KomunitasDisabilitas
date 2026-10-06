@@ -56,6 +56,8 @@ function buka(path = "/community", options: Setup = {}) {
     }
     if (path === `/communities/${ROOM.slug}`) return { data: room };
     if (path === `/communities/${CITY.slug}`) return { data: CITY };
+    if (path.startsWith(`/communities/${room.id}/posts?`))
+      return { data: [], meta: { nextCursor: null } };
     if (
       path === `/communities/${room.id}/join` ||
       (path === `/communities/${room.id}/membership` && init?.method === "DELETE")

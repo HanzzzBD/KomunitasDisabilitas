@@ -52,6 +52,13 @@ export function createCommunityRouter(c: CommunityController, routes: RouteRegis
     asyncHandler(c.leave),
   );
   routes.get(
+    "/communities/by-id/:id",
+    publicRead(),
+    c.readLimit,
+    validate({ params: communityIdParamsSchema }),
+    asyncHandler(c.detailById),
+  );
+  routes.get(
     "/communities/:slug",
     publicRead(),
     c.readLimit,

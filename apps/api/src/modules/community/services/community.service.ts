@@ -138,7 +138,7 @@ export function createCommunityService(deps: {
       if (!row) throw appError("KOMUNITAS_TIDAK_DITEMUKAN");
       return roomResponse(row);
     },
-    async detailAdmin(id: string): Promise<Community> {
+    async detailById(id: string): Promise<Community> {
       const row = await repo.findById(id);
       if (!row) throw appError("KOMUNITAS_TIDAK_DITEMUKAN");
       return roomResponse(row);

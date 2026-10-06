@@ -18,7 +18,12 @@
 // ingin diperiksa.
 import { expect, type Page } from "@playwright/test";
 import type { HalamanDijaga } from "./halaman.js";
-import { COMMUNITY_UJI, COMMUNITY_KOTA_UJI } from "./community-fixture.js";
+import {
+  COMMUNITY_UJI,
+  COMMUNITY_KOTA_UJI,
+  COMMUNITY_POST_UJI,
+  COMMUNITY_COMMENT_UJI,
+} from "./community-fixture.js";
 
 /** Profil uji untuk `GET /me`. Bentuknya mengikuti `meSchema` (PR-020). */
 const PROFIL_UJI = {
@@ -815,6 +820,23 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
             jsonkan(404, { code: "KOMUNITAS_TIDAK_DITEMUKAN", message: "Ruang tidak ditemukan" }),
           );
     }
+    if (jalur === `/api/v1/communities/by-id/${COMMUNITY_UJI.id}`)
+      return route.fulfill(jsonkan(200, { data: COMMUNITY_UJI }));
+    if (/^\/api\/v1\/communities\/[^/]+\/posts$/.test(jalur))
+      return route.fulfill(
+        jsonkan(200, {
+          data: jalur.includes(COMMUNITY_UJI.id) ? [COMMUNITY_POST_UJI] : [],
+          meta: { nextCursor: null },
+        }),
+      );
+    if (jalur === `/api/v1/community-posts/${COMMUNITY_POST_UJI.id}`)
+      return route.fulfill(jsonkan(200, { data: COMMUNITY_POST_UJI }));
+    if (jalur === `/api/v1/community-posts/${COMMUNITY_POST_UJI.id}/comments`)
+      return route.fulfill(
+        jsonkan(200, { data: [COMMUNITY_COMMENT_UJI], meta: { nextCursor: null } }),
+      );
+    if (jalur === `/api/v1/community-comments/${COMMUNITY_COMMENT_UJI.id}`)
+      return route.fulfill(jsonkan(200, { data: COMMUNITY_COMMENT_UJI }));
 
     if (jalur.endsWith("/auth/refresh")) {
       // Halaman terlindungi dijawab dengan sesi yang sah; sisanya 401, sebab

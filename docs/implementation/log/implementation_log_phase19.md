@@ -455,3 +455,80 @@ tetap tersedia pada path yang sama. UI diskusi/admin menyusul PR-117/118.
   setelah perbaikan fixture.
 
 Next: PR-117 UI diskusi/report aksesibel, PR-118 UI admin, PR-119 gate readiness.
+
+## PR-117 — Post, Comment + Report Web UI
+
+> **Tanggal:** 2026-10-06
+> **Branch:** `pr-117-community-discussion-web` → `phase-19-community`.
+> **Status:** Implementasi dan verifikasi lokal selesai; merge mensyaratkan CI
+> `lint-typecheck-test` serta `a11y` hijau pada head terakhir.
+
+### Keputusan owner
+
+- Post berhasil dikirim tetap di ruang dan muncul paling atas.
+- Draf post/komentar disimpan di browser agar dapat dilanjutkan setelah reload.
+  UI menjelaskan pembersihan setelah kirim, buang draf atau keluar akun.
+- Aturan PR-114/116 tetap berlaku: diskusi untuk semua akun login tanpa wajib
+  join; ruang arsip tetap terbaca; nonmember/blocked boleh melapor. Menulis/edit
+  mensyaratkan ruang dan anggota aktif; pemilik masih boleh hapus setelah keluar,
+  blokir atau arsip. Admin memakai aturan anggota yang sama di UI diskusi biasa.
+
+### Implementasi
+
+- Layout ruang menempatkan diskusi/composer di kolom utama, informasi ruang dan
+  keanggotaan di samping pada desktop; urutan DOM tetap sama pada layar sempit.
+  Post terbaru lebih dahulu, komentar lama lebih dahulu dalam satu tingkat.
+  Pagination memakai tombol eksplisit yang mempertahankan fokus hingga halaman
+  terakhir; tidak ada infinite scroll otomatis.
+- Route lazy `/community/content/:targetType/:id` membuka post atau komentar.
+  Pemilik dapat melihat status hidden/removed beserta alasan terakhir, tanpa
+  identitas pelapor. Body removed tidak dirender, termasuk bila respons keliru
+  memuat body retained. Komentar pemilik tetap terbaca saat induk tidak tersedia;
+  room hint dari notifikasi hanya untuk konteks publik, bukan otorisasi.
+- Notifikasi moderasi kini menautkan konten pemilik. Antrean admin masih menjadi
+  PR-118. Penormal analytics meredaksi seluruh ID/room query dan target route,
+  termasuk identifier tidak valid; tidak mengirim body/draf/alasan laporan.
+- SDK typed menyediakan read/write post, komentar dan report, validasi strict,
+  cursor serta AbortSignal. Tambahan `GET /communities/by-id/{id}` memungkinkan
+  detail/notifikasi memperoleh nama, slug dan status ruang tanpa mencari seluruh
+  direktori atau memakai endpoint admin. Respons sama dengan detail slug yang
+  sudah publik, termasuk arsip, tanpa identitas anggota/konten; OpenAPI sinkron.
+- Form berlabel, petunjuk/batas karakter, validasi inline, fokus ke field invalid,
+  dan status sukses/galat. Dialog Radix menjebak fokus, Escape kembali ke pemicu;
+  setelah hapus fokus pindah ke artikel tombstone karena pemicu tidak lagi tersedia.
+  Teks/markup dirender literal. Edit hidden tidak memulihkan tulisan.
+- Draf localStorage dipisahkan berdasarkan akun, jenis dan room/post. Kegagalan
+  penyimpanan diumumkan dan editor tetap memakai memori. Draf laporan/edit tidak
+  disimpan. Logout membersihkan draf dan cache diskusi/keanggotaan; pergantian
+  akun mereset identitas dan cache privat. Respons write terlambat tidak boleh
+  memasukkan kembali cache/draf setelah sesi berganti.
+  Pemulihan sesi yang gagal saat boot (misalnya luring) tidak menghapus draf;
+  draf tidak dirender sebelum identitas pemilik berhasil dipulihkan.
+- Pengiriman memerlukan koneksi dan klik eksplisit. Pengunci synchronous mencegah
+  klik ganda; tidak ada antrean offline/retry otomatis. Kegagalan kuota/jaringan
+  mempertahankan draf untuk percobaan eksplisit berikutnya. Seluruh teks memiliki
+  varian id/id-simple. Tidak ada migrasi atau perubahan mobile/EAS.
+
+### Verifikasi
+
+- Web suite **888 test** lulus; tambahan pergantian akun, tombstone dan boot luring
+  kemudian ikut lulus dalam **76 test** fokus (termasuk **18 test** diskusi), bersama
+  regresi membership, notifikasi, i18n-lazy, kelengkapan katalog dan registry.
+- Shared schemas **129**, SDK **184** test lulus. Tes privacy analytics tambahan
+  memeriksa path post/komentar serta identifier tidak valid.
+- API **48 test** lulus dengan PostgreSQL pada schema acak terisolasi dan Redis
+  bucket acak: regresi post/comment/report/moderation, detail publik ID/arsip,
+  validasi UUID/404, rate limiter dan parity OpenAPI. Data pengguna tidak direset.
+- Chrome nyata: **20 test** Community lulus, termasuk **8 test** baru dengan
+  draft reload, post/comment/report, edit/delete, keyboard/focus trap/pagination,
+  axe dan reflow 320/768/1024/1440 px pada teks 200%. Modal hasil render diperiksa
+  visual. Registry a11y mencakup detail post, komentar dan dialog laporan.
+  Keenam state Community pada registry axe juga lulus terhadap build terakhir.
+- Lint/typecheck workspace lulus; build web/service worker lulus. Budget JS awal
+  **129,6 KB / 200 KB gzip**. OpenAPI drift dan diff check bersih.
+
+Uji manual NVDA/TalkBack, PDP dan gate operasional tetap milik PR-119. Draf
+localStorage bersifat per perangkat; tidak disinkronkan ke server. Keberhasilan
+PR ini tidak menyatakan gate rilis PR-112 produksi sudah terpenuhi.
+
+Next: PR-118 UI admin Community dan antrean moderasi; PR-119 gate readiness.

@@ -1,6 +1,8 @@
 import type { KatalogFitur } from "../tipe.js";
+import { katalogCommunityContent } from "./community-content.js";
 
 export const katalogCommunity = {
+  ...katalogCommunityContent,
   "community.judul": { id: "Komunitas", "id-simple": "Komunitas" },
   "community.penjelasan": {
     id: "Temukan ruang seputar karier, berdasarkan topik atau kota. Pilih ruang untuk mengenalnya dan bergabung.",

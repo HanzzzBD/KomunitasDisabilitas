@@ -1,4 +1,4 @@
-import type { Community } from "@nawasena/schemas";
+import type { Community, CommunityPost, CommunityComment } from "@nawasena/schemas";
 
 export const COMMUNITY_UJI: Community = {
   id: "01912345-89ab-7def-8123-4567890acc01",
@@ -24,4 +24,23 @@ export const COMMUNITY_KOTA_UJI: Community = {
   type: "city",
   city: "Jakarta",
   memberCount: 8,
+};
+export const COMMUNITY_POST_UJI: CommunityPost = {
+  id: "01912345-89ab-7def-8123-4567890acd01",
+  communityId: COMMUNITY_UJI.id,
+  author: { id: "01912345-89ab-7def-8123-456789abcdef", fullName: "Rina Pratiwi" },
+  body: "Bagaimana menyiapkan wawancara kerja?",
+  status: "published",
+  commentCount: 1,
+  createdAt: COMMUNITY_UJI.createdAt,
+  updatedAt: COMMUNITY_UJI.updatedAt,
+};
+export const COMMUNITY_COMMENT_UJI: CommunityComment = {
+  id: "01912345-89ab-7def-8123-4567890acd02",
+  postId: COMMUNITY_POST_UJI.id,
+  author: { id: "01912345-89ab-7def-8123-456789abc002", fullName: "Budi" },
+  body: "Latihan menjelaskan pengalaman kerja Anda.",
+  status: "published",
+  createdAt: COMMUNITY_UJI.createdAt,
+  updatedAt: COMMUNITY_UJI.updatedAt,
 };

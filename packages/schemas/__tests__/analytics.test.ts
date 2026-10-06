@@ -14,6 +14,8 @@ describe("normalkanPath", () => {
     ["/community/karier-jakarta?kota=Jakarta", "/community/:slug"],
     ["/community/karier-jakarta/posts/123456", "/community/:slug/posts/:id"],
     ["/community", "/community"],
+    [`/community/content/post/${UUID}?room=${UUID}`, "/community/content/:targetType/:id"],
+    ["/community/content/comment/invalid-sensitive-id", "/community/content/:targetType/:id"],
     ["", "/"],
   ])("%s → %s", (masuk, harap) => {
     expect(normalkanPath(masuk)).toBe(harap);
@@ -24,6 +26,12 @@ describe("payload no-PII", () => {
   it("pageview & setiap event funnel yang sah lolos", () => {
     expect(
       analyticsPayloadSchema.safeParse({ type: "pageview", path: "/lamaran/:id" }).success,
+    ).toBe(true);
+    expect(
+      analyticsPayloadSchema.safeParse({
+        type: "pageview",
+        path: "/community/content/:targetType/:id",
+      }).success,
     ).toBe(true);
     const sah = {
       daftar: { metode: "otp" },

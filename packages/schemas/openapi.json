@@ -16,6 +16,83 @@
     }
   ],
   "paths": {
+    "/communities/by-id/{id}": {
+      "get": {
+        "operationId": "getCommunityById",
+        "tags": [
+          "community"
+        ],
+        "summary": "Deskripsi ruang berdasarkan ID (publik)",
+        "security": [],
+        "description": "Konteks tautan langsung diskusi/notifikasi. Sama dengan detail slug: ruang arsip tetap terbaca, tanpa isi diskusi atau identitas anggota.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ruang tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas permintaan Community tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan Community atau sesi belum tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/communities": {
       "get": {
         "operationId": "listCommunities",
@@ -10457,21 +10534,6 @@
         ],
         "additionalProperties": false
       },
-      "PaginationMeta": {
-        "type": "object",
-        "properties": {
-          "nextCursor": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Cursor halaman berikut; null bila halaman terakhir"
-          }
-        },
-        "required": [
-          "nextCursor"
-        ]
-      },
       "ErrorEnvelope": {
         "type": "object",
         "properties": {
@@ -10498,6 +10560,21 @@
           "message"
         ],
         "description": "Envelope error standar Nawasena"
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor halaman berikut; null bila halaman terakhir"
+          }
+        },
+        "required": [
+          "nextCursor"
+        ]
       },
       "RequestOtp": {
         "type": "object",

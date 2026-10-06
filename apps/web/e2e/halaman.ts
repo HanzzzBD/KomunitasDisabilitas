@@ -64,6 +64,26 @@ export const HALAMAN: readonly HalamanDijaga[] = [
   { nama: "community — daftar", jalur: "/community" },
   { nama: "community — detail tamu", jalur: "/community/persiapan-karier" },
   { nama: "community — detail anggota", jalur: "/community/persiapan-karier", butuhSesi: true },
+  {
+    nama: "community — diskusi",
+    jalur: "/community/content/post/01912345-89ab-7def-8123-4567890acd01",
+    butuhSesi: true,
+  },
+  {
+    nama: "community — komentar",
+    jalur: "/community/content/comment/01912345-89ab-7def-8123-4567890acd02",
+    butuhSesi: true,
+  },
+  {
+    nama: "community — laporan",
+    jalur: "/community/content/post/01912345-89ab-7def-8123-4567890acd01",
+    butuhSesi: true,
+    siapkan: async (page) => {
+      await page.waitForSelector("article button");
+      await page.click("article button:last-child");
+      await page.waitForSelector("[role='dialog']");
+    },
+  },
   // PR-074 — alamat yang SAMA, pengguna yang sudah masuk: feed matching
   // (keadaan normal sesudah re-rank). Keadaan degraded, AI menyusun, dan kuota
   // habis diuji lewat `beranda-feed.spec.ts`.

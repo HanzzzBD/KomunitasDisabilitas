@@ -70,6 +70,19 @@ describe("tujuan notifikasi", () => {
     ])
       expect(tautanNotifikasi({ type, params: {} })).toBeNull();
   });
+  it.each(["post", "comment"])(
+    "kabar moderasi %s membuka konten pemilik beserta konteks ruang",
+    (targetType) => {
+      const targetId = "01912345-89ab-7def-8123-4567890acd01";
+      const communityId = "01912345-89ab-7def-8123-4567890acc01";
+      const ke = tautanNotifikasi({
+        type: NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED,
+        params: { targetType, targetId, communityId },
+      });
+      expect(ke).toBe(`/community/content/${targetType}/${targetId}?room=${communityId}`);
+      expect(matchRoutes(ruteApp, ke!)?.at(-1)?.route.path).not.toBe("*");
+    },
+  );
 
   it("kabar lamaran pelamar mengantar ke detail lamarannya (PR-079, AC-4 PR-050)", () => {
     for (const type of [

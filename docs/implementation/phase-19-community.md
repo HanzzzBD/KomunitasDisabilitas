@@ -160,10 +160,18 @@ Implementasi dan verifikasi: [log PR-116](log/implementation_log_phase19.md#pr-1
 
 **Acceptance Criteria:**
 
-* [ ] Composer dan report form memiliki label, validasi inline, serta fokus kembali yang benar.
-* [ ] Konten moderasi menampilkan status dan reason yang dapat dipahami pemilik tanpa membocorkan pelapor.
-* [ ] Urutan baca screen reader mengikuti urutan diskusi; tidak ada infinite scroll tanpa alternatif pagination.
-* [ ] Unit, integration, dan axe test alur post-comment-report lulus.
+* [x] Composer dan report form memiliki label, validasi inline, serta fokus kembali yang benar.
+* [x] Konten moderasi menampilkan status dan reason yang dapat dipahami pemilik tanpa membocorkan pelapor.
+* [x] Urutan baca screen reader mengikuti urutan diskusi; tidak ada infinite scroll tanpa alternatif pagination.
+* [x] Unit, integration, dan axe test alur post-comment-report lulus.
+
+Web menyediakan feed ruang, detail post/komentar, composer plain text, edit/hapus
+milik sendiri dan dialog laporan. Draf bertahan setelah reload, dilingkupi akun
+serta ruang/post dan dibersihkan setelah kirim/buang/logout. Notifikasi moderasi
+membuka tulisan pemilik, termasuk komentar yang induknya sudah tidak tersedia.
+Verifikasi otomatis tidak menggantikan uji NVDA/TalkBack pada PR-119.
+
+Implementasi dan verifikasi: [log PR-117](log/implementation_log_phase19.md#pr-117--post-comment--report-web-ui).
 
 **Dependencies:** PR-115, PR-116, PR-112.
 

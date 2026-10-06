@@ -11,6 +11,9 @@ export function pesanGalatCommunity(error: unknown, t: FungsiTeks) {
     SESI_KEDALUWARSA: "community.galat.sesi",
     KEANGGOTAAN_DIBLOKIR: "community.member.blockedPenjelasan",
     KOMUNITAS_DIARSIPKAN: "community.arsip.penjelasan",
+    BUKAN_ANGGOTA_KOMUNITAS: "community.diskusi.gabung",
+    KONTEN_KOMUNITAS_TIDAK_DITEMUKAN: "community.diskusi.tidakAda",
+    KONTEN_KOMUNITAS_DIHAPUS: "community.status.removed",
   });
 }
 

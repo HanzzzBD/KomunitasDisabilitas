@@ -40,6 +40,18 @@ const missing = {
 };
 
 export const communityPaths: Record<string, ZodOpenApiPathItemObject> = {
+  "/communities/by-id/{id}": {
+    get: {
+      operationId: "getCommunityById",
+      tags: ["community"],
+      summary: "Deskripsi ruang berdasarkan ID (publik)",
+      security: [],
+      description:
+        "Konteks tautan langsung diskusi/notifikasi. Sama dengan detail slug: ruang arsip tetap terbaca, tanpa isi diskusi atau identitas anggota.",
+      requestParams: { path: communityIdParamsSchema },
+      responses: { "200": ok(communityResponseSchema), ...missing, ...limits },
+    },
+  },
   "/communities": {
     get: {
       operationId: "listCommunities",

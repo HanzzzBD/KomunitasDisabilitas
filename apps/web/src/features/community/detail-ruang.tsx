@@ -7,6 +7,7 @@ import { useJudulHalaman } from "../../shared/judul-halaman.js";
 import { useStatusJaringan } from "../../shared/status-jaringan.js";
 import { GalatCommunity } from "./pesan-galat.js";
 import { Keanggotaan } from "./keanggotaan.js";
+import { DaftarPost } from "./daftar-post.js";
 
 export function DetailRuang({
   klien,
@@ -79,16 +80,19 @@ export function DetailRuang({
                 </div>
               )}
               <div className="community-detail-layout">
-                <section
-                  className="page-panel flex flex-col gap-4"
-                  aria-labelledby="community-tentang"
-                >
-                  <h2 id="community-tentang" className="text-xl font-semibold">
-                    {t("community.detail.tentang")}
-                  </h2>
-                  <p className="whitespace-pre-wrap text-base">{room.description}</p>
-                </section>
-                <Keanggotaan klien={klien} room={room} />
+                <DaftarPost klien={klien} room={room} />
+                <div className="min-w-0 flex flex-col gap-4">
+                  <section
+                    className="page-panel flex flex-col gap-4"
+                    aria-labelledby="community-tentang"
+                  >
+                    <h2 id="community-tentang" className="text-xl font-semibold">
+                      {t("community.detail.tentang")}
+                    </h2>
+                    <p className="whitespace-pre-wrap text-base">{room.description}</p>
+                  </section>
+                  <Keanggotaan klien={klien} room={room} />
+                </div>
               </div>
             </>
           )}

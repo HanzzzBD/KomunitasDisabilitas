@@ -15,10 +15,20 @@ export const communityKeys = {
   lists: () => queryKey("communities"),
   list: (filter: OpsiDaftarCommunity = {}) => queryKey("communities", filter),
   detail: (slug: string) => queryKey("community", { slug }),
+  byId: (id: string) => queryKey("community-by-id", { id }),
   // Private state is scoped to the account, never just the room.
   membership: (userId: string, communityId: string) =>
     queryKey("community-membership", { userId, communityId }),
 };
+
+export async function getCommunityById(client: ApiClient, id: string, signal?: AbortSignal) {
+  communityIdParamsSchema.parse({ id });
+  const response = await client.request(`/communities/by-id/${id}`, {
+    responseSchema: communityResponseSchema,
+    signal,
+  });
+  return response.data;
+}
 
 export function listCommunities(
   client: ApiClient,
