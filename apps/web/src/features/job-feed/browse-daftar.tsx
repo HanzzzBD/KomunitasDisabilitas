@@ -95,6 +95,11 @@ export function DaftarBrowseLowongan({
 }: DaftarBrowseLowonganProps) {
   const t = useTeks();
   const [rancangan, setRancangan] = useState<NilaiFilterLowongan>(filter);
+  // HP langsung menampilkan hasil. Membuka/menutup filter tidak menghapus
+  // rancangan maupun filter aktif di URL; <summary> mendukung keyboard natif.
+  const [filterTerbuka, setFilterTerbuka] = useState(
+    () => window.innerWidth >= 1024 || adaFilterAktif(filter),
+  );
 
   // Filter bisa berubah dari LUAR form (tombol Kembali/Maju antar pencarian,
   // tautan yang dibagikan) — isian form diselaraskan, dibandingkan lewat
@@ -145,22 +150,32 @@ export function DaftarBrowseLowongan({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <FilterPanel
-        nilai={rancangan}
-        onUbah={setRancangan}
-        onCari={() => {
-          onTerapkan(rancangan);
-        }}
-        onReset={resetFilter}
-      />
+    <div className="job-search-layout">
+      <details
+        className="job-filter-panel page-panel"
+        open={filterTerbuka}
+        onToggle={(e) => setFilterTerbuka(e.currentTarget.open)}
+      >
+        <summary className="text-base font-semibold">{t("lowongan.filter.label")}</summary>
+        <FilterPanel
+          nilai={rancangan}
+          onUbah={setRancangan}
+          onCari={() => {
+            onTerapkan(rancangan);
+          }}
+          onReset={resetFilter}
+        />
+      </details>
 
       <PengumumanHasil
         kunciAktif={JSON.stringify(kunci)}
         jumlahHalamanPertama={jumlahHalamanPertama}
       />
 
-      <section aria-labelledby="lowongan-hasil-judul" className="flex flex-col gap-4">
+      <section
+        aria-labelledby="lowongan-hasil-judul"
+        className="job-search-results flex flex-col gap-4"
+      >
         {/* Judul bagian TIDAK terlihat (`sr-only`): halaman ini hanya punya satu
             bagian isi selain filter, dan judul visual di sini hanya akan
             mengulang apa yang sudah dikatakan `<h1>` — tetapi screen reader
@@ -203,7 +218,7 @@ export function DaftarBrowseLowongan({
                 )}
               </KeadaanKosong>
             ) : (
-              <ul className="flex list-none flex-col gap-3 p-0">
+              <ul className="job-result-list flex list-none flex-col gap-3 p-0">
                 {items.map((l) => (
                   <li key={l.id}>
                     <KartuLowongan

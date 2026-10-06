@@ -51,7 +51,7 @@ export function AdminRingkasan() {
         </h2>
         <p className="text-base text-gray-900">{t("admin.ringkasan.penjelasan")}</p>
 
-        <ul className="flex list-none flex-col gap-3 p-0">
+        <ul className="admin-shortcuts">
           <li>
             <Kartu
               judul={t("admin.ringkasan.companies.judul")}
@@ -147,9 +147,10 @@ export function Admin() {
     <Terlindungi>
       <PenjagaAdmin>
         <div className="admin-workspace">
+          <h1 className="workspace-title text-3xl font-bold break-words text-gray-900">
+            {t("admin.judul")}
+          </h1>
           <aside className="admin-sidebar">
-            <h1 className="text-3xl font-bold break-words text-gray-900">{t("admin.judul")}</h1>
-
             {/*
             `<nav>` ber-`aria-label`: halaman ini punya lebih dari satu
             navigasi bila dihitung bersama kerangka aplikasi (AC "Navigasi

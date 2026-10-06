@@ -95,18 +95,18 @@ function BerandaPublik() {
   useJudulHalaman(t("shell.judulDokumen", { halaman: t("beranda.hero.judul") }));
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-12 p-4">
+    <div className="landing-layout">
       {/*
         HERO. Satu `<h1>` untuk seluruh halaman — nama merek TIDAK dipakai
         sebagai h1: judul tingkat satu adalah kalimat yang menjawab "halaman ini
         soal apa", dan "Nawasena" tidak menjawabnya bagi orang yang baru pertama
         mendengarnya.
       */}
-      <section className="flex flex-col gap-4">
+      <section className="landing-hero page-panel">
         <p className="text-sm font-semibold uppercase tracking-wide text-gray-700">
           {t("shell.merek")}
         </p>
-        <h1 className="text-3xl font-bold text-gray-900">{t("beranda.hero.judul")}</h1>
+        <h1 className="landing-title font-bold text-gray-900">{t("beranda.hero.judul")}</h1>
         <p className="text-lg text-gray-900">{t("shell.beranda.tagline")}</p>
         <p className="text-base text-gray-900">{t("beranda.hero.penjelasan")}</p>
 
@@ -138,7 +138,7 @@ function BerandaPublik() {
         landmark milik screen reader menyebut NAMA bagiannya alih-alih tiga
         "region" yang tidak bisa dibedakan.
       */}
-      <section aria-labelledby="nilai-judul" className="flex flex-col gap-4">
+      <section aria-labelledby="nilai-judul" className="landing-benefits flex flex-col gap-4">
         <h2 id="nilai-judul" className="text-2xl font-semibold text-gray-900">
           {t("beranda.nilai.judul")}
         </h2>
@@ -165,7 +165,7 @@ function BerandaPublik() {
         </ul>
       </section>
 
-      <section aria-labelledby="cara-judul" className="flex flex-col gap-4">
+      <section aria-labelledby="cara-judul" className="page-panel flex flex-col gap-4">
         <h2 id="cara-judul" className="text-2xl font-semibold text-gray-900">
           {t("beranda.cara.judul")}
         </h2>
@@ -180,7 +180,7 @@ function BerandaPublik() {
       </section>
 
       {/* PR-086 — kamus publik: nilai bagi pengguna Tuli SEBELUM mendaftar. */}
-      <section aria-labelledby="kamus-judul" className="flex flex-col gap-4">
+      <section aria-labelledby="kamus-judul" className="page-panel flex flex-col gap-4">
         <h2 id="kamus-judul" className="text-2xl font-semibold text-gray-900">
           {t("beranda.kamus.judul")}
         </h2>
@@ -193,7 +193,10 @@ function BerandaPublik() {
         </Link>
       </section>
 
-      <section aria-labelledby="penutup-judul" className="flex flex-col gap-4">
+      <section
+        aria-labelledby="penutup-judul"
+        className="landing-closing page-panel flex flex-col gap-4"
+      >
         <h2 id="penutup-judul" className="text-2xl font-semibold text-gray-900">
           {t("beranda.penutup.judul")}
         </h2>

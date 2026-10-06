@@ -158,7 +158,7 @@ function IsiProfil() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel flex flex-col gap-6">
       {/*
         `break-words`: pada 320 px dengan teks 200%, judul panjang memaksa
         seluruh halaman menggeser mendatar (WCAG 1.4.10). Alasan yang sama

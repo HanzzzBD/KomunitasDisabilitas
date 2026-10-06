@@ -49,7 +49,7 @@ function IsiDaftarCv() {
   const galat = buat.error ?? hapus.error ?? daftar.error;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
+    <div className="page-frame page-frame-wide page-panel flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           <h1 className="text-3xl font-bold break-words text-gray-900">

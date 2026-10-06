@@ -49,7 +49,7 @@ export function ProfilPerusahaanPublik() {
 
   if (tidakDitemukan) {
     return (
-      <div role="alert" className="mx-auto flex w-full max-w-3xl flex-col items-start gap-3 p-4">
+      <div role="alert" className="page-frame page-panel flex flex-col items-start gap-3">
         <h1 className="text-2xl font-semibold text-gray-900">
           {t("companies.tidakDitemukan.judul")}
         </h1>
@@ -63,7 +63,7 @@ export function ProfilPerusahaanPublik() {
 
   if (profil.isError) {
     return (
-      <div role="alert" className="mx-auto flex w-full max-w-3xl flex-col items-start gap-3 p-4">
+      <div role="alert" className="page-frame page-panel flex flex-col items-start gap-3">
         <p className="text-base font-medium text-red-700">{t("companies.gagalMuat")}</p>
         <p className="text-base text-gray-900">{pesanGalatPublik(profil.error, t)}</p>
         <Tombol
@@ -79,7 +79,7 @@ export function ProfilPerusahaanPublik() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4">
+    <div className="page-frame page-panel flex flex-col gap-8">
       <WilayahMemuat memuat={profil.isPending} label={t("companies.memuat")}>
         {profil.data !== undefined && (
           <div className="flex flex-col gap-8">

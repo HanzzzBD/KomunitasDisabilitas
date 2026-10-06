@@ -18,7 +18,7 @@ function IsiLamaranSaya() {
   const klien = useKlienApi();
   useJudulHalaman(t("shell.judulDokumen", { halaman: t("pelamar.judul") }));
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-gray-900">{t("pelamar.judul")}</h1>
         <p className="text-base text-gray-700">{t("pelamar.deskripsi")}</p>

@@ -67,7 +67,7 @@ export function DaftarKamus({
       <form
         role="search"
         aria-label={t("kamus.cari.label")}
-        className="flex flex-col gap-4 sm:flex-row sm:items-end"
+        className="dictionary-search page-panel"
         onSubmit={(e) => {
           e.preventDefault();
           const q = query.trim();
@@ -77,7 +77,7 @@ export function DaftarKamus({
           });
         }}
       >
-        <KolomForm label={t("kamus.cari.kataKunci")} className="sm:flex-1">
+        <KolomForm label={t("kamus.cari.kataKunci")}>
           <Masukan
             type="search"
             value={query}
@@ -85,7 +85,7 @@ export function DaftarKamus({
             onChange={(e) => setQuery(e.target.value)}
           />
         </KolomForm>
-        <KolomForm label={t("kamus.cari.kategori")} className="sm:w-56">
+        <KolomForm label={t("kamus.cari.kategori")}>
           <Pilihan
             opsi={[
               { nilai: "semua", label: t("kamus.kategori.semua") },
@@ -127,7 +127,7 @@ export function DaftarKamus({
               {(hasil.data ?? []).map((v) => (
                 <li
                   key={v.id}
-                  className="flex flex-col gap-2 rounded-md border border-gray-300 p-3 focus-within:ring-2 focus-within:ring-gray-900"
+                  className="page-panel flex flex-col gap-3 focus-within:ring-2 focus-within:ring-gray-900"
                 >
                   {v.thumbnailUrl !== null && (
                     <img

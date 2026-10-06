@@ -47,7 +47,7 @@ export function FilterPanel({ nilai, onUbah, onCari, onReset }: FilterPanelProps
       // `noValidate`: pola sama seluruh form lain di repo ini (lihat
       // `companies-formulir.tsx`) — kolom di sini toh tidak ada yang wajib.
       noValidate
-      className="flex flex-col gap-4"
+      className="job-search-filters"
       onSubmit={(e) => {
         e.preventDefault();
         onCari();
@@ -63,7 +63,7 @@ export function FilterPanel({ nilai, onUbah, onCari, onReset }: FilterPanelProps
         />
       </KolomForm>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="filter-location-fields">
         <KolomForm label={t("lowongan.filter.kota")}>
           <Masukan
             value={nilai.city}
@@ -100,7 +100,7 @@ export function FilterPanel({ nilai, onUbah, onCari, onReset }: FilterPanelProps
         </KolomForm>
       </div>
 
-      <fieldset className="flex flex-col gap-2 border-0 p-0">
+      <fieldset className="filter-accommodations border-0 p-0">
         <legend className="mb-2 text-base font-semibold text-gray-900">
           {t("lowongan.filter.akomodasiLegenda")}
         </legend>

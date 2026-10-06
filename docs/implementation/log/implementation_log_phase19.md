@@ -181,3 +181,58 @@ tanpa menambah portal perusahaan atau membuka UI Community.
   melonggarkan guard fitur lainnya. Kedua gerbang diperiksa ulang pada head akhir.
 - Rollback dengan revert perubahan web. Tidak ada perubahan skema, data akun,
   atau provider dalam PR ini. Merge mensyaratkan kedua gerbang CI hijau.
+
+## Perbaikan tata letak seluruh web — 2026-10-06
+
+Owner meminta pembenahan tata letak. Melalui tool pertanyaan, owner memilih
+**semua tampilan web, termasuk halaman masuk**. Pembagian fitur antar-role dari
+perbaikan sebelumnya tetap berlaku.
+
+### Hasil
+
+- Kotak lebar seragam di kerangka diganti wadah berdasarkan tugas halaman:
+  login/kembalian Google ringkas, form dan detail memiliki lebar baca, sedangkan
+  daftar lowongan, beranda seeker, CV, dan kamus memakai ruang lebih luas.
+- Landing memakai susunan dua kolom pada desktop: pengantar dan manfaat;
+  langkah memulai serta kamus berada di bawahnya. HP menyusun isi berurutan.
+  Konten dan tautan tetap berasal dari katalog yang sudah ada.
+- Pencarian lowongan menempatkan filter di samping hasil pada desktop. HP
+  menampilkan hasil dengan filter tertutup pada pencarian awal; filter aktif
+  dari URL dibuka agar kriterianya terlihat. Elemen details/summary mendukung
+  keyboard dan tidak menghapus isian, filter URL, pagination, atau fokus kembali.
+- Judul admin berada di atas ruang kerja; metrik memakai grid yang mengikuti
+  skala teks dan kartu pintasan tersusun dalam kolom. Pengaturan memiliki
+  navigasi panel di samping isi pada desktop dan di atasnya pada HP.
+- Form profil, CV, onboarding, lamaran, notifikasi, profil perusahaan, detail
+  lowongan, detail kamus, dan halaman kesalahan memakai jarak/surface konsisten.
+  Ukuran teks, kontras tinggi, target sentuh, dan fokus tetap memakai token ADR-008.
+- Tidak menambah dependensi, gambar, webfont, endpoint, atau perubahan data.
+  Strategi pemuatan landing dari PR sebelumnya dan batas role tetap dipertahankan.
+
+### Verifikasi
+
+- Build, typecheck, dan lint web lulus; seluruh **846 test web** lulus.
+  Empat suite login, pengaturan, feed, dan metrik setelah perubahan akhir:
+  **71 test lulus**.
+- Spec browser tambahan memeriksa setiap halaman registry pada 320 px dengan
+  teks 100%/200%, satu main (termasuk saat main inert di belakang dialog),
+  serta pembesaran judul yang benar-benar dua kali. Posisi filter/hasil diuji
+  pada 320/768/1024/1440 px; ukuran form login desktop dan operasi filter HP
+  dengan keyboard juga dijaga.
+- Seluruh **49 test tata letak akhir lulus**. Suite browser lengkap meluluskan
+  **209/210**; satu alur unggah kamus timeout saat paralel. Kedua test kamus
+  kemudian lulus terpisah, termasuk seluruh assertion unggah/publish dan axe.
+- CI pertama menemukan overflow pada pengaturan dan halaman perusahaan saat
+  teks 200% di 320 px. Grid pengaturan kini memiliki kolom minmax(0, 1fr),
+  isi admin membungkus judul panjang, dan fieldset tidak memaksa lebar minimum.
+  Tiga regresi memakai font dasar 16 px serta monospace untuk mencakup perbedaan
+  font browser lokal dan Linux. **54 test tata letak, kontras/skala, dan alur
+  perusahaan lulus** setelah perbaikan; lint, typecheck, dan build tetap lulus.
+- Tiga audit 3G lokal pada build akhir: performa **0,76/0,76/0,76**,
+  aksesibilitas **100**, CLS **0**. Sandbox Windows sempat menolak penutupan
+  Chrome milik audit; menjalankan audit dengan izin proses yang sesuai
+  menyelesaikan collect dan assertion tanpa perubahan konfigurasi/ambang.
+- Lighthouse desktop lulus seluruh assertion pada tiga audit build akhir.
+- Verifikasi browser lengkap, Lighthouse, dan kedua gerbang CI diperiksa
+  sebelum merge. Ambang sementara performa 3G milik U-31 tidak diubah.
+- Rollback: revert PR ini lalu build ulang. Tidak ada migrasi atau rollback data.

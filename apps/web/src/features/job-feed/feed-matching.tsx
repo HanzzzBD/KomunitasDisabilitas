@@ -227,7 +227,7 @@ export function FeedMatching({
                 </KeadaanKosong>
               )
             ) : (
-              <ul className="flex list-none flex-col gap-3 p-0">
+              <ul className="job-card-grid">
                 {items.map((item) => (
                   <li key={item.job.id}>
                     <KartuLowongan

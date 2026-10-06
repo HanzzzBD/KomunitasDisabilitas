@@ -19,7 +19,7 @@ function IsiLamaranDetail() {
   const klien = useKlienApi();
   const { id } = useParams<{ id: string }>();
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel flex flex-col gap-6">
       <Link
         to="/lamaran"
         className="self-start text-base font-medium text-gray-900 underline hover:no-underline"
