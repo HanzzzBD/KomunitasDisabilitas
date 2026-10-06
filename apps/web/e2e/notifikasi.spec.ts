@@ -32,7 +32,7 @@ test("terima → baca: tanda dan lencana turun bersama", async ({ page }) => {
   // Lencananya menyebut jumlahnya sebagai kalimat utuh — itulah yang dibacakan
   // screen reader, dan itulah yang diperiksa di sini.
   await expect(page.getByRole("link", { name: "Notifikasi, 1 belum dibaca" })).toBeVisible();
-  const item = page.getByRole("listitem").first();
+  const item = page.getByRole("main").getByRole("listitem").first();
   await expect(item.getByText("Belum dibaca")).toBeVisible();
 
   await page.getByRole("button", { name: /^Tandai dibaca:/ }).click();

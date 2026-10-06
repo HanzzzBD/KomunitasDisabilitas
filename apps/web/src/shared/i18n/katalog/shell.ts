@@ -23,6 +23,16 @@ export const katalogShell = {
     id: "Masuk",
     "id-simple": "Masuk",
   },
+  "shell.nav.beranda": { id: "Beranda", "id-simple": "Halaman awal" },
+  "shell.nav.lowongan": { id: "Lowongan", "id-simple": "Lowongan kerja" },
+  "shell.nav.lowonganPublik": { id: "Lihat lowongan", "id-simple": "Buka lowongan kerja" },
+  "shell.nav.kamusPublik": { id: "Lihat kamus", "id-simple": "Buka kamus isyarat" },
+  "shell.nav.admin": { id: "Dashboard admin", "id-simple": "Halaman admin" },
+  "shell.nav.akun": { id: "Akun & preferensi", "id-simple": "Akun dan pengaturan" },
+  "shell.nav.publik": { id: "Navigasi utama", "id-simple": "Menu utama" },
+  "shell.peran.admin": { id: "Ruang admin", "id-simple": "Pengelola aplikasi" },
+  "shell.peran.seeker": { id: "Ruang karier", "id-simple": "Pencari kerja" },
+  "shell.peran.employer": { id: "Akun perusahaan", "id-simple": "Perusahaan" },
   "shell.memuat": {
     id: "Memuat halaman…",
     "id-simple": "Sebentar, halaman sedang dibuka…",
@@ -32,17 +42,7 @@ export const katalogShell = {
     // "Konten" adalah kata yang dipakai pembuat situs, bukan pembacanya.
     "id-simple": "Langsung ke isi halaman",
   },
-  // --- Pintasan tingkat atas (PR-036; ditambah satu di PR-040) ---
-  //
-  // SATU-SATUNYA navigasi tingkat atas di aplikasi ini. PR-036 memasangnya
-  // dengan SATU tautan dan mencatat bahwa menu lengkap adalah keputusan produk
-  // yang belum diambil "karena halaman-halamannya sendiri sebagian belum ada".
-  //
-  // Salah satunya kini ADA: halaman profil karier (PR-040). Alasan yang sama
-  // dengan tautan pertama berlaku persis — tanpa entri di sini, satu-satunya
-  // jalan ke `/profil` adalah mengetikkan alamatnya, dan halaman yang harus
-  // ditebak alamatnya sama saja dengan halaman yang tidak ada. Yang MASIH
-  // ditunda adalah menu lengkapnya; dua tautan bukan menu.
+  // Nama landmark menu akun, berbeda dari navigasi bagian admin/setelan.
   "shell.pintas.label": {
     // Nama landmark navigasi — dibacakan saat pengguna screen reader melompat
     // antar landmark, bukan ditampilkan di layar.

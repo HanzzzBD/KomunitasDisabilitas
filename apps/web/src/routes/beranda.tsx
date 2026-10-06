@@ -28,6 +28,7 @@ import { Link } from "react-router";
 import { Kartu, WilayahMemuat } from "@nawasena/ui";
 import { feedMatchingAktif } from "../features/job-feed/bendera.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
+import { usePeranSesi } from "../shared/sesi/peran.js";
 import { muatKatalog } from "../shared/i18n/index.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
@@ -70,6 +71,7 @@ export function Beranda() {
   const t = useTeks();
   // Berlangganan HANYA `status` — alasan sama `Terlindungi`.
   const status = useStoreSesi((s) => s.status);
+  const peran = usePeranSesi();
 
   const memuat = (
     <WilayahMemuat memuat label={t("shell.sesi.memulihkan")}>
@@ -77,7 +79,7 @@ export function Beranda() {
     </WilayahMemuat>
   );
   if (status === "memulihkan") return memuat;
-  if (status === "masuk") {
+  if (status === "masuk" && peran !== "employer") {
     return (
       <Suspense fallback={memuat}>
         {feedMatchingAktif() ? <BerandaSeeker /> : <LowonganBrowse />}

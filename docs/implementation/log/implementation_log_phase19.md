@@ -108,3 +108,60 @@ tanpa membuka scope endpoint/UI Community PR-114..PR-119.
   langsung menampilkan `/admin` dengan judul `Admin · Nawasena`.
 - Rollback melalui revert perubahan web; tidak ada perubahan skema/data atau konfigurasi
   provider dalam PR ini. Merge tetap menunggu CI `lint-typecheck-test` dan `a11y` hijau.
+
+## Pemisahan navigasi role dan kerangka tampilan web
+
+> **Tanggal:** 2026-10-06
+> **Branch:** `fix-role-aware-web-shell` → `phase-19-community`.
+
+Menu lama hanya memeriksa apakah akun sudah masuk. Akibatnya admin melihat
+Profil Karier, CV, dan Lamaran Saya seperti pencari kerja; halaman publik juga
+tidak memiliki navigasi utama. Perbaikan ini menata menu dan kerangka bersama,
+tanpa menambah portal perusahaan atau membuka UI Community.
+
+### Keputusan dan perubahan
+
+- Owner memilih melalui tool pertanyaan: mulai dari navigasi serta kerangka
+  tamu, pencari kerja, dan admin. Fitur pribadi dipisahkan; admin berfokus pada
+  pengelolaan dan setelan akun, dengan lowongan dan kamus publik tetap terbuka.
+- Tiga role kontrak tetap `seeker`, `admin`, dan `employer`. Portal employer
+  masih dicadangkan untuk fase berikutnya; akun itu mendapat menu publik dan
+  setelan bersama, tanpa menu karier atau pengelolaan admin.
+- Header memuat merek, konteks role, menu halaman, penanda halaman aktif, serta
+  notifikasi dan setelan saat masuk. Tamu melihat lowongan, kamus, dan tautan
+  masuk. Seeker mendapat beranda, lowongan, lamaran, CV, profil, dan kamus.
+- Admin mendapat dashboard dan tautan **Lihat lowongan/Lihat kamus** untuk
+  membedakan halaman publik dari bagian kurasi pada sidebar pengelolaan.
+  Alamat `/`, `/profil`, `/onboarding`, `/cv[/…]`, dan `/lamaran[/…]` menuju
+  `/admin` dengan replace; employer dari fitur pribadi menuju `/lowongan`.
+- Detail lowongan tetap dapat dibaca admin/employer, tanpa bagian melamar,
+  dialog otomatis `?lamar=1`, atau pembacaan data lamaran/CV/profil pribadi.
+- Role berasal dari cache `GET /me` yang juga dipakai guard admin/setelan.
+  Selama profil dimuat, klaim JWT tervalidasi hanya menjadi petunjuk navigasi.
+  Tamu tidak mengirim `GET /me`. Respons profil server mengungguli klaim lama.
+- Kanvas hangat, header dan panel putih, aksen hijau, sidebar admin responsif,
+  serta footer menggantikan susunan tautan tanpa kerangka. Font sistem, token
+  skala teks/kontras, target sentuh, cincin fokus, satu landmark main, dan
+  tautan lompat pertama tetap dipertahankan; tidak menambah dependensi/aset.
+- Pemisahan halaman ini mengatur UX web. Otorisasi RBAC/owner di API tidak
+  diubah; jangan menganggap redirect atau klaim JWT sebagai batas keamanan.
+
+### Verifikasi dan rollback
+
+- Enam suite navigasi, onboarding, notifikasi, setelan, feed, dan lamaran:
+  **112 test lulus**. Pengujian lama membatasi kueri pada wilayah fitur agar
+  item menu baru tidak terbaca sebagai item notifikasi/kartu feed.
+- Lint, typecheck, dan build web lulus.
+- Browser lokal dengan akun admin: fitur pribadi tidak muncul di menu;
+  mengetik profil, CV, lamaran, dan onboarding kembali ke dashboard. Tamu
+  mendapat menu publik. Tampilan 320–1440 px pada teks 100%/200% tidak meluap
+  horizontal; menu aktif mode kontras tinggi berwarna putih di atas hitam.
+- Seluruh **843 test web** dan **164 test browser** lulus. Setelah penambahan
+  batas melamar pada detail publik, dua suite terkait **28 test** (termasuk dua
+  kasus admin/employer) serta **11 test browser** lulus pada build akhir.
+  Penantian awal dialog dalam pengujian memberi waktu boot route/katalog lazy;
+  assertion pengungkapan, idempotensi, dan penulisan lamaran tetap utuh.
+- Admin lokal membuka detail lowongan dengan `?lamar=1`: konten publik tampil,
+  tombol melamar dan dialog tidak ada. Typecheck/lint/build akhir lulus.
+- Rollback dengan revert perubahan web. Tidak ada perubahan skema, data akun,
+  atau provider dalam PR ini. Merge mensyaratkan kedua gerbang CI hijau.

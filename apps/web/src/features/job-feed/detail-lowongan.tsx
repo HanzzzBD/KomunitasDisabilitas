@@ -34,6 +34,7 @@ import {
 import type { CompanyPublic, JobPublic } from "@nawasena/schemas";
 import { Tombol, WilayahMemuat } from "@nawasena/ui";
 import { useJudulHalaman } from "../../shared/judul-halaman.js";
+import { usePeranSesi } from "../../shared/sesi/peran.js";
 import { BagianLamar } from "../applications/bagian-lamar.js";
 import { useTeks, type KunciTeks } from "../../shared/i18n/index.js";
 import { DaftarAkomodasi } from "../companies-publik/akomodasi-daftar.js";
@@ -160,6 +161,7 @@ function IsiDetail({
   perusahaanGagal,
 }: IsiDetailProps) {
   const t = useTeks();
+  const peran = usePeranSesi();
   const lokasi = [lowongan.city, lowongan.province].filter((v): v is string => v !== null);
   const gaji = kalimatGaji(t, lowongan.salaryMin, lowongan.salaryMax);
 
@@ -290,13 +292,14 @@ function IsiDetail({
         )}
       </section>
 
-      <section aria-labelledby="lowongan-detail-melamar" className="flex flex-col gap-3">
-        <h2 id="lowongan-detail-melamar" className={KELAS_H2}>
-          {t("lowongan.detail.melamar.judul")}
-        </h2>
-        {/* PR-078 — menggantikan slot kosong PR-059. */}
-        <BagianLamar klien={klien} jobId={lowongan.id} judulLowongan={lowongan.title} />
-      </section>
+      {peran !== "admin" && peran !== "employer" && (
+        <section aria-labelledby="lowongan-detail-melamar" className="flex flex-col gap-3">
+          <h2 id="lowongan-detail-melamar" className={KELAS_H2}>
+            {t("lowongan.detail.melamar.judul")}
+          </h2>
+          <BagianLamar klien={klien} jobId={lowongan.id} judulLowongan={lowongan.title} />
+        </section>
+      )}
     </article>
   );
 }

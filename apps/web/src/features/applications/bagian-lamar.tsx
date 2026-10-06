@@ -11,7 +11,7 @@
 //   - sesudah melamar  → ringkasan hasil, tombol hilang.
 //
 // "SUDAH MELAMAR?" DIBACA LEWAT `GET /me/applications?job_id=` (keputusan
-// owner 2026-10-02). Bila pemeriksaan GAGAL (jaringan, akun admin = 403),
+// owner 2026-10-02). Bila pemeriksaan GAGAL (misalnya jaringan),
 // tombol tetap ditawarkan: unique (user, job) di server tetap wasitnya, dan
 // pemeriksaan yang gagal tidak boleh mengunci orang dari melamar.
 //
@@ -59,7 +59,7 @@ export function BagianLamar({ klien, jobId, judulLowongan }: BagianLamarProps) {
     queryKey: applicationsKeys.myList(sub, { jobId }),
     queryFn: () => listMyApplications(klien, { jobId, limit: 1 }),
     enabled: status === "masuk",
-    // 403 (akun admin) dan galat lain jatuh ke tombol "Lamar" — lihat kepala berkas.
+    // Galat pemeriksaan jatuh ke tombol "Lamar" — lihat kepala berkas.
     retry: false,
   });
   const lamaranAda: MyApplication | undefined = sudah.data?.data[0];
