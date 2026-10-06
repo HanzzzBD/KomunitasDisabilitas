@@ -77,7 +77,24 @@ function renderAdmin(opsi: OpsiRender = {}) {
 
 afterEach(() => {
   cleanup();
+  useStoreSesi.getState().keluar();
   useStoreSesi.setState({ status: "memulihkan" });
+});
+
+describe("regresi onboarding admin", () => {
+  it.each(["/admin", "/admin/kamus"])(
+    "%s bisa dibuka admin tanpa penanda onboarding pencari kerja",
+    async (jalur) => {
+      const sub = "01912345-89ab-7def-8123-456789abcde0";
+      const payload = btoa(JSON.stringify({ sub, role: "admin" }));
+      useStoreSesi.getState().masuk(`header.${payload}.tanda`);
+      const { router } = renderAdmin({ jalur });
+
+      await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
+      expect(router.state.location.pathname).toBe(jalur);
+      expect(screen.queryByRole("heading", { name: /Mari atur|pengaturan awal/i })).toBeNull();
+    },
+  );
 });
 
 describe("penjagaan sesi (Terlindungi, di LUAR PenjagaAdmin)", () => {

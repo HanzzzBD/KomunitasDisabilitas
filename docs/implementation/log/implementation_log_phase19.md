@@ -75,3 +75,36 @@ prasyarat operasional PR-112 sudah terpenuhi atau Community sudah boleh dirilis.
 
 RB-Std produksi mempertahankan migrasi ketika image rollback. `down.sql` hanya diuji pada schema
 acak/DB uji; menjalankannya sesudah ruang berisi diskusi akan menghapus data Community.
+
+## Perbaikan redirect login admin web
+
+> **Tanggal:** 2026-10-06
+> **Branch:** `fix-admin-login-redirect` → `phase-19-community`.
+
+Login OTP maupun Google sebelumnya menuju beranda atau tujuan awal tanpa memeriksa
+peran akun. Admin juga bisa dialihkan ke wizard onboarding pencari kerja sebelum
+dashboard terbuka. Perbaikan ini merupakan tindak lanjut penggunaan web lokal,
+tanpa membuka scope endpoint/UI Community PR-114..PR-119.
+
+### Keputusan dan perubahan
+
+- Owner memilih melalui tool pertanyaan: admin **selalu** ke `/admin` sesudah login,
+  termasuk saat tautan awal menunjuk lowongan, pengaturan, atau subhalaman admin.
+- Kedua metode memakai pemilih tujuan yang sama. Sesudah sesi terbentuk, baca profil
+  terbaru lewat `GET /me`; batalkan/hapus cache profil akun sebelumnya dan simpan
+  respons baru agar pergantian akun tidak memakai role yang masih ter-cache.
+- Akun selain admin kembali ke tujuan internal yang telah disanitasi. Jika pembacaan
+  profil gagal, pertahankan sesi dan tujuan aman awal; jangan menyebut OTP/code Google
+  yang telah berhasil sebagai gagal atau mengulang penukaran code sekali pakai.
+- Bagian `/admin` dan `/admin/*` tidak dipotong wizard pencari kerja. Penjaga sesi,
+  penjaga peran dari server, serta RBAC API tetap menentukan akses admin.
+
+### Verifikasi
+
+- Enam suite terkait login, pergantian akun, guard admin, kerangka/onboarding, dan
+  callback hapus akun: **104 test lulus**; mencakup gerbang axe yang sudah ada.
+- Lint, typecheck, serta build web lulus.
+- Browser nyata: Google login dari `/masuk?tujuan=%2Flamaran` menggunakan akun admin
+  langsung menampilkan `/admin` dengan judul `Admin · Nawasena`.
+- Rollback melalui revert perubahan web; tidak ada perubahan skema/data atau konfigurasi
+  provider dalam PR ini. Merge tetap menunggu CI `lint-typecheck-test` dan `a11y` hijau.

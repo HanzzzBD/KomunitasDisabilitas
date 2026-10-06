@@ -69,6 +69,8 @@ function renderKembalian(klien: ApiClient, query: string) {
       { path: "/masuk/google", element: <main>{<MasukGoogle />}</main> },
       { path: "/masuk", element: <h1>Halaman masuk</h1> },
       { path: "/lamaran", element: <h1>Lamaran</h1> },
+      { path: "/admin", element: <h1>Admin</h1> },
+      { path: "/admin/kamus", element: <h1>Kamus admin</h1> },
       { path: "/", element: <h1>Beranda</h1> },
     ],
     { initialEntries: [`/masuk/google${query}`] },
@@ -82,6 +84,33 @@ function renderKembalian(klien: ApiClient, query: string) {
 }
 
 describe("AC-2: penukaran code berhasil", () => {
+  it.each([
+    ["/", "/admin"],
+    ["/admin/kamus", "/admin"],
+    ["/lamaran", "/admin"],
+  ])("admin dengan tujuan %s → %s", async (awal, tujuan) => {
+    const state = await titipkan(awal);
+    const klien = klienPalsu((path) => (path === "/me" ? { data: { role: "admin" } } : OK_GOOGLE));
+    const router = renderKembalian(klien, `?code=kode-google&state=${state}`);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(tujuan));
+    expect(router.state.historyAction).toBe("REPLACE");
+    expect(ambilTokenAkses()).toBe("tok-google");
+  });
+
+  it("profil gagal dibaca sesudah penukaran → login Google tetap berhasil", async () => {
+    const state = await titipkan("/");
+    const klien = klienPalsu((path) => {
+      if (path === "/me") throw new Error("jaringan bermasalah");
+      return OK_GOOGLE;
+    });
+    const router = renderKembalian(klien, `?code=kode-google&state=${state}`);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(useStoreSesi.getState().status).toBe("masuk");
+    expect(ambilTokenAkses()).toBe("tok-google");
+  });
+
   it("sesi terbentuk dan pengguna diantar ke tujuan awalnya", async () => {
     const state = await titipkan("/lamaran");
     const klien = klienPalsu(() => OK_GOOGLE);
