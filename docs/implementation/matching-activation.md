@@ -52,6 +52,9 @@ di Web atau **Lihat urutan yang baru** di Android. Tombol ini membaca hasil
 tanpa meminta pengurutan AI baru; tombol refresh rekomendasi memakai kuota.
 Perbaikan worker berlaku untuk APK yang sudah memakai endpoint matching ini.
 
+Jika halaman sudah terbuka sebelum pemulihan, muat ulang halaman Web atau
+pilih **Muat ulang daftar** di Android agar hasil server terbaru terbaca.
+
 ## Batas data dan verifikasi
 
 Embedding membaca `findSafeByUserId`: kolom disabilitas, kebutuhan akomodasi,
