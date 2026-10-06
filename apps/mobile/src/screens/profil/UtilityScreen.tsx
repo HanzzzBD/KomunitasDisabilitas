@@ -10,6 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRef } from "react";
 import { apiClient } from "../../api";
 import { PesanStatus } from "../../komponen/Layar";
+import { PilihanKanal } from "../../notifikasi/PilihanKanal";
 
 export function AksesibilitasScreen() {
   const simpan = useMutation({
@@ -47,6 +48,7 @@ export function PengaturanScreen() {
   return (
     <LayarGulir testID="layar-pengaturan">
       <Judul>Pengaturan akun</Judul>
+      <PilihanKanal />
       <PrivasiAnalitik />
       <TombolKeluar />
     </LayarGulir>

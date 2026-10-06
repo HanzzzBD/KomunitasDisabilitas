@@ -77,10 +77,30 @@ export interface FcmSender {
  * pada field token = token cacat. Keduanya tidak akan pernah berhasil bila
  * diulang, jadi mengulangnya hanya membakar percobaan dan menunda pembersihan.
  */
-const TOKEN_MATI = new Set(["UNREGISTERED", "INVALID_ARGUMENT", "NOT_FOUND"]);
-
 interface FcmErrorBody {
-  error?: { status?: unknown; message?: unknown; code?: unknown };
+  error?: { status?: unknown; message?: unknown; code?: unknown; details?: unknown };
+}
+
+/** Status umum bisa berarti payload/proyek salah; hapus hanya token yang ditolak FCM. */
+function tokenDitolak(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  const details = (body as FcmErrorBody).error?.details;
+  if (!Array.isArray(details)) return false;
+  const fcm = details.find(
+    (d) => d?.["@type"] === "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+  );
+  if (fcm?.errorCode === "UNREGISTERED") return true;
+  if (fcm?.errorCode !== "INVALID_ARGUMENT") return false;
+  const badRequest = details.find(
+    (d) => d?.["@type"] === "type.googleapis.com/google.rpc.BadRequest",
+  );
+  const violations: unknown = badRequest?.fieldViolations;
+  return (
+    !Array.isArray(violations) ||
+    violations.every(
+      (v) => typeof v === "object" && v !== null && "field" in v && v.field === "message.token",
+    )
+  );
 }
 
 /** Kode status FCM dari body; aman untuk log — ia jenis kegagalan, bukan isi. */
@@ -208,6 +228,7 @@ export function createFcmSender(config: FcmConfig, fetchImpl?: FetchLike): FcmSe
               // alasan PR ini ada (Objective dokumen phase).
               notification: { title: pesan.title, body: pesan.body },
               data: pesan.data,
+              android: { priority: "HIGH", notification: { channel_id: "lamaran" } },
             },
           }),
           signal: AbortSignal.timeout(config.timeoutMs),
@@ -226,12 +247,7 @@ export function createFcmSender(config: FcmConfig, fetchImpl?: FetchLike): FcmSe
       const body: unknown = await res.json().catch(() => null);
       const kode = bacaKode(body);
 
-      // 404 = token tidak dikenal FCM. 400 dengan kode di TOKEN_MATI = tokennya
-      // yang cacat, bukan permintaannya.
-      if (res.status === 404 || (res.status === 400 && TOKEN_MATI.has(kode))) {
-        return { hasil: "token-mati", alasan: kode };
-      }
-      if (res.status === 403 && TOKEN_MATI.has(kode)) {
+      if ((res.status === 400 || res.status === 404) && tokenDitolak(body)) {
         return { hasil: "token-mati", alasan: kode };
       }
 

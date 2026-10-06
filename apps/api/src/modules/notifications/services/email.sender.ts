@@ -159,6 +159,13 @@ export function createEmailSender(config: EmailConfig, fetchImpl?: FetchLike): E
       // satunya bagian yang berasal dari data pengguna adalah alamat tujuan.
       // Tidak akan membaik bila diulang.
       if (res.status === 422 || res.status === 400) {
+        if (/\bfrom\b/i.test(bacaPesan(body))) {
+          throw new EmailError(
+            "EMAIL_PENGIRIM_TIDAK_VALID",
+            "Resend menolak alamat pengirim; periksa EMAIL_FROM",
+            res.status,
+          );
+        }
         return { hasil: "alamat-ditolak", alasan };
       }
 

@@ -23,15 +23,23 @@ import { useKlienApi } from "./klien-api.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
 import { IkonNavigasi } from "./ikon-navigasi.js";
+import { useStoreSesi } from "../shared/sesi/store.js";
 
 export function LencanaNotifikasi() {
   const t = useTeks();
   const klien = useKlienApi();
   const sub = idPenggunaSaatIni();
+  const status = useStoreSesi((s) => s.status);
 
   const belumDibaca = useQuery({
     queryKey: notificationsKeys.lencana(sub),
-    queryFn: async () => (await listNotifications(klien, { limit: 1 })).meta.unreadCount,
+    queryFn: async ({ signal }) =>
+      (await listNotifications(klien, { limit: 1 }, signal)).meta.unreadCount,
+    enabled: status === "masuk",
+    // Tetap memperbarui saat pengguna menetap di halaman yang sama. Poll berhenti
+    // ketika tab tidak terlihat; fokus tab juga meminta hitungan terbaru.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     // MENIMPA bawaan `refetchOnWindowFocus: false` (query-client.ts), dan
     // hanya di sini. Alasan bawaan itu — "konten yang berubah sendiri di bawah
     // kursor menghilangkan konteks yang sedang dibaca" — tidak berlaku bagi

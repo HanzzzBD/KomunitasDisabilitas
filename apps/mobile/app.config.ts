@@ -1,10 +1,13 @@
 import type { ExpoConfig } from "expo/config";
+import { existsSync } from "node:fs";
 
 // projectId EAS dibaca dari env, bukan ditulis di repo: ia baru ada setelah
 // pemilik akun menjalankan `eas init` (lihat README.md).
 const projectId = process.env.EAS_PROJECT_ID;
 // EAS: environment variable bertipe File; lokal: path berkas yang di-ignore.
-const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+const googleServicesFile =
+  process.env.GOOGLE_SERVICES_JSON ||
+  (existsSync("./google-services.json") ? "./google-services.json" : undefined);
 
 // Build EAS adalah build release: URL API wajib HTTPS dan datang dari environment
 // EAS (`preview` untuk profil internal), tidak pernah dari repo. Gagal di sini —

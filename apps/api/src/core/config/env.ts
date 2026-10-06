@@ -336,7 +336,18 @@ const envSchema = z.object({
    * mendarat di folder spam, dan kabar pasca-hapus yang mendarat di spam sama
    * saja dengan kabar yang tidak dikirim (risiko "deliverability" dokumen phase).
    */
-  EMAIL_FROM: z.string().min(1, { message: "tidak boleh kosong bila diisi" }).optional(),
+  EMAIL_FROM: z
+    .string()
+    .trim()
+    .refine(
+      (value) => {
+        const match = /^(?:[^<>]+<([^<>]+)>|([^<>\s]+))$/.exec(value);
+        const email = match?.[1] ?? match?.[2];
+        return email !== undefined && z.string().email().safeParse(email.trim()).success;
+      },
+      { message: "harus alamat email atau Nama <alamat@email.id>" },
+    )
+    .optional(),
   RESEND_BASE_URL: z
     .string()
     .url({ message: "harus URL absolut" })

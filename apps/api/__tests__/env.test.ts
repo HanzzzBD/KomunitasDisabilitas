@@ -8,6 +8,22 @@ const VALID: NodeJS.ProcessEnv = {
 };
 
 describe("loadEnv — fail-fast (AC PR-006)", () => {
+  it.each(["Nawasena kabar@contoh.id", "Nawasena <kabar@contoh.id", "bukan-email"])(
+    "pengirim email cacat ditolak saat boot: %s",
+    (from) => {
+      expect(() => loadEnv({ ...VALID, RESEND_API_KEY: "test-key", EMAIL_FROM: from })).toThrow(
+        /EMAIL_FROM/,
+      );
+    },
+  );
+  it.each(["kabar@contoh.id", "Nawasena <kabar@contoh.id>"])(
+    "format pengirim email sah: %s",
+    (from) => {
+      expect(loadEnv({ ...VALID, RESEND_API_KEY: "test-key", EMAIL_FROM: from }).EMAIL_FROM).toBe(
+        from,
+      );
+    },
+  );
   it("env kosong → EnvError menyebut DATABASE_URL dan REDIS_URL", () => {
     let caught: unknown;
     try {

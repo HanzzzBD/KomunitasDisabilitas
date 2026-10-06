@@ -686,3 +686,25 @@ Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
   Lighthouse desktop 100/100; 3G performance 76–80 dan accessibility 100.
 
 Detail: [aktivasi CV AI dan PDF](../cv-ai-pdf-activation.md).
+
+## Aktifkan notifikasi Web/Android/email
+
+Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
+
+- Diagnosis: kanal push/email mempunyai 11/3 job tertunda dan nol konsumen.
+  Worker khusus notifikasi ditambahkan dan diaktifkan tanpa cron.
+- Format `EMAIL_FROM` lokal diperbaiki, divalidasi saat boot, dan penolakan
+  pengirim tidak lagi dianggap penerima yang salah. Tiga email yang gagal pada
+  diagnosis diulang terbatas dan diterima Resend; tiga push diterima FCM.
+- Web memperbarui lencana saat halaman menetap. Android menyediakan preferensi
+  email/push, aktivasi HP menyimpan opt-in push, dan Firebase lokal ikut build.
+- Detail FCM menentukan pembersihan token; galat proyek/payload mempertahankan
+  perangkat. Channel Android cocok dengan plugin Expo. Tidak ada rahasia atau
+  berkas Firebase ditambahkan ke repo.
+- Konfirmasi tampilan HP/inbox tetap memerlukan penerima; APK lama perlu build
+  ulang untuk pengaturan baru. Twilio lokal aktif tetapi masih Trial.
+- Verifikasi lokal: API kanal 127 tes dan sender/env 45 tes, mobile 194, native
+  10, worker 5, Web 33, browser 4 lulus. Bundle Android 1174 modul berhasil.
+  Lighthouse desktop 100/100 dan 3G 76/100; lint/typecheck terkait lulus.
+
+Detail: [aktivasi notifikasi](../notification-activation.md).

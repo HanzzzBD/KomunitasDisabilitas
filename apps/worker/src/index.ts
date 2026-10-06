@@ -84,6 +84,7 @@ import {
   createCvEkstraksiService,
 } from "@nawasena/api/modules/ai";
 import { createPuppeteerPdfRenderer } from "./pdf/puppeteer-renderer.js";
+import { selectProcessors, workerMode } from "./mode.js";
 
 /**
  * Jadwal cron purge PDP — SDD §16: harian 03:17 WIB.
@@ -103,7 +104,9 @@ const JADWAL_PURGE = { pattern: "17 3 * * *", tz: "Asia/Jakarta" } as const;
 const JADWAL_RETENSI = { pattern: "47 2 * * *", tz: "Asia/Jakarta" } as const;
 
 let env;
+let mode;
 try {
+  mode = workerMode(process.argv.slice(2));
   env = loadEnv();
 } catch (err) {
   console.error(err instanceof EnvError ? err.message : err);
@@ -378,14 +381,7 @@ const dlq = createDlqHandler({
 
 const runtime = createWorkerRuntime({
   configs: queueConfigs,
-  // Mode lokal CV: aktifkan jalur draft/PDF tanpa menjalankan antrean kanal pesan.
-  processors: process.argv.includes("--cv-only")
-    ? {
-        [QUEUE_NAME.PDF_RENDER]: PROCESSORS[QUEUE_NAME.PDF_RENDER],
-        [QUEUE_NAME.AI_EXTRACT_RESUME]: PROCESSORS[QUEUE_NAME.AI_EXTRACT_RESUME],
-        [QUEUE_NAME.AI_USAGE_RECORD]: PROCESSORS[QUEUE_NAME.AI_USAGE_RECORD],
-      }
-    : PROCESSORS,
+  processors: selectProcessors(PROCESSORS, mode),
   logger,
   connection,
   onFailed: (queue, job, error) => dlq.onFailed(queue, job, error),
@@ -418,7 +414,7 @@ function jadwalkan(
     });
 }
 
-if (!process.argv.includes("--cv-only")) {
+if (mode === "all") {
   jadwalkan(QUEUE_NAME.MAINTENANCE_PDP_PURGE, JADWAL_PURGE, "cron-pdp-purge", "Purge PDP");
   jadwalkan(QUEUE_NAME.MAINTENANCE_RETENTION, JADWAL_RETENSI, "cron-retention", "Retensi data");
 }
