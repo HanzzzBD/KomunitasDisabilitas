@@ -37,8 +37,8 @@ Data lama tanpa vektor dipulihkan melalui alat operator yang sudah ada.
 Periksa jumlah terlebih dahulu, lalu antrekan dengan batas yang sesuai:
 
 ```powershell
-pnpm --filter @nawasena/api embed:ulang --maks=30 --jarak-ms=5000 --kering
-pnpm --filter @nawasena/api embed:ulang --maks=30 --jarak-ms=5000
+pnpm --filter @nawasena/api embed:ulang --maks=21 --jarak-ms=5000 --kering
+pnpm --filter @nawasena/api embed:ulang --maks=21 --jarak-ms=5000
 ```
 
 Alat hanya memilih lowongan aktif berkurator dan profil berisi dari akun hidup
@@ -65,6 +65,16 @@ Metadata model pada endpoint resmi Gemini memberikan HTTP 200 dan mendukung
 per pengguna per hari, dan 1.200 panggilan AI global per hari.
 
 Tes lokal: pemilihan mode worker sembilan tes, pipeline/API matching 110 tes,
-dan feed Web 14 tes lulus. Lint dan typecheck worker lulus. Metadata model
-memverifikasi ketersediaan model; pengiriman embedding dan hasil feed nyata
-perlu diverifikasi setelah worker diaktifkan.
+dan feed Web 14 tes lulus. Lint dan typecheck worker lulus.
+
+Sesudah izin operator untuk aktivasi dan pengiriman data karier ke provider,
+worker nyata memproses pemulihan hingga 17/17 lowongan tayang dan 4/4 profil
+akun hidup mempunyai vektor. Dry run berikutnya memilih nol entitas.
+Antrean embedding/re-rank tidak memiliki job menunggu, tertunda, gagal, atau DLQ;
+masing-masing mempunyai satu konsumen aktif.
+
+Probe lewat API lokal membuat akun dan profil sintetis, memicu embedding dari
+`PUT /me/profile`, lalu membaca `GET /me/matches`: HTTP 200, 11 rekomendasi,
+dan 11 penjelasan bersumber AI setelah re-rank selesai. Fixture uji dibersihkan.
+Liveness/readiness API memberi 200. Tidak ada perangkat Android terhubung
+untuk konfirmasi tampilan langsung; Web/Android memakai endpoint feed yang sama.

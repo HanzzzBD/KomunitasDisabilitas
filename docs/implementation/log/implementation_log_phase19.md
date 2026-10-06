@@ -723,6 +723,12 @@ Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
   batas entitas dan kuota AI. Mode kering memilih 17 lowongan dan empat profil.
 - Endpoint metadata model Gemini resmi memberi HTTP 200. Tes mode worker 9,
   pipeline/API matching 110, serta feed Web 14 lulus; lint/typecheck worker lulus.
-  Pengiriman embedding dan hasil feed nyata diverifikasi setelah aktivasi runtime.
+- Sesudah izin operator, worker matching diaktifkan dan pemulihan menyimpan
+  vektor untuk 17/17 lowongan tayang dan 4/4 profil akun hidup. Dry run berikutnya
+  memilih nol entitas; antrean embedding/re-rank kosong tanpa kegagalan atau DLQ.
+- Uji akun sintetis melalui API nyata memicu embedding lalu menghasilkan 11
+  rekomendasi dengan 11 penjelasan AI, HTTP 200. Fixture dibersihkan. Health dan
+  readiness API memberi 200; worker tetap aktif. Tidak ada perubahan kontrak
+  Web/Android atau build APK yang dibutuhkan untuk perbaikan worker ini.
 
 Detail: [aktivasi matching](../matching-activation.md).
