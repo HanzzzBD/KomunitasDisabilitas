@@ -134,7 +134,7 @@ export function DasborMetrik({ klien }: { klien: ApiClient }) {
 
 function Tile({ label, nilai, catatan }: { label: string; nilai: string; catatan?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-gray-400 p-4">
+    <div className="metric-tile">
       <dt className="text-base font-semibold text-gray-900">{label}</dt>
       <dd className="m-0 flex flex-col gap-1">
         <span className="text-3xl font-bold text-gray-900">{nilai}</span>
@@ -202,7 +202,7 @@ function IsiMetrik({
           {t("admin.metrik.funnel.judul")}
         </h3>
         <p className="text-base text-gray-700">{t("admin.metrik.funnel.penjelasan")}</p>
-        <dl className="m-0 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="metric-grid">
           {TAHAP.map(({ kunci, label }) => (
             <Tile
               key={kunci}
@@ -218,7 +218,7 @@ function IsiMetrik({
         <h3 id="admin-metrik-northstar" className="text-xl font-semibold text-gray-900">
           {t("admin.metrik.northStar.judul")}
         </h3>
-        <dl className="m-0 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="metric-grid">
           <Tile
             label={t("admin.metrik.labelPeriode", {
               label: t("admin.metrik.northStar.periode"),

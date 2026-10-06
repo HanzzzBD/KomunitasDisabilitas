@@ -71,15 +71,16 @@ export function LayarKesalahan() {
     // Layar ini MENGGANTIKAN `TataLetak` (ErrorBoundary terpasang di route
     // induk), jadi `<main>`-nya harus datang dari sini. Ia satu-satunya
     // pengecualian atas aturan "halaman tidak menulis <main> sendiri".
-    <main className="mx-auto flex max-w-md flex-col gap-4 p-4">
-      {/* role="alert": layar ini menggantikan konten tanpa diminta, jadi
+    <div className="shell-app error-page">
+      <main className="page-frame auth-panel flex flex-col gap-4">
+        {/* role="alert": layar ini menggantikan konten tanpa diminta, jadi
           kemunculannya harus diumumkan, bukan ditemukan sendiri. */}
-      <div role="alert" className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-gray-900">{t(judul)}</h1>
-        <p className="text-base text-gray-900">{t(penjelasan)}</p>
-      </div>
+        <div role="alert" className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900">{t(judul)}</h1>
+          <p className="text-base text-gray-900">{t(penjelasan)}</p>
+        </div>
 
-      {/*
+        {/*
         SATU aksi, dan aksinya BERBEDA per keadaan.
 
         Ini bukan kerapian melainkan koreksi: "Muat ulang halaman" pada 404
@@ -92,36 +93,37 @@ export function LayarKesalahan() {
         sudah terbukti rusak, dan pemuatan ulang penuh satu-satunya cara yang
         pasti membersihkannya — router bisa gagal lagi dengan cara yang sama.
       */}
-      {keadaan === "takDitemukan" && (
-        // <Link>, bukan <a href>: ini navigasi dalam aplikasi. Memuat ulang
-        // seluruh halaman membuang fokus keyboard dan memaksa screen reader
-        // membacakan halaman dari awal.
-        <Link to="/" className={GAYA_AKSI}>
-          {t("shell.kesalahan.takDitemukan.pulang")}
-        </Link>
-      )}
+        {keadaan === "takDitemukan" && (
+          // <Link>, bukan <a href>: ini navigasi dalam aplikasi. Memuat ulang
+          // seluruh halaman membuang fokus keyboard dan memaksa screen reader
+          // membacakan halaman dari awal.
+          <Link to="/" className={GAYA_AKSI}>
+            {t("shell.kesalahan.takDitemukan.pulang")}
+          </Link>
+        )}
 
-      {keadaan === "perluMasuk" && (
-        <Link to="/masuk" className={GAYA_AKSI}>
-          {t("shell.kesalahan.perluMasuk.masuk")}
-        </Link>
-      )}
+        {keadaan === "perluMasuk" && (
+          <Link to="/masuk" className={GAYA_AKSI}>
+            {t("shell.kesalahan.perluMasuk.masuk")}
+          </Link>
+        )}
 
-      {keadaan === "umum" && (
-        // <button>, bukan <a>: ini menjalankan aksi, bukan berpindah alamat.
-        // Perbedaannya nyata bagi screen reader — "tombol" dan "tautan"
-        // menuntut harapan yang berbeda.
-        <button type="button" className={GAYA_AKSI} onClick={() => window.location.reload()}>
-          {t("shell.kesalahan.muatUlang")}
-        </button>
-      )}
+        {keadaan === "umum" && (
+          // <button>, bukan <a>: ini menjalankan aksi, bukan berpindah alamat.
+          // Perbedaannya nyata bagi screen reader — "tombol" dan "tautan"
+          // menuntut harapan yang berbeda.
+          <button type="button" className={GAYA_AKSI} onClick={() => window.location.reload()}>
+            {t("shell.kesalahan.muatUlang")}
+          </button>
+        )}
 
-      {/*
+        {/*
         Detail teknis SENGAJA tidak ditampilkan — tidak ada jejak tumpukan,
         tidak ada pesan asli. Ia tidak berguna bagi pengguna dan bisa memuat
         jalur berkas internal atau potongan data. Pengirimannya ke backend
         observability adalah PR-103.
       */}
-    </main>
+      </main>
+    </div>
   );
 }

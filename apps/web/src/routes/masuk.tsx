@@ -166,7 +166,7 @@ export function Masuk() {
   return (
     // `<div>`, bukan `<main>`: landmark utama milik `TataLetak` sejak PR-032a —
     // satu `<main>` untuk seluruh aplikasi.
-    <div className="mx-auto flex max-w-md flex-col gap-6 p-4">
+    <div className="page-frame auth-panel flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">{t("auth.judul")}</h1>
         <p className="text-base text-gray-700">{t("auth.penjelasan")}</p>
@@ -219,7 +219,7 @@ export function Masuk() {
           */}
           {clientIdGoogle() !== null && (
             <>
-              <p className="text-center text-sm text-gray-700">{t("auth.google.atau")}</p>
+              <p className="auth-divider text-sm text-gray-700">{t("auth.google.atau")}</p>
               <Tombol varian="sekunder" disabled={sibuk} onClick={() => void mulaiGoogle()}>
                 {t("auth.google.tombol")}
               </Tombol>

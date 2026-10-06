@@ -25,7 +25,7 @@ export function LowonganDetail() {
   const dariDaftar = (lokasi.state as Partial<StateDariDaftar> | null)?.dariDaftar === true;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel flex flex-col gap-6">
       <Link
         to="/lowongan"
         onClick={(e) => {

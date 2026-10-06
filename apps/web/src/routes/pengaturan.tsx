@@ -39,7 +39,7 @@ export function Pengaturan() {
 
   return (
     <Terlindungi>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+      <div className="settings-layout">
         {/*
           `break-words`: pada 320 px dengan `textScale: 200`, kata "Pengaturan"
           sendirian lebih lebar daripada layarnya (scrollWidth 341 vs 320) dan
@@ -56,13 +56,13 @@ export function Pengaturan() {
           tanpa nama muncul di daftar landmark screen reader sebagai "navigation"
           — tidak bisa dibedakan satu sama lain.
         */}
-        <nav aria-label={t("pengaturan.nav.label")}>
+        <nav aria-label={t("pengaturan.nav.label")} className="settings-sidebar page-panel">
           {/*
             <ul>: jumlah panelnya diumumkan lebih dulu ("daftar, 3 item"),
             sehingga pengguna tahu seberapa panjang navigasinya sebelum
             menyusurinya.
           */}
-          <ul className="flex list-none flex-wrap gap-2 p-0">
+          <ul className="settings-menu">
             {PANEL.map(({ ke, kunci, tepat }) => (
               <li key={ke}>
                 <NavLink
@@ -70,14 +70,12 @@ export function Pengaturan() {
                   end={tepat}
                   className={({ isActive }) =>
                     gabungKelas(
-                      "inline-flex min-h-sentuh items-center rounded-md border px-4 text-base",
+                      "admin-menu-link text-base",
                       // Panel aktif dibedakan warna DAN tebal huruf. Warna
                       // sendirian melanggar WCAG 1.4.1 (jangan bergantung pada
                       // warna saja); `aria-current` yang ditulis NavLink
                       // menutup sisi screen reader-nya.
-                      isActive
-                        ? "border-gray-900 bg-gray-900 font-semibold text-white"
-                        : "border-gray-400 font-normal text-gray-900",
+                      isActive ? "admin-menu-active font-semibold" : "font-normal",
                     )
                   }
                 >
@@ -88,7 +86,9 @@ export function Pengaturan() {
           </ul>
         </nav>
 
-        <Outlet />
+        <div className="settings-content page-panel">
+          <Outlet />
+        </div>
       </div>
     </Terlindungi>
   );

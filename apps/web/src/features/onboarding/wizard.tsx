@@ -165,7 +165,7 @@ export function Wizard({ store, klien, onKeluar, tautanProfil }: WizardProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel onboarding-panel flex flex-col gap-6">
       <h1 className="text-3xl font-bold text-gray-900">{t("onboarding.judul")}</h1>
       <p className="text-base text-gray-900">{t("onboarding.deskripsi")}</p>
 

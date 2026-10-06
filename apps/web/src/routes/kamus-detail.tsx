@@ -13,7 +13,7 @@ export function KamusDetail() {
   const asal = typeof asalMentah === "string" && asalMentah.startsWith("?") ? asalMentah : "";
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+    <div className="page-frame page-panel flex flex-col gap-6">
       <DetailKamus klien={klien} id={id} asal={asal} />
     </div>
   );

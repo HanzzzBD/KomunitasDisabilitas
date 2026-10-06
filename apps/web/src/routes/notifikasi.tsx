@@ -41,7 +41,7 @@ export function Notifikasi() {
 
   return (
     <Terlindungi>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+      <div className="page-frame page-panel flex flex-col gap-6">
         {/* `break-words`: alasan yang sama dengan halaman pengaturan — pada
             320 px dengan skala teks 200%, judul panjang memaksa gulir mendatar
             (WCAG 1.4.10 diukur di lebar itu). */}

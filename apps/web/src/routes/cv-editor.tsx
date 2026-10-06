@@ -35,7 +35,7 @@ function IsiCvEditor() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4">
+    <div className="page-frame page-panel flex flex-col gap-5">
       {tujuan !== null && (
         <Link
           to={tujuan}
