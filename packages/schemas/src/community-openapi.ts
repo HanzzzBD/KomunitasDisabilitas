@@ -1,4 +1,5 @@
 import type { ZodOpenApiPathItemObject } from "zod-openapi";
+import { communityAdminListQuerySchema } from "./community-admin.js";
 import {
   communityFeedQuerySchema,
   communityFeedResponseSchema,
@@ -141,7 +142,7 @@ export const communityPaths: Record<string, ZodOpenApiPathItemObject> = {
       operationId: "listCommunitiesAdmin",
       tags: ["community"],
       summary: "Daftar ruang aktif dan arsip (admin)",
-      requestParams: { query: communityListQuerySchema },
+      requestParams: { query: communityAdminListQuerySchema },
       responses: {
         "200": ok(communityListResponseSchema),
         "400": error("Query/cursor tidak valid"),

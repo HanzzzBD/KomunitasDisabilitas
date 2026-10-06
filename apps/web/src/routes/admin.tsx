@@ -30,6 +30,7 @@ const SEKSI = [
   { ke: "/admin/lamaran", kunci: "admin.nav.lamaran", tepat: false },
   { ke: "/admin/pengguna", kunci: "admin.nav.pengguna", tepat: false },
   { ke: "/admin/kamus", kunci: "admin.nav.kamus", tepat: false },
+  { ke: "/admin/community", kunci: "admin.nav.community", tepat: false },
 ] as const;
 
 /**
@@ -52,6 +53,22 @@ export function AdminRingkasan() {
         <p className="text-base text-gray-900">{t("admin.ringkasan.penjelasan")}</p>
 
         <ul className="admin-shortcuts">
+          <li>
+            <Kartu
+              judul={t("admin.community.judul")}
+              tingkatJudul={3}
+              aksi={
+                <Link
+                  to="/admin/community"
+                  className="inline-flex min-h-sentuh items-center rounded-md border border-gray-900 px-4 text-base font-semibold text-gray-900"
+                >
+                  {t("admin.nav.community")}
+                </Link>
+              }
+            >
+              <p className="text-base text-gray-900">{t("admin.community.queue")}</p>
+            </Kartu>
+          </li>
           <li>
             <Kartu
               judul={t("admin.ringkasan.companies.judul")}

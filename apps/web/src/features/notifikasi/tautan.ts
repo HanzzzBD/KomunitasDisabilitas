@@ -65,8 +65,10 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // PR-068 — ke halaman chat: transkrip tersimpan di sana, beserta tombol
       // "coba lagi" dan jalur formulir.
       return "/cv/chat";
-    case NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT:
-      return null;
+    case NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT: {
+      const report = communityIdParamsSchema.safeParse({ id: notifikasi.params.reportId });
+      return report.success ? `/admin/community/laporan/${report.data.id}` : null;
+    }
     case NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED: {
       const target = communityTargetParamsSchema.safeParse({
         targetType: notifikasi.params.targetType,

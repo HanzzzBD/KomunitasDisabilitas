@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { communityContentKeys, usersKeys } from "@nawasena/api-client";
+import { communityContentKeys, communityAdminKeys, usersKeys } from "@nawasena/api-client";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { hapusDrafCommunity } from "../features/community/draf.js";
 
@@ -11,6 +11,8 @@ export function PrivasiCommunity() {
     () =>
       useStoreSesi.subscribe((next, prev) => {
         if (next === prev) return;
+        void cache.cancelQueries({ queryKey: communityAdminKeys.all() });
+        cache.removeQueries({ queryKey: communityAdminKeys.all() });
         void cache.cancelQueries({ queryKey: communityContentKeys.all() });
         cache.removeQueries({ queryKey: communityContentKeys.all() });
         void cache.cancelQueries({ queryKey: ["community-membership"] });

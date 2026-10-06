@@ -43,6 +43,7 @@ export {
   type OpsiDaftarCommunity,
 } from "./endpoints/community.js";
 export * from "./endpoints/community-content.js";
+export * from "./endpoints/community-admin.js";
 export {
   getAccessibility,
   updateAccessibility,

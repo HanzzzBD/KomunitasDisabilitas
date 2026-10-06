@@ -135,6 +135,8 @@ import {
 import { z, type ZodTypeAny } from "zod";
 import { communityOpenApiSchemas } from "./community.js";
 import { communityPaths } from "./community-openapi.js";
+import { communityAdminPaths } from "./community-admin-openapi.js";
+import { communityAdminOpenApiSchemas } from "./community-admin.js";
 
 /** Versi kontrak API — naikkan manual saat kontrak berubah (additive-first). */
 export const CONTRACT_VERSION = "0.1.0";
@@ -261,7 +263,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
     // eksplisit — deny-by-default juga di dokumen, bukan hanya di kode.
     components: {
       // PR-113 hanya kontrak; jangan mengiklankan endpoint sebelum PR-114/116.
-      schemas: communityOpenApiSchemas,
+      schemas: { ...communityOpenApiSchemas, ...communityAdminOpenApiSchemas },
       securitySchemes: {
         bearerAuth: {
           type: "http",
@@ -274,6 +276,7 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
     security: [{ bearerAuth: [] }],
     paths: {
       ...communityPaths,
+      ...communityAdminPaths,
       // Alur OTP (PR-016): request → verify. Pengiriman JWT menyusul di PR-018.
       "/auth/otp/request": {
         post: {

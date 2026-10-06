@@ -18,6 +18,7 @@
 // ingin diperiksa.
 import { expect, type Page } from "@playwright/test";
 import type { HalamanDijaga } from "./halaman.js";
+import { COMMUNITY_REPORT_UJI, COMMUNITY_METRICS_UJI } from "./admin-community-fixture.js";
 import {
   COMMUNITY_UJI,
   COMMUNITY_KOTA_UJI,
@@ -728,7 +729,7 @@ export function kuotaUji(sisaChat = 29) {
 }
 
 export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<void> {
-  const bersesi = halaman?.butuhSesi === true;
+  const bersesi = halaman?.butuhSesi === true || halaman?.butuhAdmin === true;
   const ruang = [{ ...COMMUNITY_UJI }, { ...COMMUNITY_KOTA_UJI }];
   let anggotaCommunity = bersesi;
   // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
@@ -773,6 +774,8 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
   const lamaranSaya = { ...LAMARAN_SAYA_UJI, statusHistory: [...LAMARAN_SAYA_UJI.statusHistory] };
   let pdfDiminta = false;
   let pembacaanPdf = 0;
+  let communityReport = { ...COMMUNITY_REPORT_UJI };
+  let communityTarget = { ...COMMUNITY_POST_UJI };
 
   function detailLamaranAdmin() {
     return {
@@ -785,6 +788,72 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
 
   await page.route("**/api/v1/**", async (route) => {
     const jalur = new URL(route.request().url()).pathname;
+
+    if (jalur === "/api/v1/admin/community-metrics")
+      return route.fulfill(jsonkan(200, { data: COMMUNITY_METRICS_UJI }));
+    if (jalur === "/api/v1/admin/communities") {
+      if (route.request().method() === "POST") {
+        const input = route.request().postDataJSON() as Partial<typeof COMMUNITY_UJI>;
+        Object.assign(ruang[0]!, input);
+        return route.fulfill(jsonkan(201, { data: ruang[0] }));
+      }
+      const status = new URL(route.request().url()).searchParams.get("status");
+      return route.fulfill(
+        jsonkan(200, {
+          data: ruang.filter((r) => !status || r.status === status),
+          meta: { nextCursor: null },
+        }),
+      );
+    }
+    if (jalur === `/api/v1/admin/communities/${COMMUNITY_UJI.id}`) {
+      const row = ruang[0]!;
+      if (route.request().method() === "PATCH") Object.assign(row, route.request().postDataJSON());
+      if (route.request().method() === "DELETE") row.status = "archived";
+      return route.fulfill(jsonkan(200, { data: row }));
+    }
+    if (jalur === "/api/v1/admin/community-queue") {
+      const status = new URL(route.request().url()).searchParams.get("status");
+      return route.fulfill(
+        jsonkan(200, {
+          data: !status || communityReport.status === status ? [communityReport] : [],
+          meta: { nextCursor: null },
+        }),
+      );
+    }
+    if (jalur === `/api/v1/admin/community-queue/${communityReport.id}/reject`) {
+      communityReport = {
+        ...communityReport,
+        status: "rejected",
+        resolvedAt: COMMUNITY_UJI.createdAt,
+      };
+      return route.fulfill(jsonkan(200, { data: communityReport }));
+    }
+    if (jalur === `/api/v1/admin/community-queue/${communityReport.id}`)
+      return route.fulfill(jsonkan(200, { data: communityReport }));
+    if (jalur === `/api/v1/admin/community-content/post/${communityTarget.id}/moderate`) {
+      const { action, reason } = route.request().postDataJSON() as {
+        action: "hide" | "restore" | "remove";
+        reason: string;
+      };
+      communityTarget = {
+        ...communityTarget,
+        status: action === "hide" ? "hidden" : action === "remove" ? "removed" : "published",
+        moderation: { action, reason, createdAt: COMMUNITY_UJI.createdAt },
+      };
+      if (action !== "restore")
+        communityReport = {
+          ...communityReport,
+          status: "resolved",
+          resolvedAt: COMMUNITY_UJI.createdAt,
+        };
+      return route.fulfill(
+        jsonkan(200, { data: { targetType: "post", content: communityTarget } }),
+      );
+    }
+    if (jalur === `/api/v1/admin/community-content/post/${communityTarget.id}`)
+      return route.fulfill(
+        jsonkan(200, { data: { targetType: "post", content: communityTarget } }),
+      );
 
     if (jalur === "/api/v1/communities") {
       const params = new URL(route.request().url()).searchParams;

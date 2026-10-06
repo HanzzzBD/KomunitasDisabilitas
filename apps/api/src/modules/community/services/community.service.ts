@@ -7,6 +7,7 @@ import {
   type CommunityFeedQuery,
   type CommunityFeedResponse,
   type CommunityListQuery,
+  type CommunityAdminListQuery,
   type CommunityListResponse,
   type CommunityMembership,
   type CreateCommunity,
@@ -126,7 +127,10 @@ export function createCommunityService(deps: {
       if (count.value > (bucket === "read" ? policy.readMax : policy.writeMax))
         throw appError("TERLALU_BANYAK_PERMINTAAN", { retryAfterSeconds: count.retryAfterSeconds });
     },
-    async list(query: CommunityListQuery, admin = false): Promise<CommunityListResponse> {
+    async list(
+      query: CommunityListQuery | CommunityAdminListQuery,
+      admin = false,
+    ): Promise<CommunityListResponse> {
       const { page, meta } = communityPage(
         await repo.list(query, communityCursor(query.cursor), admin),
         query.limit,

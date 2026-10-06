@@ -56,9 +56,11 @@ const POLA_ANGKA_ID = /^\d{4,}$/;
 export function normalkanPath(path: string): string {
   // A room slug can reveal a topic someone visited; send the route pattern.
   const mentah = path.split(/[?#]/, 1)[0] ?? "/";
-  const tanpaEkor = /^\/community\/content\/[^/]+\/[^/]+/.test(mentah)
-    ? "/community/content/:targetType/:id"
-    : mentah.replace(/^\/community\/[^/]+/, "/community/:slug");
+  const tanpaEkor = /^\/admin\/community\/(ruang|laporan)\/(?!baru(?:\/|$))[^/]+/.test(mentah)
+    ? mentah.replace(/^(\/admin\/community\/(?:ruang|laporan))\/[^/]+.*/, "$1/:id")
+    : /^\/community\/content\/[^/]+\/[^/]+/.test(mentah)
+      ? "/community/content/:targetType/:id"
+      : mentah.replace(/^\/community\/[^/]+/, "/community/:slug");
   const segmen = tanpaEkor
     .split("/")
     .map((s) => (POLA_UUID.test(s) || POLA_ANGKA_ID.test(s) ? ":id" : s));

@@ -91,12 +91,16 @@
   }
   .shell-brand {
     display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
     min-height: var(--touch-target-min);
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     color: var(--shell-ink);
     text-decoration: none;
     letter-spacing: -0.03em;
+    overflow-wrap: anywhere;
   }
   .shell-brand-mark {
     display: grid;

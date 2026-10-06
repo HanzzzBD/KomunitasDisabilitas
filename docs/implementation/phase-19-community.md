@@ -183,11 +183,24 @@ Implementasi dan verifikasi: [log PR-117](log/implementation_log_phase19.md#pr-1
 
 **Acceptance Criteria:**
 
-* [ ] Queue hanya menampilkan data minimum yang diperlukan untuk moderasi.
-* [ ] Aksi tidak dapat dijalankan tanpa reason dan konfirmasi yang jelas.
-* [ ] Data sensitive profile, CV, dan lamaran tidak muncul pada layar admin Community.
-* [ ] Metrik Community tidak menyimpan atau menampilkan PII.
-* [ ] Test RBAC dan audit-log integration lulus.
+* [x] Queue hanya menampilkan data minimum yang diperlukan untuk moderasi.
+* [x] Aksi tidak dapat dijalankan tanpa reason dan konfirmasi yang jelas.
+* [x] Data sensitive profile, CV, dan lamaran tidak muncul pada layar admin Community.
+* [x] Metrik Community tidak menyimpan atau menampilkan PII.
+* [x] Test RBAC dan audit-log integration lulus.
+
+**Keputusan owner (2026-10-06):** metrik memakai periode tetap 30 hari; antrean
+menampilkan laporan terlama lebih dahulu. Antrean bawaan memfilter laporan open.
+Keanggotaan baru dihitung per akun/ruang yang masih aktif dan tercatat, bukan
+riwayat seluruh join atau orang unik. Jumlah laporan open adalah backlog saat ini;
+waktu resolusi mencakup laporan resolved/rejected yang ditutup dalam periode.
+
+Web admin menyediakan CRUD ruang (hapus berupa arsip), filter status, detail post
+dan komentar beserta konteks induknya, serta hide/restore/remove/reject dengan
+alasan wajib dan tinjauan akibat sebelum konfirmasi. Jalur antrean minimal tidak
+memuat identitas pelapor/resolver. Notifikasi laporan membuka detail admin.
+
+Implementasi dan verifikasi: [log PR-118](log/implementation_log_phase19.md#pr-118--admin-community--moderation-queue).
 
 **Dependencies:** PR-052, PR-116, PR-112.
 

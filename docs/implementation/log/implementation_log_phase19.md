@@ -532,3 +532,98 @@ localStorage bersifat per perangkat; tidak disinkronkan ke server. Keberhasilan
 PR ini tidak menyatakan gate rilis PR-112 produksi sudah terpenuhi.
 
 Next: PR-118 UI admin Community dan antrean moderasi; PR-119 gate readiness.
+
+## PR-118 — Admin Community + Moderation Queue
+
+> **Tanggal:** 2026-10-06
+> **Base:** `phase-19-community`, sesudah merge PR-117 (#222).
+> **PR:** [#223](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/223).
+> **Status:** Implementasi selesai; merge tetap mensyaratkan CI
+> `lint-typecheck-test` serta `a11y` hijau pada head terakhir.
+
+### Keputusan owner
+
+- Melalui tool pertanyaan: metrik **30 hari** dan antrean **terlama dahulu**.
+  `AskUserQuestion` tidak tersedia pada sesi ini; keputusan diperoleh melalui
+  tool `request_user_input_async` yang tersedia.
+- Kebijakan PR-114/116 tetap berlaku: hapus ruang berarti arsip; remove konten
+  admin final, hide/remove menyelesaikan seluruh laporan open target; reject
+  hanya menolak satu laporan dan tidak mengubah konten.
+
+### Implementasi
+
+- Menu dan pintasan dashboard admin menuju `/admin/community`. Route lazy
+  menyediakan daftar ruang, buat/ubah ruang, antrean laporan, dan detail laporan.
+  Semua route berada di dalam penjaga sesi/peran admin yang sudah ada. Notifikasi
+  admin Community memvalidasi UUID laporan sebelum membuka halaman detail.
+- Header merek membungkus logo dan nama ketika lebar tidak mencukupi, termasuk
+  font sans-serif pada 320 px dan teks 200%, sehingga tidak menambah scroll horizontal.
+- CRUD ruang memakai API yang sudah tersedia. Validasi Zod dan label/galat inline,
+  fokus ke kolom invalid, aturan kota/topik, konflik slug, serta konfirmasi akibat
+  arsip/aktivasi kembali. Isian tidak ditimpa refetch latar belakang. Ruang arsip
+  tetap terbaca dan diskusi/keanggotaan tidak dihapus. API daftar admin mendapat
+  filter status tambahan; daftar publik tetap hanya ruang aktif.
+- Jalur tambahan `/admin/community-queue`, `/:id`, dan `/:id/reject` memakai
+  allowlist ID laporan/target, jenis, status, alasan laporan, waktu dibuat/resolusi.
+  Identitas pelapor/resolver tidak dibaca untuk queue/detail dan tidak dikirim pada
+  reject. Endpoint lama tetap tersedia untuk kompatibilitas kontrak PR-116.
+  Semua jalur baru admin-only, memakai kuota existing dan `private, no-store`.
+- Detail target memakai endpoint admin existing, mencakup hidden/removed dan
+  alasan moderasi terbaru. Komentar memperoleh post induk lewat endpoint admin;
+  tidak ada pembacaan profil karier, CV, lamaran, atau data disabilitas/akomodasi.
+  UI menampilkan teks literal. Body retained admin memiliki penjelasan status
+  final; tombstone self-delete/PDP tetap kosong; restore tidak ditawarkan untuk
+  removed. Target yang tidak tersedia masih dapat memiliki laporan yang ditolak.
+- Hide/restore/remove/reject meminta alasan 1–2.000 karakter, lalu menampilkan
+  alasan dan akibat sebelum konfirmasi final. Alasan moderasi dapat dibaca penulis,
+  sedangkan alasan reject disimpan di audit. Moderasi/resolusi tetap menggunakan
+  transaksi dan audit wajib PR-116; alias reject minimal memakai service yang sama.
+  Konflik status ditampilkan dan tersedia aksi muat ulang data.
+- Antrean default open, urutan `created_at ASC, id ASC`, cursor mempertahankan
+  mikrodetik timestamp DB. Filter status disimpan di URL. Pagination memakai
+  tombol eksplisit yang tetap tersedia untuk menjaga fokus, termasuk halaman akhir.
+- `/admin/community-metrics` menghitung satu snapshot SQL agregat, tanpa menyimpan
+  data baru: keanggotaan aktif yang masih tercatat dan dibuat dalam 30×24 jam,
+  post semua status yang dibuat dalam periode, backlog open saat ini, serta jumlah
+  dan mean durasi laporan resolved/rejected yang ditutup dalam periode. Membership
+  dihitung per akun/ruang dan mengecualikan akun deleted/suspended; leave/purge
+  menghapus membership sehingga angka ini bukan riwayat semua join. UI menyebut
+  batas tersebut dan menampilkan state kosong saat belum ada resolusi. Tidak ada
+  ID, nama, alamat, body, alasan, atau PII dalam metrik.
+- SDK typed memvalidasi input/output strict, meneruskan AbortSignal, dan memisahkan
+  key cache admin berdasarkan akun. Pergantian sesi membersihkan seluruh cache
+  admin Community; hasil write terlambat tidak memasukkan data atau kabar sesi lama.
+  Klik ganda dikunci synchronous; write luring tidak mengantre/retry otomatis.
+- Katalog id/id-simple tersedia; label pendek yang memang identik didokumentasikan
+  pada penjaga kelengkapan. Enam state admin ditambahkan ke registry axe. Path
+  analytics admin meredaksi ID laporan/ruang, termasuk identifier tidak valid,
+  dan membuang query/hash. Alasan dan body tidak dikirim sebagai analytics.
+
+### Verifikasi
+
+- PostgreSQL 18 nyata pada localhost dengan schema acak terisolasi: **49 test**
+  Community/RBAC/audit/OpenAPI lulus, termasuk **6 test** tambahan antrean minimal,
+  penolakan atomik dan rollback audit failure, cursor mikrodetik, filter ruang,
+  batas periode metrik, kedua jenis resolusi, dan agregat tanpa identitas.
+  Database sementara dihentikan dan direktori yang dibuat task dibersihkan;
+  database/data pengguna lokal tidak direset.
+- Regresi audit dan registry HTTP **39 test** lulus. Shared schemas **134** dan
+  SDK **190 test** lulus, termasuk penolakan kebocoran identitas oleh schema strict.
+- Suite web lengkap **906 test pada 79 file** lulus, mencakup **14 test** admin
+  Community, logout/respons terlambat, klik ganda, luring, konflik, fokus, axe
+  dan katalog. Test fokus terakhir **42 test** juga lulus.
+- Chrome nyata: **11 test** alur/reflow admin dan enam state registry axe lulus.
+  Reflow mencakup 320/768/1024/1440 px pada teks 200%, memakai font sistem dan
+  Arial/sans-serif. Zoom teks diterapkan kembali setelah navigasi ke detail supaya
+  dialog juga diuji pada 200%; dialog tinjauan keputusan diperiksa visual.
+  Fixture browser kini memenuhi kontrak `butuhAdmin` yang juga
+  menyiratkan sesi. Pemeriksaan filter memulai dari kontrol yang benar-benar fokus.
+- Typecheck seluruh **12 workspace** lulus. Lint API/web/schema/SDK lulus.
+  Build web dan service worker lulus; budget JS awal **130,4 KB / 200 KB gzip**.
+  OpenAPI drift check sinkron. Tidak ada migrasi, dependensi, atau perubahan EAS/mobile.
+
+Uji manusia NVDA/TalkBack, SOP moderasi/eskalasi, alert backlog, retensi, feature
+flag, dan rollout tetap menjadi gate PR-119. Implementasi PR-118 tidak menyatakan
+bahwa prasyarat PR-112 produksi sudah terpenuhi. Tidak ada deploy/rollout pada task ini.
+
+Next: PR-119 — Community Readiness Gate.

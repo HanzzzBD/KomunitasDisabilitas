@@ -24,6 +24,31 @@ import { MODE_BAHASA } from "../src/shared/i18n/tipe.js";
  * menuliskan keputusannya.
  */
 const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
+  // PR-118: labels/actions use the same short everyday terms in both modes.
+  "admin.nav.community": "Nama bagian Komunitas sama dengan menu publik agar mudah dicocokkan.",
+  "admin.community.judul": "Judul dua kata sehari-hari, konsisten dengan ruang yang dikelola.",
+  "admin.community.baru": "Label aksi dua kata sehari-hari yang menyebut objeknya.",
+  "admin.community.edit": "Label aksi dua kata sehari-hari yang menyebut objeknya.",
+  "admin.community.kembali": "Tautan singkat dengan tujuan harfiah yang sama pada kedua mode.",
+  "admin.community.nama": "Label kolom pendek yang menyebut nilai yang diisi.",
+  "admin.community.jenis": "Label kolom pendek; pilihannya dijelaskan tepat di bawahnya.",
+  "admin.community.city": "Nama jenis/kolom satu kata sehari-hari.",
+  "admin.community.status": "Nama kolom singkat, konsisten dengan filter bagian admin lain.",
+  "admin.community.semua": "Pilihan filter pendek yang mencakup seluruh status.",
+  "admin.community.active": "Label status satu kata, konsisten di daftar dan editor.",
+  "admin.community.archived": "Nama status yang sama dengan tindakan arsip agar mudah dicocokkan.",
+  "admin.community.anggota": "Jumlah dengan satuan dan status aktif, tanpa istilah teknis.",
+  "admin.community.rejected": "Status satu kata yang sama dengan tindakan tolak laporan.",
+  "admin.community.hidden": "Status sehari-hari yang sama dengan tindakan sembunyikan.",
+  "admin.community.comment": "Nama jenis konten satu kata sehari-hari.",
+  "admin.community.simpan": "Label aksi dua kata yang menyebut objek yang disimpan.",
+  "admin.community.arsip": "Label arsip konsisten dengan status; akibatnya dijelaskan terpisah.",
+  "admin.community.batal": "Label aksi universal satu kata sehari-hari.",
+  "admin.community.tutup": "Label aksi universal satu kata sehari-hari.",
+  "admin.community.hide": "Label aksi satu kata, akibatnya dijelaskan dalam dialog.",
+  "admin.community.reject": "Label aksi dua kata, hanya satu laporan yang ditolak.",
+  "admin.community.kembaliAlasan": "Label aksi dua kata harfiah yang kembali ke alasan keputusan.",
+  "admin.community.jam": "Satuan durasi sehari-hari; angka dan satuan harus konsisten.",
   "shell.nav.community": "Nama halaman harus sama di menu dan judul agar mudah dicocokkan.",
   "community.judul": "Nama halaman, konsisten dengan menu Komunitas.",
   "community.member.join":

@@ -19,6 +19,10 @@ import {
 import { createCommunityContentController } from "./controllers/content.controller.js";
 import { registerCommunityContent } from "./routers/content.js";
 import { createCommunityContentExports } from "./services/content-export.service.js";
+import { createCommunityAdminRepository } from "./repositories/admin.repository.js";
+import { createCommunityAdminService } from "./services/admin.service.js";
+import { createCommunityAdminController } from "./controllers/admin.controller.js";
+import { registerCommunityAdmin } from "./routers/admin.js";
 
 export function createCommunityModule(deps: {
   prisma: AppPrisma;
@@ -44,6 +48,13 @@ export function createCommunityModule(deps: {
   });
   const controller = createCommunityController(service);
   const router = createCommunityRouter(controller, deps.routes);
+  registerCommunityAdmin(
+    createCommunityAdminController(
+      createCommunityAdminService(createCommunityAdminRepository(deps.prisma), content),
+    ),
+    controller,
+    deps.routes,
+  );
   registerCommunityContent(
     createCommunityContentController(content),
     controller,
