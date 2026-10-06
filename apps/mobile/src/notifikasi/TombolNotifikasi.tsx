@@ -8,6 +8,8 @@ import { apiClient } from "../api";
 import { antreanTautan } from "../navigation/PantauTautan";
 import { useSub } from "../query";
 import { kabarNotifikasi } from "./instans";
+import { useNavigation, type NavigationProp } from "@react-navigation/native";
+import type { RootStackParamList } from "../navigation/types";
 
 function TombolNotifikasi() {
   const sub = useSub();
@@ -70,7 +72,8 @@ function TombolNotifikasi() {
 
 /** Header dapat membungkus pada font besar; tombol tetap punya label teks. */
 export function HeaderNotifikasi({ judul }: { judul: string }) {
-  const { warna, skalaTeks } = useTokenA11y();
+  const nav = useNavigation<NavigationProp<RootStackParamList>>();
+  const { warna, skalaTeks, targetSentuh } = useTokenA11y();
   const adaBanner = useStore(kabarNotifikasi.store, (s) => s.siap && s.banner !== null);
   return (
     <SafeAreaView edges={adaBanner ? [] : ["top"]} style={{ backgroundColor: warna.latar }}>
@@ -98,6 +101,26 @@ export function HeaderNotifikasi({ judul }: { judul: string }) {
           {judul}
         </Text>
         <TombolNotifikasi />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Pengaturan aksesibilitas cepat"
+          onPress={() =>
+            nav.navigate("Utama", {
+              screen: "Profil",
+              params: { screen: "Aksesibilitas", initial: false },
+            })
+          }
+          style={{
+            minWidth: targetSentuh,
+            minHeight: targetSentuh,
+            padding: 12,
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: warna.teks, fontSize: UKURAN_HURUF.label * skalaTeks }}>
+            Aksesibilitas
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

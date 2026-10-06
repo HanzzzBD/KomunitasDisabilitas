@@ -168,7 +168,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     const { router } = renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
-    const tautan = screen.getByRole("link", { name: "Ringkasan" });
+    const tautan = screen.getByRole("link", { name: "Dashboard" });
     tautan.focus();
     expect(tautan).toHaveFocus();
     await userEvent.keyboard("{Enter}");
@@ -199,7 +199,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("navigasi punya TUJUH entri termasuk Komunitas", async () => {
+  it("tujuh tujuan admin berurutan; fitur pendukung tetap tersedia", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
@@ -209,13 +209,13 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
         .getAllByRole("link")
         .map((l) => l.textContent),
     ).toEqual([
-      "Ringkasan",
-      "Perusahaan",
+      "Dashboard",
       "Lowongan",
+      "Perusahaan",
       "Lamaran",
       "Pengguna",
-      "Kamus BISINDO",
-      "Komunitas",
+      "Moderasi",
+      "Analytics",
     ]);
   });
 });

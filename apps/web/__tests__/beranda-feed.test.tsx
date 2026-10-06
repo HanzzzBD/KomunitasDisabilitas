@@ -75,6 +75,13 @@ function klienPalsu(opsi: OpsiKlien) {
       }
       const method = o?.method ?? "GET";
       jejak.push({ path, method });
+      if (path === "/me")
+        return Promise.resolve({
+          data: { fullName: "Rina Pratiwi", role: "seeker" },
+        }) as Promise<never>;
+      if (path.startsWith("/me/resumes")) return Promise.resolve({ data: [] }) as Promise<never>;
+      if (path.startsWith("/me/applications"))
+        return Promise.resolve({ data: [], meta: { nextCursor: null } }) as Promise<never>;
       if (path.startsWith("/me/notifications")) {
         return Promise.resolve({
           data: [],
@@ -115,13 +122,17 @@ function klienPalsu(opsi: OpsiKlien) {
 
 function renderBeranda(
   opsi: OpsiKlien,
-  { status = "masuk", sederhana = false }: { status?: StatusSesi; sederhana?: boolean } = {},
+  {
+    status = "masuk",
+    sederhana = false,
+    jalur = "/home/rekomendasi",
+  }: { status?: StatusSesi; sederhana?: boolean; jalur?: string } = {},
 ) {
   useStoreSesi.setState({ status });
   const { klien, jejak } = klienPalsu(opsi);
   const a11y = createA11yStore({ storage: memori() });
   if (sederhana) a11y.getState().setPreferensi({ simpleLanguage: true });
-  const router = createMemoryRouter(ruteApp, { initialEntries: ["/"] });
+  const router = createMemoryRouter(ruteApp, { initialEntries: [jalur] });
   const hasil = render(
     <Providers queryClient={createQueryClient()} klienApi={klien} a11yStore={a11y}>
       <RouterProvider router={router} />
@@ -140,8 +151,34 @@ afterEach(() => {
 });
 
 describe("alamat '/' memilih isinya dari sesi", () => {
+  it("Beranda personal merangkum profil/CV/lamaran dan membatasi rekomendasi", async () => {
+    renderBeranda(
+      { halaman1: { data: [item(1), item(2), item(3), item(4)], meta: meta() } },
+      { jalur: "/" },
+    );
+    await tungguFeed("Beranda");
+    expect(await screen.findByText("Selamat datang, Rina Pratiwi.")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("progressbar", { name: "Kelengkapan profil dasar" }),
+    ).toHaveAttribute("value", "2");
+    expect(await screen.findByText("Anda memiliki 0 CV.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Belum ada lamaran. Temukan pekerjaan yang sesuai di Lowongan."),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Lowongan 3" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Lowongan 4" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Lihat semua rekomendasi" })).toHaveAttribute(
+      "href",
+      "/home/rekomendasi",
+    );
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    await harusLolosAksesibilitas(document.body);
+  });
   it("belum masuk → landing; tidak ada permintaan feed", async () => {
-    const { jejak } = renderBeranda({ halaman1: { data: [], meta: meta() } }, { status: "keluar" });
+    const { jejak } = renderBeranda(
+      { halaman1: { data: [], meta: meta() } },
+      { status: "keluar", jalur: "/" },
+    );
     expect(
       await screen.findByRole("link", { name: /daftar/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
@@ -149,17 +186,17 @@ describe("alamat '/' memilih isinya dari sesi", () => {
   });
 
   it("sesi masih dipulihkan → tidak menebak (tanpa landing, tanpa feed)", async () => {
-    renderBeranda({ halaman1: { data: [], meta: meta() } }, { status: "memulihkan" });
+    renderBeranda({ halaman1: { data: [], meta: meta() } }, { status: "memulihkan", jalur: "/" });
     expect(
       await screen.findByText(/memulihkan|memeriksa/i, {}, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
 
-  it("flag VITE_MATCHING_FEED_ENABLED=false → halaman cari lowongan (rollback)", async () => {
+  it("flag feed mati → Beranda personal tetap tersedia tanpa rekomendasi", async () => {
     vi.stubEnv("VITE_MATCHING_FEED_ENABLED", "false");
-    const { jejak } = renderBeranda({ halaman1: { data: [], meta: meta() } });
-    await tungguFeed("Cari Lowongan");
+    const { jejak } = renderBeranda({ halaman1: { data: [], meta: meta() } }, { jalur: "/" });
+    await tungguFeed("Beranda");
     expect(jejak.some((j) => j.path.startsWith("/me/matches"))).toBe(false);
   });
 });

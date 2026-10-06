@@ -8,7 +8,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { feedUji, palsukanApi, tungguGayaTenang } from "./palsukan-api.js";
 
 const TAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-const HALAMAN = { nama: "beranda — feed (alur)", jalur: "/", butuhSesi: true } as const;
+const HALAMAN = {
+  nama: "beranda — feed (alur)",
+  jalur: "/home/rekomendasi",
+  butuhSesi: true,
+} as const;
 
 async function bukaFeed(page: Page, meta?: Record<string, unknown>) {
   await palsukanApi(page, HALAMAN);
@@ -24,7 +28,7 @@ async function bukaFeed(page: Page, meta?: Record<string, unknown>) {
       }),
     );
   }
-  await page.goto("/");
+  await page.goto("/home/rekomendasi");
   await expect(page.getByRole("heading", { level: 1, name: "Lowongan untuk Anda" })).toBeVisible();
 }
 
@@ -80,7 +84,7 @@ test.describe("beranda seeker — feed matching", () => {
       page.getByRole("heading", { level: 1, name: "Analis Data Bandung" }),
     ).toBeVisible();
     await page.getByRole("link", { name: "Kembali ke daftar lowongan" }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/home\/rekomendasi$/);
 
     await expect(
       page.getByRole("link", { name: /Lihat detail lowongan Analis Data Bandung/ }),

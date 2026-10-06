@@ -162,7 +162,10 @@ function IsiLamar(props: Props & { onSibuk: (nilai: boolean) => void }) {
           nonaktif={sibuk}
           onPress={() => {
             props.tutup();
-            nav.navigate("CvEditor", { id: cvId });
+            nav.navigate("Utama", {
+              screen: "Cv",
+              params: { screen: "CvEditor", params: { id: cvId }, initial: false },
+            });
           }}
         />
       ) : null}
@@ -173,7 +176,10 @@ function IsiLamar(props: Props & { onSibuk: (nilai: boolean) => void }) {
         sibuk={sibuk}
         onProfil={() => {
           props.tutup();
-          nav.navigate("ProfilSensitif");
+          nav.navigate("Utama", {
+            screen: "Profil",
+            params: { screen: "ProfilSensitif", initial: false },
+          });
         }}
       />
       <Tombol

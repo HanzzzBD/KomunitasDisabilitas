@@ -18,25 +18,14 @@ import { analitik, analitikSiap } from "./analitik/instans";
 import { pathAnalitik } from "./analitik/rute";
 import { TabUtama } from "./navigation/TabUtama";
 import { onboardingStore } from "./onboarding/instans";
-import type { RootStackParamList } from "./navigation/types";
+import type { RootNavigatorParamList } from "./navigation/types";
+import { AuthStack, OnboardingStack } from "./navigation/StackUtama";
 import { queryClient, saatKeluar } from "./query";
-import { CvBagianScreen } from "./screens/cv/CvBagianScreen";
-import { CvEditorScreen } from "./screens/cv/CvEditorScreen";
-import { LowonganDetailScreen } from "./screens/lowongan/LowonganDetailScreen";
-import { LamaranDetailScreen } from "./screens/lamaran/LamaranDetailScreen";
-import { NotifikasiScreen } from "./screens/notifikasi/NotifikasiScreen";
 import { BannerNotifikasi } from "./notifikasi/BannerNotifikasi";
 import { PantauNotifikasi } from "./notifikasi/PantauNotifikasi";
-import { MasukScreen } from "./screens/MasukScreen";
-import { OnboardingScreen } from "./screens/OnboardingScreen";
-import { KarierFormScreen } from "./screens/profil/KarierFormScreen";
-import { KarierScreen } from "./screens/profil/KarierScreen";
-import { ProfilDasarScreen } from "./screens/profil/ProfilDasarScreen";
-import { ProfilSensitifScreen } from "./screens/profil/ProfilSensitifScreen";
 import { MemulihkanScreen, TerputusScreen } from "./screens/StatusSesiScreen";
-import { VerifikasiScreen } from "./screens/VerifikasiScreen";
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootNavigatorParamList>();
 
 // PDF CV di cache berkas memuat kontak pribadi — ikut dibuang saat keluar.
 saatKeluar(hapusPdfCv);
@@ -88,68 +77,19 @@ function Navigasi() {
             headerTintColor: warna.teks,
             contentStyle: { backgroundColor: warna.latar },
             animation: kurangiGerak ? "none" : "default",
+            headerShown: false,
           }}
         >
           {status === "masuk" && onboarding === "perlu" ? (
             <Stack.Screen
-              name="Onboarding"
-              component={OnboardingScreen}
+              name="OnboardingFlow"
+              component={OnboardingStack}
               options={{ title: "Atur aplikasi" }}
             />
           ) : status === "masuk" ? (
-            <>
-              <Stack.Screen name="Utama" component={TabUtama} options={{ headerShown: false }} />
-              <Stack.Screen
-                name="ProfilDasar"
-                component={ProfilDasarScreen}
-                options={{ title: "Data dasar" }}
-              />
-              <Stack.Screen
-                name="ProfilSensitif"
-                component={ProfilSensitifScreen}
-                options={{ title: "Disabilitas dan akomodasi" }}
-              />
-              <Stack.Screen name="Karier" component={KarierScreen} options={{ title: "Profil" }} />
-              <Stack.Screen
-                name="KarierForm"
-                component={KarierFormScreen}
-                options={{ title: "Profil" }}
-              />
-              <Stack.Screen
-                name="CvEditor"
-                component={CvEditorScreen}
-                options={{ title: "Ubah CV" }}
-              />
-              <Stack.Screen
-                name="CvBagian"
-                component={CvBagianScreen}
-                options={{ title: "Ubah CV" }}
-              />
-              <Stack.Screen
-                name="LowonganDetail"
-                component={LowonganDetailScreen}
-                options={{ title: "Detail lowongan" }}
-              />
-              <Stack.Screen
-                name="LamaranDetail"
-                component={LamaranDetailScreen}
-                options={{ title: "Perkembangan lamaran" }}
-              />
-              <Stack.Screen
-                name="Notifikasi"
-                component={NotifikasiScreen}
-                options={{ title: "Notifikasi" }}
-              />
-            </>
+            <Stack.Screen name="Utama" component={TabUtama} />
           ) : (
-            <>
-              <Stack.Screen name="Masuk" component={MasukScreen} options={{ title: "Masuk" }} />
-              <Stack.Screen
-                name="Verifikasi"
-                component={VerifikasiScreen}
-                options={{ title: "Kode masuk" }}
-              />
-            </>
+            <Stack.Screen name="Auth" component={AuthStack} />
           )}
         </Stack.Navigator>
       </View>

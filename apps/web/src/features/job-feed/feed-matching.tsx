@@ -54,6 +54,7 @@ export interface FeedMatchingProps {
   fokusLowonganId?: string | null;
   onBukaLowongan?: (id: string) => void;
   onFokusDipulihkan?: () => void;
+  maxItems?: number;
 }
 
 export function FeedMatching({
@@ -62,6 +63,7 @@ export function FeedMatching({
   fokusLowonganId = null,
   onBukaLowongan,
   onFokusDipulihkan,
+  maxItems,
 }: FeedMatchingProps) {
   const t = useTeks();
   const queryClient = useQueryClient();
@@ -109,7 +111,8 @@ export function FeedMatching({
 
   const halaman = daftar.data?.pages ?? [];
   const meta = halaman[0]?.meta;
-  const items = halaman.flatMap((h) => h.data);
+  const semuaItems = halaman.flatMap((h) => h.data);
+  const items = maxItems === undefined ? semuaItems : semuaItems.slice(0, maxItems);
   const sisa = meta?.sisaRefresh ?? 0;
   const habis = meta !== undefined && sisa === 0;
 
@@ -186,7 +189,12 @@ export function FeedMatching({
       <section aria-labelledby="feed-daftar-judul" className="flex flex-col gap-4">
         {/* Tidak terlihat: `<h1>` halaman sudah menamai isinya. Ada untuk
             `aria-labelledby` dan sebagai sasaran fokus sesudah daftar diganti. */}
-        <h2 id="feed-daftar-judul" ref={judulDaftar} tabIndex={-1} className="sr-only">
+        <h2
+          id="feed-daftar-judul"
+          ref={judulDaftar}
+          tabIndex={-1}
+          className={maxItems === undefined ? "sr-only" : "text-2xl font-semibold"}
+        >
           {t("beranda.feed.daftarJudul")}
         </h2>
 
@@ -248,7 +256,7 @@ export function FeedMatching({
           </WilayahMemuat>
         )}
 
-        {daftar.hasNextPage ? (
+        {daftar.hasNextPage && maxItems === undefined ? (
           <Tombol
             varian="sekunder"
             disabled={daftar.isFetchingNextPage}
@@ -260,6 +268,12 @@ export function FeedMatching({
           </Tombol>
         ) : null}
       </section>
+
+      {maxItems !== undefined && (
+        <Link to="/home/rekomendasi" className="shell-nav-link underline">
+          {t("beranda.personal.semuaRekomendasi")}
+        </Link>
+      )}
 
       {/* Jembatan ke pencarian (keputusan owner 2026-09-30) — feed tidak punya
           filter sendiri; mencari dengan kriteria lain dilakukan di sana. */}

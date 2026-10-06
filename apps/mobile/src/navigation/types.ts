@@ -9,13 +9,13 @@ import type { NavigatorScreenParams } from "@react-navigation/native";
 import type { BagianCv } from "../cv/bagian";
 import type { JenisKarier } from "../profil/karier";
 
-/** Tab bawah (PR-092). PR-093: Beranda = feed, tab Cari. PR-094 menambah Lamaran. */
+/** Lima tab berurutan; setiap tab mempertahankan stack dan state sendiri. */
 export type TabParamList = {
-  Beranda: undefined;
-  Cari: undefined;
-  Lamaran: undefined;
-  Profil: undefined;
-  Cv: undefined;
+  Beranda: NavigatorScreenParams<HomeStackParamList> | undefined;
+  Cari: NavigatorScreenParams<JobsStackParamList> | undefined;
+  Lamaran: NavigatorScreenParams<ApplicationsStackParamList> | undefined;
+  Cv: NavigatorScreenParams<ResumeStackParamList> | undefined;
+  Profil: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 export type RootStackParamList = {
@@ -37,4 +37,43 @@ export type RootStackParamList = {
   LowonganDetail: { id: string };
   LamaranDetail: { id: string };
   Notifikasi: undefined;
+  BerandaRingkasan: undefined;
+  LowonganDaftar: undefined;
+  Rekomendasi: undefined;
+  LamaranDaftar: undefined;
+  CvDaftar: undefined;
+  ProfilUtama: undefined;
+  Aksesibilitas: undefined;
+  Pengaturan: undefined;
+  Bantuan: undefined;
+};
+
+export type HomeStackParamList = Pick<
+  RootStackParamList,
+  "BerandaRingkasan" | "Rekomendasi" | "LowonganDetail" | "Notifikasi"
+>;
+export type JobsStackParamList = Pick<RootStackParamList, "LowonganDaftar" | "LowonganDetail">;
+export type ApplicationsStackParamList = Pick<
+  RootStackParamList,
+  "LamaranDaftar" | "LamaranDetail"
+>;
+export type ResumeStackParamList = Pick<RootStackParamList, "CvDaftar" | "CvEditor" | "CvBagian">;
+export type ProfileStackParamList = Pick<
+  RootStackParamList,
+  | "ProfilUtama"
+  | "ProfilDasar"
+  | "ProfilSensitif"
+  | "Karier"
+  | "KarierForm"
+  | "Aksesibilitas"
+  | "Pengaturan"
+  | "Bantuan"
+>;
+export type AuthStackParamList = Pick<RootStackParamList, "Masuk" | "Verifikasi">;
+export type OnboardingStackParamList = Pick<RootStackParamList, "Onboarding">;
+/** Only these destinations are registered at the actual root. */
+export type RootNavigatorParamList = {
+  Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
+  OnboardingFlow: NavigatorScreenParams<OnboardingStackParamList> | undefined;
+  Utama: NavigatorScreenParams<TabParamList> | undefined;
 };

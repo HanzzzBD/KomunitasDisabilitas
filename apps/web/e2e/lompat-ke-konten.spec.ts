@@ -45,7 +45,7 @@ for (const halaman of BERKERANGKA) {
     await page.keyboard.press("Tab");
 
     const terfokus = page.locator(":focus");
-    await expect(terfokus).toHaveText("Lompat ke konten utama");
+    await expect(terfokus).toHaveText("Langsung ke konten utama");
 
     // Terlihat SETELAH difokus. Tautan yang tetap 1×1 piksel saat difokus tidak
     // bisa dilihat pengguna keyboard awas — ia menekan Tab, tidak melihat apa

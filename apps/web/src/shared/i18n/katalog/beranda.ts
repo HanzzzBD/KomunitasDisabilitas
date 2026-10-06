@@ -13,6 +13,41 @@
 import type { KatalogFitur } from "../tipe.js";
 
 export const katalogBeranda = {
+  "beranda.personal.penjelasan": {
+    id: "Siapkan langkah karier berikutnya. Profil, CV, dan kabar lamaran Anda ada di sini.",
+    "id-simple": "Lihat profil, CV, dan kabar lamaran Anda di sini.",
+  },
+  "beranda.personal.salam": { id: "Selamat datang, {nama}.", "id-simple": "Halo, {nama}." },
+  "beranda.personal.profil": {
+    id: "Kelengkapan profil dasar",
+    "id-simple": "Isi profil dasar Anda",
+  },
+  "beranda.personal.progress": {
+    id: "{jumlah} dari 4 bagian terisi: judul profil, ringkasan, kota, dan provinsi.",
+    "id-simple":
+      "{jumlah} dari 4 bagian sudah diisi. Bagian ini adalah judul profil, ringkasan, kota, dan provinsi.",
+  },
+  "beranda.personal.lengkapi": { id: "Lengkapi profil", "id-simple": "Isi profil Anda" },
+  "beranda.personal.cvJumlah": {
+    id: "Anda memiliki {jumlah} CV.",
+    "id-simple": "Anda punya {jumlah} CV.",
+  },
+  "beranda.personal.siapkanCv": { id: "Siapkan CV saya", "id-simple": "Buka dan siapkan CV" },
+  "beranda.personal.lamaran": { id: "Lamaran terbaru", "id-simple": "Lamaran terbaru" },
+  "beranda.personal.belumLamaran": {
+    id: "Belum ada lamaran. Temukan pekerjaan yang sesuai di Lowongan.",
+    "id-simple": "Anda belum melamar. Cari pekerjaan di Lowongan.",
+  },
+  "beranda.personal.detailLamaran": { id: "Detail lamaran", "id-simple": "Buka lamaran" },
+  "beranda.personal.semuaLamaran": { id: "Lihat semua lamaran", "id-simple": "Buka semua lamaran" },
+  "beranda.personal.semuaRekomendasi": {
+    id: "Lihat semua rekomendasi",
+    "id-simple": "Buka semua pekerjaan yang cocok",
+  },
+  "beranda.personal.gagal": {
+    id: "Ringkasan belum bisa dimuat. Anda dapat membuka halamannya untuk mencoba lagi.",
+    "id-simple": "Ringkasan tidak bisa dibuka. Buka halaman ini untuk mencoba lagi.",
+  },
   // --- Hero ---
   "beranda.hero.judul": {
     id: "Cari kerja tanpa hambatan",

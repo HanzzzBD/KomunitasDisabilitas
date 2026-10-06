@@ -1,10 +1,10 @@
 // Halaman "/" — landing publik (PR-032a) ATAU beranda seeker (PR-074).
 //
 // SATU ALAMAT, DUA ISI (keputusan owner 2026-09-30): pengunjung yang belum
-// masuk melihat landing; pengguna yang sudah masuk melihat feed matching
+// masuk melihat landing; pengguna yang sudah masuk melihat ringkasan personal
 // (`beranda-seeker.tsx`) — tanpa mengubah tujuan pengalihan sesudah login,
 // yang sejak PR-030 memang "/". Flag `VITE_MATCHING_FEED_ENABLED=false`
-// mengganti feed dengan halaman cari lowongan (Rollback Strategy PR-074).
+// menyembunyikan rekomendasi tanpa mengganti Beranda dengan pencarian.
 //
 // SELAMA SESI DIPULIHKAN, TIDAK ADA YANG DITEBAK. Menampilkan landing lalu
 // menggantinya dengan feed begitu jawaban `/auth/refresh` tiba adalah
@@ -26,7 +26,6 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 import { Kartu, WilayahMemuat } from "@nawasena/ui";
-import { feedMatchingAktif } from "../features/job-feed/bendera.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import { usePeranSesi } from "../shared/sesi/peran.js";
 import { muatKatalog } from "../shared/i18n/index.js";
@@ -44,16 +43,9 @@ import { useJudulHalaman } from "../shared/judul-halaman.js";
 const BerandaSeeker = lazy(async () => {
   const [modul] = await Promise.all([
     import("./beranda-seeker.js"),
-    muatKatalog("lowongan", "companies", "profil"),
+    muatKatalog("lowongan", "companies", "profil", "pelamar"),
   ]);
   return { default: modul.BerandaSeeker };
-});
-const LowonganBrowse = lazy(async () => {
-  const [modul] = await Promise.all([
-    import("./lowongan-browse.js"),
-    muatKatalog("lowongan", "companies", "profil"),
-  ]);
-  return { default: modul.LowonganBrowse };
 });
 
 /**
@@ -82,7 +74,7 @@ export function Beranda() {
   if (status === "masuk" && peran !== "employer") {
     return (
       <Suspense fallback={memuat}>
-        {feedMatchingAktif() ? <BerandaSeeker /> : <LowonganBrowse />}
+        <BerandaSeeker />
       </Suspense>
     );
   }

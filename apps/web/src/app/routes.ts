@@ -5,6 +5,7 @@
 // `createBrowserRouter`, test terpaksa merakit daftarnya sendiri — dan daftar
 // kedua itu bebas menyimpang tanpa ada yang tahu.
 import type { RouteObject } from "react-router";
+import { redirect } from "react-router";
 import { TataLetak } from "./tata-letak.js";
 import { LayarKesalahan } from "./kesalahan.js";
 import { Beranda } from "../routes/beranda.js";
@@ -49,6 +50,58 @@ export const ruteApp: RouteObject[] = [
     // tetap `.ts` murni data, tanpa satu pun markup.
     ErrorBoundary: LayarKesalahan,
     children: [
+      ...(
+        [
+          ["jobs", "lowongan"],
+          ["applications", "lamaran"],
+          ["resumes", "cv"],
+          ["profile", "profil"],
+          ["accessibility", "pengaturan/aksesibilitas"],
+          ["notifications", "notifikasi"],
+          ["settings", "pengaturan"],
+        ] as const
+      ).map(
+        ([alias, tujuan]): RouteObject => ({
+          path: `${alias}/*`,
+          loader: ({ params, request }) => {
+            const url = new URL(request.url);
+            const sisa = params["*"];
+            return redirect(`/${tujuan}${sisa ? `/${sisa}` : ""}${url.search}`);
+          },
+        }),
+      ),
+      {
+        path: "home",
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const [{ BerandaSeeker }] = await Promise.all([
+                import("../routes/beranda-seeker.js"),
+                muatKatalog("beranda", "lowongan", "companies", "profil", "pelamar"),
+              ]);
+              return { Component: BerandaSeeker };
+            },
+          },
+          {
+            path: "rekomendasi",
+            lazy: async () => {
+              const [{ RekomendasiSeeker }] = await Promise.all([
+                import("../routes/beranda-seeker.js"),
+                muatKatalog("beranda", "lowongan", "companies", "profil", "pelamar"),
+              ]);
+              return { Component: RekomendasiSeeker };
+            },
+          },
+        ],
+      },
+      {
+        path: "help",
+        lazy: async () => {
+          const { Bantuan } = await import("../routes/bantuan.js");
+          return { Component: Bantuan };
+        },
+      },
       {
         index: true,
         // Landing kecil tersedia bersama shell agar 3G tidak menunggu satu
@@ -200,35 +253,65 @@ export const ruteApp: RouteObject[] = [
         // Daftar dan editor CV manual (PR-061). Keduanya terlindungi di dalam
         // komponen, dan katalog resume dimuat bersama route masing-masing.
         path: "cv",
-        lazy: async () => {
-          const [{ DaftarCv }] = await Promise.all([
-            import("../routes/cv.js"),
-            muatKatalog("resume"),
-          ]);
-          return { Component: DaftarCv };
-        },
-      },
-      {
-        // AI CV Builder (PR-068). Statis, jadi react-router memilihnya di atas
-        // `cv/:id` apa pun urutannya — ditulis lebih dulu supaya terbaca begitu.
-        path: "cv/chat",
-        lazy: async () => {
-          const [{ ChatCv }] = await Promise.all([
-            import("../routes/cv-chat.js"),
-            muatKatalog("resume"),
-          ]);
-          return { Component: ChatCv };
-        },
-      },
-      {
-        path: "cv/:id",
-        lazy: async () => {
-          const [{ CvEditor }] = await Promise.all([
-            import("../routes/cv-editor.js"),
-            muatKatalog("resume"),
-          ]);
-          return { Component: CvEditor };
-        },
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const [{ DaftarCv }] = await Promise.all([
+                import("../routes/cv.js"),
+                muatKatalog("resume"),
+              ]);
+              return { Component: DaftarCv };
+            },
+          },
+          {
+            path: "new",
+            lazy: async () => {
+              const [{ CvBaru }] = await Promise.all([
+                import("../routes/cv-baru.js"),
+                muatKatalog("resume"),
+              ]);
+              return { Component: CvBaru };
+            },
+          },
+          {
+            // AI CV Builder (PR-068). Statis, jadi react-router memilihnya di atas
+            // `cv/:id` apa pun urutannya — ditulis lebih dulu supaya terbaca begitu.
+            path: "chat",
+            lazy: async () => {
+              const [{ ChatCv }] = await Promise.all([
+                import("../routes/cv-chat.js"),
+                muatKatalog("resume"),
+              ]);
+              return { Component: ChatCv };
+            },
+          },
+          {
+            path: ":id",
+            children: [
+              {
+                index: true,
+                lazy: async () => {
+                  const [{ CvEditor }] = await Promise.all([
+                    import("../routes/cv-editor.js"),
+                    muatKatalog("resume"),
+                  ]);
+                  return { Component: CvEditor };
+                },
+              },
+              {
+                path: "edit",
+                lazy: async () => {
+                  const [{ CvEditor }] = await Promise.all([
+                    import("../routes/cv-editor.js"),
+                    muatKatalog("resume"),
+                  ]);
+                  return { Component: CvEditor };
+                },
+              },
+            ],
+          },
+        ],
       },
       {
         // Onboarding aksesibilitas (PR-035) — SAUDARA `pengaturan`, bukan
@@ -262,6 +345,36 @@ export const ruteApp: RouteObject[] = [
           return { Component: Admin };
         },
         children: [
+          {
+            path: "analytics",
+            lazy: async () => {
+              const [{ AdminAnalytics }] = await Promise.all([
+                import("../routes/admin-analytics.js"),
+                muatKatalog("admin"),
+              ]);
+              return { Component: AdminAnalytics };
+            },
+          },
+          {
+            path: "settings",
+            lazy: async () => {
+              const [{ PengaturanAksesibilitas }] = await Promise.all([
+                import("../routes/pengaturan-aksesibilitas.js"),
+                muatKatalog("pengaturan", "onboarding"),
+              ]);
+              return { Component: PengaturanAksesibilitas };
+            },
+          },
+          {
+            path: "account",
+            lazy: async () => {
+              const [{ PengaturanAkun }] = await Promise.all([
+                import("../routes/pengaturan-akun.js"),
+                muatKatalog("pengaturan", "auth"),
+              ]);
+              return { Component: PengaturanAkun };
+            },
+          },
           {
             // Panel indeks: "/admin" langsung menampilkan Ringkasan, dengan
             // alasan yang sama seperti indeks `/pengaturan` — alamat indeks
@@ -545,56 +658,80 @@ export const ruteApp: RouteObject[] = [
         // yang sama: halaman publik, sering tanpa sesi, tanpa penjagaan sama
         // sekali (`GET /jobs` publik di server, PR-056).
         path: "lowongan",
-        lazy: async () => {
-          const [{ LowonganBrowse }] = await Promise.all([
-            import("../routes/lowongan-browse.js"),
-            // `companies` ikut: taksonomi jenis/mode kerja dipinjam dari
-            // katalognya (`companies.lowongan.tipe.*`/`mode.*`, lihat
-            // `features/job-feed/kartu-lowongan.tsx`). `profil` ikut: label
-            // akomodasi, dipinjam LEWAT `DaftarAkomodasi` yang sudah ada.
-            muatKatalog("lowongan", "companies", "profil"),
-          ]);
-          return { Component: LowonganBrowse };
-        },
-      },
-      {
-        // Detail lowongan (PR-059, FR-4.4) — SAUDARA `lowongan`, bukan
-        // anaknya: halaman PENUH, tidak berbagi kerangka dengan daftar
-        // (pola sama `admin/companies` dan `companies/baru`).
-        path: "lowongan/:id",
-        lazy: async () => {
-          const [{ LowonganDetail }] = await Promise.all([
-            import("../routes/lowongan-detail.js"),
-            // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
-            // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
-            // label ragam disabilitas yang disambut (`RAGAM`).
-            // `pelamar` (PR-079): kotak "sudah melamar" membaca label status.
-            muatKatalog("lowongan", "companies", "profil", "onboarding", "pelamar"),
-          ]);
-          return { Component: LowonganDetail };
-        },
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const [{ LowonganBrowse }] = await Promise.all([
+                import("../routes/lowongan-browse.js"),
+                // `companies` ikut: taksonomi jenis/mode kerja dipinjam dari
+                // katalognya (`companies.lowongan.tipe.*`/`mode.*`, lihat
+                // `features/job-feed/kartu-lowongan.tsx`). `profil` ikut: label
+                // akomodasi, dipinjam LEWAT `DaftarAkomodasi` yang sudah ada.
+                muatKatalog("lowongan", "companies", "profil"),
+              ]);
+              return { Component: LowonganBrowse };
+            },
+          },
+          {
+            // Prefix tanpa komponen mengelompokkan detail dan aksi melamar.
+            // Detail tetap halaman penuh, tanpa merender daftar di belakangnya.
+            path: ":id",
+            children: [
+              {
+                index: true,
+                lazy: async () => {
+                  const [{ LowonganDetail }] = await Promise.all([
+                    import("../routes/lowongan-detail.js"),
+                    // `companies`: taksonomi jenis/mode kerja + badge verifikasi.
+                    // `profil`: label akomodasi (`DaftarAkomodasi`). `onboarding`:
+                    // label ragam disabilitas yang disambut (`RAGAM`).
+                    // `pelamar` (PR-079): kotak "sudah melamar" membaca label status.
+                    muatKatalog("lowongan", "companies", "profil", "onboarding", "pelamar"),
+                  ]);
+                  return { Component: LowonganDetail };
+                },
+              },
+              {
+                path: "apply",
+                loader: ({ params, request }) => {
+                  const url = new URL(request.url);
+                  url.searchParams.set("lamar", "1");
+                  return redirect(
+                    `/lowongan/${encodeURIComponent(params.id ?? "")}?${url.searchParams.toString()}`,
+                  );
+                },
+              },
+            ],
+          },
+        ],
       },
       {
         // "Lamaran Saya" (PR-079) — daftar + detail, keduanya terlindungi.
         path: "lamaran",
-        lazy: async () => {
-          const [{ LamaranSaya }] = await Promise.all([
-            import("../routes/lamaran.js"),
-            muatKatalog("pelamar"),
-          ]);
-          return { Component: LamaranSaya };
-        },
-      },
-      {
-        // Tujuan tautan notifikasi pelamar (`features/notifikasi/tautan.ts`).
-        path: "lamaran/:id",
-        lazy: async () => {
-          const [{ LamaranDetail }] = await Promise.all([
-            import("../routes/lamaran-detail.js"),
-            muatKatalog("pelamar"),
-          ]);
-          return { Component: LamaranDetail };
-        },
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const [{ LamaranSaya }] = await Promise.all([
+                import("../routes/lamaran.js"),
+                muatKatalog("pelamar"),
+              ]);
+              return { Component: LamaranSaya };
+            },
+          },
+          {
+            // Tujuan tautan notifikasi pelamar (`features/notifikasi/tautan.ts`).
+            path: ":id",
+            lazy: async () => {
+              const [{ LamaranDetail }] = await Promise.all([
+                import("../routes/lamaran-detail.js"),
+                muatKatalog("pelamar"),
+              ]);
+              return { Component: LamaranDetail };
+            },
+          },
+        ],
       },
       {
         // Menangkap URL asing. Tanpa ini, alamat salah ketik jatuh ke layar

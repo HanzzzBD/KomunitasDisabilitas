@@ -22,6 +22,7 @@ import { listNotifications, notificationsKeys } from "@nawasena/api-client";
 import { useKlienApi } from "./klien-api.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useTeks } from "../shared/i18n/index.js";
+import { IkonNavigasi } from "./ikon-navigasi.js";
 
 export function LencanaNotifikasi() {
   const t = useTeks();
@@ -56,7 +57,10 @@ export function LencanaNotifikasi() {
         }
         className="shell-tool inline-flex min-h-sentuh items-center gap-2 text-sm"
       >
-        <span aria-hidden="true">{t("shell.notifikasi.lencanaKosong")}</span>
+        <IkonNavigasi nama="notifikasi" />
+        <span aria-hidden="true" className="shell-notification-label">
+          {t("shell.notifikasi.lencanaKosong")}
+        </span>
         {jumlah > 0 ? (
           // `aria-hidden`: angkanya sudah ikut di `aria-label` tautan. Tanpa
           // ini screen reader membacakannya dua kali.

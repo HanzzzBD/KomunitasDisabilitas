@@ -11,6 +11,8 @@ import { useTeks } from "../shared/i18n/index.js";
 import { NavigasiWeb } from "./navigasi-web.js";
 import { usePeranSesi } from "../shared/sesi/peran.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
+import { FokusRute } from "./fokus-rute.js";
+import { Breadcrumb } from "./breadcrumb.js";
 import {
   idPenggunaSaatIni,
   sudahOnboarding,
@@ -115,6 +117,7 @@ export function TataLetak() {
   // Pemisahan ruang kerja adalah UX. API tetap memeriksa sesi, role, dan
   // kepemilikan data; halaman publik serta setelan bersama tetap terbuka.
   const jalurSeeker =
+    lokasi.pathname === "/home" ||
     lokasi.pathname === "/profil" ||
     lokasi.pathname === "/onboarding" ||
     lokasi.pathname === "/cv" ||
@@ -158,7 +161,9 @@ export function TataLetak() {
   }
 
   return (
-    <div className="shell-app">
+    <div
+      className={`shell-app ${peran === "seeker" && !JALUR_DIKECUALIKAN.includes(lokasi.pathname) ? "shell-app-career" : ""}`}
+    >
       {/*
         TAUTAN LOMPAT — elemen fokusabel PERTAMA di dokumen, dan itu keseluruhan
         gunanya. Pengguna keyboard yang mendarat di halaman berisi navigasi
@@ -191,6 +196,7 @@ export function TataLetak() {
       <PesanAksesDitolak />
 
       <NavigasiWeb masuk={status === "masuk"} peran={peran} />
+      <FokusRute />
 
       <BannerLuring />
 
@@ -211,6 +217,7 @@ export function TataLetak() {
         dimulai di tengah pergantian konten.
       */}
       <main id={ID_KONTEN_UTAMA} tabIndex={-1} aria-busy={sedangMemuat} className="shell-main">
+        <Breadcrumb />
         <div
           className={
             lokasi.pathname.startsWith("/admin") ? "shell-page shell-page-admin" : "shell-page"

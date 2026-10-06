@@ -86,7 +86,10 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil): ApiClient {
       // bacaan itu milik halaman tujuan, bukan wizard, dan tidak membawa satu
       // byte pun data pengguna — dibiarkan menggantung dan TIDAK dicatat,
       // perlakuan sama dengan infrastruktur di atas.
-      if ((opsi?.method ?? "GET") === "GET" && /^\/me\/(matches|profile)(\?|$)/.test(path)) {
+      if (
+        (opsi?.method ?? "GET") === "GET" &&
+        /^\/me\/(matches|profile|resumes|applications)(\?|$)/.test(path)
+      ) {
         return new Promise(() => {}) as Promise<never>;
       }
 

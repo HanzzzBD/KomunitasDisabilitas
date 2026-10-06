@@ -60,6 +60,18 @@ export interface HalamanDijaga {
 }
 
 export const HALAMAN: readonly HalamanDijaga[] = [
+  { nama: "Beranda personal", jalur: "/home", butuhSesi: true },
+  { nama: "Rekomendasi lengkap", jalur: "/home/rekomendasi", butuhSesi: true },
+  { nama: "Bantuan", jalur: "/help" },
+  { nama: "CV baru", jalur: "/cv/new", butuhSesi: true },
+  {
+    nama: "CV editor — alamat edit",
+    jalur: "/cv/01912345-89ab-7def-8123-4567890abf01/edit",
+    butuhSesi: true,
+  },
+  { nama: "Admin Analytics", jalur: "/admin/analytics", butuhAdmin: true },
+  { nama: "Admin pengaturan", jalur: "/admin/settings", butuhAdmin: true },
+  { nama: "Admin profil akun", jalur: "/admin/account", butuhAdmin: true },
   { nama: "admin Community — ruang", jalur: "/admin/community", butuhAdmin: true },
   { nama: "admin Community — buat", jalur: "/admin/community/ruang/baru", butuhAdmin: true },
   {

@@ -59,7 +59,9 @@ describe("ruteApp — bentuk", () => {
     expect(landing).toBeDefined();
     expect(landing?.Component).toBeDefined();
     expect(typeof landing?.loader).toBe("function");
-    for (const rute of halaman.filter((r) => r !== landing)) {
+    const daun = (routes: RouteObject[]): RouteObject[] =>
+      routes.flatMap((r) => (r.children ? daun(r.children) : [r]));
+    for (const rute of daun(halaman).filter((r) => r !== landing && r.loader === undefined)) {
       const nama = String(rute.path ?? "(index)");
       expect(typeof rute.lazy, `halaman ${nama} tidak lazy`).toBe("function");
       expect(rute.Component, `halaman ${nama} punya Component statis`).toBeUndefined();
@@ -98,4 +100,14 @@ describe("ruteApp — bentuk", () => {
     // dari sebabnya, jadi dikunci di sini.
     expect(anak.map((r) => r.path)).toContain("masuk");
   });
+
+  it.each(["lowongan", "lamaran", "cv", "home"])(
+    "%s mengelompokkan daftar dan halaman turunannya",
+    (path) => {
+      const r = anak.find((a) => a.path === path);
+      expect(r?.children?.some((c) => c.index)).toBe(true);
+      expect(r?.children?.some((c) => c.path)).toBe(true);
+      expect(r?.Component).toBeUndefined();
+    },
+  );
 });

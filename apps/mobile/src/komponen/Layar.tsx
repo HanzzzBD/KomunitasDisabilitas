@@ -4,8 +4,9 @@
 // layar yang muat tanpa gulir, dan isi yang terpotong tanpa bisa digulir
 // adalah isi yang hilang (AC PR-091 font ekstrem, berlaku juga di sini).
 import { UKURAN_HURUF, useTokenA11y } from "@nawasena/ui-native";
-import type { ReactNode } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { useCallback, useRef, type ReactNode } from "react";
+import { ActivityIndicator, AccessibilityInfo, ScrollView, Text, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 export function LayarGulir(props: { testID: string; children: ReactNode }) {
   const { warna } = useTokenA11y();
@@ -22,10 +23,25 @@ export function LayarGulir(props: { testID: string; children: ReactNode }) {
 }
 
 export function Judul(props: { children: string; tingkat?: 1 | 2 }) {
-  const { warna, skalaTeks } = useTokenA11y();
+  const { warna, skalaTeks, kurangiGerak } = useTokenA11y();
+  const nav = useNavigation();
+  const ref = useRef<Text>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (props.tingkat === 2) return;
+      const fokus = () => {
+        if (!nav.isFocused() || !ref.current) return;
+        AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");
+      };
+      const timer = setTimeout(fokus, kurangiGerak ? 0 : 350);
+      return () => clearTimeout(timer);
+    }, [nav, props.tingkat, kurangiGerak]),
+  );
   const besar = props.tingkat === 2 ? UKURAN_HURUF.isi + 2 : UKURAN_HURUF.judul;
   return (
     <Text
+      ref={ref}
+      accessible
       accessibilityRole="header"
       style={{ color: warna.teks, fontSize: besar * skalaTeks, fontWeight: "700" }}
     >

@@ -9,6 +9,42 @@
 import type { KatalogFitur } from "../tipe.js";
 
 export const katalogShell = {
+  "shell.help.pekerjaan": {
+    id: "Cari pekerjaan melalui kata kunci, lokasi, cara kerja, dan akomodasi. Buka detail lowongan untuk melamar.",
+    "id-simple":
+      "Cari pekerjaan dengan filter. Buka pekerjaan yang Anda pilih. Tekan Lamar untuk melamar.",
+  },
+  "shell.help.lamaran": {
+    id: "Pantau status lamaran dan buka detail untuk melihat perkembangan atau menarik lamaran.",
+    "id-simple":
+      "Lihat kabar lamaran Anda. Buka lamaran untuk melihat kabarnya atau membatalkannya.",
+  },
+  "shell.help.cv": {
+    id: "Buat CV dari profil atau melalui percakapan AI. Periksa isinya sebelum mengunduh PDF dan melamar.",
+    "id-simple":
+      "Buat CV dari profil Anda atau dengan bantuan AI. Periksa isi CV. Anda bisa mengunduh PDF.",
+  },
+  "shell.help.aksesibilitas": {
+    id: "Atur ukuran teks, kontras, gerakan, bahasa sederhana, ukuran tombol, dan preferensi BISINDO. Pilihan langsung berlaku.",
+    "id-simple":
+      "Perbesar huruf dan tombol. Atur warna, gerakan, bahasa, dan BISINDO. Pilihan langsung berlaku.",
+  },
+  "shell.nav.lamaran": { id: "Lamaran", "id-simple": "Lamaran" },
+  "shell.nav.cv": { id: "CV Saya", "id-simple": "CV Saya" },
+  "shell.nav.profil": { id: "Profil", "id-simple": "Profil" },
+  "shell.nav.aksesibilitas": { id: "Aksesibilitas", "id-simple": "Aksesibilitas" },
+  "shell.nav.bantuan": { id: "Bantuan", "id-simple": "Bantuan" },
+  "shell.nav.pendukung": { id: "Navigasi pendukung", "id-simple": "Menu pendukung" },
+  "shell.nav.akunMenu": { id: "Menu akun", "id-simple": "Menu akun" },
+  "shell.nav.keluar": { id: "Logout", "id-simple": "Keluar" },
+  "shell.nav.keluarGagal": {
+    id: "Belum bisa keluar. Coba lagi.",
+    "id-simple": "Belum bisa keluar. Coba lagi.",
+  },
+  "shell.cepat.judul": {
+    id: "Pengaturan aksesibilitas cepat",
+    "id-simple": "Atur aksesibilitas sekarang",
+  },
   "shell.nav.community": { id: "Komunitas", "id-simple": "Komunitas" },
   "shell.merek": {
     id: "Nawasena",
@@ -24,8 +60,8 @@ export const katalogShell = {
     id: "Masuk",
     "id-simple": "Masuk",
   },
-  "shell.nav.beranda": { id: "Beranda", "id-simple": "Halaman awal" },
-  "shell.nav.lowongan": { id: "Lowongan", "id-simple": "Lowongan kerja" },
+  "shell.nav.beranda": { id: "Beranda", "id-simple": "Beranda" },
+  "shell.nav.lowongan": { id: "Lowongan", "id-simple": "Lowongan" },
   "shell.nav.lowonganPublik": { id: "Lihat lowongan", "id-simple": "Buka lowongan kerja" },
   "shell.nav.kamusPublik": { id: "Lihat kamus", "id-simple": "Buka kamus isyarat" },
   "shell.nav.admin": { id: "Dashboard admin", "id-simple": "Halaman admin" },
@@ -39,9 +75,9 @@ export const katalogShell = {
     "id-simple": "Sebentar, halaman sedang dibuka…",
   },
   "shell.lompatKeKonten": {
-    id: "Lompat ke konten utama",
+    id: "Langsung ke konten utama",
     // "Konten" adalah kata yang dipakai pembuat situs, bukan pembacanya.
-    "id-simple": "Langsung ke isi halaman",
+    "id-simple": "Langsung ke konten utama",
   },
   // Nama landmark menu akun, berbeda dari navigasi bagian admin/setelan.
   "shell.pintas.label": {

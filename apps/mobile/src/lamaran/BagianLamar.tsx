@@ -40,7 +40,12 @@ export function BagianLamar({ jobId, judul }: { jobId: string; judul: string }) 
           <Tombol
             ref={pemicu}
             label="Lihat lamaran"
-            onPress={() => nav.navigate("LamaranDetail", { id: lamaran.id })}
+            onPress={() =>
+              nav.navigate("Utama", {
+                screen: "Lamaran",
+                params: { screen: "LamaranDetail", params: { id: lamaran.id }, initial: false },
+              })
+            }
           />
         </>
       ) : (
@@ -63,7 +68,10 @@ export function BagianLamar({ jobId, judul }: { jobId: string; judul: string }) 
           setPesan("Lamaran berhasil dikirim.");
           void qc.invalidateQueries({ queryKey: ["my-applications"] });
           track("lamar");
-          nav.navigate("LamaranDetail", { id: a.id });
+          nav.navigate("Utama", {
+            screen: "Lamaran",
+            params: { screen: "LamaranDetail", params: { id: a.id }, initial: false },
+          });
         }}
         sudahAda={() => {
           setTerbuka(false);

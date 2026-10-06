@@ -63,6 +63,9 @@ describe("registry mengikuti route yang benar-benar ada", () => {
     const telusuri = (rute: readonly RouteObject[], induk: string): void => {
       for (const r of rute) {
         if (r.path === "*") continue;
+        // Redirect aliases and action URLs have no page of their own. Their
+        // rendered destination is registered and checked in browser tests.
+        if (r.loader && !r.Component && !r.lazy && !r.children) continue;
         const jalur = (r.path === undefined ? induk : `${induk}/${r.path}`).replace(/\/+/g, "/");
         const anak = (r.children ?? []) as RouteObject[];
         if (anak.length > 0) telusuri(anak, jalur);

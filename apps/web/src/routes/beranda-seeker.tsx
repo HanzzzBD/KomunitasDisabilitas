@@ -13,7 +13,7 @@
 // belum punya preferensi mode kerja (hanya `openToRemote`, yang sengaja TIDAK
 // menyaring — lihat PR-070), jadi mode kerja tidak diisikan.
 import { useCallback, useState } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getProfile, profilesKeys } from "@nawasena/api-client";
 import { useKlienApi } from "../app/klien-api.js";
@@ -23,6 +23,9 @@ import { keParamPencarian } from "../features/job-feed/filter-url.js";
 import { idPenggunaSaatIni } from "../features/onboarding/identitas.js";
 import { useJudulHalaman } from "../shared/judul-halaman.js";
 import { useTeks } from "../shared/i18n/index.js";
+import { Terlindungi } from "../shared/rute/terlindungi.js";
+import { RingkasanBeranda } from "../features/beranda/ringkasan.js";
+import { feedMatchingAktif } from "../features/job-feed/bendera.js";
 
 const KUNCI_KEMBALI = "nawasena:beranda-kembali";
 
@@ -39,12 +42,30 @@ function bacaFokus(kunciLokasi: string): string | null {
 }
 
 export function BerandaSeeker() {
+  return (
+    <Terlindungi>
+      <IsiBeranda ringkasan />
+    </Terlindungi>
+  );
+}
+
+export function RekomendasiSeeker() {
+  return (
+    <Terlindungi>
+      <IsiBeranda ringkasan={false} />
+    </Terlindungi>
+  );
+}
+
+function IsiBeranda({ ringkasan }: { ringkasan: boolean }) {
   const t = useTeks();
   const klien = useKlienApi();
   const lokasi = useLocation();
   const [fokusId] = useState(() => bacaFokus(lokasi.key));
 
-  useJudulHalaman(t("shell.judulDokumen", { halaman: t("beranda.feed.judul") }));
+  useJudulHalaman(
+    t("shell.judulDokumen", { halaman: t(ringkasan ? "shell.nav.beranda" : "beranda.feed.judul") }),
+  );
 
   // Profil hanya untuk tautan "Cari lowongan lain"; gagal/memuat = tautan polos.
   const profil = useQuery({
@@ -73,17 +94,30 @@ export function BerandaSeeker() {
   return (
     <div className="page-frame page-frame-wide flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-gray-900">{t("beranda.feed.judul")}</h1>
-        <p className="text-base text-gray-900">{t("beranda.feed.penjelasan")}</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {t(ringkasan ? "shell.nav.beranda" : "beranda.feed.judul")}
+        </h1>
+        <p className="text-base text-gray-900">
+          {t(ringkasan ? "beranda.personal.penjelasan" : "beranda.feed.penjelasan")}
+        </p>
       </div>
 
-      <FeedMatching
-        klien={klien}
-        tautanCariLain={tautanCariLain}
-        fokusLowonganId={fokusId}
-        onBukaLowongan={catatBuka}
-        onFokusDipulihkan={fokusDipulihkan}
-      />
+      {ringkasan && <RingkasanBeranda klien={klien} sub={idPenggunaSaatIni()} />}
+
+      {feedMatchingAktif() ? (
+        <FeedMatching
+          klien={klien}
+          tautanCariLain={tautanCariLain}
+          fokusLowonganId={fokusId}
+          onBukaLowongan={catatBuka}
+          onFokusDipulihkan={fokusDipulihkan}
+          maxItems={ringkasan ? 3 : undefined}
+        />
+      ) : (
+        <Link to="/lowongan" className="shell-nav-link underline">
+          {t("shell.nav.lowongan")}
+        </Link>
+      )}
     </div>
   );
 }

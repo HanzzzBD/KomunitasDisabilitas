@@ -627,3 +627,30 @@ flag, dan rollout tetap menjadi gate PR-119. Implementasi PR-118 tidak menyataka
 bahwa prasyarat PR-112 produksi sudah terpenuhi. Tidak ada deploy/rollout pada task ini.
 
 Next: PR-119 — Community Readiness Gate.
+
+## Navigasi karier Web dan Mobile
+
+Tanggal: 6 Oktober 2026. Perubahan tambahan pada Phase 19.
+
+- Lima tujuan seeker berurutan: Beranda, Lowongan, Lamaran, CV, Profil. Web
+  memakai sidebar persisten desktop dan bottom navigation pada viewport kecil.
+  Notifikasi, aksesibilitas cepat, pengaturan akun dan bantuan menjadi utility.
+- Native tetap React Navigation dengan root Auth/Onboarding/MainTabs dan stack
+  per tab. Detail/editor mempertahankan tab; deep link dan push lama dipetakan
+  ke tujuan bersarang dengan halaman daftar tersedia untuk Back.
+- Beranda merangkum profil/CV/lamaran dan tiga rekomendasi, terpisah dari pencarian.
+  Admin memiliki tujuh tujuan sendiri. React Router v7, API, URL lama, dialog
+  melamar, callback OAuth dan store aksesibilitas dipertahankan.
+- Skip link, landmark bernama, state aktif nonwarna, breadcrumb, fokus heading,
+  pemulihan fokus dialog, target 44/56 dan reduce-motion diterapkan.
+- Lint/typecheck Web dan Mobile serta build Web/service worker lulus. Unit Web:
+  79 file/913 tes diperiksa; dua kegagalan katalog/label diperbaiki dan pengulangan
+  21 tes pada dua file terkait lulus. Mobile 185 tes logika dan 4 tes navigator
+  native lulus. Semua 308 tes browser lulus, lalu 11 tes navigasi/rekomendasi
+  lulus pada build akhir. Lighthouse desktop dan 3G accessibility 100.
+- NVDA/TalkBack masih memerlukan smoke test manusia; tidak ada perangkat Android
+  terhubung. Target iOS belum aktif. Implementasi tidak menyatakan seluruh WCAG
+  2.2 AA atau gate operasional PR-119 sudah terpenuhi.
+
+Hierarki final, daftar file dan hasil verifikasi lengkap:
+[laporan navigasi](../navigation-redesign.md).
