@@ -536,8 +536,9 @@ Next: PR-118 UI admin Community dan antrean moderasi; PR-119 gate readiness.
 ## PR-118 — Admin Community + Moderation Queue
 
 > **Tanggal:** 2026-10-06
-> **Workspace:** `phase-19-community`, sesudah merge PR-117 (#222).
-> **Status:** Implementasi lokal; merge tetap mensyaratkan CI
+> **Base:** `phase-19-community`, sesudah merge PR-117 (#222).
+> **PR:** [#223](https://github.com/HanzzzBD/KomunitasDisabilitas/pull/223).
+> **Status:** Implementasi selesai; merge tetap mensyaratkan CI
 > `lint-typecheck-test` serta `a11y` hijau pada head terakhir.
 
 ### Keputusan owner
@@ -555,6 +556,8 @@ Next: PR-118 UI admin Community dan antrean moderasi; PR-119 gate readiness.
   menyediakan daftar ruang, buat/ubah ruang, antrean laporan, dan detail laporan.
   Semua route berada di dalam penjaga sesi/peran admin yang sudah ada. Notifikasi
   admin Community memvalidasi UUID laporan sebelum membuka halaman detail.
+- Header merek membungkus logo dan nama ketika lebar tidak mencukupi, termasuk
+  font sans-serif pada 320 px dan teks 200%, sehingga tidak menambah scroll horizontal.
 - CRUD ruang memakai API yang sudah tersedia. Validasi Zod dan label/galat inline,
   fokus ke kolom invalid, aturan kota/topik, konflik slug, serta konfirmasi akibat
   arsip/aktivasi kembali. Isian tidak ditimpa refetch latar belakang. Ruang arsip
@@ -609,9 +612,11 @@ Next: PR-118 UI admin Community dan antrean moderasi; PR-119 gate readiness.
 - Suite web lengkap **906 test pada 79 file** lulus, mencakup **14 test** admin
   Community, logout/respons terlambat, klik ganda, luring, konflik, fokus, axe
   dan katalog. Test fokus terakhir **42 test** juga lulus.
-- Chrome nyata: ketujuh test alur/reflow admin dan enam state registry axe lulus.
-  Reflow mencakup 320/768/1024/1440 px pada teks 200%; dialog tinjauan keputusan
-  diperiksa visual. Fixture browser kini memenuhi kontrak `butuhAdmin` yang juga
+- Chrome nyata: **11 test** alur/reflow admin dan enam state registry axe lulus.
+  Reflow mencakup 320/768/1024/1440 px pada teks 200%, memakai font sistem dan
+  Arial/sans-serif. Zoom teks diterapkan kembali setelah navigasi ke detail supaya
+  dialog juga diuji pada 200%; dialog tinjauan keputusan diperiksa visual.
+  Fixture browser kini memenuhi kontrak `butuhAdmin` yang juga
   menyiratkan sesi. Pemeriksaan filter memulai dari kontrol yang benar-benar fokus.
 - Typecheck seluruh **12 workspace** lulus. Lint API/web/schema/SDK lulus.
   Build web dan service worker lulus; budget JS awal **130,4 KB / 200 KB gzip**.

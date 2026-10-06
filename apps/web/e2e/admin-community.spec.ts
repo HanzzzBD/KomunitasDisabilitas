@@ -79,22 +79,28 @@ test("reject keeps the content published and queue status filter finds the decis
   await expect(page.getByText(REPORT.reason)).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Status" })).toBeFocused();
 });
-for (const width of [320, 768, 1024, 1440])
-  test(`admin Community reflows at ${width}px with 200% text`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto("/admin/community");
-    await expect(page.getByText(ROOM.name)).toBeVisible();
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = "200%";
+for (const font of ["system-ui", "Arial, sans-serif"])
+  for (const width of [320, 768, 1024, 1440])
+    test(`admin Community reflows at ${width}px with 200% ${font} text`, async ({ page }) => {
+      async function enlargeText() {
+        await page.evaluate((family) => {
+          document.documentElement.style.fontSize = "200%";
+          document.documentElement.style.fontFamily = family;
+        }, font);
+        await tungguGayaTenang(page);
+      }
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/admin/community");
+      await expect(page.getByText(ROOM.name)).toBeVisible();
+      await enlargeText();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await page.goto(DETAIL);
+      await expect(page.getByText(REPORT.reason)).toBeVisible();
+      await enlargeText();
+      await page.getByRole("button", { name: "Sembunyikan" }).click();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
     });
-    await tungguGayaTenang(page);
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-    ).toBe(true);
-    await page.goto(DETAIL);
-    await expect(page.getByText(REPORT.reason)).toBeVisible();
-    await page.getByRole("button", { name: "Sembunyikan" }).click();
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-    ).toBe(true);
-  });
