@@ -230,7 +230,10 @@ describe("kerangka & navigasi", () => {
     const { router } = renderPengaturan();
     await tungguJudul("Akun & Data Saya");
 
-    const tautan = screen.getByRole("link", { name: "Aksesibilitas" });
+    const tautan = within(screen.getByRole("navigation", { name: "Bagian pengaturan" })).getByRole(
+      "link",
+      { name: "Aksesibilitas" },
+    );
     tautan.focus();
     expect(tautan).toHaveFocus();
     await userEvent.keyboard("{Enter}");

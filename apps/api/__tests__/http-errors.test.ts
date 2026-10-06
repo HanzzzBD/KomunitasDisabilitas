@@ -260,6 +260,11 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Berkas media tidak cocok untuk video isyarat ini",
           "status": 422,
         },
+        "PDF_BELUM_SIAP": {
+          "hint": "Buat PDF dari isi CV terbaru, lalu coba unduh lagi",
+          "message": "PDF CV belum siap",
+          "status": 409,
+        },
         "PENGGUNA_TIDAK_BISA_DIMODERASI": {
           "hint": "Hanya akun pencari kerja yang bisa ditangguhkan",
           "message": "Akun ini tidak bisa ditangguhkan",

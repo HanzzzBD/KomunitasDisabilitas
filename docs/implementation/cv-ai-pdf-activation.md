@@ -29,6 +29,11 @@ SDK mengunduh dengan header Authorization dan refresh 401. Web serta Android
 menggunakan berkas dari API; token tidak dimasukkan ke URL. Endpoint status dan
 URL presigned tetap tersedia untuk kompatibilitas klien lama.
 
+Kunci cache Community dan endpoint ekspor data SDK dipisahkan dari modul yang
+dipakai shell. Halaman awal tidak lagi memuat kontrak CV, AI, ekspor, dan
+moderasi Community. Bundel JS awal turun dari 148,99 KB ke 141,73 KB gzip
+(138,4 KiB menurut pemeriksa budget); tes bundle menjaga batas pemuatan ini.
+
 ## Menjalankan lokal
 
 API dan worker membaca `apps/api/.env`. Kunci AI, Postgres, Redis queue, storage
@@ -62,5 +67,11 @@ menjawab 200 dengan signature `%PDF-`. Fixture dan objek uji dibersihkan.
 
 Tidak ada perangkat Android terhubung untuk smoke test viewer dan TalkBack.
 Tes native serta bundling Android tidak menyatakan smoke test perangkat selesai.
+
+Seluruh 194 tes SDK lulus, termasuk pemeriksaan pemuatan kontrak. Snapshot
+katalog galat memuat `PDF_BELUM_SIAP`, dan tes keyboard panel pengaturan memilih
+tautan dari landmark bernama agar utility aksesibilitas di shell tetap tersedia.
+Lighthouse pada build akhir: desktop performance/accessibility 100/100;
+3G performance 76, 80, 76 dan accessibility 100 pada ketiga putaran.
 
 Referensi transport: [Expo SDK 57 — expo/fetch](https://docs.expo.dev/versions/v57.0.0/sdk/expo/#expofetch-api).

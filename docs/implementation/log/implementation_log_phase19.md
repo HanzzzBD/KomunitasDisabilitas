@@ -679,5 +679,10 @@ Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
 - APK lama perlu dibangun dan dipasang ulang untuk mendapatkan layar CV AI.
   Tidak ada perangkat Android terhubung untuk smoke test viewer/TalkBack.
   Tidak ada migrasi database atau kredensial yang ditambahkan ke repo.
+- Kunci cache Community dan endpoint ekspor SDK dipisahkan agar shell tidak
+  memuat kontrak CV/AI/ekspor/moderasi. Bundel awal 141,73 KB gzip (138,4 KiB),
+  turun dari 148,99 KB. Seluruh 194 tes SDK dan pemeriksaan bundle lulus;
+  snapshot katalog galat dan 25 tes pengaturan juga lulus.
+  Lighthouse desktop 100/100; 3G performance 76–80 dan accessibility 100.
 
 Detail: [aktivasi CV AI dan PDF](../cv-ai-pdf-activation.md).

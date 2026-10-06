@@ -21,20 +21,7 @@ import {
   type CommunityModerationAction,
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
-import { queryKey } from "../query-keys.js";
-
-export const communityAdminKeys = {
-  all: () => queryKey("community-admin"),
-  rooms: (userId: string, filter: Partial<CommunityAdminListQuery> = {}) =>
-    ["community-admin", userId, "rooms", filter] as const,
-  room: (userId: string, id: string) => ["community-admin", userId, "room", id] as const,
-  queue: (userId: string, filter: Partial<CommunityReportListQuery> = {}) =>
-    ["community-admin", userId, "queue", filter] as const,
-  report: (userId: string, id: string) => ["community-admin", userId, "report", id] as const,
-  content: (userId: string, type: CommunityReportTargetType, id: string) =>
-    ["community-admin", userId, "content", type, id] as const,
-  metrics: (userId: string) => ["community-admin", userId, "metrics"] as const,
-};
+export { communityAdminKeys } from "../community-query-keys.js";
 const idPath = (id: string) => {
   communityIdParamsSchema.parse({ id });
   return encodeURIComponent(id);
