@@ -15,7 +15,7 @@
 // Karena itu setiap model berelasi `User` wajib berada di salah satu dari tiga
 // keadaan. Tabel baru = build merah sampai seseorang memutuskan.
 import { describe, it, expect } from "vitest";
-import { TABEL_DIHAPUS } from "../src/modules/users/index.js";
+import { TABEL_DIHAPUS, COMMUNITY_PURGE_MODELS } from "../src/modules/users/index.js";
 import { bacaSchemaPrisma, modelBerelasiUser } from "./helpers/prisma-schema.js";
 
 const berelasi = modelBerelasiUser(bacaSchemaPrisma());
@@ -60,10 +60,15 @@ describe("pemindai schema.prisma (purge)", () => {
 
 describe("kelengkapan purge — setiap tabel data pengguna sudah diputuskan", () => {
   const dihapus = new Set<string>(TABEL_DIHAPUS);
+  const community = new Set<string>(COMMUNITY_PURGE_MODELS);
 
   it("tidak ada tabel berelasi User yang belum diputuskan", () => {
     const belum = berelasi.filter(
-      (m) => !dihapus.has(m.delegate) && !(m.tabel in DIPERTAHANKAN) && !(m.tabel in KEPENGARANGAN),
+      (m) =>
+        !dihapus.has(m.delegate) &&
+        !community.has(m.delegate) &&
+        !(m.tabel in DIPERTAHANKAN) &&
+        !(m.tabel in KEPENGARANGAN),
     );
 
     expect(
@@ -79,7 +84,7 @@ describe("kelengkapan purge — setiap tabel data pengguna sudah diputuskan", ()
     // Arah sebaliknya: nama delegate salah ketik akan melempar saat runtime —
     // di tengah transaksi purge, pada akun sungguhan. Lebih murah di CI.
     const dikenal = new Set(berelasi.map((m) => m.delegate));
-    const asing = [...TABEL_DIHAPUS].filter((t) => !dikenal.has(t));
+    const asing = [...TABEL_DIHAPUS, ...COMMUNITY_PURGE_MODELS].filter((t) => !dikenal.has(t));
 
     expect(asing, `Bukan model berelasi User: ${asing.join(", ")}`).toEqual([]);
   });

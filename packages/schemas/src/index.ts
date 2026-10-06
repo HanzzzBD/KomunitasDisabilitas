@@ -18,5 +18,6 @@ export * from "./admin.js";
 export * from "./admin-users.js";
 export * from "./analytics.js";
 export * from "./signbridge.js";
+export * from "./community.js";
 export * from "./audit.js";
 export * from "./queue.js";

@@ -317,7 +317,7 @@ Skema kolom lengkap mengikuti PRD §10 (tidak diulang di sini); di bawah ini kep
 3. **`match_scores`** adalah cache materialisasi, boleh dihapus kapan pun; selalu bisa dihitung ulang.
 4. **`status_history`** di applications: array JSONB append-only `{from,to,by,at}` — cukup untuk MVP; dipromosikan ke tabel bila perlu analitik SQL.
 5. **`sign_videos`** (baru, SignBridge v1): `id, phrase text, category, video_url, thumbnail_url, duration_s, created_by, status(draft/published)` + FTS pada `phrase`.
-6. **Community Phase 19:** post/komentar memakai soft status, bukan hard delete, agar keputusan moderasi dan laporan tetap dapat diaudit. `author_id` dapat menjadi NULL saat PDP purge setelah metadata penulis dianonimkan; body konten hanya dipertahankan bila kebijakan retensi mengizinkan.
+6. **Community Phase 19:** post/komentar memakai soft status, bukan hard delete, agar keputusan moderasi dan laporan tetap dapat diaudit. **Keputusan owner 2026-10-06 (PR-113):** saat PDP purge, `author_id` menjadi NULL, body dikosongkan, dan status menjadi `removed`; ID konten dan jejak moderasi tetap utuh. Aturan ini berlaku juga bila baris user dianonimkan untuk mempertahankan hired count.
 
 ### 6.3 Strategi indeks
 

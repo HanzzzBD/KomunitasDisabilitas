@@ -6707,6 +6707,846 @@
       }
     },
     "schemas": {
+      "CommunityType": {
+        "type": "string",
+        "enum": [
+          "topic",
+          "city"
+        ]
+      },
+      "CommunityStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "archived"
+        ]
+      },
+      "CommunityMembershipStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "blocked"
+        ]
+      },
+      "CommunityContentStatus": {
+        "type": "string",
+        "enum": [
+          "published",
+          "hidden",
+          "removed"
+        ]
+      },
+      "CommunityReportTargetType": {
+        "type": "string",
+        "enum": [
+          "post",
+          "comment"
+        ]
+      },
+      "CommunityReportStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "resolved",
+          "rejected"
+        ]
+      },
+      "CommunityModerationAction": {
+        "type": "string",
+        "enum": [
+          "hide",
+          "restore",
+          "remove"
+        ]
+      },
+      "CreateCommunity": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "type": {
+            "$ref": "#/components/schemas/CommunityType"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCommunity": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "type": {
+            "$ref": "#/components/schemas/CommunityType"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommunityIdParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityPostIdParams": {
+        "type": "object",
+        "properties": {
+          "communityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "communityId",
+          "postId"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityCommentIdParams": {
+        "type": "object",
+        "properties": {
+          "communityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "commentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "communityId",
+          "postId",
+          "commentId"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityListQuery": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationQuery"
+          }
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/CommunityType"
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommunityFeedQuery": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationQuery"
+          }
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommunityReportListQuery": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationQuery"
+          }
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CommunityReportStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCommunityPost": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCommunityPost": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCommunityComment": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCommunityComment": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCommunityReport": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "$ref": "#/components/schemas/CommunityReportTargetType"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "ModerateCommunityContent": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "$ref": "#/components/schemas/CommunityReportTargetType"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "action": {
+            "$ref": "#/components/schemas/CommunityModerationAction"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId",
+          "action",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "type": {
+            "$ref": "#/components/schemas/CommunityType"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityStatus"
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "membershipStatus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityMembershipStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "type",
+          "city",
+          "id",
+          "status",
+          "memberCount",
+          "membershipStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityMembership": {
+        "type": "object",
+        "properties": {
+          "communityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityMembershipStatus"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "communityId",
+          "status",
+          "joinedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityAuthor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "fullName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fullName"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityPost": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityAuthor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityContentStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "communityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "commentCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "body",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "communityId",
+          "commentCount"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityComment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityAuthor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityContentStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "body",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "postId"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReportReceipt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/CommunityReportTargetType"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityReportStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "targetType",
+          "targetId",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReportAdmin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/CommunityReportTargetType"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommunityReportStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "reporterId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "resolvedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "id",
+          "targetType",
+          "targetId",
+          "status",
+          "createdAt",
+          "reason",
+          "reporterId",
+          "resolvedBy",
+          "resolvedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Community"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Community"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityMembershipResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityMembership"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityPostResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CommunityPost"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityFeedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityPost"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityCommentResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CommunityComment"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityCommentListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityComment"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReportResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CommunityReportReceipt"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReportAdminListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommunityReportAdmin"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
       "RequestOtp": {
         "type": "object",
         "properties": {
@@ -12058,6 +12898,26 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "PaginationQuery": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string",
+            "description": "Cursor halaman berikut dari meta.nextCursor"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20,
+            "description": "Jumlah item per halaman (1–100)",
+            "example": 20
+          }
+        },
+        "required": [
+          "limit"
         ]
       }
     }

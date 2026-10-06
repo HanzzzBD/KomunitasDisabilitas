@@ -18,8 +18,11 @@
 // seseorang memutuskan. Itulah seluruh gunanya: memaksa keputusan pada saat
 // tabelnya lahir, bukan menunggu ada yang teringat.
 import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { dataExportSchema } from "@nawasena/schemas";
 import { bacaSchemaPrisma, tabelBerelasiUser } from "./helpers/prisma-schema.js";
+import { tanpaKomentar } from "./pemindai-kode.js";
 
 const schema = bacaSchemaPrisma();
 
@@ -83,7 +86,16 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * ia menghapus alasan penundaan di daftar ini. Status utang dilacak di
  * docs/utang-teknis.md.
  */
-const DITUNDA: Readonly<Record<string, string>> = {};
+const DITUNDA: Readonly<Record<string, string>> = {
+  community_memberships:
+    "PR-114 wajib mendaftarkan kontributor membership pada endpoint pertama yang menulis keanggotaan; PR-113 hanya kontrak/migrasi.",
+  community_posts:
+    "PR-116 wajib mengekspor post milik pemilik sesi bersama endpoint create pertama, termasuk konten hidden/removed; PR-119 menguji portabilitas.",
+  community_comments:
+    "PR-116 wajib mengekspor komentar milik pemilik sesi bersama endpoint create pertama, tanpa konten pengguna lain; PR-119 menguji portabilitas.",
+  community_reports:
+    "PR-116 wajib mengekspor laporan yang dibuat pemilik sesi bersama endpoint report pertama, tanpa laporan milik pengguna lain; PR-119 menguji PDP.",
+};
 
 /**
  * Tidak akan pernah masuk ekspor. Alasannya WAJIB, dan sengaja spesifik: entri
@@ -100,6 +112,8 @@ const DIKECUALIKAN: Readonly<Record<string, string>> = {
   sign_videos: "relasi `created_by` — sama seperti companies: konten kamus BISINDO milik platform.",
   devices:
     "kredensial pengiriman, bukan data pribadi — alasannya sama persis dengan refresh_tokens. Isinya token FCM: siapa pun yang memegangnya bisa mengirim notifikasi ke layar kunci perangkat itu, dan mengekspornya memindahkan kemampuan itu ke berkas yang beredar lewat email/cloud. Yang tersisa (platform, last_seen_at) tidak memberi tahu pemiliknya apa pun yang tidak sudah ia ketahui dari perangkat di tangannya. Dihapus saat purge — lihat TABEL_DIHAPUS di purge.service.ts.",
+  communities:
+    "Relasi created_by adalah kepengarangan admin atas ruang milik platform, seperti jobs/companies; bukan data pribadi peserta komunitas.",
 };
 
 /** Tabel yang barisnya terikat pada seorang pengguna (parser: helpers/prisma-schema). */
@@ -145,6 +159,36 @@ model TanpaRelasi {
 });
 
 describe("kelengkapan ekspor — setiap tabel data pengguna sudah diputuskan", () => {
+  it("penundaan Community berakhir saat kode pertama yang menyimpan data lahir", () => {
+    const readSource = (dir: string): string =>
+      readdirSync(dir, { withFileTypes: true })
+        .map((entry) =>
+          entry.isDirectory()
+            ? readSource(join(dir, entry.name))
+            : entry.name.endsWith(".ts")
+              ? tanpaKomentar(readFileSync(join(dir, entry.name), "utf8"))
+              : "",
+        )
+        .join("\n");
+    const source = readSource(join(__dirname, "../src"));
+    const delegates = {
+      community_memberships: "communityMembership",
+      community_posts: "communityPost",
+      community_comments: "communityComment",
+      community_reports: "communityReport",
+    };
+    for (const [table, delegate] of Object.entries(delegates)) {
+      if (!(table in DITUNDA)) continue;
+      const writes =
+        new RegExp(`\\.${delegate}\\s*\\.\\s*(?:create|createMany|upsert)\\s*\\(`).test(source) ||
+        new RegExp(`\\bINSERT\\s+INTO\\s+"?${table}\\b`, "i").test(source);
+      expect(
+        writes,
+        `${table}: bayar ekspor PDP saat endpoint penulisan pertama, jangan biarkan DITUNDA tetap hidup (U-39).`,
+      ).toBe(false);
+    }
+  });
+
   it("tidak ada tabel berelasi User yang belum diputuskan", () => {
     const belum = berelasi.filter(
       (t) => !(t in TERDAFTAR) && !(t in DITUNDA) && !(t in DIKECUALIKAN),

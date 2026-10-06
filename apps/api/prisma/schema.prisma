@@ -81,6 +81,12 @@ model User {
   verifiedCompanies    Company[]             @relation("CompanyVerifier")
   createdJobs          Job[]                 @relation("JobCreator")
   createdSignVideos    SignVideo[]           @relation("SignVideoCreator")
+  createdCommunities   Community[]           @relation("CommunityCreator")
+  communityMemberships CommunityMembership[]
+  communityPosts       CommunityPost[]
+  communityComments    CommunityComment[]
+  communityReports     CommunityReport[]     @relation("CommunityReporter")
+  resolvedReports      CommunityReport[]     @relation("CommunityReportResolver")
 
   @@map("users")
 }
@@ -676,4 +682,129 @@ model AiChatSession {
 
   @@index([userId])
   @@map("ai_chat_sessions")
+}
+
+// ===== Migrasi 24 (PR-113): Community, SDD §5.4 =====
+enum CommunityType {
+  topic
+  city
+}
+
+enum CommunityStatus {
+  active
+  archived
+}
+
+enum CommunityMembershipStatus {
+  active
+  blocked
+}
+
+enum CommunityContentStatus {
+  published
+  hidden
+  removed
+}
+
+enum CommunityReportTargetType {
+  post
+  comment
+}
+
+enum CommunityReportStatus {
+  open
+  resolved
+  rejected
+}
+
+model Community {
+  id          String          @id @db.Uuid
+  slug        String          @unique
+  name        String
+  description String
+  type        CommunityType
+  /// CHECK SQL: city wajib untuk ruang city; NULL untuk ruang topic.
+  city        String?
+  status      CommunityStatus @default(active)
+  createdBy   String?         @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creator     User?                 @relation("CommunityCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  memberships CommunityMembership[]
+  posts       CommunityPost[]
+
+  @@map("communities")
+}
+
+model CommunityMembership {
+  communityId String                    @map("community_id") @db.Uuid
+  userId      String                    @map("user_id") @db.Uuid
+  status      CommunityMembershipStatus @default(active)
+  joinedAt    DateTime                  @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([communityId, userId])
+  @@index([userId, joinedAt(sort: Desc)])
+  @@map("community_memberships")
+}
+
+model CommunityPost {
+  id          String                 @id @db.Uuid
+  communityId String                 @map("community_id") @db.Uuid
+  /// Purge PDP: NULL, body kosong, status removed; id/moderasi tetap.
+  authorId    String?                @map("author_id") @db.Uuid
+  body        String
+  status      CommunityContentStatus @default(published)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  community Community          @relation(fields: [communityId], references: [id], onDelete: Restrict)
+  author    User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  comments  CommunityComment[]
+
+  @@index([communityId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId])
+  // GIN FTS expression body ditulis di SQL, seperti jobs/sign_videos.
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id        String                 @id @db.Uuid
+  postId    String                 @map("post_id") @db.Uuid
+  authorId  String?                @map("author_id") @db.Uuid
+  body      String
+  status    CommunityContentStatus @default(published)
+  createdAt DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// Tanpa parent_comment_id: komentar satu tingkat, post tidak hard-delete.
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Restrict)
+  author User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([postId, status, createdAt, id])
+  @@index([authorId])
+  @@map("community_comments")
+}
+
+model CommunityReport {
+  id         String                    @id @db.Uuid
+  reporterId String                    @map("reporter_id") @db.Uuid
+  targetType CommunityReportTargetType @map("target_type")
+  /// Referensi polimorfik historis; keberadaan/akses diperiksa service PR-116.
+  targetId   String                    @map("target_id") @db.Uuid
+  reason     String
+  status     CommunityReportStatus     @default(open)
+  resolvedBy String?                   @map("resolved_by") @db.Uuid
+  resolvedAt DateTime?                 @map("resolved_at") @db.Timestamptz(6)
+  createdAt  DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  reporter User  @relation("CommunityReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolver User? @relation("CommunityReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt, id])
+  @@index([reporterId])
+  @@map("community_reports")
 }

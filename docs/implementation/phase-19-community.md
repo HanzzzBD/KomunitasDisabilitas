@@ -66,11 +66,13 @@ Tidak masuk scope: pesan pribadi, unggahan gambar/video/file, live chat, user-cr
 
 **Acceptance Criteria:**
 
-* [ ] Migrasi dapat diterapkan pada database v1.0.0 tanpa downtime yang direncanakan.
-* [ ] `community_memberships` unique pada `(community_id, user_id)`.
-* [ ] `community_posts` dan `community_comments` memakai soft status `published|hidden|removed`.
-* [ ] `author_id` dapat dianonimkan oleh PDP purge tanpa menghapus jejak moderasi.
-* [ ] Schema request/response tersedia di `packages/schemas` dan OpenAPI berhasil dibuat.
+* [x] Migrasi dapat diterapkan pada database v1.0.0 tanpa downtime yang direncanakan.
+* [x] `community_memberships` unique pada `(community_id, user_id)`.
+* [x] `community_posts` dan `community_comments` memakai soft status `published|hidden|removed`.
+* [x] `author_id` dapat dianonimkan oleh PDP purge tanpa menghapus jejak moderasi.
+* [x] Schema request/response tersedia di `packages/schemas` dan OpenAPI berhasil dibuat.
+
+Implementasi dan bukti verifikasi: [log PR-113](log/implementation_log_phase19.md).
 
 **Dependencies:** PR-011, PR-013, PR-112.
 

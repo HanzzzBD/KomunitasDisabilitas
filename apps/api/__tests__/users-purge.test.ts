@@ -76,12 +76,24 @@ function fakePrisma(opsi: OpsiFake = {}) {
     },
   };
   for (const tabel of TABEL_DIHAPUS) klien[tabel] = delegateAnak(tabel);
+  // Community tetap menyimpan ID konten; pembersihan author/body bukan cascade.
+  for (const tabel of ["community", "communityPost", "communityComment", "communityReport"]) {
+    klien[tabel] = {
+      count: () => Promise.resolve(0),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    };
+  }
   klien.$transaction = <T>(fn: (tx: unknown) => Promise<T>) => {
     jejak.push("transaksi:mulai");
     return fn(klien);
   };
 
-  return { prisma: klien as unknown as AppPrisma, jejak };
+  return {
+    prisma: klien as unknown as AppPrisma,
+    jejak,
+    communityPost: klien.communityPost as { updateMany: ReturnType<typeof vi.fn> },
+  };
 }
 
 function fakeAudit() {
@@ -168,6 +180,33 @@ describe("jalur hapus-penuh (tanpa lamaran hired)", () => {
 
     expect(jejak).toContain(`delete:user:${USER_A}`);
     expect(jejak.filter((j) => j.startsWith("deleteMany:"))).toEqual([]);
+  });
+});
+
+describe("Community pada dua jalur purge", () => {
+  it.each([false, true])("mengosongkan teks dan melepas penulis (hired=%s)", async (hired) => {
+    const { prisma, communityPost } = fakePrisma({ hired: hired ? [USER_A] : [] });
+    const service = createPurgeService({
+      prisma,
+      auditLog: fakeAudit().auditLog,
+      clock: () => SEKARANG,
+    });
+    await service.run();
+    expect(communityPost.updateMany).toHaveBeenCalledWith({
+      where: { authorId: USER_A },
+      data: { authorId: null, body: "", status: "removed" },
+    });
+  });
+
+  it("dry-run tidak mengosongkan konten Community", async () => {
+    const { prisma, communityPost } = fakePrisma();
+    const service = createPurgeService({
+      prisma,
+      auditLog: fakeAudit().auditLog,
+      clock: () => SEKARANG,
+    });
+    await service.run({ dryRun: true });
+    expect(communityPost.updateMany).not.toHaveBeenCalled();
   });
 });
 

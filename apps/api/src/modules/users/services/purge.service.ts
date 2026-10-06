@@ -27,6 +27,7 @@ import type { Prisma } from "@prisma/client";
 import type { AuditLog } from "../../../core/audit/index.js";
 import type { AppPrisma } from "../../../core/db/index.js";
 import { uuidV7 } from "../../../core/ids/index.js";
+import { countCommunityPurgeRows, purgeCommunityRows } from "./community-purge.js";
 
 /** Entitas audit job ini (tanpa PII). */
 const AUDIT_ENTITY = "users.purge";
@@ -74,6 +75,7 @@ export const TABEL_DIHAPUS = [
   // orang yang akunnya sudah dihapus, selamanya.
   "device",
   "refreshToken",
+  "communityMembership",
 ] as const satisfies readonly (keyof Prisma.TypeMap["model"] extends never ? never : string)[];
 
 /** Kandidat purge: sudah lewat jendela DAN masih memegang PII. */
@@ -168,7 +170,7 @@ export function createPurgeService(deps: PurgeServiceDeps) {
     userId: string,
   ): Promise<Omit<PdpPurgeReport, "dryRun" | "accounts" | "hasMore">> {
     const hired = await prisma.application.count({ where: { userId, status: "hired" } });
-    let records = 0;
+    let records = await countCommunityPurgeRows(prisma, userId);
     for (const tabel of TABEL_DIHAPUS) {
       records += await delegasi(prisma, tabel).count({ where: { userId } });
     }
@@ -189,6 +191,9 @@ export function createPurgeService(deps: PurgeServiceDeps) {
   ): Promise<Omit<PdpPurgeReport, "dryRun" | "accounts" | "hasMore">> {
     return prisma.$transaction(async (tx) => {
       const hired = await tx.application.count({ where: { userId, status: "hired" } });
+      const communityRecords = await countCommunityPurgeRows(tx, userId);
+      // Sebelum DELETE juga: SET NULL saja masih menyisakan teks pribadi.
+      await purgeCommunityRows(tx, userId);
 
       if (hired === 0) {
         const anak = await hitungAnak(tx, userId);
@@ -196,7 +201,7 @@ export function createPurgeService(deps: PurgeServiceDeps) {
         // Satu DELETE; `ON DELETE CASCADE` mengurus sisanya — termasuk tabel
         // yang belum lahir saat berkas ini ditulis.
         await tx.user.delete({ where: { id: userId } });
-        return { deleted: 1, anonymized: 0, records: anak + lamaran };
+        return { deleted: 1, anonymized: 0, records: anak + lamaran + communityRecords };
       }
 
       // WAJIB LEBIH DULU: `applications.resume_id` ber-`onDelete: NoAction`
@@ -208,7 +213,7 @@ export function createPurgeService(deps: PurgeServiceDeps) {
         data: { resumeId: null },
       });
 
-      let records = 0;
+      let records = communityRecords;
       for (const tabel of TABEL_DIHAPUS) {
         const hasil = await delegasi(tx, tabel).deleteMany({ where: { userId } });
         records += hasil.count;
