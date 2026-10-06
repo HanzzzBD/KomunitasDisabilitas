@@ -34,6 +34,7 @@ jest.mock("../src/screens/lamaran/LamaranDetailScreen", () => ({
 jest.mock("../src/screens/cv/CvDaftarScreen", () => ({ CvDaftarScreen: mockScreen("Daftar CV") }));
 jest.mock("../src/screens/cv/CvEditorScreen", () => ({ CvEditorScreen: mockScreen("Editor CV") }));
 jest.mock("../src/screens/cv/CvBagianScreen", () => ({ CvBagianScreen: mockScreen("Bagian CV") }));
+jest.mock("../src/screens/cv/CvChatScreen", () => ({ CvChatScreen: mockScreen("CV AI") }));
 jest.mock("../src/screens/profil/ProfilScreen", () => ({ ProfilScreen: mockScreen("Profil") }));
 jest.mock("../src/screens/profil/ProfilDasarScreen", () => ({
   ProfilDasarScreen: mockScreen("Data dasar"),

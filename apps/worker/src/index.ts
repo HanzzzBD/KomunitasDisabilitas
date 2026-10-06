@@ -378,7 +378,14 @@ const dlq = createDlqHandler({
 
 const runtime = createWorkerRuntime({
   configs: queueConfigs,
-  processors: PROCESSORS,
+  // Mode lokal CV: aktifkan jalur draft/PDF tanpa menjalankan antrean kanal pesan.
+  processors: process.argv.includes("--cv-only")
+    ? {
+        [QUEUE_NAME.PDF_RENDER]: PROCESSORS[QUEUE_NAME.PDF_RENDER],
+        [QUEUE_NAME.AI_EXTRACT_RESUME]: PROCESSORS[QUEUE_NAME.AI_EXTRACT_RESUME],
+        [QUEUE_NAME.AI_USAGE_RECORD]: PROCESSORS[QUEUE_NAME.AI_USAGE_RECORD],
+      }
+    : PROCESSORS,
   logger,
   connection,
   onFailed: (queue, job, error) => dlq.onFailed(queue, job, error),
@@ -411,8 +418,10 @@ function jadwalkan(
     });
 }
 
-jadwalkan(QUEUE_NAME.MAINTENANCE_PDP_PURGE, JADWAL_PURGE, "cron-pdp-purge", "Purge PDP");
-jadwalkan(QUEUE_NAME.MAINTENANCE_RETENTION, JADWAL_RETENSI, "cron-retention", "Retensi data");
+if (!process.argv.includes("--cv-only")) {
+  jadwalkan(QUEUE_NAME.MAINTENANCE_PDP_PURGE, JADWAL_PURGE, "cron-pdp-purge", "Purge PDP");
+  jadwalkan(QUEUE_NAME.MAINTENANCE_RETENTION, JADWAL_RETENSI, "cron-retention", "Retensi data");
+}
 
 logger.info({ queues: runtime.running() }, "Worker siap");
 

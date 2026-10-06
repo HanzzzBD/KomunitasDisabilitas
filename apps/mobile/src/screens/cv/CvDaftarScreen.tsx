@@ -1,7 +1,5 @@
 // Tab CV (PR-092): daftar CV + "Buat CV dari profil".
 //
-// Tanpa chat AI di mobile MVP (keputusan v2.0, Out of Scope PR-092): web adalah
-// jalur utama CV AI, dan teks di sini mengatakannya apa adanya.
 import { deleteResume, listResumes, resumesKeys } from "@nawasena/api-client";
 import { Dialog, Kartu, Tombol, UKURAN_HURUF, useTokenA11y } from "@nawasena/ui-native";
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
@@ -12,6 +10,7 @@ import { Text, View } from "react-native";
 import { apiClient } from "../../api";
 import { pesanGalat } from "../../auth/alur-masuk";
 import { useBuatCvDariProfil } from "../../cv/use-buat-cv";
+import { KontrolPdf } from "../../cv/KontrolPdf";
 import { GagalMuat } from "../../komponen/GagalMuat";
 import { Judul, LayarGulir, Memuat, Paragraf, PesanStatus } from "../../komponen/Layar";
 import type { RootStackParamList } from "../../navigation/types";
@@ -49,12 +48,13 @@ export function CvDaftarScreen() {
   return (
     <LayarGulir testID="layar-cv">
       <Judul>CV saya</Judul>
-      <Paragraf>CV dibuat dari profil Anda. Setelah itu, Anda bisa mengubah isinya.</Paragraf>
-      <Paragraf lemah>
-        Mau dibantu menulis CV lewat percakapan? Fitur itu ada di situs web Nawasena.
+      <Paragraf>
+        Buat CV lewat percakapan dengan AI atau dari profil Anda. Periksa isinya, lalu buat PDF.
       </Paragraf>
+      <Tombol label="Buat CV dengan AI" onPress={() => nav.navigate("CvChat")} />
       <Tombol
         testID="tombol-buat-cv"
+        varian="sekunder"
         label={buat.isPending ? "Sebentar, CV sedang dibuat" : "Buat CV dari profil"}
         sibuk={buat.isPending}
         onPress={() => {
@@ -91,6 +91,7 @@ export function CvDaftarScreen() {
               onPress={() => setAkanDihapus({ id: cv.id, judul: cv.title })}
             />
           </View>
+          <KontrolPdf resumeId={cv.id} sub={sub} />
         </Kartu>
       ))}
       <Dialog

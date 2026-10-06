@@ -9772,6 +9772,93 @@
         }
       }
     },
+    "/me/resumes/{id}/pdf/download": {
+      "get": {
+        "operationId": "downloadResumePdf",
+        "tags": [
+          "resumes"
+        ],
+        "summary": "Unduh PDF CV privat melalui API",
+        "description": "Memeriksa pemilik dan revisi CV sebelum membaca berkas dari storage internal. Memerlukan Authorization; token tidak dikirim melalui URL.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berkas PDF, Cache-Control: private, no-store",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`id` bukan UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk, atau sesi sudah berakhir",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CV tidak ditemukan atau bukan milik pemanggil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PDF revisi terkini belum siap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan PDF belum dikonfigurasi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/resumes/{id}/pdf": {
       "get": {
         "operationId": "getResumePdfStatus",
@@ -9779,7 +9866,7 @@
           "resumes"
         ],
         "summary": "Ambil status PDF CV",
-        "description": "Mengembalikan status render terbaru. Saat `ready`, URL unduhan bertanda tangan diberikan dengan masa berlaku singkat; klien harus meminta status lagi tepat sebelum mengunduh agar URL kedaluwarsa diperbarui tanpa interaksi tambahan.",
+        "description": "Mengembalikan status render terbaru. Saat `ready`, URL unduhan bertanda tangan diberikan dengan masa berlaku singkat untuk kompatibilitas. Klien Web/Android mengunduh melalui endpoint berotorisasi `/me/resumes/{id}/pdf/download` agar alamat storage internal tidak harus dapat dijangkau perangkat.",
         "parameters": [
           {
             "in": "path",

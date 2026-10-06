@@ -1750,6 +1750,27 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           },
         },
       },
+      "/me/resumes/{id}/pdf/download": {
+        get: {
+          operationId: "downloadResumePdf",
+          tags: ["resumes"],
+          summary: "Unduh PDF CV privat melalui API",
+          description:
+            "Memeriksa pemilik dan revisi CV sebelum membaca berkas dari storage internal. Memerlukan Authorization; token tidak dikirim melalui URL.",
+          requestParams: { path: resumeIdParamsSchema },
+          responses: {
+            "200": {
+              description: "Berkas PDF, Cache-Control: private, no-store",
+              content: { "application/pdf": { schema: { type: "string", format: "binary" } } },
+            },
+            "400": errorResponse("`id` bukan UUID"),
+            "404": errorResponse("CV tidak ditemukan atau bukan milik pemanggil"),
+            "409": errorResponse("PDF revisi terkini belum siap"),
+            ...responsSesi,
+            "503": errorResponse("Layanan PDF belum dikonfigurasi"),
+          },
+        },
+      },
       "/me/resumes/{id}/pdf": {
         get: {
           operationId: "getResumePdfStatus",
@@ -1757,8 +1778,9 @@ export function buildOpenApiDocument(): oas31.OpenAPIObject {
           summary: "Ambil status PDF CV",
           description:
             "Mengembalikan status render terbaru. Saat `ready`, URL unduhan bertanda tangan " +
-            "diberikan dengan masa berlaku singkat; klien harus meminta status lagi tepat " +
-            "sebelum mengunduh agar URL kedaluwarsa diperbarui tanpa interaksi tambahan.",
+            "diberikan dengan masa berlaku singkat untuk kompatibilitas. Klien Web/Android " +
+            "mengunduh melalui endpoint berotorisasi `/me/resumes/{id}/pdf/download` agar " +
+            "alamat storage internal tidak harus dapat dijangkau perangkat.",
           requestParams: { path: resumeIdParamsSchema },
           responses: {
             "200": jsonOk("Status render PDF CV", resumePdfResponseSchema),

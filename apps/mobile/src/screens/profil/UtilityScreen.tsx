@@ -64,7 +64,7 @@ export function BantuanScreen() {
       </Paragraf>
       <Judul tingkat={2}>Siapkan CV</Judul>
       <Paragraf>
-        Buka tab CV untuk membuat CV dari profil, mengubah isinya, dan membuka PDF.
+        Buka tab CV untuk membuat CV dengan AI atau dari profil, mengubah isinya, dan membuka PDF.
       </Paragraf>
       <Judul tingkat={2}>Atur tampilan</Judul>
       <Paragraf>

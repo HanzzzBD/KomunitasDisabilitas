@@ -4,6 +4,8 @@ import { Directory, File, Paths } from "expo-file-system";
 import { getContentUriAsync } from "expo-file-system/legacy";
 import { startActivityAsync } from "expo-intent-launcher";
 import { shareAsync } from "expo-sharing";
+import { downloadResumePdf } from "@nawasena/api-client";
+import { apiClient } from "../api";
 
 import type { PlatformPdf } from "./pdf";
 
@@ -16,12 +18,12 @@ const MIME_PDF = "application/pdf";
 const folderCv = () => new Directory(Paths.cache, "cv");
 
 export const pdfAndroid: PlatformPdf = {
-  async unduh(url, namaBerkas) {
+  async unduh(_url, namaBerkas, resumeId) {
     const folder = folderCv();
     if (!folder.exists) folder.create({ intermediates: true, idempotent: true });
-    const berkas = await File.downloadFileAsync(url, new File(folder, namaBerkas), {
-      idempotent: true,
-    });
+    const bytes = await downloadResumePdf(apiClient, resumeId);
+    const berkas = new File(folder, namaBerkas);
+    berkas.write(bytes);
     return berkas.uri;
   },
   keContentUri: (uri) => getContentUriAsync(uri),

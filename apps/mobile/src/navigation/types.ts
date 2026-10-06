@@ -32,6 +32,7 @@ export type RootStackParamList = {
   /** `id` null = item baru. */
   KarierForm: { jenis: JenisKarier; id: string | null };
   CvEditor: { id: string };
+  CvChat: undefined;
   CvBagian: { id: string; bagian: BagianCv };
   // --- PR-093 ---
   LowonganDetail: { id: string };
@@ -57,7 +58,10 @@ export type ApplicationsStackParamList = Pick<
   RootStackParamList,
   "LamaranDaftar" | "LamaranDetail"
 >;
-export type ResumeStackParamList = Pick<RootStackParamList, "CvDaftar" | "CvEditor" | "CvBagian">;
+export type ResumeStackParamList = Pick<
+  RootStackParamList,
+  "CvDaftar" | "CvChat" | "CvEditor" | "CvBagian"
+>;
 export type ProfileStackParamList = Pick<
   RootStackParamList,
   | "ProfilUtama"

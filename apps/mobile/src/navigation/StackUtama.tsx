@@ -9,6 +9,7 @@ import { LamaranDetailScreen } from "../screens/lamaran/LamaranDetailScreen";
 import { CvDaftarScreen } from "../screens/cv/CvDaftarScreen";
 import { CvEditorScreen } from "../screens/cv/CvEditorScreen";
 import { CvBagianScreen } from "../screens/cv/CvBagianScreen";
+import { CvChatScreen } from "../screens/cv/CvChatScreen";
 import { ProfilScreen } from "../screens/profil/ProfilScreen";
 import { ProfilDasarScreen } from "../screens/profil/ProfilDasarScreen";
 import { ProfilSensitifScreen } from "../screens/profil/ProfilSensitifScreen";
@@ -103,6 +104,7 @@ export function ResumeStack() {
   return (
     <Resume.Navigator screenOptions={useOpsiStack()} initialRouteName="CvDaftar">
       <Resume.Screen name="CvDaftar" component={CvDaftarScreen} options={kepala("CV Saya")} />
+      <Resume.Screen name="CvChat" component={CvChatScreen} options={{ title: "CV AI" }} />
       <Resume.Screen name="CvEditor" component={CvEditorScreen} options={{ title: "Ubah CV" }} />
       <Resume.Screen
         name="CvBagian"

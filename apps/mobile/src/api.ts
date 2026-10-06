@@ -10,6 +10,7 @@ import {
   logout,
   refreshSesiToleran,
 } from "@nawasena/api-client";
+import { fetch as expoFetch } from "expo/fetch";
 
 import { createSesiStore } from "./auth/sesi";
 import { apiBaseUrl } from "./config";
@@ -24,6 +25,7 @@ export function pasangPelepasPush(fn: () => Promise<void>) {
 
 export const apiClient = createApiClient({
   baseUrl: apiBaseUrl(),
+  fetch: expoFetch as typeof globalThis.fetch,
   getAccessToken: () => sesiStore.getState().accessToken,
   refresh: () => refresher(),
 });

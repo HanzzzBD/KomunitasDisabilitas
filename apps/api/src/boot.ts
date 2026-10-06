@@ -63,6 +63,7 @@ import {
   StorageNotConfiguredError,
   createObjectStorage,
   storageConfigFromEnv,
+  createObjectReader,
 } from "./core/storage/index.js";
 import {
   createAiModule,
@@ -141,7 +142,11 @@ export async function startApi(options: BootOptions): Promise<void> {
   const resumePdf =
     objectStorage === undefined
       ? undefined
-      : { jobs: createResumePdfJobs(queues), storage: objectStorage };
+      : {
+          jobs: createResumePdfJobs(queues),
+          storage: objectStorage,
+          readObject: createObjectReader(storageConfigFromEnv(env), env.PDF_RENDER_MAX_BYTES),
+        };
 
   // Kuota AI (PR-043) di atas klien `redis.queue`, BUKAN `redis.cache`.
   // Instans cache berjalan `allkeys-lru` (ADR-004): kunci yang terusir di sana

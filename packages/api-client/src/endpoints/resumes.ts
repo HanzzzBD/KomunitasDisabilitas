@@ -12,6 +12,7 @@ import {
 } from "@nawasena/schemas";
 import type { ApiClient } from "../client.js";
 import { queryKey } from "../query-keys.js";
+import { ApiError, RESPONS_TIDAK_DIKENAL } from "../errors.js";
 
 export const resumesKeys = {
   list: (sub: string | null) => queryKey("resumes", { sub: sub ?? "anonim" }),
@@ -72,4 +73,17 @@ export async function requestResumePdf(client: ApiClient, id: string): Promise<R
     responseSchema: resumePdfResponseSchema,
   });
   return response.data;
+}
+
+export async function downloadResumePdf(client: ApiClient, id: string): Promise<Uint8Array> {
+  if (!client.download) throw new ApiError(RESPONS_TIDAK_DIKENAL, 0);
+  const response = await client.download(`/me/resumes/${encodeURIComponent(id)}/pdf/download`);
+  if (!response.headers.get("content-type")?.startsWith("application/pdf")) {
+    throw new ApiError(RESPONS_TIDAK_DIKENAL, response.status);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.length > 20_971_520 || String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-") {
+    throw new ApiError(RESPONS_TIDAK_DIKENAL, response.status);
+  }
+  return bytes;
 }

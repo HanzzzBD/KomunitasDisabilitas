@@ -7,6 +7,7 @@ import {
   listResumes,
   getResumePdfStatus,
   requestResumePdf,
+  downloadResumePdf,
   resumesKeys,
   updateResume,
 } from "../src/index.js";
@@ -48,6 +49,43 @@ function klien(fetch: ReturnType<typeof vi.fn>) {
 }
 
 describe("endpoint resumes", () => {
+  it("unduhan privat memakai token terbaru setelah refresh 401", async () => {
+    let token = "lama";
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { code: "SESI_BERAKHIR", message: "Sesi berakhir" }))
+      .mockResolvedValueOnce(
+        new Response("%PDF-1.7 uji", { headers: { "content-type": "application/pdf" } }),
+      );
+    const client = createApiClient({
+      baseUrl: "https://x/api/v1",
+      fetch,
+      getAccessToken: () => token,
+      refresh: () => {
+        token = "baru";
+        return true;
+      },
+    });
+    expect(new TextDecoder().decode(await downloadResumePdf(client, ID))).toBe("%PDF-1.7 uji");
+    expect(fetch.mock.calls[1]?.[0]).toBe(`https://x/api/v1/me/resumes/${ID}/pdf/download`);
+    expect(fetch.mock.calls[1]?.[1].headers.authorization).toBe("Bearer baru");
+  });
+  it("menolak respons HTML dan berkas bukan PDF", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("<html>error</html>", { headers: { "content-type": "text/html" } }),
+      )
+      .mockResolvedValueOnce(
+        new Response("error", { headers: { "content-type": "application/pdf" } }),
+      );
+    await expect(downloadResumePdf(klien(fetch), ID)).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
+    await expect(downloadResumePdf(klien(fetch), ID)).rejects.toMatchObject({
+      code: "RESPONS_TIDAK_DIKENAL",
+    });
+  });
   it("membuka amplop daftar dan detail", async () => {
     const fetch = vi
       .fn()

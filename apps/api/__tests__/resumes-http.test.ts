@@ -20,7 +20,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import type { PrismaClient } from "@prisma/client";
-import type { UserRole } from "@nawasena/schemas";
+import type { UserRole, Resume } from "@nawasena/schemas";
 import { resumeSchema, resumeSummarySchema } from "@nawasena/schemas";
 import { loadEnv, type Env } from "../src/core/config/env.js";
 import { createLogger } from "../src/core/logger/index.js";
@@ -454,6 +454,33 @@ describe("validasi struktur (AC-2) — pesan per field, Bahasa Indonesia sederha
 });
 
 describe("PDF API (PR-064)", () => {
+  it("unduhan PDF memeriksa pemilik dan revisi, lalu mengembalikan berkas tanpa cache", async () => {
+    const pdf: NonNullable<ResumesModuleDeps["pdf"]> = {
+      jobs: { state: () => Promise.resolve("missing"), ensure: () => Promise.resolve("queued") },
+      storage: { presignDownload: () => Promise.reject(new Error("URL publik tidak diperlukan")) },
+      readObject: () => Promise.resolve(new TextEncoder().encode("%PDF-1.7 uji")),
+    };
+    const { base, rows } = await boot({ pdf });
+    const token = await tokenUntuk(A);
+    const dibuat = await panggil(base, "POST", "/me/resumes", token, { title: "CV PDF" });
+    const id = ((await badan(dibuat)).data as { id: string }).id;
+    const path = `/me/resumes/${id}/pdf/download`;
+    expect((await panggil(base, "GET", path)).status).toBe(401);
+    expect((await panggil(base, "GET", path, await tokenUntuk(B))).status).toBe(404);
+    expect((await panggil(base, "GET", path, token)).status).toBe(409);
+    const { buildResumePdfTask } = await import("../src/modules/resumes/index.js");
+    const cv = (await badan(await panggil(base, "GET", `/me/resumes/${id}`, token))).data as Resume;
+    const task = buildResumePdfTask(A, cv);
+    rows[0]!.pdfUrl = `resumes/${A}/${id}/${task.job.contentHash}.pdf`;
+    const response = await panggil(base, "GET", path, token);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/pdf");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-disposition")).toContain(`cv-${id}.pdf`);
+    expect(await response.text()).toBe("%PDF-1.7 uji");
+    await panggil(base, "PUT", `/me/resumes/${id}`, token, { title: "CV berubah" });
+    expect((await panggil(base, "GET", path, token)).status).toBe(409);
+  });
   it("POST 202 mengantre dan GET memetakan status job", async () => {
     let state: "missing" | "queued" = "missing";
     const pdf: NonNullable<ResumesModuleDeps["pdf"]> = {
@@ -502,7 +529,7 @@ describe("PDF API (PR-064)", () => {
 });
 
 describe("deklarasi akses route (PR-019)", () => {
-  it("tujuh route CV, seluruhnya menuntut sesi", async () => {
+  it("delapan route CV, seluruhnya menuntut sesi", async () => {
     const { registry } = await boot();
     const daftar = registry.list();
 
@@ -511,6 +538,7 @@ describe("deklarasi akses route (PR-019)", () => {
       "GET /api/v1/me/resumes",
       "GET /api/v1/me/resumes/:id",
       "GET /api/v1/me/resumes/:id/pdf",
+      "GET /api/v1/me/resumes/:id/pdf/download",
       "POST /api/v1/me/resumes",
       "POST /api/v1/me/resumes/:id/pdf",
       "PUT /api/v1/me/resumes/:id",

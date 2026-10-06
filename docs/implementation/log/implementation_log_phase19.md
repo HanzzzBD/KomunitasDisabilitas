@@ -654,3 +654,30 @@ Tanggal: 6 Oktober 2026. Perubahan tambahan pada Phase 19.
 
 Hierarki final, daftar file dan hasil verifikasi lengkap:
 [laporan navigasi](../navigation-redesign.md).
+
+## Aktifkan CV AI dan PDF Web/Android
+
+Tanggal: 6 Oktober 2026. Perbaikan tambahan Phase 19.
+
+- Android sekarang menyediakan percakapan CV AI, sambung ulang SSE, kuota,
+  finalisasi draft, editor dan PDF. Transport memakai `expo/fetch`; tautan
+  `nawasena://cv/chat` masuk ke stack CV. Jalur CV dari profil tetap tersedia.
+- Unduhan Web/Android memakai endpoint privat
+  `GET /me/resumes/:id/pdf/download` dengan pemeriksaan sesi, pemilik dan
+  hash revisi. API membaca storage internal, sehingga HP tidak memerlukan
+  akses ke URL MinIO localhost. Berkas dibatasi ukurannya dan tidak dicache.
+  SDK mempertahankan refresh 401 dan memvalidasi signature PDF.
+- Worker lokal CV/PDF belum aktif saat diagnosis (`workers=0`). Ditambahkan
+  `dev:cv` / `--cv-only` untuk menjalankan PDF, ekstraksi draft dan pencatatan
+  AI tanpa konsumen kanal pesan atau cron; mode worker penuh tetap tersedia.
+- Verifikasi: 71 tes API/storage/PDF, 7 tes SDK, 191 tes mobile, 5 tes native,
+  13 tes Web terkait dan 9 tes browser CV/PDF lulus. Typecheck/lint workspace
+  terkait dan build Web lulus. Bundle Android berhasil (1171 modul).
+- Provider AI nyata berhasil menjawab dan mengekstrak draft akun sintetis;
+  Chromium/MinIO menghasilkan PDF 36.404 byte. Endpoint unduhan memberi
+  200 dengan `%PDF-`. Fixture dan objek uji dibersihkan. Worker CV lokal aktif.
+- APK lama perlu dibangun dan dipasang ulang untuk mendapatkan layar CV AI.
+  Tidak ada perangkat Android terhubung untuk smoke test viewer/TalkBack.
+  Tidak ada migrasi database atau kredensial yang ditambahkan ke repo.
+
+Detail: [aktivasi CV AI dan PDF](../cv-ai-pdf-activation.md).
