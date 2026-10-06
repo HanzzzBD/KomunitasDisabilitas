@@ -54,7 +54,7 @@ export function LencanaNotifikasi() {
             ? t("shell.notifikasi.lencana", { jumlah })
             : t("shell.notifikasi.lencanaKosong")
         }
-        className="inline-flex min-h-sentuh items-center gap-2 rounded-md border border-gray-400 px-4 text-base text-gray-900"
+        className="shell-tool inline-flex min-h-sentuh items-center gap-2 text-sm"
       >
         <span aria-hidden="true">{t("shell.notifikasi.lencanaKosong")}</span>
         {jumlah > 0 ? (

@@ -37,6 +37,13 @@
   */
   --font-scale: 1;
   --touch-target-min: 44px;
+  --shell-canvas: #f4f2ee;
+  --shell-surface: #ffffff;
+  --shell-ink: #242a26;
+  --shell-muted: #555c56;
+  --shell-border: #d9ddd6;
+  --shell-accent: #354d40;
+  --shell-selected: #e7eee8;
 
   /* Font sistem — SDD §4.5 "tanpa webfont": webfont menunda teks pertama
      tergambar, dan pada 3G penundaan itu terasa sebagai halaman yang macet. */
@@ -46,6 +53,258 @@
     "Segoe UI",
     Roboto,
     sans-serif;
+}
+
+[data-contrast="high"] {
+  --shell-canvas: #ffffff;
+  --shell-surface: #ffffff;
+  --shell-ink: #000000;
+  --shell-muted: #000000;
+  --shell-border: #000000;
+  --shell-accent: #000000;
+  --shell-selected: #ffffff;
+}
+
+@layer components {
+  .shell-app {
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    background: var(--shell-canvas);
+    color: var(--shell-ink);
+  }
+  .shell-header {
+    background: var(--shell-surface);
+    border-bottom: 1px solid var(--shell-border);
+  }
+  .shell-header-inner {
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 3vw, 2rem);
+  }
+  .shell-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    padding-block: 1.25rem;
+  }
+  .shell-brand {
+    display: inline-flex;
+    min-height: var(--touch-target-min);
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--shell-ink);
+    text-decoration: none;
+    letter-spacing: -0.03em;
+  }
+  .shell-brand-mark {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border-radius: 0.875rem;
+    background: var(--shell-accent);
+    color: #ffffff;
+    font-weight: 700;
+  }
+  .shell-context {
+    max-width: 24rem;
+    color: var(--shell-muted);
+    line-height: 1.6;
+  }
+  .shell-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+  }
+  .shell-tool,
+  .shell-login {
+    display: inline-flex;
+    min-height: var(--touch-target-min);
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    color: var(--shell-ink);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .shell-tool:hover,
+  .shell-tool[aria-current="page"] {
+    background: var(--shell-selected);
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .shell-login {
+    padding-inline: 1.5rem;
+    background: var(--shell-accent);
+    color: #ffffff;
+  }
+  .shell-login:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .shell-brand:focus-visible,
+  .shell-tool:focus-visible,
+  .shell-login:focus-visible,
+  .shell-nav-link:focus-visible,
+  .admin-menu-link:focus-visible {
+    outline-color: var(--shell-accent);
+  }
+  .shell-navigation ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.25rem 0 0.75rem;
+    list-style: none;
+  }
+  .shell-nav-link {
+    display: flex;
+    min-height: var(--touch-target-min);
+    align-items: center;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    color: var(--shell-muted);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .shell-nav-link:hover {
+    background: var(--shell-canvas);
+    color: var(--shell-ink);
+  }
+  .shell-nav-link[aria-current="page"] {
+    background: var(--shell-selected);
+    box-shadow: inset 0 -3px var(--shell-accent);
+    color: var(--shell-accent);
+    font-weight: 600;
+  }
+  .shell-main {
+    width: 100%;
+    max-width: 80rem;
+    flex: 1;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  .shell-page {
+    min-width: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--shell-border);
+    border-radius: 1.25rem;
+    background: var(--shell-surface);
+  }
+  .shell-page-admin {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .shell-footer {
+    display: flex;
+    max-width: 80rem;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    margin-inline: auto;
+    padding: 0.5rem 2rem 1.5rem;
+    color: var(--shell-muted);
+  }
+  .shell-footer span:last-child {
+    max-width: 32rem;
+  }
+  .admin-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .admin-sidebar,
+  .admin-content {
+    min-width: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--shell-border);
+    border-radius: 1.25rem;
+    background: var(--shell-surface);
+  }
+  .admin-sidebar {
+    align-self: start;
+  }
+  .admin-menu {
+    display: grid;
+    gap: 0.375rem;
+    margin-top: 1.5rem;
+    list-style: none;
+  }
+  .admin-menu-link {
+    display: flex;
+    min-height: var(--touch-target-min);
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 0.625rem;
+    color: var(--shell-muted);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .admin-menu-link:hover {
+    background: var(--shell-canvas);
+    color: var(--shell-ink);
+  }
+  .admin-menu-active {
+    background: var(--shell-accent);
+    color: #ffffff;
+  }
+  .admin-menu-active:hover {
+    background: var(--shell-accent);
+    color: #ffffff;
+  }
+  .admin-content {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 64rem) {
+    .admin-workspace {
+      grid-template-columns: 15rem minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 47.99rem) {
+    .shell-topbar {
+      gap: 0.75rem;
+    }
+    .shell-context {
+      flex-basis: 100%;
+      order: 3;
+    }
+    .shell-context-public {
+      display: none;
+    }
+    .shell-tools {
+      margin-left: 0;
+    }
+    .shell-main {
+      padding-block: 1rem;
+    }
+    .shell-page,
+    .admin-content,
+    .admin-sidebar {
+      padding: 1rem;
+    }
+    .shell-page-admin {
+      padding: 0;
+    }
+    .shell-nav-link {
+      padding-inline: 0.75rem;
+    }
+    .shell-footer {
+      padding-inline: 1rem;
+    }
+    .admin-menu {
+      grid-template-columns: repeat(
+        auto-fit,
+        minmax(min(100%, calc(8rem * var(--font-scale, 1))), 1fr)
+      );
+    }
+  }
 }
 
 @layer base {

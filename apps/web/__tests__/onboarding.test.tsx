@@ -90,6 +90,11 @@ function klienPalsu(jejak: Jejak[], hasil: Hasil): ApiClient {
         return new Promise(() => {}) as Promise<never>;
       }
 
+      // Bacaan role milik navigasi, bukan permintaan penulisan wizard.
+      if (path === "/me" && (opsi?.method ?? "GET") === "GET") {
+        return Promise.resolve({ data: { role: "seeker" } }) as Promise<never>;
+      }
+
       jejak.push({ path, method: opsi?.method ?? "GET", body: opsi?.body });
 
       if (path === "/me/accessibility") {

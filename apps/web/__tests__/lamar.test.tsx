@@ -13,7 +13,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiError, type ApiClient } from "@nawasena/api-client";
-import type { JobPublic, ResumeSummary, SensitiveProfile } from "@nawasena/schemas";
+import type { JobPublic, ResumeSummary, SensitiveProfile, UserRole } from "@nawasena/schemas";
 import { ruteApp } from "../src/app/routes.js";
 import { Providers } from "../src/app/providers.js";
 import { createQueryClient } from "../src/app/query-client.js";
@@ -70,6 +70,7 @@ interface Permintaan {
 }
 
 interface OpsiKlien {
+  role?: UserRole;
   resumes?: ResumeSummary[];
   sensitive?: SensitiveProfile | null;
   /** Lamaran yang sudah ada untuk lowongan ini (PR-079). */
@@ -86,6 +87,9 @@ function klienPalsu(jejak: Permintaan[], opsi: OpsiKlien = {}): ApiClient {
     ) => {
       const method = options?.method ?? "GET";
       if (path === "/auth/refresh") return new Promise(() => {}) as Promise<never>;
+      if (path === "/me") {
+        return Promise.resolve({ data: { role: opsi.role ?? "seeker" } }) as Promise<never>;
+      }
       if (path.startsWith("/me/notifications")) {
         return Promise.resolve({
           data: [],
@@ -151,13 +155,17 @@ const permintaanApply = (jejak: Permintaan[]) => jejak.filter((p) => p.path.ends
 
 async function bukaDialog() {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Lamar lowongan ini" }));
+  // Route dan katalog dimuat lazy; tunggu boot sebelum menguji dialog.
+  await user.click(
+    await screen.findByRole("button", { name: "Lamar lowongan ini" }, { timeout: 5000 }),
+  );
   const dialog = await screen.findByRole("dialog", { name: /Lamar: Staf Layanan Pelanggan/ });
   return { user, dialog };
 }
 
 afterEach(() => {
   cleanup();
+  useStoreSesi.getState().keluar();
   useStoreSesi.setState({ status: "memulihkan" });
 });
 
@@ -322,6 +330,19 @@ describe("dialog lamar — CV & klik ganda", () => {
 });
 
 describe("bagian lamar — sesi & ?lamar=1", () => {
+  it.each(["admin", "employer"] as const)(
+    "%s bisa membaca lowongan tanpa dialog atau permintaan lamaran pribadi",
+    async (role) => {
+      useStoreSesi.getState().masuk(`header.${btoa(JSON.stringify({ role }))}.tanda`);
+      const { jejak, router } = renderDi(`/lowongan/${JOB}?lamar=1`, { role });
+      await screen.findByRole("heading", { name: LOWONGAN.title, level: 1 });
+      expect(router.state.location.pathname).toBe(`/lowongan/${JOB}`);
+      expect(screen.queryByRole("button", { name: "Lamar lowongan ini" })).toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(jejak.some((p) => /^\/me\/(applications|resumes|profile)/.test(p.path))).toBe(false);
+    },
+  );
+
   it("belum masuk → tautan masuk yang kembali ke dialog lamar", async () => {
     renderDi(undefined, {}, "keluar");
     const tautan = await screen.findByRole("link", { name: "Masuk untuk melamar" });

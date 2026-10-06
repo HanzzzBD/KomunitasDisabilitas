@@ -146,39 +146,40 @@ export function Admin() {
   return (
     <Terlindungi>
       <PenjagaAdmin>
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
-          <h1 className="text-3xl font-bold break-words text-gray-900">{t("admin.judul")}</h1>
+        <div className="admin-workspace">
+          <aside className="admin-sidebar">
+            <h1 className="text-3xl font-bold break-words text-gray-900">{t("admin.judul")}</h1>
 
-          {/*
+            {/*
             `<nav>` ber-`aria-label`: halaman ini punya lebih dari satu
             navigasi bila dihitung bersama kerangka aplikasi (AC "Navigasi
             admin keyboard-only" — pola dan aksesibilitasnya identik dengan
             `pengaturan.tsx`, yang sudah terbukti keyboard-only sejak PR-033a).
           */}
-          <nav aria-label={t("admin.nav.label")}>
-            <ul className="flex list-none flex-wrap gap-2 p-0">
-              {SEKSI.map(({ ke, kunci, tepat }) => (
-                <li key={ke}>
-                  <NavLink
-                    to={ke}
-                    end={tepat}
-                    className={({ isActive }) =>
-                      gabungKelas(
-                        "inline-flex min-h-sentuh items-center rounded-md border px-4 text-base",
-                        isActive
-                          ? "border-gray-900 bg-gray-900 font-semibold text-white"
-                          : "border-gray-400 font-normal text-gray-900",
-                      )
-                    }
-                  >
-                    {t(kunci)}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <Outlet />
+            <nav aria-label={t("admin.nav.label")}>
+              <ul className="admin-menu">
+                {SEKSI.map(({ ke, kunci, tepat }) => (
+                  <li key={ke}>
+                    <NavLink
+                      to={ke}
+                      end={tepat}
+                      className={({ isActive }) =>
+                        gabungKelas(
+                          "admin-menu-link text-base",
+                          isActive ? "admin-menu-active font-semibold" : "font-normal",
+                        )
+                      }
+                    >
+                      {t(kunci)}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </aside>
+          <div className="admin-content">
+            <Outlet />
+          </div>
         </div>
       </PenjagaAdmin>
     </Terlindungi>

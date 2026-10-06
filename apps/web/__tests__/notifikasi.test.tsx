@@ -236,7 +236,7 @@ describe("daftar notifikasi", () => {
     renderCenter({ data: [SAMBUTAN, STATUS], unreadCount: 1 });
     await tungguHalaman();
 
-    const item = await screen.findAllByRole("listitem");
+    const item = await within(screen.getByRole("main")).findAllByRole("listitem");
     expect(within(item[0] as HTMLElement).getByText("Belum dibaca")).toBeInTheDocument();
     // Yang sudah dibaca TIDAK membawa penanda itu.
     expect(within(item[1] as HTMLElement).queryByText("Belum dibaca")).toBeNull();

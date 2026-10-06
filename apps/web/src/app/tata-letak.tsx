@@ -4,18 +4,12 @@
 // yang harus diingat setiap halaman adalah banner yang suatu saat akan
 // terlupakan di salah satunya. Alasan yang sama kini berlaku untuk DUA hal baru
 // (PR-032a): landmark `<main>` dan tautan lompat ke konten.
-import {
-  Link,
-  Navigate,
-  Outlet,
-  ScrollRestoration,
-  useLocation,
-  useNavigation,
-} from "react-router";
+import { Navigate, Outlet, ScrollRestoration, useLocation, useNavigation } from "react-router";
 import { useEffect } from "react";
 import { BannerLuring } from "./banner-luring.js";
 import { useTeks } from "../shared/i18n/index.js";
-import { LencanaNotifikasi } from "./lencana-notifikasi.js";
+import { NavigasiWeb } from "./navigasi-web.js";
+import { usePeranSesi } from "../shared/sesi/peran.js";
 import { useStoreSesi } from "../shared/sesi/store.js";
 import {
   idPenggunaSaatIni,
@@ -95,6 +89,7 @@ export function TataLetak() {
   //
   // Berlangganan HANYA `status`; lihat catatan yang sama di `Terlindungi`.
   const status = useStoreSesi((s) => s.status);
+  const peran = usePeranSesi();
   const lokasi = useLocation();
 
   // PAGEVIEW ANALYTICS (PR-082) — di kerangka karena satu-satunya komponen yang
@@ -117,8 +112,26 @@ export function TataLetak() {
       });
   }, [lokasi.pathname]);
 
+  // Pemisahan ruang kerja adalah UX. API tetap memeriksa sesi, role, dan
+  // kepemilikan data; halaman publik serta setelan bersama tetap terbuka.
+  const jalurSeeker =
+    lokasi.pathname === "/profil" ||
+    lokasi.pathname === "/onboarding" ||
+    lokasi.pathname === "/cv" ||
+    lokasi.pathname.startsWith("/cv/") ||
+    lokasi.pathname === "/lamaran" ||
+    lokasi.pathname.startsWith("/lamaran/");
+  if (peran === "admin" && (jalurSeeker || lokasi.pathname === "/")) {
+    return <Navigate to="/admin" replace />;
+  }
+  if (peran === "employer" && jalurSeeker) {
+    return <Navigate to="/lowongan" replace />;
+  }
+
   const perluOnboarding =
     status === "masuk" &&
+    peran !== "admin" &&
+    peran !== "employer" &&
     wizardOnboardingAktif() &&
     !JALUR_DIKECUALIKAN.includes(lokasi.pathname) &&
     // Bagian admin memeriksa sesi/peran sendiri. Wizard pencari kerja tidak
@@ -141,7 +154,7 @@ export function TataLetak() {
   }
 
   return (
-    <>
+    <div className="shell-app">
       {/*
         TAUTAN LOMPAT — elemen fokusabel PERTAMA di dokumen, dan itu keseluruhan
         gunanya. Pengguna keyboard yang mendarat di halaman berisi navigasi
@@ -173,76 +186,7 @@ export function TataLetak() {
       */}
       <PesanAksesDitolak />
 
-      {/*
-        PINTASAN KE PANEL PREFERENSI (PR-036, AC-5: "panel terjangkau dalam ≤ 2
-        interaksi dari mana pun").
-
-        DIPASANG DI KERANGKA karena tidak ada tempat lain yang memenuhi "dari
-        mana pun". Sebelum PR ini aplikasi TIDAK punya navigasi tingkat atas
-        sama sekali: satu-satunya jalan ke `/pengaturan/aksesibilitas` adalah
-        mengetikkan alamatnya, dan pengguna yang paling membutuhkan panel ini
-        justru yang paling kecil kemungkinannya menebak alamat.
-
-        DUA TAUTAN SEJAK PR-040, BUKAN BILAH NAVIGASI. Catatan aslinya menunda
-        menu lengkap karena "halaman-halamannya sendiri sebagian belum ada".
-        Halaman profil karier kini ada, dan alasan tautan pertama berlaku
-        untuknya persis: tanpa tautan, satu-satunya jalan ke sana adalah
-        mengetikkan alamat — dan halaman yang alamatnya harus ditebak sama saja
-        dengan halaman yang tidak ada. Yang MASIH ditunda adalah menunya; dua
-        tautan bukan menu, dan penundaan itu tetap keputusan produk.
-
-        HANYA SAAT SUDAH MASUK: alamatnya terlindungi (`Terlindungi` di
-        `/pengaturan`), jadi tautan bagi pengunjung yang belum masuk berjanji
-        membawa ke panel lalu mendaratkannya di halaman masuk.
-
-        DI BAWAH TAUTAN LOMPAT, tidak di atasnya. Tautan lompat harus tetap
-        menjadi elemen fokusabel PERTAMA — itu seluruh gunanya, dan dijaga
-        `tata-letak.test.tsx`.
-      */}
-      {status === "masuk" && (
-        <nav aria-label={t("shell.pintas.label")} className="flex flex-wrap justify-end gap-2 p-2">
-          {/*
-            PALING KIRI di antara pintasan, dan itu bukan selera: lencana
-            notifikasi adalah satu-satunya pintasan yang isinya BERUBAH sendiri,
-            dan pengguna yang menyusurinya dengan Tab harus menemukannya di
-            tempat yang sama setiap kali — bukan bergeser mengikuti pintasan
-            lain yang ditambahkan kemudian.
-          */}
-          <LencanaNotifikasi />
-          <Link
-            to="/profil"
-            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
-          >
-            {t("shell.pintas.profil")}
-          </Link>
-          <Link
-            to="/cv"
-            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
-          >
-            {t("shell.pintas.cv")}
-          </Link>
-          {/* PR-079 — tanpa ini "Lamaran Saya" hanya terjangkau lewat notifikasi. */}
-          <Link
-            to="/lamaran"
-            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
-          >
-            {t("shell.pintas.lamaran")}
-          </Link>
-          {/* PR-086 — kamus publik; pintasan bagi yang sudah masuk (keputusan owner). */}
-          <Link
-            to="/kamus"
-            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
-          >
-            {t("shell.pintas.kamus")}
-          </Link>
-          <Link
-            to="/pengaturan/aksesibilitas"
-            className="inline-flex min-h-sentuh items-center rounded-md border border-gray-400 px-4 text-base text-gray-900"
-          >
-            {t("shell.pintas.aksesibilitas")}
-          </Link>
-        </nav>
-      )}
+      <NavigasiWeb masuk={status === "masuk"} peran={peran} />
 
       <BannerLuring />
 
@@ -262,14 +206,28 @@ export function TataLetak() {
         reader bahwa isi di dalamnya belum final, sehingga pembacaannya tidak
         dimulai di tengah pergantian konten.
       */}
-      <main id={ID_KONTEN_UTAMA} tabIndex={-1} aria-busy={sedangMemuat}>
-        {sedangMemuat ? (
-          // Teks, bukan animasi berputar: pengguna dengan `prefers-reduced-motion`
-          // tetap terlayani, dan teksnya terbaca screen reader apa adanya.
-          <p>{t("shell.memuat")}</p>
-        ) : null}
-        <Outlet />
+      <main id={ID_KONTEN_UTAMA} tabIndex={-1} aria-busy={sedangMemuat} className="shell-main">
+        <div
+          className={
+            lokasi.pathname.startsWith("/admin") ? "shell-page shell-page-admin" : "shell-page"
+          }
+        >
+          {sedangMemuat ? (
+            // Teks, bukan animasi berputar: pengguna dengan `prefers-reduced-motion`
+            // tetap terlayani, dan teksnya terbaca screen reader apa adanya.
+            <p>{t("shell.memuat")}</p>
+          ) : null}
+          <Outlet />
+        </div>
       </main>
+      {/* Isi beranda menunggu pemulihan sesi. Footer muncul bersamanya agar
+          tidak bergeser dari tengah viewport saat isi halaman tersedia. */}
+      {status !== "memulihkan" && (
+        <footer className="shell-footer text-sm">
+          <span>{t("shell.merek")}</span>
+          <span>{t("shell.beranda.tagline")}</span>
+        </footer>
+      )}
 
       {/*
         SCROLL RESTORATION (PR-059) — dipasang di kerangka, SEKALI, dengan
@@ -282,6 +240,6 @@ export function TataLetak() {
         hash diarahkan ke elemennya, bukan ke atas.
       */}
       <ScrollRestoration />
-    </>
+    </div>
   );
 }

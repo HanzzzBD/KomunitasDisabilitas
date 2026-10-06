@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { RouteObject } from "react-router";
+import { createMemoryRouter, type RouteObject } from "react-router";
 import { ruteApp } from "../src/app/routes.js";
 import {
   FITUR_MALAS,
@@ -55,7 +55,7 @@ function resolusi(dariBerkas: string, spesifier: string): string | null {
 
 // HANYA impor STATIS. Mengikuti `import()` dinamis akan menyeberangi batas
 // chunk — dan justru batas itulah yang dijaga berkas ini: `app/routes.ts`
-// meng-`import()` SETIAP halaman, jadi satu rute yang menyentuhnya secara tidak
+// meng-`import()` halaman fitur, jadi satu rute yang menyentuhnya secara tidak
 // langsung akan tampak membutuhkan seluruh katalog aplikasi. Versi pertama
 // penjaga ini melakukannya dan melaporkan tiga ketergantungan palsu.
 const POLA_IMPOR = /from\s+["']([^"']+)["']/g;
@@ -137,6 +137,30 @@ describe("katalog i18n dimuat malas per rute", () => {
   it("shell SELALU tersedia tanpa dimuat — layar galat tidak boleh menunggu unduhan", () => {
     expect(sudahDimuat("shell")).toBe(true);
     for (const fitur of FITUR_MALAS) expect(sudahDimuat(fitur)).toBe(false);
+  });
+
+  it("landing menyiapkan teksnya sebelum route siap tanpa memuat katalog karier/admin", async () => {
+    const router = createMemoryRouter(ruteApp, { initialEntries: ["/"] });
+    try {
+      await new Promise<void>((resolve) => {
+        if (router.state.initialized) resolve();
+        else {
+          const berhenti = router.subscribe((state) => {
+            if (state.initialized) {
+              berhenti();
+              resolve();
+            }
+          });
+        }
+      });
+      expect(router.state.errors).toBeNull();
+      expect(sudahDimuat("beranda")).toBe(true);
+      for (const fitur of FITUR_MALAS.filter((f) => f !== "beranda")) {
+        expect(sudahDimuat(fitur)).toBe(false);
+      }
+    } finally {
+      router.dispose();
+    }
   });
 
   it("SETIAP rute memuat katalog untuk seluruh prefiks yang dipakainya", () => {

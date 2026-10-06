@@ -168,10 +168,8 @@ describe("kartu — satu kesatuan bagi screen reader", () => {
   it("judul, skor (angka + label), alasan, info, akomodasi, lalu SATU tautan di akhir", async () => {
     renderBeranda({ halaman1: { data: [item(1)], meta: meta() } });
     await tungguFeed();
-    const kartu = (await screen.findAllByRole("listitem")).find((li) =>
-      within(li).queryByRole("heading", { name: "Lowongan 1" }),
-    );
-    expect(kartu).toBeDefined();
+    const kartu = (await screen.findByRole("heading", { name: "Lowongan 1" })).closest("li");
+    expect(kartu).not.toBeNull();
     const k = within(kartu!);
     // AC "Skor bukan warna-saja": angka DAN label tertulis.
     expect(k.getByText("Kecocokan 73% — sangat cocok")).toBeInTheDocument();

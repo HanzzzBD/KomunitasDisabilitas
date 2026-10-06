@@ -216,7 +216,7 @@ describe("kerangka & navigasi", () => {
     renderPengaturan({ jalur: "/pengaturan/aksesibilitas" });
     await tungguJudul("Aksesibilitas");
 
-    const aktif = screen
+    const aktif = within(screen.getByRole("navigation", { name: "Bagian pengaturan" }))
       .getAllByRole("link")
       .filter((a) => a.getAttribute("aria-current") === "page");
     expect(aktif).toHaveLength(1);
