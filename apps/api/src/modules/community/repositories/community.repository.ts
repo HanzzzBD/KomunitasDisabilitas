@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import type { CommunityListQuery, CreateCommunity, UpdateCommunity } from "@nawasena/schemas";
+import type { CommunityAdminListQuery, CreateCommunity, UpdateCommunity } from "@nawasena/schemas";
 import type { AppPrisma } from "../../../core/db/index.js";
 import { appError } from "../../../core/http/index.js";
 import type { PosisiKursor } from "../../../core/pagination/index.js";
@@ -90,12 +90,13 @@ export function createCommunityRepository(prisma: AppPrisma) {
   return {
     inRoom,
     async list(
-      query: CommunityListQuery,
+      query: CommunityAdminListQuery,
       cursor: PosisiKursor | undefined,
       admin = false,
     ): Promise<RoomRow[]> {
       const conditions: Prisma.Sql[] = [Prisma.sql`TRUE`];
       if (!admin) conditions.push(Prisma.sql`r.status = 'active'`);
+      if (admin && query.status) conditions.push(Prisma.sql`r.status::text = ${query.status}`);
       if (query.type) conditions.push(Prisma.sql`r.type::text = ${query.type}`);
       if (query.city) conditions.push(Prisma.sql`lower(r.city) = lower(${query.city})`);
       // Keep the actual microsecond timestamp even when the anchor was archived

@@ -199,7 +199,7 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
     );
   });
 
-  it("navigasi punya ENAM entri: Ringkasan, Perusahaan, Lowongan, Lamaran, Pengguna, Kamus BISINDO", async () => {
+  it("navigasi punya TUJUH entri termasuk Komunitas", async () => {
     renderAdmin();
     await screen.findByRole("heading", { level: 1, name: "Admin" }, { timeout: 5000 });
 
@@ -208,7 +208,15 @@ describe("kerangka & navigasi (AC: navigasi admin keyboard-only)", () => {
       within(nav)
         .getAllByRole("link")
         .map((l) => l.textContent),
-    ).toEqual(["Ringkasan", "Perusahaan", "Lowongan", "Lamaran", "Pengguna", "Kamus BISINDO"]);
+    ).toEqual([
+      "Ringkasan",
+      "Perusahaan",
+      "Lowongan",
+      "Lamaran",
+      "Pengguna",
+      "Kamus BISINDO",
+      "Komunitas",
+    ]);
   });
 });
 

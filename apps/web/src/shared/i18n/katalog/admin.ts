@@ -6,8 +6,10 @@
 // CARA MENULIS VARIAN `id-simple` — panduan lengkap di
 // docs/panduan-bahasa-sederhana.md.
 import type { KatalogFitur } from "../tipe.js";
+import { katalogAdminCommunity } from "./admin-community.js";
 
 export const katalogAdmin = {
+  ...katalogAdminCommunity,
   "admin.judul": {
     id: "Admin",
     "id-simple": "Admin",

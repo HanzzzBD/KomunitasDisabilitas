@@ -2,6 +2,7 @@ import {
   communityFeedQuerySchema,
   communityIdParamsSchema,
   communityListQuerySchema,
+  communityAdminListQuerySchema,
   communitySlugParamsSchema,
   createCommunitySchema,
   emptyCommunityMutationSchema,
@@ -69,7 +70,7 @@ export function createCommunityRouter(c: CommunityController, routes: RouteRegis
     "/admin/communities",
     access.role("admin"),
     c.readLimit,
-    validate({ query: communityListQuerySchema }),
+    validate({ query: communityAdminListQuerySchema }),
     asyncHandler(c.listAdmin),
   );
   routes.get(

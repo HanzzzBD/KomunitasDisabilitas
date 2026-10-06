@@ -281,6 +281,56 @@ export const ruteApp: RouteObject[] = [
             // tidak berbagi kerangka navigasi tambahan seperti panel
             // `/pengaturan`, jadi tidak ada gunanya route induk ber-`<Outlet/>`
             // di antaranya.
+            path: "community",
+            lazy: async () => {
+              const [{ AdminCommunity }] = await Promise.all([
+                import("../routes/admin-community.js"),
+                muatKatalog("admin", "community"),
+              ]);
+              return { Component: AdminCommunity };
+            },
+          },
+          {
+            path: "community/laporan",
+            lazy: async () => {
+              const [{ AdminCommunityQueue }] = await Promise.all([
+                import("../routes/admin-community.js"),
+                muatKatalog("admin", "community"),
+              ]);
+              return { Component: AdminCommunityQueue };
+            },
+          },
+          {
+            path: "community/laporan/:id",
+            lazy: async () => {
+              const [{ AdminCommunityLaporan }] = await Promise.all([
+                import("../routes/admin-community-laporan.js"),
+                muatKatalog("admin", "community"),
+              ]);
+              return { Component: AdminCommunityLaporan };
+            },
+          },
+          {
+            path: "community/ruang/baru",
+            lazy: async () => {
+              const [{ AdminCommunityFormulir }] = await Promise.all([
+                import("../routes/admin-community-formulir.js"),
+                muatKatalog("admin", "community"),
+              ]);
+              return { Component: AdminCommunityFormulir };
+            },
+          },
+          {
+            path: "community/ruang/:id",
+            lazy: async () => {
+              const [{ AdminCommunityFormulir }] = await Promise.all([
+                import("../routes/admin-community-formulir.js"),
+                muatKatalog("admin", "community"),
+              ]);
+              return { Component: AdminCommunityFormulir };
+            },
+          },
+          {
             path: "companies",
             lazy: async () => {
               const [{ AdminCompaniesDaftar }] = await Promise.all([

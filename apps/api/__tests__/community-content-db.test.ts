@@ -12,6 +12,10 @@ import {
   communityReportResponseSchema,
   communityReportAdminResponseSchema,
   communityReportAdminListResponseSchema,
+  communityQueueResponseSchema,
+  communityQueueDetailResponseSchema,
+  communityMetricsResponseSchema,
+  communityListResponseSchema,
   communityFeedResponseSchema,
   dataExportSchema,
   AUDIT_ACTION,
@@ -28,6 +32,7 @@ import {
   createTokenService,
 } from "../src/core/auth/index.js";
 import { createCommunityModule } from "../src/modules/community/index.js";
+import { createCommunityAdminRepository } from "../src/modules/community/repositories/admin.repository.js";
 import { createNotificationsModule } from "../src/modules/notifications/index.js";
 import { encodeKursor } from "../src/core/pagination/index.js";
 import { SESSION_KEYS } from "./helpers/session.js";
@@ -211,6 +216,225 @@ async function comment(postId: string, userId = author) {
     data: { id: uuidV7(), postId, authorId: userId, body: "Balasan fiktif" },
   });
 }
+describe("PR-118 Community admin", () => {
+  it("minimal queue/detail/metrics reject guests, seekers, employers and suspended accounts", async (ctx) => {
+    if (!available) return ctx.skip();
+    const r = await room();
+    const p = await post(r.id);
+    const report = await prisma.communityReport.create({
+      data: {
+        id: uuidV7(),
+        reporterId: other,
+        targetType: "post",
+        targetId: p.id,
+        reason: "Rujukan",
+      },
+    });
+    for (const path of [
+      "/admin/community-queue",
+      `/admin/community-queue/${report.id}`,
+      "/admin/community-metrics",
+    ])
+      for (const [id, expected] of [
+        [undefined, 401],
+        [author, 403],
+        [employer, 403],
+        [suspended, 401],
+      ] as const)
+        expect((await call(path, id)).status).toBe(expected);
+    const response = await call(`/admin/community-queue/${report.id}`, admin);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const payload = communityQueueDetailResponseSchema.parse(await response.json());
+    expect(payload.data.reason).toBe("Rujukan");
+    for (const key of ["reporterId", "resolvedBy", "profile", "resume", "email", "phone"])
+      expect(JSON.stringify(payload)).not.toContain(key);
+    expect((await call(`/admin/community-queue/${uuidV7()}`, admin)).status).toBe(404);
+    expect((await call("/admin/community-queue/invalid", admin)).status).toBe(400);
+    communityMetricsResponseSchema.parse(
+      await (await call("/admin/community-metrics", admin)).json(),
+    );
+  });
+  it("minimal queue keeps microsecond oldest-first pagination when the anchor is closed", async (ctx) => {
+    if (!available) return ctx.skip();
+    const r = await room();
+    const p = await post(r.id);
+    const ids = [uuidV7(), uuidV7(), uuidV7()];
+    for (const [index, id] of ids.entries())
+      await sql.query(
+        "INSERT INTO community_reports(id,reporter_id,target_type,target_id,reason,created_at) VALUES($1,$2,'post',$3,'Aturan',$4)",
+        [id, other, p.id, `1990-01-01T00:00:00.00000${index + 1}Z`],
+      );
+    const page = communityQueueResponseSchema.parse(
+      await (await call("/admin/community-queue?limit=2&status=open", admin)).json(),
+    );
+    expect(page.data.map((row) => row.id)).toEqual(ids.slice(0, 2));
+    await prisma.communityReport.update({
+      where: { id: ids[1] },
+      data: { status: "resolved", resolvedBy: admin, resolvedAt: new Date() },
+    });
+    const next = communityQueueResponseSchema.parse(
+      await (
+        await call(
+          `/admin/community-queue?limit=2&status=open&cursor=${encodeURIComponent(page.meta.nextCursor!)}`,
+          admin,
+        )
+      ).json(),
+    );
+    expect(next.data[0]!.id).toBe(ids[2]);
+    expect(next.data.every((row) => row.status === "open")).toBe(true);
+    expect((await call("/admin/community-queue?cursor=bad", admin)).status).toBe(400);
+    await prisma.communityReport.updateMany({
+      where: { id: { in: ids } },
+      data: { status: "resolved", resolvedBy: admin, resolvedAt: new Date() },
+    });
+  });
+  it("minimal rejection enforces reason, commits audit and preserves the content", async (ctx) => {
+    if (!available) return ctx.skip();
+    const r = await room();
+    const p = await post(r.id);
+    const row = await prisma.communityReport.create({
+      data: {
+        id: uuidV7(),
+        reporterId: other,
+        targetType: "post",
+        targetId: p.id,
+        reason: "Laporan",
+      },
+    });
+    const path = `/admin/community-queue/${row.id}/reject`;
+    expect((await call(path, author, "POST", { reason: "Keputusan" })).status).toBe(403);
+    expect((await call(path, admin, "POST", { reason: "  " })).status).toBe(400);
+    const rejected = communityQueueDetailResponseSchema.parse(
+      await (await call(path, admin, "POST", { reason: "Tidak melanggar aturan" })).json(),
+    ).data;
+    expect(rejected.status).toBe("rejected");
+    expect(await prisma.communityPost.findUnique({ where: { id: p.id } })).toMatchObject({
+      status: "published",
+      body: p.body,
+    });
+    const audit = await prisma.auditLog.findFirstOrThrow({ where: { entityId: row.id } });
+    expect(audit).toMatchObject({ actorId: admin, action: AUDIT_ACTION.COMMUNITY_REPORT_REJECTED });
+    expect(audit.meta).toMatchObject({ reason: "Tidak melanggar aturan" });
+    expect(audit.createdAt).toBeInstanceOf(Date);
+    expect((await call(path, admin, "POST", { reason: "Ulang" })).status).toBe(409);
+  });
+  it("minimal rejection rolls back if the audit insert fails", async (ctx) => {
+    if (!available) return ctx.skip();
+    const r = await room();
+    const p = await post(r.id);
+    const row = await prisma.communityReport.create({
+      data: {
+        id: uuidV7(),
+        reporterId: other,
+        targetType: "post",
+        targetId: p.id,
+        reason: "Laporan",
+      },
+    });
+    await sql.query(
+      `CREATE FUNCTION reject_audit_118() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit failure'; END $$; CREATE TRIGGER reject_audit_118 BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION reject_audit_118()`,
+    );
+    try {
+      expect(
+        (
+          await call(`/admin/community-queue/${row.id}/reject`, admin, "POST", {
+            reason: "Keputusan",
+          })
+        ).status,
+      ).toBe(500);
+      expect(await prisma.communityReport.findUnique({ where: { id: row.id } })).toMatchObject({
+        status: "open",
+        resolvedAt: null,
+        resolvedBy: null,
+      });
+      expect(await prisma.auditLog.count({ where: { entityId: row.id } })).toBe(0);
+    } finally {
+      await sql.query(
+        "DROP TRIGGER reject_audit_118 ON audit_logs; DROP FUNCTION reject_audit_118()",
+      );
+    }
+  });
+  it("metrics use a fixed 30-day window, include final content and both resolution outcomes, and return no identity", async (ctx) => {
+    if (!available) return ctx.skip();
+    const to = new Date("2035-06-30T12:00:00Z");
+    const from = new Date(to.getTime() - 30 * 86_400_000);
+    const r = await room([author, other, suspended]);
+    await prisma.communityMembership.updateMany({
+      where: { communityId: r.id },
+      data: { joinedAt: from },
+    });
+    await prisma.communityMembership.update({
+      where: { communityId_userId: { communityId: r.id, userId: other } },
+      data: { status: "blocked" },
+    });
+    for (const [status, createdAt] of [
+      ["published", from],
+      ["removed", to],
+      ["hidden", new Date(from.getTime() - 1)],
+    ] as const)
+      await prisma.communityPost.create({
+        data: {
+          id: uuidV7(),
+          communityId: r.id,
+          authorId: author,
+          body: "Teks fiktif",
+          status,
+          createdAt,
+        },
+      });
+    const p = await post(r.id);
+    for (const [status, seconds] of [
+      ["resolved", 3600],
+      ["rejected", 10800],
+    ] as const)
+      await prisma.communityReport.create({
+        data: {
+          id: uuidV7(),
+          reporterId: other,
+          targetType: "post",
+          targetId: p.id,
+          reason: "Aturan",
+          status,
+          createdAt: new Date(to.getTime() - seconds * 1000),
+          resolvedAt: to,
+          resolvedBy: admin,
+        },
+      });
+    const metrics = await createCommunityAdminRepository(prisma).metrics(to);
+    expect(metrics).toMatchObject({
+      periodDays: 30,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      newMemberships: 1,
+      posts: 2,
+      closedReports: 2,
+      averageResolutionSeconds: 7200,
+    });
+    expect(metrics.openReports).toBe(
+      await prisma.communityReport.count({ where: { status: "open" } }),
+    );
+    expect(JSON.stringify(metrics)).not.toContain(author);
+    const empty = await createCommunityAdminRepository(prisma).metrics(new Date("2040-01-01Z"));
+    expect(empty).toMatchObject({
+      newMemberships: 0,
+      posts: 0,
+      closedReports: 0,
+      averageResolutionSeconds: null,
+    });
+  });
+  it("room status filters return only requested statuses without affecting public browsing", async (ctx) => {
+    if (!available) return ctx.skip();
+    const r = await room();
+    await prisma.community.update({ where: { id: r.id }, data: { status: "archived" } });
+    const archived = communityListResponseSchema.parse(
+      await (await call("/admin/communities?status=archived&limit=100", admin)).json(),
+    );
+    expect(archived.data.some((row: { id: string }) => row.id === r.id)).toBe(true);
+    expect(archived.data.every((row: { status: string }) => row.status === "archived")).toBe(true);
+    expect((await call("/communities?status=archived", undefined)).status).toBe(400);
+  });
+});
+
 const actor = (userId: string) => ({ userId, requestId: uuidV7() });
 async function contentData(response: Response) {
   return communityPostResponseSchema.or(communityCommentResponseSchema).parse(await response.json())

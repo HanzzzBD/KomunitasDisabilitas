@@ -34,6 +34,21 @@ const PARAMS = {
 };
 
 describe("tujuan notifikasi", () => {
+  it("admin Community reports open a validated report route", () => {
+    const reportId = "01912345-89ab-7def-8123-4567890ace01";
+    const path = tautanNotifikasi({
+      type: NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT,
+      params: { reportId },
+    });
+    expect(path).toBe(`/admin/community/laporan/${reportId}`);
+    expect(matchRoutes(ruteApp, path!)?.at(-1)?.route.path).not.toBe("*");
+    expect(
+      tautanNotifikasi({
+        type: NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT,
+        params: { reportId: "../profil" },
+      }),
+    ).toBeNull();
+  });
   it("SETIAP tipe terdaftar punya jawaban — tidak ada yang melempar", () => {
     // Ini yang membuat `switch` ber-`never` di `tautan.ts` berarti sesuatu:
     // tipe baru yang lupa diputuskan tujuannya akan meledak di sini, bukan di
