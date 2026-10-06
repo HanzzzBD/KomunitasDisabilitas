@@ -305,6 +305,14 @@ describe("PR-114 Community: HTTP + DB", () => {
       communityResponseSchema.parse(await (await call(`/communities/${a.slug}`)).json()).data
         .status,
     ).toBe("archived");
+    const byId = communityResponseSchema.parse(
+      await (await call(`/communities/by-id/${a.id}`)).json(),
+    ).data;
+    expect(byId.status).toBe("archived");
+    expect(byId.membershipStatus).toBeNull();
+    expect(Object.keys(byId).sort()).toEqual(Object.keys(p1.data[0]!).sort());
+    expect((await call("/communities/by-id/not-a-uuid")).status).toBe(400);
+    expect((await call(`/communities/by-id/${uuidV7()}`)).status).toBe(404);
     const after = communityListResponseSchema.parse(
       await (await call(`/communities?type=city&city=${city}`)).json(),
     );

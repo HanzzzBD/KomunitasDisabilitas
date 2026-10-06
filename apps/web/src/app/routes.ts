@@ -470,6 +470,16 @@ export const ruteApp: RouteObject[] = [
         },
       },
       {
+        path: "community/content/:targetType/:id",
+        lazy: async () => {
+          const [{ CommunityContent }] = await Promise.all([
+            import("../routes/community-content.js"),
+            muatKatalog("community"),
+          ]);
+          return { Component: CommunityContent };
+        },
+      },
+      {
         // Detail entri kamus — SAUDARA `kamus`, halaman penuh (pola `lowongan/:id`).
         path: "kamus/:id",
         lazy: async () => {

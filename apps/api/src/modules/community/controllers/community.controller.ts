@@ -20,6 +20,7 @@ export interface CommunityController {
   writeLimit: RequestHandler;
   list: Endpoint;
   detail: Endpoint;
+  detailById: Endpoint;
   membership: Endpoint;
   join: Endpoint;
   leave: Endpoint;
@@ -51,6 +52,9 @@ export function createCommunityController(service: CommunityService): CommunityC
     async detail(req: Request, res: Response) {
       res.json({ data: await service.detail(req.params.slug!) });
     },
+    async detailById(req: Request, res: Response) {
+      res.json({ data: await service.detailById(req.params.id!) });
+    },
     async membership(req: Request, res: Response) {
       res.json({ data: await service.membership(authOf(req).userId, req.params.id!) });
     },
@@ -67,7 +71,7 @@ export function createCommunityController(service: CommunityService): CommunityC
       res.json(await service.list(req.query as unknown as CommunityListQuery, true));
     },
     async detailAdmin(req: Request, res: Response) {
-      res.json({ data: await service.detailAdmin(req.params.id!) });
+      res.json({ data: await service.detailById(req.params.id!) });
     },
     async create(req: Request, res: Response) {
       res

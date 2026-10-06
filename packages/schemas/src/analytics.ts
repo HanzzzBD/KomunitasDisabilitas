@@ -55,10 +55,10 @@ const POLA_ANGKA_ID = /^\d{4,}$/;
  */
 export function normalkanPath(path: string): string {
   // A room slug can reveal a topic someone visited; send the route pattern.
-  const tanpaEkor = (path.split(/[?#]/, 1)[0] ?? "/").replace(
-    /^\/community\/[^/]+/,
-    "/community/:slug",
-  );
+  const mentah = path.split(/[?#]/, 1)[0] ?? "/";
+  const tanpaEkor = /^\/community\/content\/[^/]+\/[^/]+/.test(mentah)
+    ? "/community/content/:targetType/:id"
+    : mentah.replace(/^\/community\/[^/]+/, "/community/:slug");
   const segmen = tanpaEkor
     .split("/")
     .map((s) => (POLA_UUID.test(s) || POLA_ANGKA_ID.test(s) ? ":id" : s));
@@ -71,9 +71,13 @@ export const analyticsPathSchema = z
   .string()
   .max(200)
   .regex(/^\/[A-Za-z0-9/_:.-]*$/, { message: "Path analytics berisi karakter tak dikenal" })
-  .refine((p) => !/^\/community\/(?!:slug(?:\/|$))[^/]+/.test(p), {
-    message: "Path analytics masih memuat slug ruang",
-  })
+  .refine(
+    (p) =>
+      p === "/community/content/:targetType/:id" || !/^\/community\/(?!:slug(?:\/|$))[^/]+/.test(p),
+    {
+      message: "Path analytics masih memuat slug ruang",
+    },
+  )
   .refine((p) => p.split("/").every((s) => !POLA_UUID.test(s) && !POLA_ANGKA_ID.test(s)), {
     message: "Path analytics masih memuat id",
   });

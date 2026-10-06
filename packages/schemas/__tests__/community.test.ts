@@ -182,7 +182,8 @@ describe("kontrak Community (PR-113/114/116)", () => {
       expect(schemas).toHaveProperty(name);
     }
     const paths = document.paths ?? {};
-    expect(Object.keys(paths).filter((path) => path.includes("communit"))).toHaveLength(15);
+    expect(Object.keys(paths).filter((path) => path.includes("communit"))).toHaveLength(16);
+    expect(paths["/communities/by-id/{id}"]).toHaveProperty("get");
     expect(paths["/communities/{id}/posts"]).toHaveProperty("get");
     expect(paths["/communities/{id}/posts"]).toHaveProperty("post");
     for (const path of ["/community-posts/{id}", "/community-comments/{id}"])

@@ -9,6 +9,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import type { A11yStore } from "@nawasena/a11y";
 import type { ApiClient } from "@nawasena/api-client";
 import { PenyediaKlienApi } from "./klien-api.js";
+import { PrivasiCommunity } from "./community-privacy.js";
 import { createQueryClient } from "./query-client.js";
 import { PenyediaI18n } from "../shared/i18n/index.js";
 import type { ModeBahasa } from "../shared/i18n/index.js";
@@ -61,6 +62,7 @@ export function Providers({
   //     menambah satu lapis komponen tanpa satu pun akibat.
   return (
     <QueryClientProvider client={klien}>
+      <PrivasiCommunity />
       <PenyediaKlienApi klien={klienApi}>
         <PenyediaA11y store={a11y}>
           <SambungkanServer store={a11y} />
