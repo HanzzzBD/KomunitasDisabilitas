@@ -56,6 +56,36 @@ export const LABEL_STATUS: Record<ApplicationStatus, NotificationText> = {
  * jalan melahirkan notifikasi yang tampil kosong di layar pengguna.
  */
 export const TEMPLATE = {
+  "admin.community_report": {
+    title: () => ({
+      id: "Laporan komunitas perlu ditinjau",
+      "id-simple": "Ada laporan komunitas baru",
+    }),
+    body: () => ({
+      id: "Periksa laporan dan konten melalui antrean moderasi komunitas.",
+      "id-simple": "Buka antrean laporan komunitas. Periksa isinya sebelum memutuskan.",
+    }),
+  },
+  "community.content_moderated": {
+    title: () => ({
+      id: "Status konten komunitas Anda berubah",
+      "id-simple": "Admin mengubah status konten Anda",
+    }),
+    body: ({ action }) => ({
+      id:
+        action === "hide"
+          ? "Konten Anda disembunyikan. Buka konten untuk membaca alasan moderasi."
+          : action === "restore"
+            ? "Konten Anda dipulihkan dan dapat dibaca kembali."
+            : "Konten Anda dihapus. Buka konten untuk membaca alasan moderasi.",
+      "id-simple":
+        action === "hide"
+          ? "Orang lain tidak bisa melihat konten Anda. Buka konten untuk melihat alasan admin."
+          : action === "restore"
+            ? "Konten Anda bisa dilihat lagi."
+            : "Konten Anda sudah dihapus. Buka konten untuk melihat alasan admin.",
+    }),
+  },
   "auth.selamat_datang": {
     title: () => ({
       id: "Selamat datang di Nawasena",

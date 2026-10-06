@@ -465,6 +465,26 @@ export const ERROR_CATALOG = {
     message: "Ruang komunitas tidak ditemukan",
     hint: "Periksa kembali ruang yang Anda tuju",
   },
+  KONTEN_KOMUNITAS_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Konten komunitas tidak ditemukan",
+    hint: "Konten mungkin sudah dihapus atau tidak dapat Anda akses",
+  },
+  KONTEN_KOMUNITAS_DIHAPUS: {
+    status: 409,
+    message: "Konten ini sudah dihapus",
+    hint: "Konten yang dihapus tidak dapat diubah atau dipulihkan",
+  },
+  LAPORAN_KOMUNITAS_TIDAK_DITEMUKAN: {
+    status: 404,
+    message: "Laporan komunitas tidak ditemukan",
+    hint: "Periksa kembali laporan yang Anda tuju",
+  },
+  LAPORAN_KOMUNITAS_DITUTUP: {
+    status: 409,
+    message: "Laporan ini sudah ditutup",
+    hint: "Muat ulang antrean untuk melihat status terbaru",
+  },
   KOMUNITAS_DIARSIPKAN: {
     status: 409,
     message: "Ruang ini sudah diarsipkan",

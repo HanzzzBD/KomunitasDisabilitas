@@ -77,6 +77,10 @@ const envSchema = z.object({
   COMMUNITY_READ_MAX: z.coerce.number().int().min(1).default(120),
   COMMUNITY_WRITE_MAX: z.coerce.number().int().min(1).default(20),
   COMMUNITY_RATE_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
+  COMMUNITY_POST_MAX_LENGTH: z.coerce.number().int().min(1).max(5000).default(5000),
+  COMMUNITY_COMMENT_MAX_LENGTH: z.coerce.number().int().min(1).max(2000).default(2000),
+  COMMUNITY_CREATE_MAX: z.coerce.number().int().min(1).default(10),
+  COMMUNITY_REPORT_MAX: z.coerce.number().int().min(1).default(5),
   // --- OTP (PR-016) ---
   // Pepper HMAC untuk hash OTP di Redis. OPSIONAL secara skema (deny-by-default
   // seperti INTERNAL_TOKEN): bila tidak di-set, endpoint OTP menjawab 503 —

@@ -52,12 +52,15 @@ integration("ObjectStorage + MinIO", () => {
     const unsigned = await fetch(`${endpoint}/${bucket}/${key}`);
     expect(unsigned.status).toBe(403);
 
-    const signed = await storage.presignDownload({ key, expiresInSeconds: 1 });
+    // SigV4 timestamps have second precision: a one-second URL may expire
+    // while the first fetch crosses that boundary on a busy CI runner.
+    const ttl = config.presignTtlSeconds;
+    const signed = await storage.presignDownload({ key, expiresInSeconds: ttl });
     const beforeExpiry = await fetch(signed.url);
     expect(beforeExpiry.status).toBe(200);
     expect(new Uint8Array(await beforeExpiry.arrayBuffer())).toEqual(body);
 
-    await new Promise((resolve) => setTimeout(resolve, 2_100));
+    await new Promise((resolve) => setTimeout(resolve, (ttl + 1) * 1000 + 100));
     const afterExpiry = await fetch(signed.url);
     expect(afterExpiry.status).toBe(403);
   }, 10_000);

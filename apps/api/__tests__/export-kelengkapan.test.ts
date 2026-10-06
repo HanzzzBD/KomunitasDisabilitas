@@ -57,6 +57,9 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // benar di commit yang sama.
   applications: "applications",
   community_memberships: "communityMemberships",
+  community_posts: "communityPosts",
+  community_comments: "communityComments",
+  community_reports: "communityReports",
 };
 
 /**
@@ -87,14 +90,7 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
  * ia menghapus alasan penundaan di daftar ini. Status utang dilacak di
  * docs/utang-teknis.md.
  */
-const DITUNDA: Readonly<Record<string, string>> = {
-  community_posts:
-    "PR-116 wajib mengekspor post milik pemilik sesi bersama endpoint create pertama, termasuk konten hidden/removed; PR-119 menguji portabilitas.",
-  community_comments:
-    "PR-116 wajib mengekspor komentar milik pemilik sesi bersama endpoint create pertama, tanpa konten pengguna lain; PR-119 menguji portabilitas.",
-  community_reports:
-    "PR-116 wajib mengekspor laporan yang dibuat pemilik sesi bersama endpoint report pertama, tanpa laporan milik pengguna lain; PR-119 menguji PDP.",
-};
+const DITUNDA: Readonly<Record<string, string>> = {};
 
 /**
  * Tidak akan pernah masuk ekspor. Alasannya WAJIB, dan sengaja spesifik: entri

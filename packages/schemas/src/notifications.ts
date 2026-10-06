@@ -60,6 +60,8 @@ export type NotificationText = z.infer<typeof notificationTextSchema>;
  *      kode klien tanpa melonggarkan penjaganya.
  */
 export const NOTIFICATION_TYPE = {
+  ADMIN_COMMUNITY_REPORT: "admin.community_report",
+  COMMUNITY_CONTENT_MODERATED: "community.content_moderated",
   /** Akun baru dibuat — sapaan pertama, sekaligus arah langkah berikutnya. */
   AUTH_SELAMAT_DATANG: "auth.selamat_datang",
   /** Lamaran terkirim — bukti terima yang bisa dibaca ulang. */
@@ -87,6 +89,8 @@ export const NOTIFICATION_TYPE = {
 
 export const notificationTypeSchema = z
   .enum([
+    NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT,
+    NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED,
     NOTIFICATION_TYPE.AUTH_SELAMAT_DATANG,
     NOTIFICATION_TYPE.LAMARAN_TERKIRIM,
     NOTIFICATION_TYPE.LAMARAN_STATUS_BERUBAH,
@@ -119,6 +123,22 @@ export type NotificationType = z.infer<typeof notificationTypeSchema>;
  * center (PR-050) yang memerlukannya membacanya lewat `applicationId`.
  */
 export const NOTIFICATION_PARAM_SCHEMAS = {
+  "admin.community_report": z
+    .object({
+      reportId: idSchema,
+      communityId: idSchema,
+      targetType: z.enum(["post", "comment"]),
+      targetId: idSchema,
+    })
+    .strict(),
+  "community.content_moderated": z
+    .object({
+      communityId: idSchema,
+      targetType: z.enum(["post", "comment"]),
+      targetId: idSchema,
+      action: z.enum(["hide", "restore", "remove"]),
+    })
+    .strict(),
   "auth.selamat_datang": z.object({}).strict(),
   "lamaran.terkirim": z.object({ applicationId: idSchema, jobId: idSchema }).strict(),
   "lamaran.status_berubah": z

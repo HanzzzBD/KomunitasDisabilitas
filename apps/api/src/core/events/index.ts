@@ -43,6 +43,20 @@ import type { Logger } from "../logger/index.js";
  * bisa dijawab dengan grep.
  */
 export interface DomainEvents {
+  "community.content_reported": {
+    reportId: string;
+    communityId: string;
+    targetType: "post" | "comment";
+    targetId: string;
+  };
+  "community.content_moderated": {
+    auditId: string;
+    communityId: string;
+    targetType: "post" | "comment";
+    targetId: string;
+    authorId: string | null;
+    action: "hide" | "restore" | "remove";
+  };
   /** PR-114: emitted once after a new membership commits; no profile data. */
   "community.member_joined": { communityId: string; userId: string; joinedAt: string };
   "job.closed": JobClosedEvent;

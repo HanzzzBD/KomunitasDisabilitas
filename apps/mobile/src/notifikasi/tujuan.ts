@@ -27,6 +27,9 @@ export function tujuanNotifikasi(n: Pick<Notification, "type" | "params">): Tuju
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU:
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN:
     case NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI:
+    case NOTIFICATION_TYPE.ADMIN_COMMUNITY_REPORT:
+    case NOTIFICATION_TYPE.COMMUNITY_CONTENT_MODERATED:
+      // Community belum memiliki layar Android; notifikasi tetap dapat dibaca.
       return null;
     default: {
       const tidakDikenal: never = n.type;

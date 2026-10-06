@@ -605,6 +605,120 @@
             }
           }
         }
+      },
+      "post": {
+        "operationId": "createCommunityPost",
+        "tags": [
+          "community"
+        ],
+        "summary": "Buat post teks",
+        "description": "Anggota aktif ruang aktif, termasuk semua role. Teks literal tanpa HTML; Unicode/newline dinormalkan dan kontrol non-printing dibuang. Default post 5000/komentar 2000 karakter, konfigurasi server boleh lebih ketat. Bucket create per user terpisah dari report.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommunityPost"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/admin/communities": {
@@ -1107,6 +1221,1526 @@
           },
           "503": {
             "description": "Layanan Community atau sesi belum tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/community-posts/{id}": {
+      "get": {
+        "operationId": "getCommunityPost",
+        "tags": [
+          "community"
+        ],
+        "summary": "Baca post",
+        "description": "Sesi wajib tanpa perlu join. Published dapat dibaca semua akun; hidden/removed hanya pemilik lewat endpoint ini. Removed selalu mengosongkan body; admin memakai endpoint terpisah.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateCommunityPost",
+        "tags": [
+          "community"
+        ],
+        "summary": "Sunting post sendiri",
+        "description": "Hanya penulis. Edit konten hidden tetap hidden; removed final. Hapus sendiri mengosongkan body, boleh setelah keluar/blokir/arsip. Respons pemilik memuat alasan moderasi terakhir tanpa identitas pelapor/admin.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommunityPost"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCommunityPost",
+        "tags": [
+          "community"
+        ],
+        "summary": "Hapus teks post sendiri",
+        "description": "Hanya penulis. Edit konten hidden tetap hidden; removed final. Hapus sendiri mengosongkan body, boleh setelah keluar/blokir/arsip. Respons pemilik memuat alasan moderasi terakhir tanpa identitas pelapor/admin.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommunityMutation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/community-posts/{id}/comments": {
+      "get": {
+        "operationId": "listCommunityComments",
+        "tags": [
+          "community"
+        ],
+        "summary": "Komentar published pada post published",
+        "description": "Sesi wajib; urutan createdAt ASC/id ASC; cursor, tanpa nested reply.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–100)",
+              "example": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCommunityComment",
+        "tags": [
+          "community"
+        ],
+        "summary": "Balas post satu tingkat",
+        "description": "Anggota aktif ruang aktif, termasuk semua role. Teks literal tanpa HTML; Unicode/newline dinormalkan dan kontrol non-printing dibuang. Default post 5000/komentar 2000 karakter, konfigurasi server boleh lebih ketat. Bucket create per user terpisah dari report.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommunityComment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/community-comments/{id}": {
+      "get": {
+        "operationId": "getCommunityComment",
+        "tags": [
+          "community"
+        ],
+        "summary": "Baca komentar atau status konten sendiri",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateCommunityComment",
+        "tags": [
+          "community"
+        ],
+        "summary": "Sunting komentar sendiri",
+        "description": "Hanya penulis. Edit konten hidden tetap hidden; removed final. Hapus sendiri mengosongkan body, boleh setelah keluar/blokir/arsip. Respons pemilik memuat alasan moderasi terakhir tanpa identitas pelapor/admin.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommunityComment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCommunityComment",
+        "tags": [
+          "community"
+        ],
+        "summary": "Hapus teks komentar sendiri",
+        "description": "Hanya penulis. Edit konten hidden tetap hidden; removed final. Hapus sendiri mengosongkan body, boleh setelah keluar/blokir/arsip. Respons pemilik memuat alasan moderasi terakhir tanpa identitas pelapor/admin.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommunityMutation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/community-content/{targetType}/{targetId}/reports": {
+      "post": {
+        "operationId": "reportCommunityContent",
+        "tags": [
+          "community"
+        ],
+        "summary": "Laporkan konten published",
+        "description": "Semua akun login, termasuk belum join/blocked. Identitas/reason pelapor tidak pernah ikut respons konten. Duplikat laporan open milik akun yang sama mengembalikan receipt yang sama (200), tanpa event kedua. Arsip tetap dapat dilaporkan.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "targetType",
+            "schema": {
+              "$ref": "#/components/schemas/CommunityReportTargetType"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "targetId",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityReasonInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Receipt laporan open sebelumnya",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/community-content/{targetType}/{targetId}": {
+      "get": {
+        "operationId": "getAdminCommunityContent",
+        "tags": [
+          "community"
+        ],
+        "summary": "Admin membaca target termasuk hidden/removed",
+        "description": "Admin-only; tidak memuat profil sensitif/CV/lamaran. Body removed oleh admin tetap disimpan; body self-delete/PDP kosong.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "targetType",
+            "schema": {
+              "$ref": "#/components/schemas/CommunityReportTargetType"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "targetId",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityContentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/community-content/{targetType}/{targetId}/moderate": {
+      "post": {
+        "operationId": "moderateCommunityContent",
+        "tags": [
+          "community"
+        ],
+        "summary": "Hide, restore, atau remove dengan alasan wajib",
+        "description": "Admin-only. Status, audit wajib, dan resolusi semua laporan open target di-commit atomik. Hide/remove menutup laporan resolved, termasuk konten yang sudah dihapus penulis. Removed final, tidak bisa restore. Aksi yang status dan resolusi laporannya sudah tercapai idempotent dan tidak mengulang event/notifikasi.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "targetType",
+            "schema": {
+              "$ref": "#/components/schemas/CommunityReportTargetType"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "targetId",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityModerationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityContentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/community-reports": {
+      "get": {
+        "operationId": "listAdminCommunityReports",
+        "tags": [
+          "community"
+        ],
+        "summary": "Antrean laporan admin",
+        "description": "Admin-only; data minimum dan filter status. Urutan createdAt ASC/id ASC, cursor. Pelapor tidak ditampilkan kepada pemilik konten.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "description": "Cursor halaman berikut dari meta.nextCursor",
+            "schema": {
+              "type": "string",
+              "description": "Cursor halaman berikut dari meta.nextCursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Jumlah item per halaman (1–100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Jumlah item per halaman (1–100)",
+              "example": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "$ref": "#/components/schemas/CommunityReportStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportAdminListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/community-reports/{id}/reject": {
+      "post": {
+        "operationId": "rejectCommunityReport",
+        "tags": [
+          "community"
+        ],
+        "summary": "Tolak laporan dengan alasan wajib",
+        "description": "Admin-only; penolakan dan audit wajib atomik. Hanya laporan open; laporan yang sudah ditutup menjawab 409. Tidak mengubah konten.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "description": "UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID",
+              "example": "01912345-89ab-7def-8123-456789abcdef"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityReasonInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportAdminResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Input atau cursor tidak valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Belum masuk atau akun tidak aktif",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role atau keanggotaan tidak berhak",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Konten tidak ditemukan atau tidak dapat diakses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Arsip, konten removed, atau laporan sudah ditutup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Kuota tercapai; Retry-After dalam detik",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Layanan sementara tidak tersedia",
             "content": {
               "application/json": {
                 "schema": {
@@ -7809,6 +9443,141 @@
       }
     },
     "schemas": {
+      "CommunityTargetParams": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "$ref": "#/components/schemas/CommunityReportTargetType"
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID",
+            "example": "01912345-89ab-7def-8123-456789abcdef"
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReasonInput": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityModerationInput": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/CommunityModerationAction"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "action",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityModerationInfo": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/CommunityModerationAction"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu ISO 8601 dengan offset",
+            "example": "2026-07-18T09:00:00+07:00"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityContentResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "targetType": {
+                    "type": "string",
+                    "const": "post"
+                  },
+                  "content": {
+                    "$ref": "#/components/schemas/CommunityPost"
+                  }
+                },
+                "required": [
+                  "targetType",
+                  "content"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "targetType": {
+                    "type": "string",
+                    "const": "comment"
+                  },
+                  "content": {
+                    "$ref": "#/components/schemas/CommunityComment"
+                  }
+                },
+                "required": [
+                  "targetType",
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CommunityReportAdminResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CommunityReportAdmin"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
       "CommunityType": {
         "type": "string",
         "enum": [
@@ -8340,6 +10109,16 @@
             "description": "Waktu ISO 8601 dengan offset",
             "example": "2026-07-18T09:00:00+07:00"
           },
+          "moderation": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityModerationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "communityId": {
             "type": "string",
             "format": "uuid",
@@ -8399,6 +10178,16 @@
             "format": "date-time",
             "description": "Waktu ISO 8601 dengan offset",
             "example": "2026-07-18T09:00:00+07:00"
+          },
+          "moderation": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommunityModerationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "postId": {
             "type": "string",
@@ -9205,6 +10994,154 @@
             "items": {
               "$ref": "#/components/schemas/CommunityMembership"
             }
+          },
+          "communityPosts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/CommunityContentStatus"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                },
+                "communityId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                }
+              },
+              "required": [
+                "id",
+                "body",
+                "status",
+                "createdAt",
+                "updatedAt",
+                "communityId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "communityComments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/CommunityContentStatus"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                },
+                "postId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                }
+              },
+              "required": [
+                "id",
+                "body",
+                "status",
+                "createdAt",
+                "updatedAt",
+                "postId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "communityReports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                },
+                "targetType": {
+                  "$ref": "#/components/schemas/CommunityReportTargetType"
+                },
+                "targetId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID",
+                  "example": "01912345-89ab-7def-8123-456789abcdef"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/CommunityReportStatus"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "resolvedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "Waktu ISO 8601 dengan offset",
+                  "example": "2026-07-18T09:00:00+07:00"
+                }
+              },
+              "required": [
+                "id",
+                "targetType",
+                "targetId",
+                "status",
+                "createdAt",
+                "reason",
+                "resolvedAt"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -9219,7 +11156,10 @@
           "aiUsage",
           "resumes",
           "applications",
-          "communityMemberships"
+          "communityMemberships",
+          "communityPosts",
+          "communityComments",
+          "communityReports"
         ],
         "additionalProperties": false,
         "description": "Berkas ekspor data pribadi"
@@ -9716,6 +11656,8 @@
       "NotificationType": {
         "type": "string",
         "enum": [
+          "admin.community_report",
+          "community.content_moderated",
           "auth.selamat_datang",
           "lamaran.terkirim",
           "lamaran.status_berubah",

@@ -14,6 +14,7 @@ import {
 } from "./community.js";
 import { errorEnvelopeSchema } from "./common.js";
 import type { z } from "zod";
+import { communityContentPaths } from "./community-content-openapi.js";
 
 const error = (description: string) => ({
   description,
@@ -179,3 +180,7 @@ export const communityPaths: Record<string, ZodOpenApiPathItemObject> = {
     },
   },
 };
+
+for (const [path, operations] of Object.entries(communityContentPaths)) {
+  communityPaths[path] = { ...communityPaths[path], ...operations };
+}

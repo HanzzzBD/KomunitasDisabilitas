@@ -276,7 +276,7 @@ Community adalah modul monolith baru, bukan service terpisah. Admin membuat ruan
 |---|---|---|
 | `communities` | `id, slug, name, description, type(topic/city), city?, status, created_by` | Hanya admin membuat/mengarsipkan ruang; slug unik. |
 | `community_memberships` | `community_id, user_id, status(active/blocked), joined_at` | Unique `(community_id, user_id)`; membership diperlukan untuk menulis. |
-| `community_posts` | `id, community_id, author_id, body, status(published/hidden/removed), created_at, updated_at` | Teks polos; penulis dapat mengubah/menghapus post sendiri selama masih published. |
+| `community_posts` | `id, community_id, author_id, body, status(published/hidden/removed), created_at, updated_at` | Teks polos; penulis dapat mengubah published/hidden sendiri tanpa menerbitkan ulang hidden; removed final. |
 | `community_comments` | `id, post_id, author_id, body, status, created_at` | Satu tingkat saja; tidak ada nested reply. |
 | `community_reports` | `id, reporter_id, target_type, target_id, reason, status(open/resolved/rejected), resolved_by, resolved_at` | Laporan tidak terlihat oleh pemilik konten. |
 
@@ -285,6 +285,9 @@ Community adalah modul monolith baru, bukan service terpisah. Admin membuat ruan
 - Moderasi: tindakan hide, restore, atau remove harus menyimpan reason di `audit_logs`; event `community.content_moderated` mengirim notifikasi ke pemilik konten.
 - Abuse control: validasi Zod, plain text tersanitasi, rate limit per user untuk create/report, dan maksimum panjang konten yang ditetapkan konfigurasi.
 - Keputusan owner PR-114 (2026-10-06): daftar/deskripsi ruang publik; membaca feed memerlukan sesi aktif, tanpa wajib bergabung. Feed biasa hanya memuat `published` untuk semua role. Arsip tetap dapat dibaca, tetapi join dan penulisan ditutup; anggota aktif boleh keluar. Marker membership `blocked` dipertahankan sehingga leave/join tidak membatalkan blokir.
+- Keputusan owner PR-116 (2026-10-06): semua pengguna login boleh melapor, termasuk nonanggota/blocked. Hapus sendiri mengosongkan body; remove admin menyimpan body hanya untuk admin/audit dan tidak dapat dipulihkan. PDP tetap mengosongkan body dan melepas penulis. Hide/remove admin menutup semua laporan open target sebagai resolved; penolakan laporan adalah aksi terpisah dengan alasan wajib.
+- Penulisan/edit memerlukan membership aktif dan ruang aktif; pemilik boleh menghapus teks setelah keluar/blokir/arsip. Pemilik dapat membaca status/alasan moderasi terakhir kontennya tanpa identitas pelapor. Admin membaca konten melalui endpoint tersendiri; komentar published hanya muncul jika post induk published.
+- Moderasi dan penolakan memakai audit wajib dalam transaksi yang sama, dengan actor/target/action/reason/timestamp. Event diterbitkan setelah commit melalui bus in-process yang ada; notifikasi in-app memakai ID peristiwa untuk deduplikasi, tanpa body/alasan/identitas pelapor. Bus ini best effort, bukan outbox tahan restart.
 
 ---
 

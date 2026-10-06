@@ -210,6 +210,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
           "message": "Kami belum bisa memastikan identitas Anda saat ini",
           "status": 503,
         },
+        "KONTEN_KOMUNITAS_DIHAPUS": {
+          "hint": "Konten yang dihapus tidak dapat diubah atau dipulihkan",
+          "message": "Konten ini sudah dihapus",
+          "status": 409,
+        },
+        "KONTEN_KOMUNITAS_TIDAK_DITEMUKAN": {
+          "hint": "Konten mungkin sudah dihapus atau tidak dapat Anda akses",
+          "message": "Konten komunitas tidak ditemukan",
+          "status": 404,
+        },
         "KUOTA_AI_HABIS": {
           "hint": "Coba lagi besok, atau lanjutkan tanpa bantuan AI",
           "message": "Jatah bantuan AI Anda hari ini sudah habis",
@@ -223,6 +233,16 @@ describe("katalog kode error (AC: message Bahasa Indonesia sederhana)", () => {
         "LAMARAN_TIDAK_DITEMUKAN": {
           "hint": "Muat ulang daftar lamaran Anda, lalu coba lagi",
           "message": "Lamaran tidak ditemukan",
+          "status": 404,
+        },
+        "LAPORAN_KOMUNITAS_DITUTUP": {
+          "hint": "Muat ulang antrean untuk melihat status terbaru",
+          "message": "Laporan ini sudah ditutup",
+          "status": 409,
+        },
+        "LAPORAN_KOMUNITAS_TIDAK_DITEMUKAN": {
+          "hint": "Periksa kembali laporan yang Anda tuju",
+          "message": "Laporan komunitas tidak ditemukan",
           "status": 404,
         },
         "LOWONGAN_BERLAMARAN_TIDAK_BISA_DIHAPUS": {

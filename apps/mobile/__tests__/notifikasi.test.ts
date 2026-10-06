@@ -336,6 +336,20 @@ describe("read flow + cache pemilik", () => {
 });
 
 describe("teks, pagination, dan navigasi", () => {
+  it("kabar Community tampil tanpa tujuan layar Android yang belum tersedia", () => {
+    expect(
+      tujuanNotifikasi({
+        type: "admin.community_report",
+        params: { reportId: A, communityId: B, targetType: "post", targetId: C },
+      }),
+    ).toBeNull();
+    expect(
+      tujuanNotifikasi({
+        type: "community.content_moderated",
+        params: { communityId: B, targetType: "comment", targetId: C, action: "hide" },
+      }),
+    ).toBeNull();
+  });
   it("item utuh: bahasa sederhana, waktu WIB, dan status dibaca", () => {
     const label = labelItem(notif(), "id-simple");
     expect(label).toContain("Lamaran terkirim");

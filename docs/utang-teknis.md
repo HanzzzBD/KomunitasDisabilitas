@@ -1174,7 +1174,7 @@ ikut hanyut sampai Phase 18.
 
 | | |
 |---|---|
-| **Status** | **TERBUKA — 2026-10-06** |
+| **Status** | **LUNAS — PR-116, 2026-10-06** |
 | **Ditemukan** | PR-113 (kontrak/migrasi; belum ada endpoint penulisan Community) |
 | **Pemilik** | PR-114 (membership), PR-116 (post/komentar/report), PR-119 (gate PDP) |
 | **Pemicu** | Repository pertama yang membuat/upsert data Community |
@@ -1184,10 +1184,12 @@ PR-113 sudah memasang pembersihan PDP pada kedua jalur purge. **Bagian membershi
 di PR-114 (2026-10-06):** `communityMemberships` wajib dalam ekspor; semua keanggotaan pemilik
 sesi ikut, termasuk blocked dan ruang arsip, tanpa userId/identitas anggota lain.
 Kontributor dirakit bersama endpoint join pertama dan penundaan membership sudah dihapus
-dari penjaga otomatis. **Sisa tetap terbuka:** post, komentar, dan report di PR-116.
+dari penjaga otomatis. **Post, komentar, dan report lunas di PR-116:** ketiga bagian wajib
+di kontrak ekspor, dirakit bersama endpoint penulisan pertama, tanpa penundaan di penjaga.
 Kontributor hanya mengumpulkan data milik pemilik sesi dan tidak membocorkan report pengguna
-lain atau identitas resolver. Pembukaan Community di PR-119 mensyaratkan ekspor sudah lengkap.
-Alasan "belum ada data" tidak boleh bertahan setelah endpoint penulisan pertama lahir.
+lain atau identitas resolver; body removed selalu kosong di ekspor. Uji HTTP/PostgreSQL
+terisolasi membuktikan semua status ikut tanpa teks akun lain. PR-119 tetap memverifikasi
+PDP dan kompatibilitas klien sebelum rollout, termasuk build mobile dengan kontrak terbaru.
 
 ---
 

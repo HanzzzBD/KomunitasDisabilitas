@@ -189,6 +189,32 @@ export function createNotificationsModule(deps: NotificationsModuleDeps): Notifi
     deviceRepository: createDeviceRepository(deps.prisma),
   });
 
+  deps.events.on("community.content_reported", async (payload) => {
+    if (deps.direktoriAdmin === undefined) return;
+    for (const userId of await deps.direktoriAdmin.idAdminAktif()) {
+      const type = "admin.community_report" as const;
+      const lahir = await service.terbitkan({
+        userId,
+        type,
+        params: payload,
+        kunciPeristiwa: payload.reportId,
+      });
+      await antrekanKanalLuar(lahir, userId, idNotifikasi(type, userId, payload.reportId));
+    }
+  });
+  deps.events.on("community.content_moderated", async (payload) => {
+    if (payload.authorId === null) return;
+    const type = "community.content_moderated" as const;
+    const { auditId, authorId, ...params } = payload;
+    const lahir = await service.terbitkan({
+      userId: authorId,
+      type,
+      params,
+      kunciPeristiwa: auditId,
+    });
+    await antrekanKanalLuar(lahir, authorId, idNotifikasi(type, authorId, auditId));
+  });
+
   // Akun baru → satu sambutan. `kunciPeristiwa` = "akun", bukan `registeredAt`:
   // waktu registrasi yang ikut dihitung akan membuat event yang terbit ulang
   // dengan timestamp berbeda melahirkan sambutan KEDUA — persis yang hendak
