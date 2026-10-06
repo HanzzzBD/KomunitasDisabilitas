@@ -77,6 +77,10 @@ describe("pengiriman", () => {
 });
 
 describe("klasifikasi jawaban", () => {
+  it("pengirim salah adalah kegagalan kanal, bukan alamat penerima yang dilewati", async () => {
+    const { sender } = rakit(() => jawaban(422, { message: "Invalid `from` field." }));
+    await expect(sender.kirim(pesan)).rejects.toMatchObject({ code: "EMAIL_PENGIRIM_TIDAK_VALID" });
+  });
   it.each([
     ["422", 422],
     ["400", 400],

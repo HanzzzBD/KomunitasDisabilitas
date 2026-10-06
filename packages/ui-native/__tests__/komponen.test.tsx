@@ -131,6 +131,14 @@ describe("Kartu", () => {
 });
 
 describe("KotakCentang (PR-091)", () => {
+  it("nonaktif diumumkan dan tidak mengirim perubahan saat disentuh", async () => {
+    const ubah = jest.fn();
+    await denganProfil(<KotakCentang label="Email" dicentang={false} nonaktif onUbah={ubah} />);
+    const kotak = screen.getByRole("checkbox", { name: "Email" });
+    expect(kotak.props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(kotak);
+    expect(ubah).not.toHaveBeenCalled();
+  });
   it("dibaca sebagai kotak centang bernama label, dengan state dan petunjuk", async () => {
     const ubah = jest.fn();
     await denganProfil(
@@ -143,7 +151,7 @@ describe("KotakCentang (PR-091)", () => {
     );
 
     const kotak = screen.getByRole("checkbox", { name: "Kontras tinggi" });
-    expect(kotak.props.accessibilityState).toEqual({ checked: false });
+    expect(kotak.props.accessibilityState).toEqual({ checked: false, disabled: false });
     expect(kotak.props.accessibilityHint).toBe("Warna lebih tegas");
     await fireEvent.press(kotak);
     expect(ubah).toHaveBeenCalledWith(true);

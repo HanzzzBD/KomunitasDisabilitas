@@ -18,9 +18,17 @@ export interface KotakCentangProps {
   /** Teks bantuan terlihat di bawah label; juga dibaca sebagai petunjuk. */
   bantuan?: string;
   testID?: string;
+  nonaktif?: boolean;
 }
 
-export function KotakCentang({ label, dicentang, onUbah, bantuan, testID }: KotakCentangProps) {
+export function KotakCentang({
+  label,
+  dicentang,
+  onUbah,
+  bantuan,
+  testID,
+  nonaktif = false,
+}: KotakCentangProps) {
   const { warna, targetSentuh, skalaTeks } = useTokenA11y();
   const ukuranKotak = Math.round(24 * Math.min(skalaTeks, 1.5));
 
@@ -30,7 +38,8 @@ export function KotakCentang({ label, dicentang, onUbah, bantuan, testID }: Kota
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityHint={bantuan}
-      accessibilityState={{ checked: dicentang }}
+      accessibilityState={{ checked: dicentang, disabled: nonaktif }}
+      disabled={nonaktif}
       onPress={() => onUbah(!dicentang)}
       style={{
         minHeight: targetSentuh,

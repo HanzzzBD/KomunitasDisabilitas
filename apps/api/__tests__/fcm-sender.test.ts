@@ -119,19 +119,51 @@ describe("penukaran access token (OAuth2 service account)", () => {
 
 describe("klasifikasi jawaban FCM", () => {
   it.each([
-    ["404 tanpa kode", 404, {}],
-    ["400 UNREGISTERED", 400, { error: { status: "UNREGISTERED" } }],
-    ["400 INVALID_ARGUMENT", 400, { error: { status: "INVALID_ARGUMENT" } }],
-    ["403 NOT_FOUND", 403, { error: { status: "NOT_FOUND" } }],
-  ])("%s → token-mati (bukan exception)", async (_nama, status, body) => {
+    ["token tidak terdaftar", 404, "UNREGISTERED"],
+    ["token cacat", 400, "INVALID_ARGUMENT"],
+  ])("%s → token-mati (bukan exception)", async (_nama, status, errorCode) => {
     // Token mati BUKAN kegagalan: ia jawaban sah yang menuntut pembersihan.
     // Menjadikannya exception memaksa pemanggil membedakan "ulangi" dari
     // "bersihkan" lewat pemeriksaan tipe error — perbedaan sepenting itu
     // pantas ada di tipe nilai balik.
-    const { sender } = await rakit([() => jawaban(200, TOKEN_OK), () => jawaban(status, body)]);
+    const { sender } = await rakit([
+      () => jawaban(200, TOKEN_OK),
+      () =>
+        jawaban(status, {
+          error: {
+            status: errorCode,
+            details: [
+              { "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError", errorCode },
+            ],
+          },
+        }),
+    ]);
 
     const hasil = await sender.kirim(pesan);
     expect(hasil.hasil).toBe("token-mati");
+  });
+
+  it.each([
+    [404, { error: { status: "NOT_FOUND" } }, "FCM_TIDAK_TERSEDIA"],
+    [403, { error: { status: "PERMISSION_DENIED" } }, "FCM_KREDENSIAL_TIDAK_VALID"],
+    [
+      400,
+      {
+        error: {
+          status: "INVALID_ARGUMENT",
+          details: [
+            {
+              "@type": "type.googleapis.com/google.rpc.BadRequest",
+              fieldViolations: [{ field: "message.data" }],
+            },
+          ],
+        },
+      },
+      "FCM_TIDAK_TERSEDIA",
+    ],
+  ])("HTTP %i pada konfigurasi/payload tidak menghapus token", async (status, body, code) => {
+    const { sender } = await rakit([() => jawaban(200, TOKEN_OK), () => jawaban(status, body)]);
+    await expect(sender.kirim(pesan)).rejects.toMatchObject({ code });
   });
 
   it.each([

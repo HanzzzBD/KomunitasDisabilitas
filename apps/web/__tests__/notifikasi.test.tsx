@@ -10,8 +10,8 @@
 // diperiksa adalah varian mana yang tampil. Test yang menuliskan kalimatnya
 // sendiri di katalog i18n akan lulus atas aplikasi yang tidak pernah dikirim ke
 // siapa pun.
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { ApiError, type ApiClient } from "@nawasena/api-client";
@@ -201,6 +201,7 @@ function penandaBelumDibaca(): HTMLElement[] {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   useStoreSesi.setState({ status: "memulihkan" });
 });
 
@@ -336,6 +337,16 @@ describe("tandai semua dibaca", () => {
 });
 
 describe("AC-1 — lencana akurat di kerangka aplikasi", () => {
+  it("kabar baru muncul saat menetap di halaman tanpa reload atau fokus ulang", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const { keadaan } = renderCenter({ unreadCount: 1 });
+    await screen.findByRole("link", { name: "Notifikasi, 1 belum dibaca" }, { timeout: 5000 });
+    keadaan.unreadCount = 2;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_001);
+    });
+    await screen.findByRole("link", { name: "Notifikasi, 2 belum dibaca" });
+  });
   it("menyebut jumlah belum dibaca sebagai KALIMAT UTUH", async () => {
     // Angka telanjang di sebelah kata "Notifikasi" dibacakan sebagai dua hal
     // terpisah, dan angkanya kehilangan artinya.

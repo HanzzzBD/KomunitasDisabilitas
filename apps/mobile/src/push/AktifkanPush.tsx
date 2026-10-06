@@ -1,12 +1,18 @@
 import { Tombol } from "@nawasena/ui-native";
 import { useState } from "react";
 import { Linking } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { notificationPrefsKeys, updateNotificationPrefs } from "@nawasena/api-client";
+import { apiClient } from "../api";
+import { useSub } from "../query";
 
 import { Paragraf, PesanStatus } from "../komponen/Layar";
 import { pushConfigure } from "./android";
 import { registrasiPush } from "./instans";
 
 export function AktifkanPush() {
+  const sub = useSub();
+  const cache = useQueryClient();
   const [sibuk, setSibuk] = useState(false);
   const [pesan, setPesan] = useState<string>();
   const [galat, setGalat] = useState(false);
@@ -33,7 +39,11 @@ export function AktifkanPush() {
           setGalat(false);
           void registrasiPush
             .daftarkan(true)
-            .then((perangkat) => {
+            .then(async (perangkat) => {
+              if (perangkat && sub) {
+                const prefs = await updateNotificationPrefs(apiClient, { push: true });
+                cache.setQueryData(notificationPrefsKeys.me(sub), prefs);
+              }
               setDitolak(perangkat === null);
               setPesan(
                 perangkat
