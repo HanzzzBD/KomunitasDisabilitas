@@ -771,5 +771,9 @@ Tanggal: 6 Oktober 2026. Perubahan tambahan Phase 19.
 - APK lama memerlukan build dan pemasangan ulang untuk layar employer, CV AI serta
   pengaturan notifikasi baru. Smoke test TalkBack/viewer pada perangkat fisik belum
   dijalankan; tidak ada perangkat Android terhubung.
+- Gerbang CI menangkap judul employer yang belum mengikuti skala teks 200%.
+  Ukuran heading kini memakai token `--font-scale`, sama seperti teks aplikasi.
+  Bundling Android berhasil dengan 1178 modul. CI lint/typecheck/seluruh unit tes
+  lulus; gerbang aksesibilitas dijalankan kembali setelah perbaikan skala teks.
 
 Detail: [portal employer](../employer-portal.md).
