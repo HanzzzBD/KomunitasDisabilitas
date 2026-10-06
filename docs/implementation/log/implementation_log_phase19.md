@@ -447,5 +447,11 @@ tetap tersedia pada path yang sama. UI diskusi/admin menyusul PR-117/118.
   integration DB/Redis/storage dilewati lokal; CI menjadi verifikasi seluruh suite
   pada database/Redis terpisah. Build web + service worker lulus, budget JS awal
   **128,7 KB / 200 KB gzip**. Format berkas scope PR dan diff check bersih.
+- CI pertama: seluruh **28 test** baru Community dan total **2269 test API** lulus;
+  satu tes MinIO lama gagal pada GET sebelum expiry dengan TTL satu detik. Fixture
+  kini memakai TTL lima detik dan menunggu melewati expiry plus margin; assertion
+  unsigned/expired tetap 403 dan unduhan sebelum expiry tetap 200. Konfigurasi
+  storage produksi tidak berubah. Kedua tes MinIO nyata di bucket uji acak lulus
+  setelah perbaikan fixture.
 
 Next: PR-117 UI diskusi/report aksesibel, PR-118 UI admin, PR-119 gate readiness.
