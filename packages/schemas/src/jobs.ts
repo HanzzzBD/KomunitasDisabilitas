@@ -26,7 +26,7 @@ import { accommodationNeedSchema, disabilityTypeSchema } from "./profiles.js";
  * mendengarkan `job.closed` sekarang bisa membedakan keduanya tanpa perlu
  * berubah sama sekali.
  */
-export const jobCloseReasonSchema = z.enum(["expired", "closed_by_admin"]);
+export const jobCloseReasonSchema = z.enum(["expired", "closed_by_admin", "closed_by_employer"]);
 
 export type JobCloseReason = z.infer<typeof jobCloseReasonSchema>;
 

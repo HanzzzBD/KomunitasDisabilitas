@@ -56,6 +56,7 @@ const TERDAFTAR: Readonly<Record<string, string>> = {
   // owner 2026-10-01), bukan menunggu rekonsiliasi: alasan DITUNDA-nya berhenti
   // benar di commit yang sama.
   applications: "applications",
+  employer_members: "employerMemberships",
   community_memberships: "communityMemberships",
   community_posts: "communityPosts",
   community_comments: "communityComments",

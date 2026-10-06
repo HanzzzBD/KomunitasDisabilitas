@@ -9,6 +9,7 @@ import type { KatalogFitur } from "../tipe.js";
 import { katalogAdminCommunity } from "./admin-community.js";
 
 export const katalogAdmin = {
+  "admin.nav.employers": { id: "Employer", "id-simple": "Perusahaan employer" },
   "admin.nav.moderasi": { id: "Moderasi", "id-simple": "Moderasi" },
   "admin.nav.analytics": { id: "Analytics", "id-simple": "Statistik" },
   "admin.nav.pengaturan": { id: "Pengaturan", "id-simple": "Pengaturan" },

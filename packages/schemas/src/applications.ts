@@ -81,7 +81,7 @@ export const applicationStatusChangedEventSchema = z.object({
    * keputusan owner 2026-10-02. Peran, bukan id: identitas admin tidak perlu
    * mengalir ke pelanggan; ia ada di `audit_logs`.
    */
-  changedBy: z.enum(["seeker", "admin"]),
+  changedBy: z.enum(["seeker", "admin", "employer"]),
   changedAt: timestampSchema,
 });
 
@@ -102,7 +102,7 @@ export const applicationHiredConfirmedEventSchema = z.object({
 export type ApplicationHiredConfirmedEvent = z.infer<typeof applicationHiredConfirmedEventSchema>;
 
 /** Peran pemindah status — dipakai riwayat dan event. */
-export const applicationActorRoleSchema = z.enum(["seeker", "admin"]);
+export const applicationActorRoleSchema = z.enum(["seeker", "admin", "employer"]);
 
 /**
  * Satu entri `applications.status_history` (SDD §6.2 `{from,to,by,at}`).

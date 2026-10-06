@@ -19,12 +19,16 @@ export type TabParamList = {
 };
 
 export type RootStackParamList = {
+  Employer: undefined;
   Masuk: undefined;
   /** Nomor sudah ternormalisasi E.164; detik tunggu sebelum boleh kirim ulang. */
   Verifikasi: { phone: string; retryAfterSeconds: number };
   /** PR-091: hanya terdaftar saat masuk DAN wizard diperlukan. */
   Onboarding: undefined;
-  Utama: NavigatorScreenParams<TabParamList> | undefined;
+  Utama:
+    | NavigatorScreenParams<TabParamList>
+    | NavigatorScreenParams<EmployerStackParamList>
+    | undefined;
   // --- PR-092: satu bagian per layar ---
   ProfilDasar: undefined;
   ProfilSensitif: undefined;
@@ -65,6 +69,7 @@ export type ResumeStackParamList = Pick<
 export type ProfileStackParamList = Pick<
   RootStackParamList,
   | "ProfilUtama"
+  | "Employer"
   | "ProfilDasar"
   | "ProfilSensitif"
   | "Karier"
@@ -74,10 +79,17 @@ export type ProfileStackParamList = Pick<
   | "Bantuan"
 >;
 export type AuthStackParamList = Pick<RootStackParamList, "Masuk" | "Verifikasi">;
+export type EmployerStackParamList = Pick<
+  RootStackParamList,
+  "Employer" | "Pengaturan" | "Notifikasi" | "Aksesibilitas" | "Bantuan"
+>;
 export type OnboardingStackParamList = Pick<RootStackParamList, "Onboarding">;
 /** Only these destinations are registered at the actual root. */
 export type RootNavigatorParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   OnboardingFlow: NavigatorScreenParams<OnboardingStackParamList> | undefined;
-  Utama: NavigatorScreenParams<TabParamList> | undefined;
+  Utama:
+    | NavigatorScreenParams<TabParamList>
+    | NavigatorScreenParams<EmployerStackParamList>
+    | undefined;
 };

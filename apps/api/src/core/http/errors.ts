@@ -31,6 +31,11 @@ export const ERROR_CATALOG = {
     message: "Anda belum masuk",
     hint: "Silakan masuk terlebih dahulu",
   },
+  EMPLOYER_BELUM_DISETUJUI: {
+    status: 403,
+    message: "Akses rekrutmen perusahaan belum disetujui",
+    hint: "Anda dapat menyiapkan draft. Tunggu persetujuan admin untuk menerbitkan lowongan dan mengelola pelamar.",
+  },
   TIDAK_BERHAK: {
     status: 403,
     message: "Anda tidak berhak mengakses ini",

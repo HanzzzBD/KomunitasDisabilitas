@@ -224,6 +224,17 @@ export const dataExportSchema = z
      * `exportApplicationSchema`.
      */
     applications: z.array(exportApplicationSchema),
+    employerMemberships: z
+      .array(
+        z
+          .object({
+            companyId: idSchema,
+            role: z.enum(["owner", "recruiter"]),
+            createdAt: timestampSchema,
+          })
+          .strict(),
+      )
+      .default([]),
     /** PR-114: all memberships owned by this session, including blocked and archived rooms. */
     communityMemberships: z.array(communityMembershipSchema),
     communityPosts: z.array(

@@ -128,7 +128,7 @@ export function TataLetak() {
     return <Navigate to="/admin" replace />;
   }
   if (peran === "employer" && jalurSeeker) {
-    return <Navigate to="/lowongan" replace />;
+    return <Navigate to="/employer" replace />;
   }
 
   const perluOnboarding =
@@ -137,6 +137,7 @@ export function TataLetak() {
     peran !== "employer" &&
     wizardOnboardingAktif() &&
     !JALUR_DIKECUALIKAN.includes(lokasi.pathname) &&
+    lokasi.pathname !== "/employer" &&
     // Community tidak membutuhkan profil karier. Pengguna baru kembali ke
     // ruang setelah login; bergabung tetap melalui tindakan yang eksplisit.
     lokasi.pathname !== "/community" &&

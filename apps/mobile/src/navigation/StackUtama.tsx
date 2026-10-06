@@ -1,5 +1,6 @@
 import { useTokenA11y } from "@nawasena/ui-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { EmployerScreen } from "../screens/employer/EmployerScreen";
 import { BerandaScreen } from "../screens/BerandaScreen";
 import { CariScreen } from "../screens/lowongan/CariScreen";
 import { FeedScreen } from "../screens/lowongan/FeedScreen";
@@ -143,6 +144,11 @@ export function ProfileStack() {
         name="Pengaturan"
         component={PengaturanScreen}
         options={{ title: "Pengaturan" }}
+      />
+      <Profile.Screen
+        name="Employer"
+        component={EmployerScreen}
+        options={{ title: "Ruang employer" }}
       />
       <Profile.Screen name="Bantuan" component={BantuanScreen} options={{ title: "Bantuan" }} />
     </Profile.Navigator>

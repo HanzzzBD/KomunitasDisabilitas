@@ -9,6 +9,7 @@ export * from "./ai.js";
 export * from "./profiles.js";
 export * from "./resumes.js";
 export * from "./companies.js";
+export * from "./employer.js";
 export * from "./jobs.js";
 export * from "./matching.js";
 export * from "./applications.js";

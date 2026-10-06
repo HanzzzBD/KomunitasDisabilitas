@@ -143,3 +143,5 @@ export {
   type AdminDirectory,
   type ApplicantDirectory,
 } from "./services/admin-directory.service.js";
+
+export { createEmployerEnrollment } from "./services/employer-enrollment.service.js";

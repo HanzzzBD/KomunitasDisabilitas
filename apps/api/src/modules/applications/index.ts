@@ -65,7 +65,10 @@ export interface ApplicationsModuleDeps {
   clock?: () => Date;
 }
 
-export function createApplicationsModule(deps: ApplicationsModuleDeps): { router: Router } {
+export function createApplicationsModule(deps: ApplicationsModuleDeps): {
+  router: Router;
+  management: ReturnType<typeof createAdminApplicationsService>;
+} {
   const repo = createApplicationsRepository(deps.prisma);
   const service = createApplyService({
     applicationsRepository: repo,
@@ -118,6 +121,7 @@ export function createApplicationsModule(deps: ApplicationsModuleDeps): { router
   });
 
   return {
+    management: admin,
     router: createApplicationsRouter(
       {
         apply: createApplyController(service),

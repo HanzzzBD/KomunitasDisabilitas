@@ -729,7 +729,8 @@ export function kuotaUji(sisaChat = 29) {
 }
 
 export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<void> {
-  const bersesi = halaman?.butuhSesi === true || halaman?.butuhAdmin === true;
+  const bersesi =
+    halaman?.butuhSesi === true || halaman?.butuhAdmin === true || halaman?.butuhEmployer === true;
   const ruang = [{ ...COMMUNITY_UJI }, { ...COMMUNITY_KOTA_UJI }];
   let anggotaCommunity = bersesi;
   // Keadaan PER PEMANGGILAN, bukan modul: dua test dalam satu berkas tidak
@@ -1183,6 +1184,9 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
     // `endsWith("/me")` tidak akan pernah cocok dengan `/admin/companies`,
     // tetapi urutan ini tetap menahan cabang baru di bawahnya dari menelan
     // alamat yang lebih spesifik kelak.
+    if (jalur.endsWith("/employer/companies") || jalur.endsWith("/admin/employers")) {
+      return route.fulfill(jsonkan(200, { data: [] }));
+    }
     if (jalur.endsWith("/admin/companies")) {
       if (route.request().method() === "POST") {
         const kirim = route.request().postDataJSON() as Record<string, unknown>;
@@ -1620,7 +1624,12 @@ export async function palsukanApi(page: Page, halaman?: HalamanDijaga): Promise<
       // `role` mengikuti `butuhAdmin` (PR-052): tanpa ini, `PenjagaAdmin`
       // SELALU melihat "seeker" dan mengalihkan halaman admin ke "/" —
       // gerbangnya lulus atas beranda sambil mengira sedang memeriksa /admin.
-      const role = halaman?.butuhAdmin === true ? "admin" : "seeker";
+      const role =
+        halaman?.butuhAdmin === true
+          ? "admin"
+          : halaman?.butuhEmployer === true
+            ? "employer"
+            : "seeker";
       return route.fulfill(jsonkan(200, { data: { ...PROFIL_UJI, role } }));
     }
     if (jalur.endsWith("/auth/otp/request")) {

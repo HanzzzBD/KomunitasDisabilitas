@@ -24,6 +24,7 @@ export const PATH_DIIZINKAN = [
   "cv",
   "cv/chat",
   "profil",
+  "employer",
 ] as const;
 
 const BATAS_PANJANG_URL = 512;
@@ -55,6 +56,7 @@ export function deepLinkDiizinkan(url: string): boolean {
 export type TujuanTautan =
   | { layar: "Utama"; tab: "Beranda" | "Cari" | "Lamaran" | "Cv" | "Profil" }
   | { layar: "Notifikasi" }
+  | { layar: "Employer" }
   | { layar: "CvChat" }
   | { layar: "LamaranDetail" | "LowonganDetail" | "CvEditor"; id: string };
 
@@ -64,6 +66,7 @@ export function tujuanDeepLink(url: string): TujuanTautan | null {
   if (path === "" || path === "beranda") return { layar: "Utama", tab: "Beranda" };
   if (path === "lamaran") return { layar: "Utama", tab: "Lamaran" };
   if (path === "notifikasi") return { layar: "Notifikasi" };
+  if (path === "employer") return { layar: "Employer" };
   if (path === "cv") return { layar: "Utama", tab: "Cv" };
   if (path === "cv/chat") return { layar: "CvChat" };
   if (path === "lowongan") return { layar: "Utama", tab: "Cari" };

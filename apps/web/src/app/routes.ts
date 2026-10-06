@@ -50,6 +50,16 @@ export const ruteApp: RouteObject[] = [
     // tetap `.ts` murni data, tanpa satu pun markup.
     ErrorBoundary: LayarKesalahan,
     children: [
+      {
+        path: "employer",
+        lazy: async () => {
+          const [m] = await Promise.all([
+            import("../routes/employer.js"),
+            muatKatalog("employer", "profil", "companies", "pelamar"),
+          ]);
+          return { Component: m.Employer };
+        },
+      },
       ...(
         [
           ["jobs", "lowongan"],
@@ -345,6 +355,16 @@ export const ruteApp: RouteObject[] = [
           return { Component: Admin };
         },
         children: [
+          {
+            path: "employers",
+            lazy: async () => {
+              const [m] = await Promise.all([
+                import("../routes/employer.js"),
+                muatKatalog("employer", "profil", "companies", "pelamar"),
+              ]);
+              return { Component: m.EmployerReview };
+            },
+          },
           {
             path: "analytics",
             lazy: async () => {

@@ -12,6 +12,23 @@ import { createCompaniesRepository } from "./repositories/companies.repository.j
 import { createCompaniesService, type JobsService } from "./services/companies.service.js";
 import { createCompaniesController } from "./controllers/companies.controller.js";
 import { createCompaniesRouter } from "./routers/index.js";
+import { createEmployerRepository } from "./repositories/employer.repository.js";
+import {
+  createEmployerService,
+  type AdminApplicationsService,
+} from "./services/employer.service.js";
+import { createEmployerController } from "./controllers/employer.controller.js";
+import { createEmployerRouter } from "./routers/employer.router.js";
+import { createEmployerExportContributor } from "./services/employer-export.service.js";
+import { createEmployerDirectoryService } from "./services/employer-directory.service.js";
+
+export function createEmployerDirectory(prisma: AppPrisma) {
+  return createEmployerDirectoryService(createEmployerRepository(prisma));
+}
+
+export function createEmployerExport(prisma: AppPrisma) {
+  return createEmployerExportContributor(createEmployerRepository(prisma));
+}
 
 export interface CompaniesModuleDeps {
   prisma: AppPrisma;
@@ -22,6 +39,8 @@ export interface CompaniesModuleDeps {
   events: EventBus;
   /** Sumber lowongan aktif untuk `GET /companies/:id/jobs` (PR-054/055) — dirakit `boot.ts` SEBELUM modul ini. */
   jobsService: JobsService;
+  applicationsService?: AdminApplicationsService;
+  enroll?: (userId: string) => Promise<void>;
   clock?: () => Date;
 }
 
@@ -38,6 +57,21 @@ export function createCompaniesModule(deps: CompaniesModuleDeps): CompaniesModul
     clock: deps.clock,
   });
   const router = createCompaniesRouter(createCompaniesController(service), deps.routes);
+  if (deps.applicationsService && deps.enroll) {
+    createEmployerRouter(
+      createEmployerController(
+        createEmployerService({
+          repo: createEmployerRepository(deps.prisma),
+          companies: service,
+          jobs: deps.jobsService,
+          applications: deps.applicationsService,
+          auditLog: deps.auditLog,
+          enroll: deps.enroll,
+        }),
+      ),
+      deps.routes,
+    );
+  }
 
   return { router };
 }

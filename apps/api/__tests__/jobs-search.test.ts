@@ -46,6 +46,7 @@ function fakeRepo(hasil: JobSearchRow[]): { repo: JobsRepository; panggilan: Job
 
   const repo: JobsRepository = {
     listAdmin: notUsed,
+    listByCompany: notUsed,
     findById: notUsed,
     listActiveByCompany: notUsed,
     listActiveByIds: notUsed,

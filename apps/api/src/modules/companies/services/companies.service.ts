@@ -42,6 +42,7 @@ export const AUDIT_ENTITY = "companies.company";
 
 /** Konteks admin pemanggil — bentuknya sama dengan actor modul lain. */
 export interface CompaniesActor {
+  role?: "admin" | "employer";
   userId: string;
   requestId: string;
 }
@@ -100,7 +101,9 @@ export function createCompaniesService(deps: CompaniesServiceDeps) {
   const catatPerubahan = (actor: CompaniesActor, id: string, operation: "create" | "update") =>
     auditLog(
       { actorId: actor.userId, requestId: actor.requestId },
-      AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
+      actor.role === "employer"
+        ? AUDIT_ACTION.EMPLOYER_RESOURCE_CHANGED
+        : AUDIT_ACTION.ADMIN_RESOURCE_CHANGED,
       AUDIT_ENTITY,
       id,
       { operation },

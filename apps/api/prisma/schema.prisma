@@ -20,7 +20,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Role akun. `employer` reserved — belum dipakai sampai fase employer portal.
+/// Role akun. Employer mengelola perusahaan lewat keanggotaan dan persetujuan rekrutmen.
 enum Role {
   seeker
   admin
@@ -80,6 +80,7 @@ model User {
   aiChatSessions       AiChatSession[]
   verifiedCompanies    Company[]             @relation("CompanyVerifier")
   createdJobs          Job[]                 @relation("JobCreator")
+  employerMemberships EmployerMember[]
   createdSignVideos    SignVideo[]           @relation("SignVideoCreator")
   createdCommunities   Community[]           @relation("CommunityCreator")
   communityMemberships CommunityMembership[]
@@ -386,6 +387,8 @@ model Company {
   description String?
   website     String?
   city        String?
+  /// Approval to recruit; independent of the inclusivity verification badge.
+  recruitmentStatus String @default("pending") @map("recruitment_status")
 
   inclusivityStatus InclusivityStatus @default(unverified) @map("inclusivity_status")
   /// Taksonomi akomodasi tersedia (tidak sensitif — data fasilitas perusahaan).
@@ -400,8 +403,21 @@ model Company {
 
   verifier User? @relation("CompanyVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
   jobs     Job[]
+  employerMembers EmployerMember[]
 
   @@map("companies")
+}
+
+model EmployerMember {
+  companyId String @map("company_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  role String @default("owner")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([companyId, userId])
+  @@index([userId])
+  @@map("employer_members")
 }
 
 model Job {

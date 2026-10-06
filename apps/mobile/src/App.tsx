@@ -16,7 +16,7 @@ import { hapusPdfCv } from "./cv/pdf-android";
 import { PantauTautan, navigationRef, perbaruiKesiapanTautan } from "./navigation/PantauTautan";
 import { analitik, analitikSiap } from "./analitik/instans";
 import { pathAnalitik } from "./analitik/rute";
-import { TabUtama } from "./navigation/TabUtama";
+import { NavigasiPeran } from "./navigation/NavigasiPeran";
 import { onboardingStore } from "./onboarding/instans";
 import type { RootNavigatorParamList } from "./navigation/types";
 import { AuthStack, OnboardingStack } from "./navigation/StackUtama";
@@ -87,7 +87,7 @@ function Navigasi() {
               options={{ title: "Atur aplikasi" }}
             />
           ) : status === "masuk" ? (
-            <Stack.Screen name="Utama" component={TabUtama} />
+            <Stack.Screen name="Utama" component={NavigasiPeran} />
           ) : (
             <Stack.Screen name="Auth" component={AuthStack} />
           )}

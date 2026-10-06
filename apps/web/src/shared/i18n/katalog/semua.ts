@@ -16,6 +16,7 @@ import { katalogOnboarding } from "./onboarding.js";
 import { katalogProfil } from "./profil.js";
 import { katalogNotifikasi } from "./notifikasi.js";
 import { katalogAdmin } from "./admin.js";
+import { katalogEmployer } from "./employer.js";
 import { katalogCompanies } from "./companies.js";
 import { katalogLowongan } from "./lowongan.js";
 import { katalogResume } from "./resume.js";
@@ -26,6 +27,7 @@ import { katalogCommunity } from "./community.js";
 /** Katalog gabungan lengkap. Dipakai test yang ingin merender tanpa memuat. */
 export const katalog = {
   ...katalogShell,
+  ...katalogEmployer,
   ...katalogAuth,
   ...katalogBeranda,
   ...katalogPengaturan,
@@ -60,6 +62,7 @@ export const fiturKatalog = [
   { nama: "notifikasi", entri: katalogNotifikasi },
   { nama: "admin", entri: katalogAdmin },
   { nama: "companies", entri: katalogCompanies },
+  { nama: "employer", entri: katalogEmployer },
   { nama: "lowongan", entri: katalogLowongan },
   { nama: "resume", entri: katalogResume },
   { nama: "pelamar", entri: katalogPelamar },

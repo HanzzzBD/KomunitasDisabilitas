@@ -29,7 +29,7 @@ export interface RequestOptions<TResponse> {
   /** Body akan di-JSON.stringify. Validasi zod dilakukan di lapisan endpoint. */
   body?: unknown;
   /** Skema response; bila diberikan, response diparse (guard drift runtime). */
-  responseSchema?: z.ZodType<TResponse>;
+  responseSchema?: z.ZodType<TResponse, z.ZodTypeDef, unknown>;
   /**
    * Header tambahan (PR-078: `Idempotency-Key` saat melamar). `accept`,
    * `content-type`, dan `authorization` tetap ditentukan klien — header di sini

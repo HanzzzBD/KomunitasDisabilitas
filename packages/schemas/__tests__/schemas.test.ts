@@ -422,7 +422,11 @@ describe("lowongan (PR-055)", () => {
   });
 
   it("jobCloseReasonSchema membedakan penutupan otomatis dan oleh admin", () => {
-    expect(jobCloseReasonSchema.options).toEqual(["expired", "closed_by_admin"]);
+    expect(jobCloseReasonSchema.options).toEqual([
+      "expired",
+      "closed_by_admin",
+      "closed_by_employer",
+    ]);
   });
 });
 

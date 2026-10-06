@@ -309,7 +309,9 @@ users 1──* community_memberships *──1 communities
 communities 1──* community_posts 1──* community_comments
 users 1──* community_posts / community_comments / community_reports
 -- Fase 2 (reserved, belum dibuat): company_reviews, interview_sessions,
---   employer_members; Fase 3: mentorships, trainings, sign_sessions
+-- Fase 3: mentorships, trainings, sign_sessions
+-- Phase 19 portal employer: employer_members dengan company_id/user_id/role;
+-- companies.recruitment_status terpisah dari inclusivity_status.
 ```
 
 Skema kolom lengkap mengikuti PRD §10 (tidak diulang di sini); di bawah ini keputusan arsitektural yang menambah/menegaskan PRD.

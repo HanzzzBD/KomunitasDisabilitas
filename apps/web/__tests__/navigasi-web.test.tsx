@@ -43,6 +43,7 @@ function renderNavigasi(peran: UserRole | null, jalur = "/lowongan", klaim = per
           { index: true, element: <h1>Halaman awal</h1> },
           { path: "admin", element: <h1>Dashboard pengelolaan</h1> },
           { path: "lowongan", element: <h1>Lowongan kerja</h1> },
+          { path: "employer", element: <h1>Ruang employer</h1> },
           { path: "kamus", element: <h1>Kamus publik</h1> },
           { path: "community", element: <h1>Daftar komunitas</h1> },
           { path: "profil", element: <h1>Fitur pribadi pencari kerja</h1> },
@@ -169,9 +170,9 @@ describe("pemisahan halaman pribadi", () => {
     expect(router.state.location.pathname).toBe(jalur);
   });
 
-  it("akun employer diarahkan ke lowongan dari fitur pribadi seeker", async () => {
+  it("akun employer diarahkan ke portalnya dari fitur pribadi seeker", async () => {
     const { router } = renderNavigasi("employer", "/profil");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/lowongan"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/employer"));
     expect(screen.queryByRole("heading", { name: "Fitur pribadi pencari kerja" })).toBeNull();
   });
 });

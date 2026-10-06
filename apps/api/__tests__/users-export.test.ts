@@ -294,6 +294,7 @@ describe("agregator ekspor", () => {
       "aiUsage",
       "resumes",
       "applications",
+      "employerMemberships",
       "communityMemberships",
       "communityPosts",
       "communityComments",

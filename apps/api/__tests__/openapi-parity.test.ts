@@ -142,13 +142,6 @@ function routeNyata(): { method: string; path: string }[] {
     routes: registry.forModule(PREFIX),
     maksPerPengguna: 5,
   });
-  createCompaniesModule({
-    prisma: stub(),
-    routes: registry.forModule(PREFIX),
-    auditLog: auditLog as never,
-    events,
-    jobsService: jobs.service,
-  });
   createCommunityModule({
     prisma: stub(),
     redis: stub(),
@@ -157,7 +150,7 @@ function routeNyata(): { method: string; path: string }[] {
     events,
   });
 
-  createApplicationsModule({
+  const applications = createApplicationsModule({
     prisma: stub(),
     routes: registry.forModule(PREFIX),
     redis: stub(),
@@ -169,6 +162,16 @@ function routeNyata(): { method: string; path: string }[] {
     resumesService: stub(),
     sensitiveAccess: stub(),
     identitasPelamar: stub(),
+  });
+
+  createCompaniesModule({
+    prisma: stub(),
+    routes: registry.forModule(PREFIX),
+    auditLog: auditLog as never,
+    events,
+    jobsService: jobs.service,
+    applicationsService: applications.management,
+    enroll: () => Promise.resolve(),
   });
 
   createMatchingFeedModule({

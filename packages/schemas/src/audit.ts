@@ -58,6 +58,7 @@ export const AUDIT_ACTION = {
    *  `operation: "close"` — namanya berkata ADMIN, sementara pelakunya sistem.
    *  Audit yang menamai pelaku dengan salah lebih buruk daripada audit yang
    *  bertambah satu baris. */
+  EMPLOYER_RESOURCE_CHANGED: "EMPLOYER_RESOURCE_CHANGED",
   JOB_AUTO_CLOSED: "JOB_AUTO_CLOSED",
 } as const;
 
@@ -83,6 +84,7 @@ export const auditActionSchema = z.enum([
   AUDIT_ACTION.DATA_PURGED,
   AUDIT_ACTION.DATA_RETAINED,
   AUDIT_ACTION.JOB_AUTO_CLOSED,
+  AUDIT_ACTION.EMPLOYER_RESOURCE_CHANGED,
 ]);
 
 export type AuditAction = z.infer<typeof auditActionSchema>;
@@ -252,6 +254,9 @@ export const auditMetaSchemas: Record<AuditAction, z.AnyZodObject> = {
   [AUDIT_ACTION.COMPANY_VERIFIED]: z.object({
     from: z.enum(["unverified", "selfClaimed", "verified"]),
     to: z.literal("verified"),
+  }),
+  [AUDIT_ACTION.EMPLOYER_RESOURCE_CHANGED]: z.object({
+    operation: z.enum(["create", "update", "publish", "close", "delete", "approve", "reject"]),
   }),
   [AUDIT_ACTION.ADMIN_RESOURCE_CHANGED]: z.object({
     // "delete" (PR-055): penghapusan lowongan TANPA lamaran (DB menolak yang

@@ -32,6 +32,7 @@ export {
   authKeys,
 } from "./endpoints/auth.js";
 export { getMe, exportMe, usersKeys } from "./endpoints/users.js";
+export { employerApi } from "./endpoints/employer.js";
 export {
   communityKeys,
   listCommunities,

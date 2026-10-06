@@ -45,7 +45,12 @@ import {
   createSkillRepository,
   createSkillsService,
 } from "./modules/profiles/index.js";
-import { createCompaniesModule } from "./modules/companies/index.js";
+import { createEmployerEnrollment } from "./modules/users/index.js";
+import {
+  createCompaniesModule,
+  createEmployerExport,
+  createEmployerDirectory,
+} from "./modules/companies/index.js";
 import { createCommunityModule } from "./modules/community/index.js";
 import { createJobsModule } from "./modules/jobs/index.js";
 import {
@@ -241,6 +246,7 @@ export async function startApi(options: BootOptions): Promise<void> {
     // Penerima kabar `admin.lamaran_baru` (PR-075) — kolom `role` milik modul
     // users, jadi daftarnya datang dari sana, bukan dari query di notifications.
     direktoriAdmin: createAdminDirectory(createUserProfileRepository(prisma)),
+    direktoriEmployer: createEmployerDirectory(prisma),
     logger,
     // Pelanggan `auth.user_registered` (bersama modul accessibility),
     // `application.submitted`, dan `application.status_changed` — instance bus
@@ -419,6 +425,7 @@ export async function startApi(options: BootOptions): Promise<void> {
             // PR-075: lamaran + salinan pengungkapannya — ditulis bersama
             // endpoint apply, bukan menyusul (pelajaran U-03/U-04/U-25).
             createApplicationsExport({ prisma, fieldKeys }),
+            createEmployerExport(prisma),
             ...community.exportContributors,
           ],
         }),
@@ -459,25 +466,24 @@ export async function startApi(options: BootOptions): Promise<void> {
       // (lowongan aktif & kepemilikan CV lewat service keduanya). Snapshot
       // pengungkapan dibaca lewat `sensitiveAccess` modul profiles (tujuan
       // `disclosure`, selalu ber-audit) dan dienkripsi dengan kunci yang SAMA.
-      app.use(
-        createApplicationsModule({
-          prisma,
-          routes: routeRegistry.forModule("/api/v1"),
-          // Cache, bukan queue: kunci yang terusir hanya menurunkan "putar
-          // ulang" menjadi 409 dari unique DB — tidak pernah lamaran ganda.
-          redis: redis.cache,
-          fieldKeys,
-          auditLog,
-          events,
-          logger,
-          jobsService: jobs.service,
-          resumesService: resumes.service,
-          sensitiveAccess: profiles.sensitiveAccess,
-          // PR-077a: nama + kontak pelamar bagi admin — kolom milik modul users.
-          identitasPelamar: (ids) =>
-            createApplicantDirectory(createUserProfileRepository(prisma)).identitas(ids),
-        }).router,
-      );
+      const applications = createApplicationsModule({
+        prisma,
+        routes: routeRegistry.forModule("/api/v1"),
+        // Cache, bukan queue: kunci yang terusir hanya menurunkan "putar
+        // ulang" menjadi 409 dari unique DB — tidak pernah lamaran ganda.
+        redis: redis.cache,
+        fieldKeys,
+        auditLog,
+        events,
+        logger,
+        jobsService: jobs.service,
+        resumesService: resumes.service,
+        sensitiveAccess: profiles.sensitiveAccess,
+        // PR-077a: nama + kontak pelamar bagi admin — kolom milik modul users.
+        identitasPelamar: (ids) =>
+          createApplicantDirectory(createUserProfileRepository(prisma)).identitas(ids),
+      });
+      app.use(applications.router);
       // Metrik pilot (PR-080) — agregat read-only, admin saja. DLQ dibaca lewat
       // QueuesService modul `internal` (sumber yang sama dengan /internal/queues).
       const statusAntrean = createQueuesService({
@@ -541,6 +547,8 @@ export async function startApi(options: BootOptions): Promise<void> {
           // Penerbit `company.verified`; belum ada pelanggan (core/events).
           events,
           jobsService: jobs.service,
+          applicationsService: applications.management,
+          enroll: createEmployerEnrollment(prisma),
         }).router,
       );
       // Kamus video BISINDO (PR-084, SignBridge v1) — pencarian publik +

@@ -24,6 +24,46 @@ import { MODE_BAHASA } from "../src/shared/i18n/tipe.js";
  * menuliskan keputusannya.
  */
 const SAMA_DENGAN_SENGAJA: Readonly<Record<string, string>> = {
+  "employer.register":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.company":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.field.name": "Label kolom singkat menyebut data yang sama pada kedua mode.",
+  "employer.field.city": "Label kolom singkat menyebut data yang sama pada kedua mode.",
+  "employer.field.employmentType": "Label kolom singkat menyebut data yang sama pada kedua mode.",
+  "employer.field.workMode": "Label kolom singkat menyebut data yang sama pada kedua mode.",
+  "employer.jobs":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.newJob":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.closed":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.publish":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.close":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.save":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.back":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.retry":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.applicants":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.deletedApplicant":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.cv":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.educations":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.skills":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.organizations":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.next":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
+  "employer.previous":
+    "Istilah atau tindakan singkat dengan kata sehari-hari, konsisten pada kedua mode.",
   "shell.nav.beranda": "Nama tujuan utama konsisten pada kedua mode bahasa.",
   "shell.nav.lowongan": "Nama tujuan utama konsisten pada kedua mode bahasa.",
   "shell.nav.lamaran": "Nama tujuan utama konsisten pada kedua mode bahasa.",

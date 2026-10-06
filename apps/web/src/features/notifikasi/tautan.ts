@@ -51,6 +51,9 @@ export function tautanNotifikasi(notifikasi: Pick<Notification, "type" | "params
       // PR-079 — "Lamaran Saya" sudah ada; kabar lamaran mendarat di detailnya.
       return `/lamaran/${String(notifikasi.params.applicationId)}`;
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_BARU:
+      return `/admin/lamaran/${String(notifikasi.params.applicationId)}`;
+    case NOTIFICATION_TYPE.EMPLOYER_LAMARAN_BARU:
+      return "/employer";
     case NOTIFICATION_TYPE.ADMIN_LAMARAN_DIBATALKAN:
     case NOTIFICATION_TYPE.ADMIN_PENEMPATAN_TERKONFIRMASI:
       // PR-077b — halaman detail lamaran admin sudah ada. Ketiga kabar admin
